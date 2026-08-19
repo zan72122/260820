@@ -280,6 +280,11 @@ export class Game {
 
   resize() {
     this.engine.resize();
+    // portrait and landscape use different framings, so a rotation has to
+    // re-solve the current shot, not just the projection
+    if (this.phase !== 'title' && this.phase !== 'reveal') {
+      this.rig.goTo(this.framing(this.phase), 0.45);
+    }
     this.rig.reframe();
   }
 
@@ -566,7 +571,7 @@ export class Game {
         this.cakeTarget.x - RACK_SPOT.x,
         this.cakeTarget.z - RACK_SPOT.z
       );
-      const pull = 1 - smoothstep(0.04, 0.16, d);
+      const pull = 1 - smoothstep(0.06, 0.24, d);
       const tx = THREE.MathUtils.lerp(this.cakeTarget.x, RACK_SPOT.x, pull);
       const tz = THREE.MathUtils.lerp(this.cakeTarget.z, RACK_SPOT.z, pull);
       const lift = p.active ? 0.045 : 0;
@@ -576,7 +581,8 @@ export class Game {
       cakePos.y = damp(cakePos.y, groundY + lift, 11, dt);
 
       if (!p.active && p.justReleased) {
-        if (d < 0.15) {
+        // generous: letting go anywhere over the tray counts as "on the rack"
+        if (d < 0.21) {
           this.landOnRack();
         } else {
           this.cakeTarget.copy(BENCH_SPOT);
@@ -584,10 +590,10 @@ export class Game {
       }
     }
 
-    if (this.phaseT > 13 && !p.active) {
+    if (this.phaseT > 10 && !p.active) {
       this.cakeGrabbed = true;
       this.cakeTarget.copy(RACK_SPOT);
-      if (distToRack < 0.02) this.landOnRack();
+      if (distToRack < 0.03 || this.phaseT > 13) this.landOnRack();
     }
 
     if (this.idleT > 2.6) this.ui.hint('ケーキを ラックに はこぼう', 'side');
@@ -655,9 +661,9 @@ export class Game {
     // the cake, the stream falls towards the viewer, and neither the jug nor the
     // finger ever covers the spot the child is watching
     const hp = this.v3.set(
-      this.pourTarget.x,
+      clamp(this.pourTarget.x, -0.115, 0.115),
       CAKE_TOP_Y + 0.115,
-      this.pourTarget.z - 0.055
+      clamp(this.pourTarget.z - 0.055, -0.1, 0.09)
     );
     hold.moveTo(hp, POUR_QUAT);
     hold.tilt = damp(hold.tilt, wantPour ? 1 : 0, wantPour ? 7 : 9, dt);
