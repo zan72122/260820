@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#adbcab" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="description" content="春の竹林で、土の中にかくれたたけのこをさがして掘りだすゲーム。iPhone / iPad の指1本で遊べます。" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23b9c6b6'/%3E%3Cpath d='M32 6c6 10 10 22 10 34 0 10-4 18-10 18s-10-8-10-18C22 28 26 16 32 6z' fill='%23a8763f'/%3E%3Cpath d='M32 12c4 9 7 19 7 28 0 8-3 14-7 14s-7-6-7-14c0-9 3-19 7-28z' fill='%23c99a56'/%3E%3Cpath d='M22 30h20M24 42h16' stroke='%237a5230' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E" />
+    <title>たけのこ ほり</title>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="scene"></canvas>
+      <div id="hud"></div>
+      <div id="loading">
+        <div class="spinner"></div>
+        <div>たけのこばやしを じゅんびちゅう…</div>
+        <div class="tip">ゆび 1ぽんで あそべます</div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
