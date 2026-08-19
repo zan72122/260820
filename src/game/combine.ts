@@ -690,6 +690,12 @@ export class Combine {
     return this.spoutAnchor.getWorldPosition(out)
   }
 
+  /** Top of the exhaust stack, in world space. */
+  worldStack(out: THREE.Vector3): THREE.Vector3 {
+    out.set(0.9, 3.28, -0.72)
+    return this.root.localToWorld(out)
+  }
+
   worldIntake(out: THREE.Vector3): THREE.Vector3 {
     out.set(0, 0.55, 0.55)
     return this.headerPivot.localToWorld(out)

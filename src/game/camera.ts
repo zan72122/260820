@@ -189,7 +189,9 @@ export class CameraDirector {
     // off the paddy that the bank cuts the machine in half
     const floor = terrainY(this.wantPos.x, this.wantPos.z) + 0.9
     if (this.wantPos.y < floor) this.wantPos.y = floor
-    if (this.shot !== 'finish') {
+    // A width-fitting shot has to be allowed to stand back far enough to
+    // frame its subject; the general clamp only guards the loose shots.
+    if (this.shot !== 'finish' && !p.fitHalfWidth) {
       const bx = HALF_W + 4.6
       const bz = PADDY_HALF_L + 7
       this.wantPos.x = Math.max(-bx, Math.min(bx, this.wantPos.x))

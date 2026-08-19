@@ -784,6 +784,10 @@ export class Game {
 
     this.applyMachine()
     this.combine.update(dt, this.now)
+    // Everything that reads a world position off the machine — the spout,
+    // the header intake, the exhaust — needs the matrices current, and the
+    // renderer would only refresh them after this point.
+    this.combine.root.updateMatrixWorld(true)
     this.truck.update(
       dt,
       this.now,
@@ -803,10 +807,8 @@ export class Game {
       this.audio.setPour(0)
     }
     // exhaust: harder under load, idling when the machine is stopped
-    const puffing = this.state !== 'intro'
-    if (puffing) {
-      this.tmpA.set(0.9, 3.28, -0.72)
-      this.combine.root.localToWorld(this.tmpA)
+    if (this.state !== 'intro') {
+      this.combine.worldStack(this.tmpA)
       this.smoke.stream(this.tmpA.x, this.tmpA.y, this.tmpA.z, 2 + this.combine.speedFrac * 6, dt, 0.3)
     }
     this.straw.update(dt)
