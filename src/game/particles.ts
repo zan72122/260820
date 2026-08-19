@@ -99,9 +99,9 @@ export class GrainStream {
         this.emitCarry = 0
         break
       }
-      p.px[i] = origin.x + (Math.random() - 0.5) * 0.14
-      p.py[i] = origin.y + (Math.random() - 0.5) * 0.06
-      p.pz[i] = origin.z + (Math.random() - 0.5) * 0.14
+      p.px[i] = origin.x + (Math.random() - 0.5) * 0.12
+      p.py[i] = origin.y - 0.08 - Math.random() * 0.06
+      p.pz[i] = origin.z + (Math.random() - 0.5) * 0.12
       const sp = speed * (0.75 + Math.random() * 0.5)
       p.vx[i] = dir.x * sp + (Math.random() - 0.5) * spread
       p.vy[i] = dir.y * sp + (Math.random() - 0.5) * spread * 0.4
@@ -165,7 +165,7 @@ export class PourColumn {
     this.tex.needsUpdate = true
     this.tex.wrapS = this.tex.wrapT = THREE.RepeatWrapping
     this.tex.repeat.set(1.4, 2.6)
-    const g = new THREE.CylinderGeometry(0.085, 0.15, 1, 14, 1, true)
+    const g = new THREE.CylinderGeometry(0.09, 0.17, 1, 14, 1, true)
     g.translate(0, -0.5, 0)
     this.mesh = new THREE.Mesh(
       g,
@@ -313,7 +313,7 @@ export class PuffField {
   private v = new THREE.Vector3()
   private s = new THREE.Vector3()
 
-  constructor(cap: number, tex: THREE.Texture, color: number) {
+  constructor(cap: number, tex: THREE.Texture, color: number, private alphaScale = 0.55) {
     const g = new THREE.PlaneGeometry(1, 1)
     const mat = new THREE.MeshBasicMaterial({
       map: tex,
@@ -364,11 +364,11 @@ export class PuffField {
     }
   }
 
-  stream(x: number, y: number, z: number, perSecond: number, dt: number, size: number) {
+  stream(x: number, y: number, z: number, perSecond: number, dt: number, size: number, vel = 0.5) {
     this.carry += perSecond * dt
     while (this.carry >= 1) {
       this.carry -= 1
-      this.burst(x, y, z, 1, size)
+      this.burst(x, y, z, 1, size, vel)
     }
   }
 
@@ -396,7 +396,7 @@ export class PuffField {
       this.s.set(sc, sc, sc)
       this.m.compose(this.v, camQuat, this.s)
       this.mesh.setMatrixAt(i, this.m)
-      this.alpha.array[i] = Math.sin(Math.min(1, t) * Math.PI) * 0.55
+      this.alpha.array[i] = Math.sin(Math.min(1, t) * Math.PI) * this.alphaScale
     }
     this.mesh.count = p.n
     this.mesh.instanceMatrix.needsUpdate = true

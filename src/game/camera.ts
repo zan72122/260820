@@ -77,7 +77,9 @@ const SHOTS: Record<ShotName, (c: ShotCtx) => Placement> = {
     lambda: 2.4,
   }),
   header: (c) => ({ r: c.cutSide, u: 1.75, f: 0.7, lookR: 0, lookU: 0.6, lookF: 2.6, lambda: 2.3, fitHalfWidth: 2.6 }),
-  cutaway: (c) => ({ r: c.cutSide, u: 1.75, f: -0.25, lookR: 0, lookU: 1.2, lookF: 0.1, lambda: 3.2, fitHalfWidth: 3.2 }),
+  // stands on whichever side has more paddy, high enough to clear the crop,
+  // so the foreground is field rather than the flat land beyond the bank
+  cutaway: (c) => ({ r: c.roomSide, u: 3.5, f: -2.9, lookR: 0, lookU: 1.2, lookF: 0.35, lambda: 3.2, fitHalfWidth: 3.0 }),
   tank: (c) => ({ r: c.cutSide * 5.0, u: 5.0, f: -5.6, lookR: 0, lookU: 2.2, lookF: -0.3, lambda: 2.4 }),
   // auger arc, receiver and falling grain all inside one frame
   unload: (c) => ({
@@ -161,7 +163,7 @@ export class CameraDirector {
       this.wantPos.set(p.r, p.u, p.f)
       this.wantLook.set(0, p.lookU, 0)
     } else if (p.fitHalfWidth) {
-      const d = Math.max(4.5, p.fitHalfWidth / this.hTan)
+      const d = Math.max(6, p.fitHalfWidth / this.hTan)
       this.wantPos
         .copy(c.pos)
         .addScaledVector(this.right, Math.sign(p.r) * d)

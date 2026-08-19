@@ -91,7 +91,7 @@ export class Game {
   private loads = 0
   private grainsDelivered = 0
   private cutRate = 0
-  private nextCutaway = 6
+  private nextCutaway = 13
   private cutawayLeft = 0
   /** the chase shot is broken up with closer looks at the header and the tank */
   private camCycle = 5
@@ -185,7 +185,7 @@ export class Game {
     this.grain = new GrainStream(QUALITY.maxGrains)
     this.straw = new StrawSpray(QUALITY.maxStraw)
     this.dust = new PuffField(QUALITY.maxChaff, this.tex.puff, 0xdccfb4)
-    this.smoke = new PuffField(46, this.tex.puff, 0x8b867c)
+    this.smoke = new PuffField(46, this.tex.puff, 0x8b867c, 0.3)
     this.pour = new PourColumn(this.tex.grain.color)
     this.worldGroup.add(this.grain.mesh, this.straw.mesh, this.dust.mesh, this.smoke.mesh, this.pour.mesh)
 
@@ -236,7 +236,7 @@ export class Game {
     this.loads = 0
     this.grainsDelivered = 0
     this.cutRate = 0
-    this.nextCutaway = 6
+    this.nextCutaway = 13
     this.cutawayLeft = 0
     this.turn = null
     this.combine.tankFill = 0
@@ -618,7 +618,7 @@ export class Game {
     this.pour.set(this.tmpA, this.tmpB, strength, dt)
     if (strength > 0) {
       this.tmpC.copy(this.tmpB).sub(this.tmpA).normalize()
-      this.grain.emit(this.tmpA, this.tmpC, 2.1, 700, dt, 0.85)
+      this.grain.emit(this.tmpA, this.tmpC, 2.3, 700, dt, 0.42)
       this.truck.addGrain((moved / TANK.capacity) * 0.24)
       this.dust.stream(this.tmpB.x, this.tmpB.y + 0.1, this.tmpB.z, 9, dt, 0.5)
       this.dir.kick(dt * 0.5)
@@ -794,6 +794,7 @@ export class Game {
       this.state === 'tankfull' || this.state === 'trucking',
       this.state === 'augerIn' && this.stateT < 2.6,
     )
+    this.truck.root.updateMatrixWorld(true)
     this.field.update(dt, this.now)
     this.field.refreshLod(
       this.mx + Math.sin(this.mh) * 3,
@@ -809,7 +810,7 @@ export class Game {
     // exhaust: harder under load, idling when the machine is stopped
     if (this.state !== 'intro') {
       this.combine.worldStack(this.tmpA)
-      this.smoke.stream(this.tmpA.x, this.tmpA.y, this.tmpA.z, 2 + this.combine.speedFrac * 6, dt, 0.3)
+      this.smoke.stream(this.tmpA.x, this.tmpA.y, this.tmpA.z, 2 + this.combine.speedFrac * 6, dt, 0.28, 1.5)
     }
     this.straw.update(dt)
     this.dust.update(dt, this.dir.camera.quaternion)
