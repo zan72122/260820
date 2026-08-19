@@ -441,9 +441,9 @@ export class Game {
     if (!this.director.canInterrupt()) return;
     if (this.harvester.root.position.z > rowEndZ - 0.9) return;
 
-    if (this.wantHero) {
+    if (this.wantHero && this.heroCandidate) {
       const d = this.heroCandidate;
-      if (d && d.active && (d.state === 'grab' || d.state === 'strain')) {
+      if (d.active && (d.state === 'grab' || d.state === 'strain')) {
         this.heroDaikon = d;
         this.director.setFocus(new THREE.Vector3(d.slot?.x ?? 0, bedTopY, d.slot?.z ?? 0));
         this.director.setAim(d.crownWorld(new THREE.Vector3()));
@@ -451,11 +451,11 @@ export class Game {
         this.windowTarget = 1;
         this.wantHero = false;
         this.heroCandidate = null;
-      } else {
-        // the moment has passed; the next plant grabbed becomes the subject
-        this.heroCandidate = null;
+        return;
       }
-      return;
+      // the moment has passed; the next plant grabbed becomes the subject, and
+      // meanwhile the other shots are free to take their turn
+      this.heroCandidate = null;
     }
     if (this.wantConveyor && this.pool.some((d) => d.state === 'ride')) {
       this.director.play('conveyor', 1.7, true);

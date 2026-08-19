@@ -36,8 +36,12 @@ export const CFG = {
 } as const;
 
 export const bedTopY = CFG.bedHeight;
-/** Y of a plant's crown/leaf junction while it is still in the ground. */
-export const plantY = CFG.bedHeight - 0.035;
+/**
+ * Y of a plant's crown while it is still in the ground. Set so the white
+ * shoulder sits flush with the ridge: from above the field is nothing but
+ * leaves, which is the whole premise — the root is a surprise.
+ */
+export const plantY = CFG.bedHeight - 0.062;
 export const rowX = (i: number) => (i - (CFG.rowCount - 1) / 2) * CFG.rowSpacing;
 export const daikonZ = (i: number) => CFG.rowStartZ + i * CFG.daikonSpacing;
 export const rowEndZ = daikonZ(CFG.daikonPerRow - 1);

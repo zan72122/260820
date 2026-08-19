@@ -17,7 +17,7 @@ export const MACHINE = {
   /** distance from the pivot at which leaves first enter the grip */
   entryU: 1.412,
   /** the crown hangs this far below the belt pinch line */
-  hangDrop: 0.12,
+  hangDrop: 0.145,
   dischargeY: 0.78,
   dischargeZ0: 0.2,
   dischargeZ1: -0.82,
@@ -130,7 +130,7 @@ export class Harvester {
     // hydraulic tank behind the engine
     this.mesh(roundedBox(0.34, 0.26, 0.34, 0.05), this.mats.bodyPaintDark, R, -0.3, 0.68, -0.72);
     // low skirt on the working side: gives the machine a flank without hiding the belt
-    this.mesh(roundedBox(0.03, 0.2, 1.3, 0.014), this.mats.bodyPaint, R, 0.46, 0.6, -0.2);
+    this.mesh(roundedBox(0.03, 0.2, 1.0, 0.014), this.mats.bodyPaint, R, 0.46, 0.6, -0.05);
     const pipe = this.mesh(new THREE.CylinderGeometry(0.024, 0.028, 0.4, 10), this.mats.frameSteel, R, -0.46, 1.06, 0.2);
     pipe.rotation.z = 0.07;
     this.mesh(new THREE.CylinderGeometry(0.036, 0.028, 0.06, 10), this.mats.frameSteel, R, -0.46, 1.28, 0.2);
@@ -183,8 +183,8 @@ export class Harvester {
     // near side: a single top rail and its ties, all above the pinch line
     const rail = this.mesh(new THREE.CylinderGeometry(0.017, 0.017, L * 0.9, 8), this.mats.frameSteel, H, 0.25, 0.19, L * 0.5);
     rail.rotation.x = Math.PI / 2;
-    for (const dz of [0.36, 0.94, 1.28]) {
-      const tie = this.mesh(new THREE.CylinderGeometry(0.013, 0.013, 0.46, 6), this.mats.frameSteel, H, 0.03, 0.19, dz);
+    for (const dz of [0.42, 1.3]) {
+      const tie = this.mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.46, 6), this.mats.frameSteel, H, 0.03, 0.19, dz);
       tie.rotation.z = Math.PI / 2;
     }
 
@@ -226,8 +226,10 @@ export class Harvester {
         );
       }
       // intake fingers funnel the tops into the mouth; the near pair sits low
+      // on the working side the funnel finger sits above the pinch line so it
+      // never crosses the plant the camera is watching
       const near = sx > 0;
-      for (const dy of near ? [-0.05] : [-0.05, 0.05]) {
+      for (const dy of near ? [0.085] : [-0.05, 0.05]) {
         const finger = this.mesh(
           new THREE.CylinderGeometry(0.0085, 0.0085, 0.4, 6),
           this.mats.frameSteel,
@@ -251,9 +253,9 @@ export class Harvester {
     }
     // ridge gauge wheels ride the furrow, set wide so they never cross the plant
     for (const sx of [-1, 1]) {
-      const w = this.mesh(new THREE.CylinderGeometry(0.068, 0.068, 0.042, 12), this.mats.tyre, H, sx * 0.38, -0.32, L - 0.5);
+      const w = this.mesh(new THREE.CylinderGeometry(0.068, 0.068, 0.042, 12), this.mats.tyre, H, sx * 0.46, -0.32, L - 0.62);
       w.rotation.z = Math.PI / 2;
-      this.mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.26, 6), this.mats.frameSteel, H, sx * 0.38, -0.2, L - 0.5);
+      this.mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.26, 6), this.mats.frameSteel, H, sx * 0.46, -0.2, L - 0.62);
     }
 
     // rotary knife just below the pinch line
@@ -303,9 +305,10 @@ export class Harvester {
     });
     this.mesh(g, mat, this.root, 0, MACHINE.dischargeY - 0.07, midZ);
 
-    for (const sx of [-1, 1]) {
-      this.mesh(roundedBox(0.014, 0.1, len - 0.02, 0.008), this.mats.bodyPaint, this.root, sx * 0.16, MACHINE.dischargeY + 0.03, midZ);
-    }
+    // tall guide on the far side, a low lip on the working side so the roots
+    // stay visible all the way along the belt
+    this.mesh(roundedBox(0.014, 0.11, len - 0.02, 0.008), this.mats.bodyPaint, this.root, -0.16, MACHINE.dischargeY + 0.035, midZ);
+    this.mesh(roundedBox(0.014, 0.045, len - 0.02, 0.006), this.mats.bodyPaint, this.root, 0.16, MACHINE.dischargeY + 0.002, midZ);
     for (const dz of [MACHINE.dischargeZ0 - 0.07, MACHINE.dischargeZ1 + 0.07]) {
       const roller = new THREE.Mesh(new THREE.CylinderGeometry(0.062, 0.062, 0.32, 12), this.mats.frameSteel);
       roller.geometry.rotateZ(Math.PI / 2);
@@ -325,14 +328,14 @@ export class Harvester {
   private buildCrateRack() {
     const c = MACHINE.crateCentre;
     this.mesh(roundedBox(0.62, 0.05, 0.8, 0.012), this.mats.bodyPaintDark, this.root, 0, c.y - 0.03, c.z);
+    // support arms sit outside the crate so nothing crosses the reveal shot
     for (const sx of [-1, 1]) {
-      const arm = this.mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.72, 8), this.mats.frameSteel, this.root, sx * 0.26, 0.3, c.z + 0.32);
+      const arm = this.mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.72, 8), this.mats.frameSteel, this.root, sx * 0.36, 0.3, c.z + 0.32);
       arm.rotation.x = 1.0;
-      const leg = this.mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.2, 6), this.mats.frameSteel, this.root, sx * 0.26, c.y - 0.13, c.z - 0.28);
-      void leg;
+      this.mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.22, 6), this.mats.frameSteel, this.root, sx * 0.36, c.y - 0.12, c.z - 0.28);
     }
-    // stop bar so the crate reads as being held, not floating
-    const bar = this.mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.6, 6), this.mats.frameSteel, this.root, 0, c.y + 0.36, c.z - 0.41);
+    // low stop bar keeps the crate on its rack without cutting across it
+    const bar = this.mesh(new THREE.CylinderGeometry(0.016, 0.016, 0.72, 6), this.mats.frameSteel, this.root, 0, c.y + 0.05, c.z - 0.42);
     bar.rotation.z = Math.PI / 2;
   }
 

@@ -82,7 +82,7 @@ export class Effects {
       this.group.add(m);
     }
 
-    const heaveGeo = new THREE.CylinderGeometry(0.058, 0.085, 0.055, 12, 1, true);
+    const heaveGeo = new THREE.CylinderGeometry(0.046, 0.064, 0.04, 12, 1, true);
     for (let i = 0; i < 6; i++) {
       const hm = mats.bedSection.clone();
       hm.transparent = true;
@@ -191,9 +191,9 @@ export class Effects {
     if (id < 0) return;
     const m = this.heaves[id];
     m.position.set(at.x, at.y + lift, at.z);
-    const s = 1 + lift * 1.6;
-    m.scale.set(s, 1 + lift * 4, s);
-    (m.material as THREE.Material).opacity = fade;
+    const s = 1 + lift * 1.4;
+    m.scale.set(s, 1 + lift * 3.2, s);
+    (m.material as THREE.Material).opacity = fade * 0.85;
   }
 
   releaseHeave(id: number) {

@@ -296,7 +296,7 @@ export class Daikon {
     // the root leaves the belt with the conveyor's velocity
     const a = H.head.rotation.x;
     this.vel.set(0, 0, 0);
-    this.vel.z = -CFG.beltSpeed * Math.cos(a) + 0.1;
+    this.vel.z = -CFG.beltSpeed * Math.cos(a) - 0.12;
     this.vel.y = CFG.beltSpeed * Math.sin(a) * 0.35;
     this.hooks.onCut(this);
   }

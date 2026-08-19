@@ -7,8 +7,6 @@ interface Framing {
   pos: THREE.Vector3;
   target: THREE.Vector3;
   fov: number;
-  /** radius of the subject sphere, used to re-frame on tall screens */
-  radius: number;
 }
 
 const SPECIALS: ShotName[] = ['heroPull', 'conveyor', 'crateDrop'];
@@ -134,21 +132,27 @@ export class CameraDirector {
 
   /* --------------------------------------------------------------- */
 
-  /** Blend two authored camera offsets by screen shape, then push out to fit. */
+  /**
+   * Blend two authored stagings by screen shape, then push out to fit. A tall
+   * phone gets its own camera offset and its own look-at point, so the row runs
+   * up the frame instead of the machine shrinking into the middle of it.
+   */
   private stage(
     dirLandscape: THREE.Vector3,
     dirPortrait: THREE.Vector3,
-    target: THREE.Vector3,
+    targetLandscape: THREE.Vector3,
     fov: number,
     halfH: number,
     halfW: number,
+    targetPortrait?: THREE.Vector3,
   ): Framing {
     const p = this.portrait;
     const dir = dirLandscape.clone().lerp(dirPortrait, p);
+    const target = targetPortrait ? targetLandscape.clone().lerp(targetPortrait, p) : targetLandscape;
     const base = dir.length();
     const d = Math.max(base, this.fit(halfH, halfW, fov));
     dir.normalize().multiplyScalar(d);
-    return { pos: target.clone().add(dir), target, fov, radius: halfH };
+    return { pos: target.clone().add(dir), target, fov };
   }
 
   private frame(): Framing {
@@ -163,30 +167,35 @@ export class CameraDirector {
         const push = THREE.MathUtils.lerp(1.3, 1.0, k * k);
         return this.stage(
           new THREE.Vector3(2.95, 2.5, -3.05).multiplyScalar(push),
-          new THREE.Vector3(1.85, 2.9, -3.5).multiplyScalar(push),
+          new THREE.Vector3(1.7, 2.25, -3.7).multiplyScalar(push),
           new THREE.Vector3(m.x, 0.8, m.z + 1.0),
           47,
           2.1,
-          2.0,
+          0.95,
+          new THREE.Vector3(m.x, 0.8, m.z + 2.3),
         );
       }
 
       case 'work': {
-        // home base: mouth, conveyor and crate all legible at once
+        // Home base. Landscape holds the whole machine — mouth, conveyor and
+        // crate at once. A tall phone cannot hold 2.8 m of machine across a
+        // narrow frame, so it deliberately gives up the crate and frames the
+        // mouth and the ridge ahead, which is where the player is looking.
         return this.stage(
-          new THREE.Vector3(2.28, 1.12, -2.15),
-          new THREE.Vector3(1.32, 1.5, -2.95),
-          new THREE.Vector3(m.x, 0.62, m.z + 0.5),
+          new THREE.Vector3(2.34, 1.18, -2.2),
+          new THREE.Vector3(1.85, 1.5, -3.1),
+          new THREE.Vector3(m.x, 0.62, m.z + 0.15),
           46,
           1.1,
-          0.92,
+          0.5,
+          new THREE.Vector3(m.x, 0.55, m.z + 1.1),
         );
       }
 
       case 'heroPull': {
-        // locked off beside the plant: the mouth comes in and the root rises
-        // just under the belt line: the rubber reads as an edge above the plant
-        // rather than a slab across it, and the ridge still shows its shape
+        // locked off beside the plant, just under the belt line: the rubber
+        // reads as an edge above the plant rather than a slab across it, the
+        // mouth closes in from behind, and the white root rises through frame
         const rise = THREE.MathUtils.lerp(0.3, 0.42, k * k);
         const target = new THREE.Vector3(
           this.focus.x,
@@ -195,11 +204,11 @@ export class CameraDirector {
         );
         return this.stage(
           new THREE.Vector3(0.9, rise, 0.56).normalize().multiplyScalar(1.24),
-          new THREE.Vector3(0.84, rise + 0.06, 0.66).normalize().multiplyScalar(1.42),
+          new THREE.Vector3(0.86, rise, 0.62).normalize().multiplyScalar(1.5),
           target,
           36,
           0.32,
-          0.22,
+          0.14,
         );
       }
 
@@ -207,25 +216,26 @@ export class CameraDirector {
         // tops pinched in the belt, white roots swinging underneath
         const t = local(0, 0.55, 0.74);
         return this.stage(
-          local(1.3, 0.74, 0.66 - k * 0.1).sub(t),
-          local(1.12, 0.92, 0.86 - k * 0.1).sub(t),
+          local(1.4, 0.68, 0.72 - k * 0.08).sub(t),
+          local(1.2, 0.86, 0.86 - k * 0.08).sub(t),
           t,
           39,
-          0.5,
-          0.4,
+          0.62,
+          0.2,
         );
       }
 
       case 'crateDrop': {
-        // level with the crate: roots roll off the belt straight into shot
-        const t = local(0, 0.5, -1.05);
+        // over the tail of the machine, looking down into the crate: the belt
+        // end is beyond it, so the root drops off and rolls straight into shot
+        const t = local(0, 0.46, -1.2);
         return this.stage(
-          local(1.2, 0.78, -0.78 - k * 0.08).sub(t),
-          local(1.0, 0.92, -0.5 - k * 0.08).sub(t),
+          local(0.95, 1.15, -2.05 - k * 0.06).sub(t),
+          local(0.75, 1.35, -2.3 - k * 0.06).sub(t),
           t,
           41,
-          0.45,
-          0.42,
+          0.55,
+          0.28,
         );
       }
 
@@ -234,13 +244,13 @@ export class CameraDirector {
         const ang = -0.5 + k * 1.05;
         const t = local(0, MACHINE.crateCentre.y + 0.2, MACHINE.crateCentre.z);
         const fov = 42;
-        const d = Math.max(1.95, this.fit(0.6, 0.52, fov));
+        const d = Math.max(1.95, this.fit(0.62, 0.26, fov));
         const pos = new THREE.Vector3(
           t.x + Math.sin(ang) * d * 0.8 + 0.5,
           t.y + 0.7 + Math.sin(k * Math.PI) * 0.12,
           t.z - Math.cos(ang) * d * 0.8,
         );
-        return { pos, target: t, fov, radius: 0.52 };
+        return { pos, target: t, fov };
       }
     }
   }
