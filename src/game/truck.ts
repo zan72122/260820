@@ -230,7 +230,7 @@ export class Truck {
     this.fill = clamp(this.fill + f, 0, 1)
   }
 
-  update(dt: number, now: number, beckon: boolean) {
+  update(dt: number, now: number, beckon: boolean, cheer = false) {
     if (this.mode === 'drive') {
       const dx = this.targetX - this.x
       const dz = this.targetZ - this.z
@@ -277,7 +277,12 @@ export class Truck {
       (BIN.d - 0.09) * 0.5 * (0.3 + 0.7 * f),
     )
 
-    this.farmerArm.rotation.z = beckon ? -1.9 + Math.sin(now * 7) * 0.55 : -0.05
+    this.farmerArm.rotation.z = cheer
+      ? -2.55 + Math.sin(now * 11) * 0.22
+      : beckon
+        ? -1.9 + Math.sin(now * 7) * 0.55
+        : -0.05
+    this.farmer.position.y = cheer ? Math.abs(Math.sin(now * 5.5)) * 0.11 : 0
     this.apply()
   }
 

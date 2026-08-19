@@ -60,6 +60,7 @@ export class Game {
   private pour!: PourColumn
   private straw!: StrawSpray
   private dust!: PuffField
+  private smoke!: PuffField
   private worldGroup = new THREE.Group()
 
   private tex!: {
@@ -96,6 +97,7 @@ export class Game {
   private camCycle = 5
   private camMode: 'chase' | 'header' | 'tank' = 'chase'
   private tankPeeked = false
+  private nextPrompt = 9
   private seed = 1
   private turn: { pts: THREE.Vector2[]; dur: number; t: number; newLane: number } | null = null
 
@@ -115,6 +117,7 @@ export class Game {
     augerSide: -1,
     cutSide: -1,
     roomSide: 1,
+    unloadT: 0,
     time: 0,
   }
 
@@ -182,8 +185,9 @@ export class Game {
     this.grain = new GrainStream(QUALITY.maxGrains)
     this.straw = new StrawSpray(QUALITY.maxStraw)
     this.dust = new PuffField(QUALITY.maxChaff, this.tex.puff, 0xdccfb4)
+    this.smoke = new PuffField(46, this.tex.puff, 0x8b867c)
     this.pour = new PourColumn(this.tex.grain.color)
-    this.worldGroup.add(this.grain.mesh, this.straw.mesh, this.dust.mesh, this.pour.mesh)
+    this.worldGroup.add(this.grain.mesh, this.straw.mesh, this.dust.mesh, this.smoke.mesh, this.pour.mesh)
 
     this.newField(Math.floor(Math.random() * 1e6) + 1)
 
@@ -198,7 +202,13 @@ export class Game {
       e.preventDefault()
       cancelAnimationFrame(this.raf)
     })
-    this.canvas.addEventListener('webglcontextrestored', () => this.loop())
+    this.canvas.addEventListener('webglcontextrestored', () => {
+      // canvas-backed textures do not survive the loss; force a re-upload
+      this.field.refreshLod(this.mx, this.mz, this.now, true)
+      this.field.reupload()
+      this.clock.getDelta()
+      this.loop()
+    })
     this.onResize()
   }
 
@@ -236,6 +246,7 @@ export class Game {
     this.grain.clear()
     this.straw.clear()
     this.dust.clear()
+    this.smoke.clear()
     this.truck.fill = 0
     this.truck.place(TRUCK_WAIT_X, TRUCK_WAIT_Z, Math.PI)
     this.applyMachine()
@@ -294,6 +305,7 @@ export class Game {
     switch (s) {
       case 'intro':
         this.dir.setShot('establish')
+        this.nextPrompt = 9
         this.hud.setAction('lower')
         this.hud.setSteerHint(false)
         this.hud.showBanner('lower', 'ヘッダを さげよう')
@@ -635,6 +647,7 @@ export class Game {
     // whichever local side has more paddy left before the bank
     const roomWorld = this.mx > 0 ? -1 : 1
     c.roomSide = Math.cos(this.mh) >= 0 ? roomWorld : -roomWorld
+    c.unloadT = this.state === 'unloading' ? clamp(this.stateT / 4.4, 0, 1) : 0
     c.time = this.now
     return c
   }
@@ -666,6 +679,11 @@ export class Game {
         this.combine.speedFrac = 0
         this.headerT = damp(this.headerT, 0, 4, dt)
         this.combine.headerDown = this.headerT
+        // nobody has pressed it yet: say so again rather than sit silent
+        if (this.stateT > this.nextPrompt) {
+          this.nextPrompt += 9
+          this.hud.showBanner('lower', 'ヘッダを さげよう')
+        }
         break
       case 'lowering':
         this.headerT = damp(this.headerT, 1, 4.5, dt)
@@ -763,7 +781,8 @@ export class Game {
     this.truck.update(
       dt,
       this.now,
-      this.state === 'tankfull' || this.state === 'trucking' || this.state === 'augerIn',
+      this.state === 'tankfull' || this.state === 'trucking',
+      this.state === 'augerIn' && this.stateT < 2.6,
     )
     this.field.update(dt, this.now)
     this.field.refreshLod(
@@ -777,8 +796,16 @@ export class Game {
       this.grain.update(dt, -5)
       this.audio.setPour(0)
     }
+    // exhaust: harder under load, idling when the machine is stopped
+    const puffing = this.state !== 'intro'
+    if (puffing) {
+      this.tmpA.set(0.9, 3.28, -0.72)
+      this.combine.root.localToWorld(this.tmpA)
+      this.smoke.stream(this.tmpA.x, this.tmpA.y, this.tmpA.z, 2 + this.combine.speedFrac * 6, dt, 0.3)
+    }
     this.straw.update(dt)
     this.dust.update(dt, this.dir.camera.quaternion)
+    this.smoke.update(dt, this.dir.camera.quaternion)
 
     const ctx = this.buildShotCtx()
     this.env.update(dt, ctx.pos)
@@ -819,6 +846,8 @@ export class Game {
       if (fps < 42 && this.quality > 1) {
         this.quality = this.quality === 2 ? 1.5 : 1
         this.onResize()
+      } else if (fps < 38 && this.field.nearBudgetIsFull) {
+        this.field.setDetailBudget(QUALITY.nearCap * 0.45)
       } else if (fps < 32 && this.renderer.shadowMap.enabled) {
         this.renderer.shadowMap.enabled = false
         this.scene.traverse((o) => {

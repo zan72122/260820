@@ -206,6 +206,8 @@ export class Field {
   private nearList: Int32Array
   private farList: Int32Array
   private nearRadius = 8
+  /** how many hills the detailed mesh may hold; lowered on slow devices */
+  private nearBudget: number
 
   private mask!: HTMLCanvasElement
   private maskCtx!: CanvasRenderingContext2D
@@ -243,6 +245,7 @@ export class Field {
     this.nearSlot = new Int32Array(this.count).fill(-1)
     this.farSlot = new Int32Array(this.count).fill(-1)
     this.nearList = new Int32Array(Math.min(QUALITY.nearCap, this.count))
+    this.nearBudget = this.nearList.length
     this.farList = new Int32Array(this.count)
     this.standing = this.count
 
@@ -592,7 +595,7 @@ export class Field {
       const dz = this.cz[k] - fz
       if (dx * dx + dz * dz < r2) within++
     }
-    const cap = this.nearList.length
+    const cap = this.nearBudget
     if (within > cap * 1.02) this.nearRadius *= Math.max(0.7, Math.sqrt((cap * 0.94) / within))
     else if (within < cap * 0.72) this.nearRadius = Math.min(13, this.nearRadius * 1.09)
 
@@ -692,6 +695,23 @@ export class Field {
       this.maskDirty = false
       this.maskFlush = 1 / 18
     }
+  }
+
+  get nearBudgetIsFull() {
+    return this.nearBudget >= this.nearList.length
+  }
+
+  /** Trades close-up crop detail for frame time; the far tuft covers the rest. */
+  setDetailBudget(n: number) {
+    this.nearBudget = Math.max(120, Math.min(this.nearList.length, Math.round(n)))
+    this.focusX = 1e9
+  }
+
+  /** Re-uploads the canvas-backed mask, e.g. after a lost WebGL context. */
+  reupload() {
+    this.maskTex.needsUpdate = true
+    this.maskDirty = false
+    this.maskFlush = 0
   }
 
   /** Lane with rice left, closest to `fromX`; -1 when the paddy is done. */

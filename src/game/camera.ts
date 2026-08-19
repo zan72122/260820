@@ -30,6 +30,8 @@ export interface ShotCtx {
   cutSide: number
   /** +1/-1 along the machine's local X, pointing where there is most room */
   roomSide: number
+  /** 0..1 through the pour, used to lean the unload shot in */
+  unloadT: number
   time: number
 }
 
@@ -79,9 +81,9 @@ const SHOTS: Record<ShotName, (c: ShotCtx) => Placement> = {
   tank: (c) => ({ r: c.cutSide * 5.0, u: 5.0, f: -5.6, lookR: 0, lookU: 2.2, lookF: -0.3, lambda: 2.4 }),
   // auger arc, receiver and falling grain all inside one frame
   unload: (c) => ({
-    r: c.augerSide * 8.2,
-    u: 5.4,
-    f: -6.6,
+    r: c.augerSide * (8.2 - c.unloadT * 1.9),
+    u: 5.4 - c.unloadT * 1.2,
+    f: -6.6 + c.unloadT * 1.3,
     lookR: c.augerSide * 2.4,
     lookU: 1.8,
     lookF: -0.9,
