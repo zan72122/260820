@@ -27,12 +27,14 @@ export class Flower {
   private pendingMeshes: THREE.Mesh[] = [];
   private merged: THREE.Mesh[] = [];
   private rng: Rng;
+  private petalSeedOffset: number;
   private wobbleVel = new THREE.Vector2();
   private wobbleRot = new THREE.Vector2();
 
   constructor(color: number, seed: number, streak: THREE.Texture) {
     this.material = makeCreamMaterial(color, { streak });
     this.rng = new Rng(seed);
+    this.petalSeedOffset = 1000 + Math.floor(this.rng.range(0, 1e6));
     this.cone = new ConeMesh(this.material, Config.fast);
     this.group.add(this.cone.mesh);
     const nu = Config.fast ? 20 : 30;
@@ -66,19 +68,19 @@ export class Flower {
   /** Rebuild the petal under the finger; called every frame while pressing. */
   updatePetal(samples: TrailSample[], finished: boolean) {
     if (!samples.length) return;
-    const seed = 1000 + this.totalPetals * 37 + Math.floor(this.rng.next() * 0);
+    // Stable per petal, so a live petal does not shimmer as it is rebuilt,
+    // but different for every petal and every flower.
+    const seed = this.petalSeedOffset + this.totalPetals * 37;
     const spec = this.shaper.build(
       samples,
       this.layer,
       this.cone.height,
-      seed + this.petalSeedOffset,
+      seed,
       finished,
       this.petalsInLayer,
     );
     this.live.update(spec);
   }
-
-  private petalSeedOffset = Math.floor(Math.random() * 1000);
 
   /** Freeze the petal: bake it into a static mesh and advance the layer. */
   endPetal(): { layerCompleted: boolean } {
