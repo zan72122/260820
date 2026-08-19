@@ -115,11 +115,11 @@ export class World {
   }
 
   _lights() {
-    const hemi = new THREE.HemisphereLight(0xcfe2f6, 0x8fa2b6, 0.62);
+    const hemi = new THREE.HemisphereLight(0xcfe2f6, 0x8ba0b6, 0.52);
     this.scene.add(hemi);
 
-    const sun = new THREE.DirectionalLight(0xffeed6, 1.55);
-    sun.position.set(9, 12, 14);
+    const sun = new THREE.DirectionalLight(0xfff0da, 1.85);
+    sun.position.set(-10, 11, 7);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
     sun.shadow.bias = -0.0011;
@@ -140,7 +140,7 @@ export class World {
 
   setShadowFocus(x) {
     if (!this.sun) return;
-    this.sun.position.set(x + 9, 12, 14);
+    this.sun.position.set(x - 10, 11, 7);
     this.sun.target.position.set(x, 0, -0.5);
     this.sun.target.updateMatrixWorld();
   }
@@ -194,6 +194,14 @@ export class World {
       map: bank.map, normalMap: bank.normal, roughnessMap: bank.roughness,
       roughness: 1, metalness: 0, envMapIntensity: 0.85,
     });
+    // the verges are big: give them their own tiled copies so detail survives
+    const tile = (t, rx, ry) => { const c = t.clone(); c.needsUpdate = true; c.repeat.set(rx, ry); return c; };
+    this.mats.snowGround = new THREE.MeshStandardMaterial({
+      map: tile(bank.map, 13, 7), normalMap: tile(bank.normal, 13, 7),
+      roughnessMap: tile(bank.roughness, 13, 7),
+      roughness: 1, metalness: 0, envMapIntensity: 0.85,
+      normalScale: new THREE.Vector2(0.75, 0.75),
+    });
 
     const soil = TX.makeSoil(256);
     this.mats.soil = new THREE.MeshStandardMaterial({
@@ -209,19 +217,23 @@ export class World {
         const n = drift(u * 2.4, v) * 0.3;
         return 0.02 + bank * 0.86 + n * smoothstep(-0.2, 0.7, d);
       }),
-      this.mats.snow);
+      this.mats.snowGround);
     farVerge.receiveShadow = true; farVerge.castShadow = true;
     this.scene.add(farVerge);
 
     // near side: heaped against the gutter, then flat garden snow
     const nearVerge = new THREE.Mesh(
-      gridPlaneXZ(CFG.xMin, CFG.xMax, CFG.chZ1 - 0.14, 16.5, 110, 30, (u, v, x, z) => {
+      gridPlaneXZ(CFG.xMin, CFG.xMax, CFG.chZ1 - 0.14, 16.5, 150, 30, (u, v, x, z) => {
         const d = z - CFG.chZ1;
         const bank = smoothstep(-0.1, 0.5, d) * (1 - smoothstep(1.2, 3.6, d) * 0.55);
         const n = drift(u * 2.6, 1 - v) * 0.28;
-        return 0.02 + bank * 0.74 + n * smoothstep(0.0, 0.8, d);
+        // a path cleared from every gate to its inlet
+        let path = 1;
+        for (const ix of CFG.inlets) path = Math.min(path, smoothstep(0.9, 1.5, Math.abs(x - ix)) * 0.72 + 0.28);
+        const walked = 1 - (1 - path) * (1 - smoothstep(4.2, 5.6, d));
+        return 0.02 + bank * 0.62 * walked + n * smoothstep(0.0, 0.8, d) * walked;
       }),
-      this.mats.snow);
+      this.mats.snowGround);
     nearVerge.receiveShadow = true; nearVerge.castShadow = true;
     this.scene.add(nearVerge);
 
@@ -297,14 +309,12 @@ export class World {
     });
     const capZ = CFG.cutZ - 0.004;
 
-    const soilCut = TX.makeSoil(256);
-    soilCut.map.repeat.set(9, 2.6); soilCut.normal.repeat.set(9, 2.6);
+    const cutTex = TX.makeCutFace(256, 512);
     const lowerMat = new THREE.MeshStandardMaterial({
-      map: soilCut.map, normalMap: soilCut.normal, roughness: 0.97, metalness: 0,
-      envMapIntensity: 0.22, fog: false,
+      map: cutTex, roughness: 0.96, metalness: 0, envMapIntensity: 0.5, fog: false,
     });
-    const lower = new THREE.Mesh(new THREE.PlaneGeometry(L, 13), lowerMat);
-    lower.position.set(cx, CFG.floorY - 6.5, capZ);
+    const lower = new THREE.Mesh(new THREE.PlaneGeometry(L, 6.4), lowerMat);
+    lower.position.set(cx, CFG.floorY - 3.2, capZ);
     g.add(lower);
 
     // upper cap runs the whole street, but the piece at each inlet belongs to its lid
@@ -312,7 +322,8 @@ export class World {
     const capH = CFG.coverTop - CFG.ceilY;
     const capY = (CFG.coverTop + CFG.ceilY) / 2;
     const capMat = new THREE.MeshStandardMaterial({
-      map: strata, roughness: 0.9, metalness: 0, envMapIntensity: 0.35, fog: false, side: THREE.DoubleSide,
+      map: strata, color: 0xb9b6ae, roughness: 0.9, metalness: 0,
+      envMapIntensity: 0.35, fog: false, side: THREE.DoubleSide,
     });
     this.mats.cap = capMat;
     const cuts = [];
@@ -338,13 +349,18 @@ export class World {
     const nrm = TX.makeWaterNormal(512);
     nrm.repeat.set(16, 1.4);
     const mat = new THREE.MeshStandardMaterial({
-      color: 0x22323d, roughness: 0.11, metalness: 0.1,
+      color: 0x354b5a, roughness: 0.1, metalness: 0.08,
       normalMap: nrm, normalScale: new THREE.Vector2(0.9, 0.9),
       envMapIntensity: 0.55, fog: false,
     });
     this.mats.water = mat;
     const w = new THREE.Mesh(
       new THREE.PlaneGeometry(CFG.xMax - CFG.xMin, CFG.chZ1 - CFG.chZ0, 60, 4), mat);
+    // a soft lamp that rides along with the view, so the stretch you are looking
+    // at always reads as moving water rather than a black slot
+    this.channelLight = new THREE.PointLight(0x9fc4e2, 0, 16, 1.4);
+    this.channelLight.position.set(0, CFG.waterY + 1.0, (CFG.chZ0 + CFG.chZ1) / 2);
+    this.scene.add(this.channelLight);
     w.rotation.x = -Math.PI / 2;
     w.position.set(0, CFG.waterY, (CFG.chZ0 + CFG.chZ1) / 2);
     w.receiveShadow = false;
@@ -395,9 +411,9 @@ export class World {
       map: slabTex.map, normalMap: slabTex.normal, roughnessMap: slabTex.roughness,
       roughness: 1, metalness: 0, envMapIntensity: 0.7,
     });
-    this.mats.slab.map.repeat.set(14, 1);
-    this.mats.slab.normalMap.repeat.set(14, 1);
-    this.mats.slab.roughnessMap.repeat.set(14, 1);
+    this.mats.slab.map.repeat.set(1, 1);
+    this.mats.slab.normalMap.repeat.set(1, 1);
+    this.mats.slab.roughnessMap.repeat.set(1, 1);
 
     const g = new THREE.Group();
     this.scene.add(g);
@@ -412,7 +428,7 @@ export class World {
       const n = Math.max(1, Math.round((b - a) / 0.62));
       const w = (b - a) / n;
       for (let i = 0; i < n; i++) {
-        const m = new THREE.Mesh(new THREE.BoxGeometry(w - 0.022, thick, zw), this.mats.slab);
+        const m = new THREE.Mesh(this._wallBox(w - 0.022, thick, zw, 1.1, 1.1), this.mats.slab);
         m.position.set(a + w * (i + 0.5), (CFG.coverTop + CFG.ceilY) / 2, zc);
         m.castShadow = true; m.receiveShadow = true;
         g.add(m);
@@ -424,7 +440,7 @@ export class World {
     // kerb lip along the road edge
     const kerbMat = this.mats.slab.clone();
     kerbMat.color = new THREE.Color(0xe6ecf2);
-    const kerb = new THREE.Mesh(new THREE.BoxGeometry(CFG.xMax - CFG.xMin, 0.16, 0.16), kerbMat);
+    const kerb = new THREE.Mesh(this._wallBox(CFG.xMax - CFG.xMin, 0.16, 0.16, 1.1, 1.1), kerbMat);
     kerb.position.set(0, CFG.coverTop + 0.02, CFG.chZ0 + 0.02);
     kerb.castShadow = true; kerb.receiveShadow = true;
     g.add(kerb);
@@ -488,7 +504,7 @@ export class World {
       const seg = this.capSegs[i];
       if (seg) { seg.userData.lidIndex = i; }
 
-      const light = new THREE.PointLight(0xcbe2f7, 0, 8, 2);
+      const light = new THREE.PointLight(0xcbe2f7, 0, 11, 1.7);
       light.position.set(ix, CFG.waterY + 0.85, (CFG.chZ0 + CFG.chZ1) / 2);
       this.scene.add(light);
       this.inletLights.push(light);
@@ -497,7 +513,8 @@ export class World {
       const shaft = new THREE.Mesh(
         new THREE.CylinderGeometry(0.34, 0.62, CFG.coverTop - CFG.waterY, 16, 1, true),
         new THREE.MeshBasicMaterial({
-          color: 0xd2e6ff, transparent: true, opacity: 0, depthWrite: false,
+          color: 0xd2e6ff, map: this._shaftFade || (this._shaftFade = TX.makeShaftFade()),
+          transparent: true, opacity: 0, depthWrite: false,
           blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false,
         }));
       shaft.position.set(ix, (CFG.coverTop + CFG.waterY) / 2, (CFG.chZ0 + CFG.chZ1) / 2);
@@ -522,6 +539,25 @@ export class World {
   }
 
   // -------------------------------------------------------------- scenery
+  /** Box with its UVs scaled so the block pattern keeps a constant real size. */
+  _wallBox(w, h, d, tileW = 1.25, tileH = 1.25) {
+    const g = new THREE.BoxGeometry(w, h, d);
+    const uv = g.attributes.uv;
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * (w / tileW), uv.getY(i) * (h / tileH));
+    uv.needsUpdate = true;
+    return g;
+  }
+
+  /** Height of the near-side garden snow, so props sit on it rather than in it. */
+  nearVergeHeightAt(x, z) {
+    const d = z - CFG.chZ1;
+    const bank = smoothstep(-0.1, 0.5, d) * (1 - smoothstep(1.2, 3.6, d) * 0.55);
+    let path = 1;
+    for (const ix of CFG.inlets) path = Math.min(path, smoothstep(0.9, 1.5, Math.abs(x - ix)) * 0.72 + 0.28);
+    const walked = 1 - (1 - path) * (1 - smoothstep(4.2, 5.6, d));
+    return 0.02 + bank * 0.62 * walked + 0.15 * smoothstep(0.0, 0.8, d) * walked;
+  }
+
   _sceneryFar() {
     const rng = makeRng(606);
     const g = new THREE.Group();
@@ -533,21 +569,17 @@ export class World {
       map: wallTex.map, normalMap: wallTex.normal, roughnessMap: wallTex.roughness,
       roughness: 1, metalness: 0, envMapIntensity: 0.6,
     });
+    for (const t of [wallTex.map, wallTex.normal, wallTex.roughness]) t.repeat.set(1, 1);
 
     // continuous block wall along the far side, with snow capping it
     for (let x = CFG.xMin; x < CFG.xMax; x += 3.2) {
       const w = 3.1;
       const h = 1.25 + rng() * 0.35;
-      const wall = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.26), this.mats.block);
+      const wall = new THREE.Mesh(this._wallBox(w, h, 0.26), this.mats.block);
       wall.position.set(x + w / 2, h / 2 + 0.42, CFG.roadFar - 0.35);
       wall.castShadow = true; wall.receiveShadow = true;
       g.add(wall);
-      const cap = new THREE.Mesh(blobGeometry(0.2, 2, 900 + Math.round(x * 7), 0.85, 0.42), this.mats.snowPlain);
-      cap.rotation.y = rng() * 0.3;
-      cap.scale.set(w / 0.40, 1.15, 1.7);
-      cap.position.set(x + w / 2, h + 0.42, CFG.roadFar - 0.35);
-      cap.castShadow = true;
-      g.add(cap);
+      this._snowCap(g, x + w / 2, h + 0.42 + 0.09, CFG.roadFar - 0.35, w, 0.34, rng);
     }
 
     const houses = [
@@ -567,28 +599,29 @@ export class World {
 
     // wall on the near side, opened up in front of every inlet so people can
     // shovel out of their gate straight into the channel
-    const gaps = CFG.inlets.map((x) => [x - 2.3, x + 2.3]);
-    const inGap = (a, b) => gaps.some(([ga, gb]) => b > ga && a < gb);
-    for (let x = CFG.xMin; x < CFG.xMax; x += 2.6) {
-      const w = 2.5;
-      if (inGap(x, x + w)) continue;
-      const h = 1.2 + rng() * 0.3;
-      const wall = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.24), this.mats.block);
-      wall.position.set(x + w / 2, h / 2 + 0.38, 3.05);
+    // one gate opening per inlet; the wall between them is built to fit exactly
+    const gaps = CFG.inlets.map((x) => [x - 2.1, x + 2.1]);
+    const runs = [];
+    let cursor = CFG.xMin;
+    for (const [ga, gb] of gaps) {
+      if (ga - cursor > 0.6) runs.push([cursor, ga]);
+      cursor = gb;
+    }
+    if (CFG.xMax - cursor > 0.6) runs.push([cursor, CFG.xMax]);
+    for (const [a, b] of runs) {
+      const w = b - a;
+      const h = 1.2 + rng() * 0.28;
+      const wall = new THREE.Mesh(this._wallBox(w, h, 0.24), this.mats.block);
+      wall.position.set((a + b) / 2, h / 2 + 0.38, 3.05);
       wall.castShadow = true; wall.receiveShadow = true;
       g.add(wall);
-      const cap = new THREE.Mesh(blobGeometry(0.2, 2, 300 + Math.round(x * 11), 0.85, 0.42), this.mats.snowPlain);
-      cap.rotation.y = rng() * 0.3;
-      cap.scale.set(w / 0.40, 1.1, 1.6);
-      cap.position.set(x + w / 2, h + 0.36, 3.05);
-      cap.castShadow = true;
-      g.add(cap);
+      this._snowCap(g, (a + b) / 2, h + 0.38 + 0.09, 3.05, w, 0.32, rng);
     }
 
     // gate posts on either side of every opening
     for (const [ga, gb] of gaps) {
       for (const px of [ga, gb]) {
-        const post = new THREE.Mesh(new THREE.BoxGeometry(0.3, 1.75, 0.3), this.mats.block);
+        const post = new THREE.Mesh(this._wallBox(0.3, 1.75, 0.3, 0.62, 1.25), this.mats.block);
         post.position.set(px, 0.3 + 0.875, 3.05);
         post.castShadow = true; post.receiveShadow = true;
         g.add(post);
@@ -602,15 +635,78 @@ export class World {
     // the near row sits well back so the street stays readable from the camera
     const houses = [[-12.5, 5.4, 5.6, 2], [-4.0, 5.0, 5.2, 0], [4.0, 5.6, 5.9, 1], [12.5, 5.2, 5.3, 3]];
     for (const [x, w, h, style] of houses) g.add(this._house(x, 12.4, w, 5.2, h, style, rng));
+    this._gardenProps(g, rng);
 
     // drifts heaped against the near verge
     for (let i = 0; i < 26; i++) {
       const x = lerp(CFG.xMin, CFG.xMax, rng());
+      if (CFG.inlets.some((ix) => Math.abs(x - ix) < 2.6)) continue;
       const m = new THREE.Mesh(blobGeometry(0.4 + rng() * 0.36, 2, 1000 + i * 13, 0.5, 0.3), this.mats.snow);
       m.position.set(x, 0.3, 2.52 + rng() * 0.34);
       m.rotation.y = rng() * 6.28;
       m.castShadow = true; m.receiveShadow = true;
       g.add(m);
+    }
+  }
+
+  /** A slab of settled snow on top of a wall, with a few lumps for silhouette. */
+  _snowCap(parent, x, y, z, w, depth, rng) {
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(w + 0.06, 0.18, depth), this.mats.snowPlain);
+    slab.position.set(x, y, z);
+    slab.castShadow = true; slab.receiveShadow = true;
+    parent.add(slab);
+    const n = Math.max(2, Math.round(w / 0.8));
+    for (let i = 0; i < n; i++) {
+      const b = new THREE.Mesh(blobGeometry(0.16, 1, 4400 + Math.round(x * 13) + i * 7, 0.5, 0.34), this.mats.snowPlain);
+      b.position.set(x - w / 2 + (i + 0.5) * (w / n) + (rng() - 0.5) * 0.12, y + 0.08, z + (rng() - 0.5) * 0.06);
+      b.scale.set(1.5 + rng() * 0.5, 0.8 + rng() * 0.5, depth / 0.34);
+      b.rotation.y = rng() * 3.14;
+      b.castShadow = true;
+      parent.add(b);
+    }
+  }
+
+  /** Things people leave in a snowed-in front garden. */
+  _gardenProps(parent, rng) {
+    const potMat = new THREE.MeshStandardMaterial({ color: 0x8a5f4a, roughness: 0.92, metalness: 0 });
+    const steel = new THREE.MeshStandardMaterial({ color: 0xb9c1c8, roughness: 0.4, metalness: 0.8, envMapIntensity: 1 });
+    const handle = new THREE.MeshStandardMaterial({ color: 0x2f6fa8, roughness: 0.55, metalness: 0.15 });
+    for (let i = 0; i < 22; i++) {
+      const x = lerp(CFG.xMin + 1, CFG.xMax - 1, rng());
+      if (CFG.inlets.some((ix) => Math.abs(x - ix) < 2.6)) continue;
+      const z = 3.55 + rng() * 3.0;
+      const gy = this.nearVergeHeightAt(x, z);
+      const kind = rng();
+      if (kind < 0.42) {                                   // snow-buried shrub
+        const bush = new THREE.Mesh(blobGeometry(0.42 + rng() * 0.25, 2, 7700 + i * 17, 0.85, 0.3), this.mats.snowPlain);
+        bush.position.set(x, gy + 0.12 + rng() * 0.08, z);
+        bush.rotation.y = rng() * 6.28;
+        bush.castShadow = true; bush.receiveShadow = true;
+        parent.add(bush);
+      } else if (kind < 0.78) {                            // plant pot with a snow hat
+        const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.13, 0.34, 12), potMat);
+        pot.position.set(x, gy + 0.12, z);
+        pot.castShadow = true;
+        parent.add(pot);
+        const hat = new THREE.Mesh(blobGeometry(0.2, 1, 8800 + i * 11, 0.5, 0.3), this.mats.snowPlain);
+        hat.position.set(x, gy + 0.32, z);
+        hat.castShadow = true;
+        parent.add(hat);
+      } else {                                             // a shovel left standing in the snow
+        const sh = new THREE.Group();
+        const blade = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.42, 0.05), steel);
+        blade.position.set(0, 0.2, 0);
+        blade.castShadow = true;
+        sh.add(blade);
+        const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 1.15, 8), handle);
+        stick.position.set(0, 0.95, 0.16);
+        stick.rotation.x = -0.28;
+        stick.castShadow = true;
+        sh.add(stick);
+        sh.position.set(x, gy - 0.12, z);
+        sh.rotation.y = rng() * 6.28;
+        parent.add(sh);
+      }
     }
   }
 

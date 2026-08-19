@@ -20,6 +20,7 @@ const HINTS = {
 };
 
 const CHANNEL_MID = (CFG.chZ0 + CFG.chZ1) / 2;
+const CLIP_OFF = 20;
 
 export class Game {
   constructor({ renderer, scene, camera, world, audio, ui }) {
@@ -49,9 +50,10 @@ export class Game {
       pos: new THREE.Vector3(), look: new THREE.Vector3(),
       from: { pos: new THREE.Vector3(), look: new THREE.Vector3() },
       to: { pos: new THREE.Vector3(), look: new THREE.Vector3() },
-      t: 1, dur: 1,
+      t: 1, dur: 1, fromFov: 46, toFov: 46,
     };
-    this.clip = { value: 60, target: 60 };
+    // nothing in the world sits beyond z = 20, so that is "no cut at all"
+    this.clip = { value: CLIP_OFF, from: CLIP_OFF, to: CLIP_OFF, t: 1, dur: 1 };
     // one stable array: swapping between 0 and 1 planes would recompile every shader
     this.clipPlanes = [this.world.clipPlane];
     this.renderer.clippingPlanes = this.clipPlanes;
@@ -70,9 +72,9 @@ export class Game {
     this.chunkMatBase.transparent = true;
     this.chunkMatBase.opacity = 1;
     this.chunkGeos = [];
-    for (let i = 0; i < 5; i++) this.chunkGeos.push(blobGeometry(0.24, 2, 5000 + i * 91, 0.8, 0.34));
+    for (let i = 0; i < 5; i++) this.chunkGeos.push(blobGeometry(0.24, 3, 5000 + i * 91, 0.8, 0.3));
     this.pileGeos = [];
-    for (let i = 0; i < 6; i++) this.pileGeos.push(blobGeometry(0.42, 2, 6000 + i * 77, 0.66, 0.3));
+    for (let i = 0; i < 6; i++) this.pileGeos.push(blobGeometry(0.42, 3, 6000 + i * 77, 0.66, 0.22));
   }
 
   _buildScoop() {
@@ -96,8 +98,8 @@ export class Game {
     shaft.castShadow = true;
     g.add(shaft);
 
-    const load = new THREE.Mesh(blobGeometry(0.3, 2, 777, 0.55, 0.3), this.world.mats.snow);
-    load.position.y = 0.11;
+    const load = new THREE.Mesh(blobGeometry(0.34, 3, 777, 0.6, 0.24), this.world.mats.snow);
+    load.position.y = 0.14;
     load.castShadow = true;
     g.add(load);
     this.scoopLoad = load;
@@ -109,19 +111,34 @@ export class Game {
 
   _buildMarkers() {
     const ringTex = TX.makeRingSprite(256);
+    // plain blending, saturated colour: an additive white ring is invisible on snow
     const mk = (color, size) => {
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(size, size),
-        new THREE.MeshBasicMaterial({
-          map: ringTex, color, transparent: true, opacity: 0, depthWrite: false,
-          blending: THREE.AdditiveBlending, fog: false,
-        }));
-      m.rotation.x = -Math.PI / 2;
+      const m = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: ringTex, color, transparent: true, opacity: 0, depthWrite: false,
+        depthTest: false, fog: false, sizeAttenuation: true,
+      }));
+      m.scale.set(size, size, 1);
+      m.userData.size = size;
+      m.renderOrder = 4;
       this.scene.add(m);
       return m;
     };
-    this.markLid = mk(0xfff2c4, 2.3);
-    this.markHole = mk(0xbfe6ff, 2.0);
-    this.markPile = mk(0xffffff, 1.5);
+    this.markLid = mk(0xffc82e, 1.95);
+    this.markHole = mk(0x35d3ff, 1.75);
+    this.markPile = mk(0xffe27a, 1.35);
+
+    const arrowMat = new THREE.MeshBasicMaterial({ color: 0xffc82e, transparent: true, opacity: 0, fog: false });
+    const arrow = new THREE.Group();
+    const head = new THREE.Mesh(new THREE.ConeGeometry(0.19, 0.34, 14), arrowMat);
+    head.rotation.x = Math.PI;
+    arrow.add(head);
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.062, 0.062, 0.34, 10), arrowMat);
+    stem.position.y = 0.32;
+    arrow.add(stem);
+    arrow.renderOrder = 5;
+    this.scene.add(arrow);
+    this.arrow = arrow;
+    this.arrowMat = arrowMat;
   }
 
   _buildSplash() {
@@ -190,12 +207,13 @@ export class Game {
     const tall = smoothstep(1.5, 0.72, aspect);   // 0 = wide, 1 = tall
     const P = kind === 'street'
       ? {
-        wide: { p: [x + 3.90, 3.95, 4.70], l: [x - 0.60, 0.22, 0.92] },
-        tall: { p: [x + 3.10, 4.35, 4.15], l: [x - 0.45, 0.18, 0.86] },
+        // standing in the gateway with a shovel, looking out at the road
+        wide: { p: [x + 0.80, 2.90, 7.00], l: [x - 0.70, 0.90, 0.30], f: 54 },
+        tall: { p: [x + 0.65, 3.15, 6.60], l: [x - 0.55, 0.85, 0.30], f: 56 },
       }
       : {
-        wide: { p: [x + 3.00, 2.45, 5.00], l: [x - 1.60, -0.78, 1.62] },
-        tall: { p: [x + 2.15, 2.75, 4.30], l: [x - 1.05, -0.88, 1.62] },
+        wide: { p: [x + 2.60, 2.50, 5.60], l: [x - 1.50, -0.80, 1.60], f: 45 },
+        tall: { p: [x + 1.80, 3.00, 6.10], l: [x - 1.20, -0.85, 1.60], f: 47 },
       };
     const p = new THREE.Vector3(
       lerp(P.wide.p[0], P.tall.p[0], tall),
@@ -209,7 +227,7 @@ export class Game {
     // narrow screens need a little more standoff or the street crops badly
     const k = clamp(1.28 / Math.max(aspect, 0.001), 1, 1.5);
     p.sub(l).multiplyScalar(k).add(l);
-    return { pos: p, look: l };
+    return { pos: p, look: l, fov: lerp(P.wide.f, P.tall.f, tall) };
   }
 
   gotoView(kind, x, dur = 1.6) {
@@ -219,6 +237,8 @@ export class Game {
     this.cam.from.look.copy(this.cam.look);
     this.cam.to.pos.copy(v.pos);
     this.cam.to.look.copy(v.look);
+    this.cam.fromFov = this.camera.fov;
+    this.cam.toFov = v.fov;
     this.cam.t = 0;
     this.cam.dur = dur;
     this.viewKind = kind;
@@ -231,6 +251,9 @@ export class Game {
     this.cam.to.pos.copy(v.pos); this.cam.to.look.copy(v.look);
     this.cam.from.pos.copy(v.pos); this.cam.from.look.copy(v.look);
     this.cam.t = 1;
+    this.cam.fromFov = this.cam.toFov = v.fov;
+    this.camera.fov = v.fov;
+    this.camera.updateProjectionMatrix();
     this.viewKind = kind; this.viewX = x;
     this._applyCamera();
   }
@@ -242,9 +265,11 @@ export class Game {
     if (this.cam.t >= 1) {
       this.cam.from.pos.copy(this.cam.pos); this.cam.from.look.copy(this.cam.look);
       this.cam.to.pos.copy(v.pos); this.cam.to.look.copy(v.look);
+      this.cam.fromFov = this.camera.fov; this.cam.toFov = v.fov;
       this.cam.t = 0; this.cam.dur = 0.5;
     } else {
       this.cam.to.pos.copy(v.pos); this.cam.to.look.copy(v.look);
+      this.cam.toFov = v.fov;
     }
   }
 
@@ -270,8 +295,15 @@ export class Game {
     this._spawnAllSnow();
     this.active = 0;
     this.hasFlowedOnce = false;
-    this.clip.target = 60;
+    this._setClip(CLIP_OFF, 0.4);
     this.start();
+  }
+
+  _setClip(to, dur) {
+    this.clip.from = this.clip.value;
+    this.clip.to = to;
+    this.clip.t = 0;
+    this.clip.dur = dur;
   }
 
   _activeLid() { return this.world.lids[this.active]; }
@@ -283,10 +315,11 @@ export class Game {
     this.state = 'opening';
     this.openT = 0;
     this.audio.lidOpen();
+    this._splashBurst(new THREE.Vector3(lid.x, CFG.coverTop + 0.06, CHANNEL_MID + 0.3), 22, 0.5);
     this.ui.hint('');
     setTimeout(() => { if (this.state === 'opening') this.audio.reveal(); }, 520);
     this.gotoView('section', lid.x, 2.3);
-    this.clip.target = CFG.cutZ;
+    this._setClip(CFG.cutZ, 1.5);
   }
 
   _clearedInlet() {
@@ -306,13 +339,13 @@ export class Game {
     if (this.active >= this.world.lids.length) {
       this.state = 'finale';
       this.finaleT = 0;
-      this.clip.target = 60;
+      this._setClip(CLIP_OFF, 0.75);
       this.gotoView('street', 0.4, 3.0);
       this.ui.hint(HINTS.finale);
       return;
     }
     this.state = 'needLid';
-    this.clip.target = 60;
+    this._setClip(CLIP_OFF, 0.75);
     this.gotoView('street', CFG.inlets[this.active], 2.4);
     this.ui.hint(HINTS.next);
   }
@@ -538,6 +571,11 @@ export class Game {
         m.position.x += c.vx * dt;
         m.position.z = lerp(m.position.z, CHANNEL_MID + Math.sin(c.age * 1.4 + c.bob) * 0.22, clamp(dt * 1.5, 0, 1));
         m.position.y = CFG.waterY + c.r * 0.42 + Math.sin(c.age * 3.4 + c.bob) * 0.022;
+        c.wake = (c.wake || 0) + dt;
+        if (c.wake > 0.1 && c.r > 0.09) {
+          c.wake = 0;
+          this._splashBurst(m.position, 1, 0.16);
+        }
         m.rotation.y += (c.spin * 0.6 + 0.7) * dt;
         m.rotation.z += c.spin * 0.35 * dt;
         m.rotation.x += 0.25 * dt;
@@ -607,6 +645,8 @@ export class Game {
       const e = easeInOut(this.cam.t);
       this.cam.pos.lerpVectors(this.cam.from.pos, this.cam.to.pos, e);
       this.cam.look.lerpVectors(this.cam.from.look, this.cam.to.look, e);
+      const f = lerp(this.cam.fromFov, this.cam.toFov, e);
+      if (Math.abs(this.camera.fov - f) > 0.01) { this.camera.fov = f; this.camera.updateProjectionMatrix(); }
     }
     // living camera: a breath of drift so it never feels like a still image
     const sway = this.viewKind === 'section' ? 0.035 : 0.09;
@@ -615,9 +655,11 @@ export class Game {
     this.camera.position.y += Math.sin(t * 0.24 + 1.3) * sway * 0.45;
     this.camera.lookAt(this.cam.look);
 
-    // clip plane peels the near side away for the section view
-    this.clip.value += (this.clip.target - this.clip.value) * clamp(dt * (this.clip.target > 10 ? 6 : 3.2), 0, 1);
-    if (Math.abs(this.clip.target - this.clip.value) < 0.01) this.clip.value = this.clip.target;
+    // the cut peels the near side of the street away as the camera goes under
+    if (this.clip.t < 1) {
+      this.clip.t = clamp(this.clip.t + dt / this.clip.dur, 0, 1);
+      this.clip.value = lerp(this.clip.from, this.clip.to, easeInOut(this.clip.t));
+    }
     this.world.clipPlane.constant = this.clip.value;
 
     // lids
@@ -648,6 +690,11 @@ export class Game {
     this._updateState(dt);
 
     this.world.setShadowFocus(this.cam.look.x);
+    if (this.world.channelLight) {
+      const under = clamp((CLIP_OFF - this.clip.value) / (CLIP_OFF - CFG.cutZ), 0, 1);
+      this.world.channelLight.position.x = this.cam.look.x - 0.6;
+      this.world.channelLight.intensity = under * 3.4;
+    }
     this.audio.update(dt, this._activeLid() ? this._activeLid().open * 0.85 + 0.15 * (this.viewKind === 'section' ? 1 : 0) : 0);
   }
 
@@ -674,33 +721,51 @@ export class Game {
     this.scoopLoad.position.y = 0.11 + Math.sin(this.carry.t * 6) * 0.008;
   }
 
+  _markScale(m, k) { const s = m.userData.size * k; m.scale.set(s, s, 1); }
+
   _updateMarkers(dt, rect) {
     const t = this.time;
     const pulse = 0.5 + 0.5 * Math.sin(t * 3.0);
+    const fade = (m, want, hi) => {
+      m.material.opacity = want
+        ? Math.min(hi, m.material.opacity + dt * 3)
+        : Math.max(0, m.material.opacity - dt * 4);
+    };
 
-    const showLid = this.state === 'needLid' || (this.state === 'intro' && this.introT > 2.4);
+    const showLid = this.state === 'needLid' || (this.state === 'intro' && this.introT > 2.2);
     const lid = this._activeLid();
+    let arrowAt = null;
     if (lid) {
-      this.markLid.position.set(lid.x, CFG.coverTop + 0.09, CHANNEL_MID);
-      this.markLid.material.opacity = showLid ? 0.35 + pulse * 0.45 : Math.max(0, this.markLid.material.opacity - dt * 2);
-      this.markLid.scale.setScalar(showLid ? 0.9 + pulse * 0.16 : 1);
+      this.markLid.position.set(lid.x, CFG.coverTop + 0.34, CHANNEL_MID);
+      fade(this.markLid, showLid, 0.55 + pulse * 0.4);
+      this._markScale(this.markLid, showLid ? 0.92 + pulse * 0.14 : 1);
+      if (showLid) arrowAt = new THREE.Vector3(lid.x, CFG.coverTop + 1.05, CHANNEL_MID);
 
       const showHole = this.state === 'shovel' && !!this.carry;
-      this.markHole.position.set(lid.x, CFG.coverTop + 0.06, CHANNEL_MID);
-      this.markHole.material.opacity = showHole ? 0.4 + pulse * 0.5 : Math.max(0, this.markHole.material.opacity - dt * 3);
-      this.markHole.scale.setScalar(showHole ? 0.95 + pulse * 0.2 : 1);
+      this.markHole.position.set(lid.x, CFG.coverTop + 0.30, CHANNEL_MID);
+      fade(this.markHole, showHole, 0.6 + pulse * 0.4);
+      this._markScale(this.markHole, showHole ? 0.95 + pulse * 0.2 : 1);
     }
 
     const wantPile = this.state === 'shovel' && !this.carry;
     const live = this.pilesFor(this.active);
     if (wantPile && live.length) {
       const p = live[0];
-      this.markPile.position.set(p.x, p.group.position.y + 0.08, p.z);
-      this.markPile.material.opacity = 0.3 + pulse * 0.35;
-      this.markPile.scale.setScalar(0.9 + pulse * 0.14);
+      this.markPile.position.set(p.x, p.group.position.y + 0.42, p.z);
+      fade(this.markPile, true, 0.45 + pulse * 0.35);
+      this._markScale(this.markPile, 0.9 + pulse * 0.14);
+      if (!arrowAt) arrowAt = new THREE.Vector3(p.x, p.group.position.y + 1.15, p.z);
     } else {
-      this.markPile.material.opacity = Math.max(0, this.markPile.material.opacity - dt * 3);
+      fade(this.markPile, false, 1);
     }
+
+    if (arrowAt) {
+      this.arrow.position.set(arrowAt.x, arrowAt.y + 0.16 + Math.abs(Math.sin(t * 2.6)) * 0.26, arrowAt.z);
+      this.arrowMat.opacity = Math.min(0.92, this.arrowMat.opacity + dt * 3);
+    } else {
+      this.arrowMat.opacity = Math.max(0, this.arrowMat.opacity - dt * 4);
+    }
+    this.arrow.visible = this.arrowMat.opacity > 0.01;
   }
 
   _updateState(dt) {

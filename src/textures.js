@@ -54,7 +54,7 @@ export function roadSnowField(u, v) {
   const packed = clamp(rut * 1.15 + plough * 0.55, 0, 1);
   const grit = clamp(packed * (snowFine(u * 1.7, v * 1.7) - 0.34) * 3.2, 0, 1);
   // where the blade and the tyres have worn through, wet asphalt shows
-  const bare = clamp((rut - 0.62) * 3.0, 0, 1) *
+  const bare = clamp((rut - 0.70) * 3.6, 0, 1) *
     smoothstep(0.50, 0.60, snowBase(u * 2.6, v * 0.7) + (snowFine(u * 3.4, v * 3.4) - 0.5) * 0.34);
   return { h: clamp(h, 0, 1), packed, grit, bare };
 }
@@ -146,10 +146,7 @@ export function makeRoadSnow(size = 1280) {
   });
   const actx = albC.getContext('2d', { willReadFrequently: true });
   stampPrints(actx, W, H, prints, (c) => {
-    bootShape(c, 'rgba(150,168,190,0.5)');
-    c.globalCompositeOperation = 'lighter';
-    c.translate(0.5, -1.6);
-    bootShape(c, 'rgba(255,255,255,0.16)');
+    bootShape(c, 'rgba(158,174,196,0.26)');
   });
   const map = tex(albC, { srgb: true, aniso: 16 });
 
@@ -322,18 +319,19 @@ export function makeConcrete({ size = 512, moss = 0, wetLine = -1, tint = 1 } = 
 }
 
 // ------------------------------------------------------------------ soil
-export function makeSoil(size = 256) {
+export function makeSoil(size = 256, punch = 1) {
   const g = fbm(8181, 10, 5);
   const stones = ridged(8282, 26, 3);
-  const heightC = paintGray(size, size, (u, v) => g(u, v) * 0.7 + smoothstep(0.82, 1, stones(u, v)) * 0.5);
-  const normal = tex(heightToNormal(heightC, 1.8), { repeat: [6, 1], aniso: 4 });
+  const heightC = paintGray(size, size, (u, v) =>
+    g(u, v) * 0.7 + smoothstep(0.86, 1, stones(u, v)) * 0.4 * punch);
+  const normal = tex(heightToNormal(heightC, 1.1 * punch), { repeat: [6, 1], aniso: 4 });
   const map = tex(paint(size, size, (u, v) => {
-    const n = g(u, v), s = smoothstep(0.84, 1, stones(u, v));
-    const band = smoothstep(0.0, 0.35, v);                 // gravel bedding on top, darker soil below
-    let r = lerp(126, 74, band) + (n - 0.5) * 40;
-    let gg = lerp(116, 63, band) + (n - 0.5) * 36;
-    let b = lerp(102, 54, band) + (n - 0.5) * 30;
-    r = lerp(r, 150, s); gg = lerp(gg, 148, s); b = lerp(b, 145, s);
+    const n = g(u, v), s = smoothstep(0.88, 1, stones(u, v)) * punch;
+    const band = smoothstep(0.0, 0.4, v);                  // gravel bedding on top, darker soil below
+    let r = lerp(112, 66, band) + (n - 0.5) * 26 * punch;
+    let gg = lerp(101, 57, band) + (n - 0.5) * 24 * punch;
+    let b = lerp(88, 48, band) + (n - 0.5) * 20 * punch;
+    r = lerp(r, 128, s); gg = lerp(gg, 125, s); b = lerp(b, 121, s);
     return [clamp(r, 0, 255), clamp(gg, 0, 255), clamp(b, 0, 255)];
   }), { srgb: true, repeat: [6, 1] });
   return { map, normal };
@@ -490,9 +488,9 @@ export function makeSkyEquirect(w = 512) {
   const canvas = paint(w, h, (u, v) => {
     if (v < 0.5) {
       const t = v / 0.5;                                   // 0 zenith -> 1 horizon
-      let r = lerp(150, 233, Math.pow(t, 0.75));
-      let g = lerp(172, 240, Math.pow(t, 0.75));
-      let b = lerp(196, 246, Math.pow(t, 0.75));
+      let r = lerp(129, 236, Math.pow(t, 0.72));
+      let g = lerp(157, 242, Math.pow(t, 0.72));
+      let b = lerp(190, 247, Math.pow(t, 0.72));
       const c = cloud(u, v * 0.6);
       const cl = smoothstep(0.42, 0.72, c) * (1 - t * 0.4);
       r = lerp(r, 236, cl * 0.55); g = lerp(g, 240, cl * 0.55); b = lerp(b, 244, cl * 0.55);
@@ -510,6 +508,47 @@ export function makeSkyEquirect(w = 512) {
   const t = new THREE.CanvasTexture(canvas);
   t.colorSpace = SRGB;
   t.mapping = THREE.EquirectangularReflectionMapping;
+  return t;
+}
+
+/** The face of earth exposed where the diorama is cut open. */
+export function makeCutFace(w = 256, h = 512) {
+  const g = fbm(6464, 8, 5);
+  const grit = fbm(6565, 90, 2);
+  const grit2 = fbm(6666, 150, 2);
+  const canvas = paint(w, h, (u, v) => {
+    const n = g(u, v) - 0.5;
+    const st = smoothstep(0.68, 0.86, grit(u, v)) + smoothstep(0.74, 0.9, grit2(u, v)) * 0.7;
+    let r, gg, b;
+    if (v < 0.05) { r = 154; gg = 152; b = 147; }                  // channel floor slab
+    else if (v < 0.24) {                                           // gravel bedding
+      r = 136 + st * 30; gg = 131 + st * 29; b = 123 + st * 28;
+    } else {                                                       // soil, darker with depth
+      const d = smoothstep(0.24, 1.0, v);
+      r = lerp(116, 58, d); gg = lerp(101, 49, d); b = lerp(84, 41, d);
+      r += st * 20; gg += st * 19; b += st * 18;
+    }
+    const k = 1 + n * 0.2;
+    return [clamp(r * k, 0, 255), clamp(gg * k, 0, 255), clamp(b * k, 0, 255)];
+  });
+  return tex(canvas, { srgb: true, repeat: [7, 1], aniso: 4 });
+}
+
+/** Vertical fade for the light falling through an open cover. */
+export function makeShaftFade(w = 32, h = 128) {
+  const { canvas, ctx } = canvas2d(w, h);
+  const img = ctx.createImageData(w, h);
+  const d = img.data;
+  let i = 0;
+  for (let y = 0; y < h; y++) {
+    const t = y / (h - 1);                                        // 0 top (at the opening)
+    const a = Math.pow(1 - t, 1.7) * 0.95;
+    for (let x = 0; x < w; x++) { d[i++] = 255; d[i++] = 255; d[i++] = 255; d[i++] = a * 255; }
+  }
+  ctx.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(canvas);
+  t.colorSpace = SRGB;
+  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
   return t;
 }
 

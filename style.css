@@ -27,7 +27,7 @@ body{
   position:absolute;
   left:50%;transform:translateX(-50%) translateY(14px);
   top:calc(var(--safeT) + 12px);
-  max-width:min(84vw,26em);
+  max-width:min(calc(100vw - 150px),27em);
   padding:.5em 1.05em;
   border-radius:999px;
   background:var(--pane);
@@ -38,7 +38,8 @@ body{
   letter-spacing:.04em;
   line-height:1.25;
   text-align:center;
-  white-space:nowrap;
+  white-space:normal;
+  text-wrap:balance;
   opacity:0;
   transition:opacity .45s ease,transform .45s cubic-bezier(.2,.9,.3,1.2);
 }
