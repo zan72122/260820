@@ -80,7 +80,7 @@ export function buildWorld(scene, renderer) {
   const woodDark = TEX.woodMaps({ seed: 7, base: [0.30, 0.20, 0.13], light: [0.55, 0.39, 0.25], ringScale: 22 });
   const woodUsu = TEX.woodMaps({ seed: 47, base: [0.42, 0.29, 0.18], light: [0.76, 0.58, 0.39], ringScale: 11, stretch: 18, knots: 0.5 });
   const woodLight = TEX.woodMaps({ seed: 31, base: [0.52, 0.38, 0.24], light: [0.80, 0.64, 0.44], ringScale: 14, stretch: 12 });
-  const woodBoard = TEX.woodMaps({ seed: 63, base: [0.68, 0.56, 0.40], light: [0.92, 0.83, 0.66], ringScale: 40, stretch: 16 });
+  const woodBoard = TEX.woodMaps({ seed: 63, base: [0.58, 0.45, 0.29], light: [0.95, 0.87, 0.71], ringScale: 46, stretch: 22 });
   const doma = TEX.domaMaps();
   const snow = TEX.snowMaps();
   const plaster = TEX.plasterMaps();

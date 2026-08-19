@@ -86,8 +86,8 @@ const armL = makeArm(scene, { scale: 1.0 });
 const armR = makeArm(scene, { scale: 1.0 });
 armR.userData.hand.scale.x = -1;     // 右手は鏡像
 // 丸めるときは「じぶんの手」。子どもの小さな手として少し丸く小さく。
-const myL = makeArm(scene, { scale: 0.72, sleeveColor: 0x3d5a76, skinColor: 0xe9bb98, sleeveR: 0.70, sleeveLen: 0.42 });
-const myR = makeArm(scene, { scale: 0.72, sleeveColor: 0x3d5a76, skinColor: 0xe9bb98, sleeveR: 0.70, sleeveLen: 0.42 });
+const myL = makeArm(scene, { scale: 0.72, sleeveColor: 0x3d5a76, skinColor: 0xe9bb98, sleeveR: 0.52, sleeveLen: 0.34 });
+const myR = makeArm(scene, { scale: 0.72, sleeveColor: 0x3d5a76, skinColor: 0xe9bb98, sleeveR: 0.52, sleeveLen: 0.34 });
 myR.userData.hand.scale.x = -1;
 const daidai = makeDaidai(scene);
 
