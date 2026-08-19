@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#3b2b1d" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="description" content="だいこん機械収穫 — 葉をつかむ、スポンと抜ける、白い根が集まる。" />
+    <title>だいこん収穫機</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 8c3 6 8 8 12 7-2 5-6 8-10 8 4 10 2 22-2 30-4-8-6-20-2-30-4 0-8-3-10-8 4 1 9-1 12-7z' fill='%234f8a3a'/%3E%3Cpath d='M32 22c6 0 10 5 10 12s-4 22-10 22-10-15-10-22 4-12 10-12z' fill='%23f4f2ec'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="scene"></canvas>
+      <div id="ui"></div>
+      <div id="boot">
+        <div class="boot-art">
+          <svg viewBox="0 0 120 160" aria-hidden="true">
+            <g class="boot-leaf">
+              <path d="M60 46C56 30 44 20 30 18c2 14 10 25 22 30-14-4-24-2-32 6 12 8 26 8 38 2" />
+              <path d="M60 46c4-16 16-26 30-28-2 14-10 25-22 30 14-4 24-2 32 6-12 8-26 8-38 2" />
+            </g>
+            <path class="boot-root" d="M60 44c11 0 18 8 18 20 0 22-9 52-18 52s-18-30-18-52c0-12 7-20 18-20z" />
+          </svg>
+        </div>
+        <div class="boot-bar"><i id="boot-fill"></i></div>
+        <div class="boot-note" id="boot-note"></div>
+      </div>
+      <noscript>
+        <div class="fatal">JavaScript を有効にしてください。</div>
+      </noscript>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,331 @@
+:root {
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #17120d;
+  overscroll-behavior: none;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+#scene {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+#ui {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.fatal {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #f0e6d8;
+  font-size: 16px;
+  padding: 24px;
+  text-align: center;
+}
+
+/* ---------------- boot / loading ---------------- */
+
+#boot {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+  background: radial-gradient(120% 90% at 50% 30%, #6d5638 0%, #3a2c1d 55%, #1d160f 100%);
+  transition: opacity 0.55s ease;
+}
+
+#boot.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.boot-art svg {
+  width: 108px;
+  height: 144px;
+  filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.45));
+}
+
+.boot-leaf path {
+  fill: #558f3c;
+}
+
+.boot-root {
+  fill: #f3f1e9;
+  animation: bootpop 1.9s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  transform-origin: 60px 44px;
+}
+
+@keyframes bootpop {
+  0%,
+  22% {
+    transform: translateY(30px) scaleY(0.7);
+    opacity: 0.25;
+  }
+  46% {
+    transform: translateY(0) scaleY(1.06);
+    opacity: 1;
+  }
+  62% {
+    transform: translateY(-3px) scaleY(0.98);
+  }
+  100% {
+    transform: translateY(0) scaleY(1);
+    opacity: 1;
+  }
+}
+
+.boot-bar {
+  width: min(58vw, 240px);
+  height: 6px;
+  border-radius: 99px;
+  background: rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+
+.boot-bar i {
+  display: block;
+  height: 100%;
+  width: 0%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #9ad06a, #f2efe4);
+  transition: width 0.25s ease;
+}
+
+.boot-note {
+  color: #e9dcc6;
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  opacity: 0.75;
+  min-height: 1.2em;
+  text-align: center;
+  padding: 0 20px;
+}
+
+/* ---------------- in-game UI ---------------- */
+
+.hint {
+  position: absolute;
+  left: 50%;
+  bottom: calc(12% + var(--safe-b));
+  transform: translateX(-50%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.hint.show {
+  opacity: 1;
+}
+
+.hint svg {
+  width: 96px;
+  height: 96px;
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.5));
+}
+
+.hint .ripple {
+  transform-origin: 32px 30px;
+  animation: tapripple 1.5s ease-out infinite;
+}
+
+.hint .finger {
+  animation: tapfinger 1.5s cubic-bezier(0.3, 0.9, 0.3, 1) infinite;
+}
+
+@keyframes tapripple {
+  0% {
+    transform: scale(0.35);
+    opacity: 0;
+  }
+  25% {
+    opacity: 0.85;
+  }
+  70% {
+    transform: scale(1.5);
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes tapfinger {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  22% {
+    transform: translate(0, 7px);
+  }
+  40% {
+    transform: translate(0, 0);
+  }
+}
+
+.swipe {
+  position: absolute;
+  left: 50%;
+  bottom: calc(10% + var(--safe-b));
+  transform: translateX(-50%);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.swipe.show {
+  opacity: 0.95;
+}
+
+.swipe svg {
+  width: 150px;
+  height: 66px;
+  filter: drop-shadow(0 5px 10px rgba(0, 0, 0, 0.45));
+}
+
+.swipe .hand {
+  animation: swipehand 2.3s ease-in-out infinite;
+}
+
+@keyframes swipehand {
+  0%,
+  100% {
+    transform: translateX(-22px);
+  }
+  50% {
+    transform: translateX(22px);
+  }
+}
+
+.counter {
+  position: absolute;
+  top: calc(10px + var(--safe-t));
+  right: calc(12px + var(--safe-r));
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px 7px 9px;
+  border-radius: 99px;
+  background: rgba(28, 21, 14, 0.55);
+  color: #fdfaf2;
+  font-size: 21px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  transition: transform 0.18s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+.counter svg {
+  width: 24px;
+  height: 30px;
+}
+
+.counter.bump {
+  transform: scale(1.22);
+}
+
+.sound {
+  position: absolute;
+  top: calc(8px + var(--safe-t));
+  left: calc(10px + var(--safe-l));
+  width: 46px;
+  height: 46px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(28, 21, 14, 0.45);
+  display: grid;
+  place-items: center;
+  pointer-events: auto;
+  cursor: pointer;
+  opacity: 0.55;
+}
+
+.sound svg {
+  width: 24px;
+  height: 24px;
+  fill: #fdfaf2;
+}
+
+.next {
+  position: absolute;
+  left: 50%;
+  bottom: calc(5% + var(--safe-b));
+  transform: translateX(-50%) scale(0.7);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.35s ease, transform 0.35s cubic-bezier(0.3, 1.5, 0.5, 1);
+}
+
+.next.show {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
+}
+
+.next svg {
+  width: 92px;
+  height: 92px;
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.5));
+}
+
+.next .pulse {
+  animation: nextpulse 1.25s ease-in-out infinite;
+  transform-origin: 50px 50px;
+}
+
+@keyframes nextpulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.flash {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+  pointer-events: none;
+}
