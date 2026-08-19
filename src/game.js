@@ -206,8 +206,8 @@ export class Game {
   viewFor(kind, x, aspect) {
     const tall = smoothstep(1.5, 0.72, aspect);   // 0 = wide, 1 = tall
     if (kind === 'establish') {
-      const wide = { p: [x + 3.6, 7.4, 12.2], l: [x - 1.0, 0.9, -0.4], f: 46 };
-      const tallP = { p: [x + 2.8, 8.2, 11.2], l: [x - 0.8, 0.8, -0.4], f: 50 };
+      const wide = { p: [x + 3.4, 7.2, 8.60], l: [x - 1.2, 0.8, -0.4], f: 48 };
+      const tallP = { p: [x + 2.6, 7.8, 8.10], l: [x - 1.0, 0.7, -0.4], f: 52 };
       const t2 = smoothstep(1.5, 0.72, aspect);
       const p2 = new THREE.Vector3(
         lerp(wide.p[0], tallP.p[0], t2), lerp(wide.p[1], tallP.p[1], t2), lerp(wide.p[2], tallP.p[2], t2));
@@ -225,7 +225,7 @@ export class Game {
       }
       : {
         wide: { p: [x + 2.60, 2.35, 5.60], l: [x - 1.50, -0.60, 1.60], f: 45 },
-        tall: { p: [x + 1.20, 2.25, 6.20], l: [x - 1.00, -0.15, 1.60], f: 52 },
+        tall: { p: [x + 0.80, 2.25, 6.20], l: [x - 0.75, -0.15, 1.60], f: 52 },
       };
     const p = new THREE.Vector3(
       lerp(P.wide.p[0], P.tall.p[0], tall),

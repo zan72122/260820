@@ -224,7 +224,7 @@ export class World {
 
     // near side: heaped against the gutter, then flat garden snow
     const nearVerge = new THREE.Mesh(
-      gridPlaneXZ(CFG.xMin, CFG.xMax, CFG.chZ1 - 0.14, 16.5, 150, 30, (u, v, x, z) => {
+      gridPlaneXZ(CFG.xMin, CFG.xMax, CFG.chZ1 - 0.14, 20.5, 150, 40, (u, v, x, z) => {
         const d = z - CFG.chZ1;
         const bank = smoothstep(-0.1, 0.5, d) * (1 - smoothstep(1.2, 3.6, d) * 0.55);
         const n = drift(u * 2.6, 1 - v) * 0.28;
@@ -244,8 +244,8 @@ export class World {
     earthFar.position.set(0, -4.5, (-13.5 + CFG.roadFar) / 2);
     this.scene.add(earthFar);
     const earthNear = new THREE.Mesh(
-      new THREE.BoxGeometry(CFG.xMax - CFG.xMin, 9, 16.5 - CFG.chZ1), this.mats.soil);
-    earthNear.position.set(0, -4.5, (CFG.chZ1 + 16.5) / 2);
+      new THREE.BoxGeometry(CFG.xMax - CFG.xMin, 9, 20.5 - CFG.chZ1), this.mats.soil);
+    earthNear.position.set(0, -4.5, (CFG.chZ1 + 20.5) / 2);
     this.scene.add(earthNear);
   }
 
@@ -425,12 +425,17 @@ export class World {
     let x = CFG.xMin;
     const addSlab = (a, b) => {
       if (b - a < 0.02) return;
+      // a continuous rebate under the run, so daylight never shows at the joints
+      const back = new THREE.Mesh(this._wallBox(b - a, 0.1, zw, 1.1, 1.1), this.mats.slab);
+      back.position.set((a + b) / 2, CFG.ceilY + 0.05, zc);
+      back.castShadow = true; back.receiveShadow = true;
+      g.add(back);
       // individual slabs with joints, like a real gutter run
       const n = Math.max(1, Math.round((b - a) / 0.62));
       const w = (b - a) / n;
       for (let i = 0; i < n; i++) {
-        const m = new THREE.Mesh(this._wallBox(w - 0.022, thick, zw, 1.1, 1.1), this.mats.slab);
-        m.position.set(a + w * (i + 0.5), (CFG.coverTop + CFG.ceilY) / 2, zc);
+        const m = new THREE.Mesh(this._wallBox(w - 0.008, thick - 0.07, zw, 1.1, 1.1), this.mats.slab);
+        m.position.set(a + w * (i + 0.5), (CFG.coverTop + CFG.ceilY + 0.1) / 2 + 0.015, zc);
         m.castShadow = true; m.receiveShadow = true;
         g.add(m);
       }
@@ -625,22 +630,20 @@ export class World {
       if (a > CFG.xMin + 0.05) postAt.add(a);
       if (b < CFG.xMax - 0.05) postAt.add(b);
     }
-    {
-      for (const px of postAt) {
-        const post = new THREE.Mesh(this._wallBox(0.3, 1.75, 0.3, 0.62, 1.25), this.mats.block);
-        post.position.set(px, 0.3 + 0.875, 3.05);
-        post.castShadow = true; post.receiveShadow = true;
-        g.add(post);
-        const cap = new THREE.Mesh(blobGeometry(0.19, 1, 400 + Math.round(px * 31), 0.5, 0.28), this.mats.snowPlain);
-        cap.position.set(px, 2.19, 3.05);
-        cap.castShadow = true;
-        g.add(cap);
-      }
+    for (const px of postAt) {
+      const post = new THREE.Mesh(this._wallBox(0.3, 1.75, 0.3, 0.62, 1.25), this.mats.block);
+      post.position.set(px, 0.3 + 0.875, 3.05);
+      post.castShadow = true; post.receiveShadow = true;
+      g.add(post);
+      const cap = new THREE.Mesh(blobGeometry(0.19, 1, 400 + Math.round(px * 31), 0.5, 0.28), this.mats.snowPlain);
+      cap.position.set(px, 2.19, 3.05);
+      cap.castShadow = true;
+      g.add(cap);
     }
 
     // the near row sits well back so the street stays readable from the camera
     const houses = [[-12.5, 5.4, 5.6, 2], [-4.0, 5.0, 5.2, 0], [4.0, 5.6, 5.9, 1], [12.5, 5.2, 5.3, 3]];
-    for (const [x, w, h, style] of houses) g.add(this._house(x, 12.4, w, 5.2, h, style, rng));
+    for (const [x, w, h, style] of houses) g.add(this._house(x, 15.0, w, 5.2, h, style, rng));
     this._gardenProps(g, rng);
 
     // drifts heaped against the near verge

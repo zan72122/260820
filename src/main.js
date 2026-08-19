@@ -31,8 +31,8 @@ try {
 }
 
 
-let maxDpr = 2;
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, maxDpr));
+const MAX_DPR = 2;                     // 3x backing stores are not worth it on a phone
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, MAX_DPR));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 0.86;
@@ -56,12 +56,15 @@ const ui = {
 
 let world, game, ready = false;
 
-function resize() {
+function applySize() {
   const w = window.innerWidth, h = window.innerHeight;
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   renderer.setSize(w, h, false);
-  if (game) game.reframe();
+}
+function resize() {
+  applySize();
+  if (game) game.reframe();          // a new aspect wants a new composition
 }
 window.addEventListener('resize', resize);
 window.addEventListener('orientationchange', () => setTimeout(resize, 220));
@@ -127,7 +130,7 @@ async function boot() {
   await step('みちを つくっています…', () => {
     game = new Game({ renderer, scene, camera, world, audio, ui });
     game.snapView('establish', CFG.inlets[0]);
-    // handle for automated device checks
+    // handle used by the automated device checks in the repo's test scripts
     window.__game = game; window.__world = world; window.__three = THREE; window.__cfg = CFG;
   });
   // one warm-up frame so the first tap is not the frame that compiles shaders
@@ -160,7 +163,7 @@ function adapt(dt) {
     const dprs = [2, 1.5, 1.15];
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, dprs[dprStep]));
     if (dprStep === 2) world.setSunMapSize(1024);
-    resize();
+    applySize();                     // resolution only: do not restage the shot
   }
 }
 
