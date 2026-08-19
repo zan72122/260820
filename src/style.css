@@ -1,0 +1,392 @@
+:root {
+  --hud-fg: #f7efe6;
+  --hud-dim: #cbb9a8;
+  --hud-shadow: 0 2px 14px rgba(0, 0, 0, 0.55);
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #0d0b0d;
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Maru Gothic ProN', 'Hiragino Sans',
+    'Yu Gothic', system-ui, sans-serif;
+  color: var(--hud-fg);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  user-select: none;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+  touch-action: none;
+}
+
+#stage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+#hud {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* ---------- boot ---------- */
+.boot {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  background: radial-gradient(120% 90% at 50% 40%, #241c1e 0%, #0d0b0d 75%);
+  z-index: 40;
+  transition: opacity 520ms ease;
+}
+.boot.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+.boot__ring {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.1rem;
+}
+.boot__ring i {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #f6e6cc;
+  opacity: 0.35;
+  animation: bootPulse 1.15s ease-in-out infinite;
+}
+.boot__ring i:nth-child(2) {
+  animation-delay: 0.16s;
+}
+.boot__ring i:nth-child(3) {
+  animation-delay: 0.32s;
+}
+@keyframes bootPulse {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  45% {
+    opacity: 1;
+    transform: translateY(-6px);
+  }
+}
+.boot__title {
+  margin: 0;
+  font-size: clamp(1.7rem, 6vw, 2.6rem);
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  text-shadow: var(--hud-shadow);
+}
+.boot__sub {
+  margin: 0;
+  font-size: clamp(0.85rem, 3.4vw, 1.05rem);
+  color: var(--hud-dim);
+  letter-spacing: 0.22em;
+}
+.boot__hint {
+  margin: 1.4rem 0 0;
+  font-size: 0.85rem;
+  color: #9c8a7c;
+}
+
+/* ---------- coach line ---------- */
+.coach {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: calc(var(--safe-t) + 14px);
+  padding: 0.55rem 1.15rem;
+  border-radius: 999px;
+  background: rgba(18, 14, 16, 0.5);
+  backdrop-filter: blur(9px);
+  -webkit-backdrop-filter: blur(9px);
+  border: 1px solid rgba(255, 236, 210, 0.16);
+  font-size: clamp(0.95rem, 4vw, 1.2rem);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  text-shadow: var(--hud-shadow);
+  opacity: 0;
+  transition: opacity 320ms ease, transform 320ms ease;
+  max-width: calc(100vw - 32px);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.coach.is-on {
+  opacity: 1;
+}
+
+/* ---------- progress pips ---------- */
+.pips {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: calc(var(--safe-t) + 58px);
+  display: flex;
+  gap: 7px;
+  opacity: 0;
+  transition: opacity 300ms ease;
+}
+.pips.is-on {
+  opacity: 0.9;
+}
+.pips i {
+  width: 26px;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(255, 240, 220, 0.22);
+  transition: background 320ms ease, width 320ms ease;
+}
+.pips i.is-done {
+  background: rgba(255, 216, 150, 0.92);
+}
+.pips i.is-now {
+  background: #ffd08a;
+  width: 34px;
+}
+
+/* ---------- corner buttons ---------- */
+.tools {
+  position: absolute;
+  top: calc(var(--safe-t) + 10px);
+  right: calc(var(--safe-r) + 12px);
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  pointer-events: auto;
+}
+.iconbtn {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 236, 210, 0.2);
+  background: rgba(18, 14, 16, 0.46);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: var(--hud-fg);
+  font-size: 1.15rem;
+  line-height: 1;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 140ms ease, background 200ms ease, opacity 200ms ease;
+}
+.iconbtn:active {
+  transform: scale(0.92);
+}
+.iconbtn.is-off {
+  opacity: 0.45;
+}
+
+/* ---------- target ring (tap the igniter) ---------- */
+.ring {
+  position: absolute;
+  width: 88px;
+  height: 88px;
+  margin: -44px 0 0 -44px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 214, 150, 0.95);
+  outline: 2px solid rgba(24, 16, 12, 0.45);
+  outline-offset: -5px;
+  box-shadow: 0 0 22px rgba(255, 186, 110, 0.5), 0 0 0 5px rgba(24, 16, 12, 0.28),
+    inset 0 0 18px rgba(255, 200, 130, 0.25);
+  opacity: 0;
+  transition: opacity 260ms ease;
+  animation: ringPulse 1.5s ease-in-out infinite;
+}
+.ring.is-on {
+  opacity: 1;
+}
+@keyframes ringPulse {
+  0%,
+  100% {
+    transform: scale(0.86);
+  }
+  50% {
+    transform: scale(1.06);
+  }
+}
+
+/* ---------- swipe hint arrow ---------- */
+.swipe {
+  position: absolute;
+  width: 54px;
+  height: 110px;
+  margin: -30px 0 0 -27px;
+  opacity: 0;
+  transition: opacity 260ms ease;
+}
+.swipe.is-on {
+  opacity: 0.92;
+}
+.swipe svg {
+  width: 100%;
+  height: 100%;
+  animation: swipeMove 1.55s ease-in-out infinite;
+}
+@keyframes swipeMove {
+  0%,
+  100% {
+    transform: translateY(-9px);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translateY(11px);
+    opacity: 1;
+  }
+}
+.swipe.is-up svg {
+  animation-name: swipeMoveUp;
+}
+@keyframes swipeMoveUp {
+  0%,
+  100% {
+    transform: translateY(11px);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translateY(-9px);
+    opacity: 1;
+  }
+}
+
+/* ---------- finish card ---------- */
+.finish {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 1.1rem calc(var(--safe-r) + 1rem) calc(var(--safe-b) + 1.1rem) calc(var(--safe-l) + 1rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.85rem;
+  background: linear-gradient(to top, rgba(10, 8, 9, 0.86), rgba(10, 8, 9, 0));
+  transform: translateY(110%);
+  transition: transform 520ms cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: auto;
+}
+.finish.is-on {
+  transform: translateY(0);
+}
+.finish__title {
+  margin: 0;
+  font-size: clamp(1.15rem, 5vw, 1.5rem);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-shadow: var(--hud-shadow);
+}
+.flavors {
+  display: flex;
+  gap: 0.85rem;
+}
+.flavor {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.22);
+  padding: 0;
+  cursor: pointer;
+  transition: transform 160ms ease, border-color 200ms ease;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+.flavor:active {
+  transform: scale(0.9);
+}
+.flavor.is-on {
+  border-color: #ffd8a0;
+  transform: scale(1.08);
+}
+.replay {
+  pointer-events: auto;
+  border: none;
+  border-radius: 999px;
+  padding: 0.95rem 2.4rem;
+  font-size: clamp(1.05rem, 4.6vw, 1.3rem);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #3a2415;
+  background: linear-gradient(180deg, #ffe0ad 0%, #f6bf74 100%);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  transition: transform 150ms ease;
+  font-family: inherit;
+}
+.replay:active {
+  transform: scale(0.95);
+}
+
+/* ---------- fatal / context-loss ---------- */
+.fatal {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  text-align: center;
+  padding: 2rem;
+  background: rgba(9, 7, 8, 0.93);
+  z-index: 60;
+  pointer-events: auto;
+}
+.fatal.is-on {
+  display: flex;
+}
+.fatal p {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--hud-dim);
+  max-width: 30ch;
+}
+
+/* ---------- flash (cold breath / done) ---------- */
+.vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(115% 85% at 50% 45%, rgba(0, 0, 0, 0) 45%, rgba(0, 0, 0, 0.42) 100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boot__ring i,
+  .ring,
+  .swipe svg {
+    animation: none;
+  }
+}

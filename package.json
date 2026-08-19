@@ -1,0 +1,27 @@
+{
+  "name": "fire-and-ice-baked-alaska",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Fire & Ice: Baked Alaska - a photoreal 3D mobile web game for young children",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "build:fast": "vite build",
+    "preview": "vite preview --port 4173 --strictPort",
+    "typecheck": "tsc --noEmit",
+    "test:e2e": "playwright test",
+    "test:smoke": "playwright test tests/smoke.spec.ts",
+    "shots": "node scripts/stills.mjs",
+    "playthrough": "node scripts/inspect.mjs"
+  },
+  "dependencies": {
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "@types/three": "^0.185.4",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.5"
+  }
+}
