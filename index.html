@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>ロータリじょせつしゃ</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#9db6cc">
+<link rel="stylesheet" href="./src/style.css">
+<link rel="apple-touch-icon" href="./assets/icon.png">
+</head>
+<body>
+  <canvas id="gl"></canvas>
+
+  <!-- ===== 2D overlay (no text, pictograms only) ===== -->
+  <div id="ui">
+    <!-- truck fill gauge -->
+    <div id="gauge" class="gauge">
+      <svg viewBox="0 0 120 74" aria-hidden="true">
+        <defs>
+          <clipPath id="bedClip"><rect x="8" y="10" width="72" height="34" rx="3"/></clipPath>
+        </defs>
+        <!-- bed box -->
+        <rect x="8" y="10" width="72" height="34" rx="3" fill="#12212e" stroke="#eaf3ff" stroke-width="3"/>
+        <rect id="gaugeFill" x="8" y="44" width="72" height="0" fill="#ffffff" clip-path="url(#bedClip)"/>
+        <!-- cab -->
+        <path d="M82 20 h20 l8 14 v10 h-28 z" fill="#12212e" stroke="#eaf3ff" stroke-width="3" stroke-linejoin="round"/>
+        <rect x="86" y="24" width="14" height="9" rx="2" fill="#7fd0ff"/>
+        <!-- wheels -->
+        <circle cx="26" cy="56" r="9" fill="#12212e" stroke="#eaf3ff" stroke-width="3"/>
+        <circle cx="62" cy="56" r="9" fill="#12212e" stroke="#eaf3ff" stroke-width="3"/>
+        <circle cx="96" cy="56" r="9" fill="#12212e" stroke="#eaf3ff" stroke-width="3"/>
+      </svg>
+    </div>
+
+    <!-- swipe-forward hand hint -->
+    <div id="hintGo" class="hint hidden">
+      <svg viewBox="0 0 120 170" aria-hidden="true">
+        <path class="arrowUp" d="M60 18 l26 30 h-16 v40 h-20 v-40 h-16 z" />
+        <g class="hand">
+          <path d="M46 150 c-10 -12 -14 -26 -14 -38 c0 -8 10 -10 13 -3 l4 9 v-36 c0 -8 12 -8 12 0 v22 v-30 c0-8 12-8 12 0 v30 v-22 c0-8 12-8 12 0 v22 v-14 c0-8 11-8 11 0 v40 c0 16 -8 30 -18 38 z"/>
+        </g>
+      </svg>
+    </div>
+
+    <!-- swipe-sideways hand hint -->
+    <div id="hintAim" class="hint hidden">
+      <svg viewBox="0 0 190 150" aria-hidden="true">
+        <path class="arrowSide" d="M30 44 l-22 18 l22 18 v-11 h34 v-14 h-34 z"/>
+        <path class="arrowSide" d="M160 44 l22 18 l-22 18 v-11 h-34 v-14 h34 z"/>
+        <g class="hand">
+          <path d="M78 140 c-10 -12 -14 -26 -14 -38 c0 -8 10 -10 13 -3 l4 9 v-36 c0 -8 12 -8 12 0 v22 v-30 c0-8 12-8 12 0 v30 v-22 c0-8 12-8 12 0 v22 v-14 c0-8 11-8 11 0 v40 c0 16 -8 30 -18 38 z"/>
+        </g>
+      </svg>
+    </div>
+
+    <!-- dump lever (long press) -->
+    <button id="lever" class="lever hidden" aria-label="dump">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <circle class="ring" cx="50" cy="50" r="42"/>
+        <circle id="leverProgress" class="ringProgress" cx="50" cy="50" r="42"/>
+        <g class="leverArt">
+          <rect x="20" y="62" width="60" height="10" rx="4"/>
+          <path d="M32 62 l6 -34" stroke-width="9" stroke-linecap="round"/>
+          <circle cx="39" cy="25" r="9"/>
+          <path class="tiltArrow" d="M58 44 a22 22 0 0 1 20 14" stroke-width="7" fill="none" stroke-linecap="round"/>
+          <path class="tiltArrow" d="M78 58 l3 -13 l-12 5 z" stroke="none"/>
+        </g>
+      </svg>
+    </button>
+
+    <!-- big start button -->
+    <div id="start" class="start">
+      <div class="startInner">
+        <svg viewBox="0 0 200 200" aria-hidden="true">
+          <circle cx="100" cy="100" r="92" class="startRing"/>
+          <path d="M78 58 L146 100 L78 142 Z" class="startTri"/>
+        </svg>
+      </div>
+    </div>
+
+    <!-- loading -->
+    <div id="loading" class="loading"><div class="spin"></div></div>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "./vendor/three.module.min.js"
+    }
+  }
+  </script>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
