@@ -1,0 +1,18 @@
+{
+  "name": "yukishita-ninjin",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Snow-covered carrot harvest game for 4-year-olds (iPhone / iPad, WebGL)",
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/main.js --bundle --minify --format=iife --target=safari15 --outfile=dist/bundle.js --legal-comments=none",
+    "build:dev": "esbuild src/main.js --bundle --format=iife --target=safari15 --outfile=dist/bundle.js --sourcemap",
+    "watch": "esbuild src/main.js --bundle --format=iife --target=safari15 --outfile=dist/bundle.js --sourcemap --watch",
+    "serve": "python3 -m http.server 8080"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "playwright": "^1.62.1",
+    "three": "^0.185.1"
+  }
+}

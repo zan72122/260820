@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>雪下にんじん</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#dfe8f2">
+<meta name="description" content="雪の下からにんじんを見つけて収穫する、4歳児向けのモバイルWebゲーム">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%23eaf1f8'/><path d='M16 27 L11 13 Q16 10 21 13 Z' fill='%23f97316'/><path d='M16 11 L13 5 M16 11 L19 5 M16 11 L16 4' stroke='%234d8b2f' stroke-width='2' stroke-linecap='round' fill='none'/></svg>">
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%; width: 100%;
+    overflow: hidden; overscroll-behavior: none;
+    background: #dfe8f2;
+    -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: none;
+  }
+  #app {
+    position: fixed; inset: 0;
+    width: 100%; height: 100%;
+    touch-action: none;
+    overflow: hidden;
+  }
+  #view { display: block; width: 100%; height: 100%; touch-action: none; }
+
+  /* wordless gesture hints drawn over the canvas */
+  .hint-layer {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+  .hint {
+    position: absolute; top: 0; left: 0;
+    width: 96px; height: 96px;
+    opacity: 0;
+    transform-origin: 44px 10px;
+    will-change: transform, opacity;
+    filter: drop-shadow(0 3px 6px rgba(30,60,100,.35));
+  }
+  .hint-arrow { transform-origin: 40px 40px; width: 80px; height: 80px; }
+
+  /* wordless loader: a carrot growing out of a pulsing ring of snow */
+  #loader {
+    position: fixed; inset: 0; z-index: 20;
+    display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(circle at 50% 42%, #ffffff 0%, #dce8f4 55%, #c6d8ea 100%);
+    transition: opacity .6s ease;
+  }
+  #loader.gone { opacity: 0; pointer-events: none; }
+  .spin {
+    width: 92px; height: 92px;
+    border-radius: 50%;
+    border: 7px solid rgba(120,160,200,.25);
+    border-top-color: #f6821f;
+    animation: sp 1.05s linear infinite;
+  }
+  @keyframes sp { to { transform: rotate(360deg); } }
+
+  #fallback {
+    position: fixed; inset: 0; z-index: 30; display: none;
+    align-items: center; justify-content: center;
+    background: #dfe8f2; color: #3d566e;
+    font: 500 16px/1.7 -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+    text-align: center; padding: 24px;
+  }
+</style>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="loader"><div class="spin"></div></div>
+  <div id="fallback">
+    <div>
+      このゲームには WebGL が必要です。<br>
+      Safari の設定で WebGL を有効にしてから、<br>ページを再読み込みしてください。
+    </div>
+  </div>
+  <script src="dist/bundle.js"></script>
+</body>
+</html>
