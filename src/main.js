@@ -126,13 +126,14 @@ async function boot() {
   await step('ゆきを つもらせています…', () => world.build());
   await step('みちを つくっています…', () => {
     game = new Game({ renderer, scene, camera, world, audio, ui });
-    game.snapView('street', CFG.inlets[0] - 5.5);
+    game.snapView('establish', CFG.inlets[0]);
     // handle for automated device checks
     window.__game = game; window.__world = world; window.__three = THREE; window.__cfg = CFG;
   });
   // one warm-up frame so the first tap is not the frame that compiles shaders
   await step('しあげ…', () => { renderer.compile(scene, camera); renderer.render(scene, camera); });
   bootMsg.textContent = 'ゆきの したに なにが あるのかな？';
+  bootEl.classList.add('ready');
   startBtn.hidden = false;
   loop();
 }
@@ -175,6 +176,14 @@ function loop() {
   if (ready) {
     game.update(dt, r);
     adapt(dt);
+  } else if (game) {
+    // slow drift behind the title card
+    const t = now / 1000;
+    camera.position.set(
+      game.cam.pos.x + Math.sin(t * 0.13) * 1.6,
+      game.cam.pos.y + Math.sin(t * 0.09) * 0.35,
+      game.cam.pos.z);
+    camera.lookAt(game.cam.look);
   }
   world.update(dt, now / 1000, camera);
   renderer.render(scene, camera);

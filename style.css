@@ -78,8 +78,15 @@ body{
   position:fixed;inset:0;z-index:20;
   display:grid;place-items:center;
   background:linear-gradient(170deg,#e8f1f8 0%,#cfdeea 46%,#b7c9da 100%);
-  transition:opacity .55s ease;
+  transition:opacity .55s ease,background .8s ease;
 }
+/* once the world is built, let it show through behind the title */
+#boot.ready{
+  background:linear-gradient(180deg,rgba(226,238,247,.72) 0%,rgba(206,224,238,.42) 45%,rgba(150,175,198,.55) 100%);
+  -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);
+}
+#boot.ready h1{text-shadow:0 2px 10px rgba(255,255,255,.9),0 1px 0 rgba(255,255,255,.9)}
+#boot.ready p{text-shadow:0 1px 6px rgba(255,255,255,.85)}
 #boot.gone{opacity:0;pointer-events:none}
 #oops[hidden],#boot[hidden]{display:none}
 .bootInner{

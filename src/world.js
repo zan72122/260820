@@ -4,7 +4,7 @@ import * as TX from './textures.js';
 import { fbm, makeRng, clamp, lerp, smoothstep } from './noise.js';
 
 export const CFG = {
-  xMin: -13, xMax: 13,
+  xMin: -14.5, xMax: 13.5,
   roadFar: -3.40,          // far kerb
   roadNear: 1.05,          // gutter kerb face
   chZ0: 1.05, chZ1: 2.40,  // channel in z
@@ -16,9 +16,10 @@ export const CFG = {
   floorY: -2.00,
   flow: -1,                // water runs toward -x
   flowSpeed: 1.9,
-  inlets: [-4.2, 0.4, 5.0],
-  chanEnd: 10.4,          // where the channel disappears into the dark
-  fadeStart: -7.4, gone: -9.9,
+  // played from the top of the street downstream, so every lump gets a long run
+  inlets: [5.2, 0.0, -5.2],
+  chanEnd: 13.2,          // where the channel disappears into the dark
+  fadeStart: -10.6, gone: -12.8,
   lidHalfX: 0.55,
   lidZ0: 1.16, lidZ1: 2.30,
 };
@@ -200,7 +201,7 @@ export class World {
       map: tile(bank.map, 13, 7), normalMap: tile(bank.normal, 13, 7),
       roughnessMap: tile(bank.roughness, 13, 7),
       roughness: 1, metalness: 0, envMapIntensity: 0.85,
-      normalScale: new THREE.Vector2(0.75, 0.75),
+      normalScale: new THREE.Vector2(1.15, 1.15),
     });
 
     const soil = TX.makeSoil(256);
@@ -313,8 +314,8 @@ export class World {
     const lowerMat = new THREE.MeshStandardMaterial({
       map: cutTex, roughness: 0.96, metalness: 0, envMapIntensity: 0.5, fog: false,
     });
-    const lower = new THREE.Mesh(new THREE.PlaneGeometry(L, 6.4), lowerMat);
-    lower.position.set(cx, CFG.floorY - 3.2, capZ);
+    const lower = new THREE.Mesh(new THREE.PlaneGeometry(L, 5.6), lowerMat);
+    lower.position.set(cx, CFG.floorY - 2.8, capZ);
     g.add(lower);
 
     // upper cap runs the whole street, but the piece at each inlet belongs to its lid
@@ -600,7 +601,7 @@ export class World {
     // wall on the near side, opened up in front of every inlet so people can
     // shovel out of their gate straight into the channel
     // one gate opening per inlet; the wall between them is built to fit exactly
-    const gaps = CFG.inlets.map((x) => [x - 2.1, x + 2.1]);
+    const gaps = CFG.inlets.map((x) => [x - 1.9, x + 1.9]).sort((a, b) => a[0] - b[0]);
     const runs = [];
     let cursor = CFG.xMin;
     for (const [ga, gb] of gaps) {
@@ -618,15 +619,20 @@ export class World {
       this._snowCap(g, (a + b) / 2, h + 0.38 + 0.09, 3.05, w, 0.32, rng);
     }
 
-    // gate posts on either side of every opening
-    for (const [ga, gb] of gaps) {
-      for (const px of [ga, gb]) {
+    // gate posts where the wall actually ends, so no post is ever left orphaned
+    const postAt = new Set();
+    for (const [a, b] of runs) {
+      if (a > CFG.xMin + 0.05) postAt.add(a);
+      if (b < CFG.xMax - 0.05) postAt.add(b);
+    }
+    {
+      for (const px of postAt) {
         const post = new THREE.Mesh(this._wallBox(0.3, 1.75, 0.3, 0.62, 1.25), this.mats.block);
         post.position.set(px, 0.3 + 0.875, 3.05);
         post.castShadow = true; post.receiveShadow = true;
         g.add(post);
-        const cap = new THREE.Mesh(blobGeometry(0.19, 1, 400 + px * 31, 0.4, 0.22), this.mats.snowPlain);
-        cap.position.set(px, 2.2, 3.05);
+        const cap = new THREE.Mesh(blobGeometry(0.19, 1, 400 + Math.round(px * 31), 0.5, 0.28), this.mats.snowPlain);
+        cap.position.set(px, 2.19, 3.05);
         cap.castShadow = true;
         g.add(cap);
       }
@@ -655,7 +661,7 @@ export class World {
     slab.position.set(x, y, z);
     slab.castShadow = true; slab.receiveShadow = true;
     parent.add(slab);
-    const n = Math.max(2, Math.round(w / 0.8));
+    const n = clamp(Math.round(w / 1.7), 2, 5);
     for (let i = 0; i < n; i++) {
       const b = new THREE.Mesh(blobGeometry(0.16, 1, 4400 + Math.round(x * 13) + i * 7, 0.5, 0.34), this.mats.snowPlain);
       b.position.set(x - w / 2 + (i + 0.5) * (w / n) + (rng() - 0.5) * 0.12, y + 0.08, z + (rng() - 0.5) * 0.06);
@@ -761,29 +767,36 @@ export class World {
       g.add(tri);
     }
 
-    // windows on the street face: recessed glass inside a real frame
+    // windows on the street face: one extruded frame with two panes, plus glass
     const nz = z > 0 ? -1 : 1;                 // outward normal of the street face
     const face = z + nz * (d / 2);
     const rows = h > 5 ? 2 : 1;
+    if (!this.windowGeo) {
+      const fw = 1.2, fh = 1.3, b = 0.09, m = 0.028;
+      const rect = (path, x0, y0, x1, y1) => {
+        path.moveTo(x0, y0); path.lineTo(x1, y0); path.lineTo(x1, y1); path.lineTo(x0, y1); path.closePath();
+      };
+      const shape = new THREE.Shape();
+      rect(shape, -(fw / 2 + b), -(fh / 2 + b), fw / 2 + b, fh / 2 + b);
+      const left = new THREE.Path(); rect(left, -fw / 2, -fh / 2, -m, fh / 2);
+      const right = new THREE.Path(); rect(right, m, -fh / 2, fw / 2, fh / 2);
+      shape.holes.push(left, right);
+      this.windowGeo = new THREE.ExtrudeGeometry(shape, { depth: 0.1, bevelEnabled: false });
+      this.glassGeo = new THREE.PlaneGeometry(fw, fh);
+    }
     for (let r = 0; r < rows; r++) {
       const wy = 1.45 + r * 2.05;
       const cols = Math.max(1, Math.floor(w / 2.1));
       for (let cI = 0; cI < cols; cI++) {
         const wx = x - w / 2 + (cI + 0.5) * (w / cols);
-        const fw = 1.2, fh = 1.3, b = 0.09;
-        const gl = new THREE.Mesh(new THREE.PlaneGeometry(fw, fh), this.mats.glass);
+        const gl = new THREE.Mesh(this.glassGeo, this.mats.glass);
         gl.position.set(wx, wy, face + nz * 0.012);
         if (nz < 0) gl.rotation.y = Math.PI;
         g.add(gl);
-        for (const [bw, bh, ox, oy] of [
-          [fw + b * 2, b, 0, fh / 2 + b / 2], [fw + b * 2, b, 0, -fh / 2 - b / 2],
-          [b, fh, -fw / 2 - b / 2, 0], [b, fh, fw / 2 + b / 2, 0], [0.055, fh, 0, 0],
-        ]) {
-          const bar = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, 0.09), this.mats.frame);
-          bar.position.set(wx + ox, wy + oy, face + nz * 0.045);
-          bar.castShadow = true;
-          g.add(bar);
-        }
+        const fr = new THREE.Mesh(this.windowGeo, this.mats.frame);
+        fr.position.set(wx, wy, face + (nz > 0 ? 0 : -0.1));
+        fr.castShadow = true;
+        g.add(fr);
       }
     }
     return g;

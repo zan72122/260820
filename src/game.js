@@ -155,7 +155,7 @@ export class Game {
     this.splash.frustumCulled = false;
     this.scene.add(this.splash);
     this.splashP = [];
-    for (let i = 0; i < N; i++) this.splashP.push({ life: 0, vx: 0, vy: 0, vz: 0 });
+    for (let i = 0; i < N; i++) this.splashP.push({ life: 0, vx: 0, vy: 0, vz: 0, g: 7.5 });
     this.splashHead = 0;
 
     // expanding ring on the water where a lump lands
@@ -205,15 +205,27 @@ export class Game {
   // ------------------------------------------------------------- camera
   viewFor(kind, x, aspect) {
     const tall = smoothstep(1.5, 0.72, aspect);   // 0 = wide, 1 = tall
+    if (kind === 'establish') {
+      const wide = { p: [x + 3.6, 7.4, 12.2], l: [x - 1.0, 0.9, -0.4], f: 46 };
+      const tallP = { p: [x + 2.8, 8.2, 11.2], l: [x - 0.8, 0.8, -0.4], f: 50 };
+      const t2 = smoothstep(1.5, 0.72, aspect);
+      const p2 = new THREE.Vector3(
+        lerp(wide.p[0], tallP.p[0], t2), lerp(wide.p[1], tallP.p[1], t2), lerp(wide.p[2], tallP.p[2], t2));
+      const l2 = new THREE.Vector3(
+        lerp(wide.l[0], tallP.l[0], t2), lerp(wide.l[1], tallP.l[1], t2), lerp(wide.l[2], tallP.l[2], t2));
+      const k2 = clamp(1.28 / Math.max(aspect, 0.001), 1, 1.3);
+      p2.sub(l2).multiplyScalar(k2).add(l2);
+      return { pos: p2, look: l2, fov: lerp(wide.f, tallP.f, t2) };
+    }
     const P = kind === 'street'
       ? {
         // standing in the gateway with a shovel, looking out at the road
         wide: { p: [x + 0.80, 2.90, 7.00], l: [x - 0.70, 0.90, 0.30], f: 54 },
-        tall: { p: [x + 0.65, 3.15, 6.60], l: [x - 0.55, 0.85, 0.30], f: 56 },
+        tall: { p: [x + 0.65, 3.20, 6.40], l: [x - 0.55, 1.10, 0.30], f: 58 },
       }
       : {
-        wide: { p: [x + 2.60, 2.50, 5.60], l: [x - 1.50, -0.80, 1.60], f: 45 },
-        tall: { p: [x + 1.80, 3.00, 6.10], l: [x - 1.20, -0.85, 1.60], f: 47 },
+        wide: { p: [x + 2.60, 2.35, 5.60], l: [x - 1.50, -0.60, 1.60], f: 45 },
+        tall: { p: [x + 1.20, 2.25, 6.20], l: [x - 1.00, -0.15, 1.60], f: 52 },
       };
     const p = new THREE.Vector3(
       lerp(P.wide.p[0], P.tall.p[0], tall),
@@ -225,7 +237,13 @@ export class Game {
       lerp(P.wide.l[2], P.tall.l[2], tall));
 
     // narrow screens need a little more standoff or the street crops badly
-    const k = clamp(1.28 / Math.max(aspect, 0.001), 1, 1.5);
+    // a very wide frame is short: aim a little higher so the subject sits in it
+    // and the ground under the cut does not eat the bottom third
+    l.y += kind === 'section'
+      ? clamp((aspect - 1.45) * 0.5, 0, 0.7)
+      : clamp((aspect - 1.60) * 0.35, 0, 0.45);
+
+    const k = clamp(1.28 / Math.max(aspect, 0.001), 1, 1.28);
     p.sub(l).multiplyScalar(k).add(l);
     return { pos: p, look: l, fov: lerp(P.wide.f, P.tall.f, tall) };
   }
@@ -281,8 +299,8 @@ export class Game {
   // --------------------------------------------------------------- flow
   start() {
     this.state = 'intro';
-    this.snapView('street', CFG.inlets[0] - 5.5);
-    this.gotoView('street', CFG.inlets[0], 3.4);
+    this.snapView('establish', CFG.inlets[0]);
+    this.gotoView('street', CFG.inlets[0], 3.2);
     this.introT = 0;
     this.ui.hint('');
   }
@@ -340,7 +358,7 @@ export class Game {
       this.state = 'finale';
       this.finaleT = 0;
       this._setClip(CLIP_OFF, 0.75);
-      this.gotoView('street', 0.4, 3.0);
+      this.gotoView('establish', 0.4, 3.0);
       this.ui.hint(HINTS.finale);
       return;
     }
@@ -415,11 +433,18 @@ export class Game {
     if (!b) return;
     b.visible = false;
     pile.charges--;
+    if (pile.charges <= 0) {
+      this.scene.remove(pile.group);
+      const i = this.piles.indexOf(pile);
+      if (i >= 0) this.piles.splice(i, 1);
+    }
     this.carry = { pos: new THREE.Vector3(pile.x, pile.group.position.y + 0.7, pile.z), t: 0 };
     this.scoop.visible = true;
     this.scoop.position.copy(this.carry.pos);
     this.scoop.scale.setScalar(0.001);
     this.audio.scoop();
+    // powder snow puffs when you lift it; the packed road surface does not
+    this._splashBurst(new THREE.Vector3(pile.x, pile.group.position.y + 0.28, pile.z), 16, 0.55, true);
     this.ui.hint(HINTS.carried);
     this.magnetHold = 0;
   }
@@ -518,28 +543,31 @@ export class Game {
     return c;
   }
 
-  _splashBurst(pos, n, power) {
+  _splashBurst(pos, n, power, dust = false) {
     const p = this.splash.geometry.attributes.position;
     for (let i = 0; i < n; i++) {
       const idx = this.splashHead = (this.splashHead + 1) % this.splashP.length;
       const a = this.rng() * 6.28, sp = (0.5 + this.rng() * 1.3) * power;
-      p.setXYZ(idx, pos.x + (this.rng() - 0.5) * 0.2, pos.y + 0.03, pos.z + (this.rng() - 0.5) * 0.2);
+      p.setXYZ(idx, pos.x + (this.rng() - 0.5) * 0.24, pos.y + 0.03, pos.z + (this.rng() - 0.5) * 0.24);
       const q = this.splashP[idx];
-      q.life = 0.5 + this.rng() * 0.4;
-      q.vx = Math.cos(a) * sp * 0.4 + CFG.flow * 0.5;
-      q.vy = (1.1 + this.rng() * 1.5) * power;
-      q.vz = Math.sin(a) * sp * 0.35;
+      // powder throws a slow hanging cloud; water throws fast droplets
+      q.life = dust ? 0.7 + this.rng() * 0.6 : 0.5 + this.rng() * 0.4;
+      q.g = dust ? 1.1 : 7.5;
+      q.vx = Math.cos(a) * sp * (dust ? 0.28 : 0.4) + (dust ? 0 : CFG.flow * 0.5);
+      q.vy = (dust ? 0.5 + this.rng() * 0.6 : 1.1 + this.rng() * 1.5) * power;
+      q.vz = Math.sin(a) * sp * (dust ? 0.24 : 0.35);
     }
     p.needsUpdate = true;
   }
 
-  _ripple(pos) {
+  _ripple(pos, strength = 0.6, life = 1.1) {
     const m = new THREE.Mesh(this.rippleGeo, this.rippleMat.clone());
+    m.material.opacity = strength;
     m.rotation.x = -Math.PI / 2;
     m.position.copy(pos);
     m.position.y = CFG.waterY + 0.015;
     this.scene.add(m);
-    this.ripples.push({ mesh: m, t: 0 });
+    this.ripples.push({ mesh: m, t: 0, life, strength });
   }
 
   _updateChunks(dt) {
@@ -562,6 +590,7 @@ export class Game {
           this.audio.splash();
           this._splashBurst(m.position, 26, clamp(c.r * 4, 0.6, 1.4));
           this._ripple(m.position);
+          this.lightPulse = 2.6;
           this.world.mats.water.normalScale.set(1.6, 1.6);
         }
       } else {
@@ -575,6 +604,12 @@ export class Game {
         if (c.wake > 0.1 && c.r > 0.09) {
           c.wake = 0;
           this._splashBurst(m.position, 1, 0.16);
+        }
+        // a soft bow wave, so the lump looks like it is being carried
+        c.bow = (c.bow || 0) + dt;
+        if (c.bow > 0.55 && c.r > 0.1) {
+          c.bow = 0;
+          this._ripple(m.position, 0.22, 0.75);
         }
         m.rotation.y += (c.spin * 0.6 + 0.7) * dt;
         m.rotation.z += c.spin * 0.35 * dt;
@@ -615,7 +650,7 @@ export class Game {
       const q = this.splashP[i];
       if (q.life <= 0) continue;
       q.life -= dt;
-      q.vy -= 7.5 * dt;
+      q.vy -= q.g * dt;
       p.setXYZ(i, p.getX(i) + q.vx * dt, p.getY(i) + q.vy * dt, p.getZ(i) + q.vz * dt);
       if (q.life <= 0 || p.getY(i) < CFG.waterY - 0.1) { p.setY(i, -999); q.life = 0; }
       dirty = true;
@@ -625,9 +660,9 @@ export class Game {
     for (let i = this.ripples.length - 1; i >= 0; i--) {
       const r = this.ripples[i];
       r.t += dt;
-      const k = r.t / 1.1;
+      const k = r.t / r.life;
       r.mesh.scale.setScalar(1 + k * 5);
-      r.mesh.material.opacity = 0.6 * (1 - k);
+      r.mesh.material.opacity = r.strength * (1 - k);
       if (k >= 1) { this.scene.remove(r.mesh); r.mesh.material.dispose(); this.ripples.splice(i, 1); }
     }
 
@@ -693,7 +728,8 @@ export class Game {
     if (this.world.channelLight) {
       const under = clamp((CLIP_OFF - this.clip.value) / (CLIP_OFF - CFG.cutZ), 0, 1);
       this.world.channelLight.position.x = this.cam.look.x - 0.6;
-      this.world.channelLight.intensity = under * 3.4;
+      this.lightPulse = Math.max(0, (this.lightPulse || 0) - dt * 4);
+      this.world.channelLight.intensity = under * (3.4 + this.lightPulse);
     }
     this.audio.update(dt, this._activeLid() ? this._activeLid().open * 0.85 + 0.15 * (this.viewKind === 'section' ? 1 : 0) : 0);
   }
@@ -777,7 +813,7 @@ export class Game {
     switch (this.state) {
       case 'intro':
         this.introT = (this.introT || 0) + dt;
-        if (this.introT > 3.0) { this.state = 'needLid'; this.ui.hint(HINTS.lid); }
+        if (this.introT > 3.4) { this.state = 'needLid'; this.ui.hint(HINTS.lid); }
         break;
 
       case 'opening':
