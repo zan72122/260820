@@ -1,0 +1,154 @@
+/* ---- こおりの みずうみ : UI layer -------------------------------------- */
+:root{
+  --safeT: env(safe-area-inset-top, 0px);
+  --safeB: env(safe-area-inset-bottom, 0px);
+  --safeL: env(safe-area-inset-left, 0px);
+  --safeR: env(safe-area-inset-right, 0px);
+  --ink:#123049;
+  --paper:rgba(255,255,255,.86);
+}
+*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body{
+  margin:0; padding:0; width:100%; height:100%; overflow:hidden;
+  background:#0a1622; overscroll-behavior:none; touch-action:none;
+  -webkit-user-select:none; user-select:none;
+  font-family:"Hiragino Maru Gothic ProN","ヒラギノ丸ゴ ProN W4","Hiragino Sans",
+              "Yu Gothic","Meiryo",system-ui,-apple-system,sans-serif;
+}
+body{ position:fixed; inset:0; }
+#gl{ position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; }
+
+#ui{ position:fixed; inset:0; pointer-events:none; z-index:5; }
+.hidden{ display:none !important; }
+
+/* ---------- tally ---------- */
+#tally{
+  position:absolute; top:calc(var(--safeT) + 10px); left:calc(var(--safeL) + 12px);
+  display:flex; align-items:center; gap:.12em;
+  padding:.28em .7em .34em; border-radius:999px;
+  background:var(--paper); color:var(--ink);
+  font-size:clamp(19px, 4.6vmin, 34px); font-weight:700;
+  box-shadow:0 3px 12px rgba(10,30,50,.28);
+  backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+}
+#tallyX{ opacity:.55; font-size:.72em; margin:0 .1em; }
+#tallyNum{ min-width:1.1em; text-align:center; }
+#tally.pop{ animation:tallyPop .5s cubic-bezier(.2,1.7,.4,1); }
+@keyframes tallyPop{ 0%{transform:scale(1)} 35%{transform:scale(1.32) rotate(-4deg)} 100%{transform:scale(1)} }
+
+/* ---------- coach mark ---------- */
+#coach{
+  position:absolute; left:50%; bottom:calc(var(--safeB) + 4.5vmin);
+  transform:translateX(-50%);
+  display:flex; flex-direction:column; align-items:center; gap:.35em;
+  width:max-content; max-width:88vw;
+}
+#coachText{
+  padding:.34em 1.05em .44em; border-radius:999px;
+  background:var(--paper); color:var(--ink);
+  font-size:clamp(18px, 4.4vmin, 34px); font-weight:700; letter-spacing:.02em;
+  white-space:nowrap; text-align:center;
+  box-shadow:0 3px 14px rgba(10,30,50,.3);
+  backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+}
+#coach.big #coachText{ font-size:clamp(23px, 6.2vmin, 46px); background:#fff; }
+#coachArt{ width:clamp(58px,13vmin,110px); height:clamp(58px,13vmin,110px); }
+#coachArt svg{ width:100%; height:100%; overflow:visible; }
+#coach.hideArt #coachArt{ display:none; }
+
+/* gesture glyph animations */
+.gFinger{ transform-origin:50% 50%; }
+.circleAnim{ animation:goRound 1.9s linear infinite; }
+@keyframes goRound{ to{ transform:rotate(360deg) } }
+.swipeAnim{ animation:goUpDown 1.5s ease-in-out infinite; }
+@keyframes goUpDown{ 0%,100%{transform:translateY(-13%)} 50%{transform:translateY(13%)} }
+.scoopAnim{ animation:goSide 1.7s ease-in-out infinite; }
+@keyframes goSide{ 0%,100%{transform:translateX(-20%)} 50%{transform:translateX(20%)} }
+.pullAnim{ animation:goPull .62s cubic-bezier(.4,0,.2,1) infinite; }
+@keyframes goPull{ 0%{transform:translateY(20%)} 60%{transform:translateY(-22%)} 100%{transform:translateY(20%)} }
+.tapAnim{ animation:goTap 1.35s ease-in-out infinite; }
+@keyframes goTap{ 0%,72%,100%{transform:scale(1)} 82%{transform:scale(.8)} }
+
+/* ---------- drill progress ring ---------- */
+#ring{
+  position:absolute; width:clamp(96px,25vmin,190px); height:clamp(96px,25vmin,190px);
+  left:50%; top:50%; transform:translate(-50%,-50%) rotate(-90deg);
+  pointer-events:none; filter:drop-shadow(0 2px 6px rgba(10,30,50,.35));
+}
+#ring circle{ fill:none; stroke-linecap:round; }
+.ringBg{ stroke:rgba(255,255,255,.42); stroke-width:9; }
+#ringFg{
+  stroke:#ffd23f; stroke-width:11;
+  stroke-dasharray:326.7; stroke-dashoffset:326.7;
+  transition:stroke-dashoffset .12s linear;
+}
+
+/* ---------- start ---------- */
+#start{
+  position:absolute; inset:0; display:flex; flex-direction:column;
+  align-items:center; justify-content:center; gap:2.2vmin;
+  padding:calc(var(--safeT) + 3vmin) 5vmin calc(var(--safeB) + 3vmin);
+  pointer-events:auto;
+  background:radial-gradient(120% 90% at 50% 42%, rgba(11,28,45,.16) 0%, rgba(8,22,38,.62) 100%);
+  transition:opacity .5s ease;
+}
+#start.away{ opacity:0; pointer-events:none; }
+#startTitle{
+  color:#fff; font-size:clamp(29px,8.2vmin,74px); font-weight:800; letter-spacing:.06em;
+  text-shadow:0 3px 18px rgba(6,18,32,.75), 0 1px 2px rgba(6,18,32,.9);
+}
+#startSub{
+  color:#e6f2fb; font-size:clamp(14px,3.5vmin,26px); font-weight:600; text-align:center;
+  line-height:1.55; text-shadow:0 2px 10px rgba(6,18,32,.8); max-width:22em;
+}
+#startBtn{
+  margin-top:1.4vmin; display:flex; align-items:center; gap:.42em;
+  padding:.5em 1.35em .58em; border:none; border-radius:999px; cursor:pointer;
+  background:linear-gradient(#fff,#dceaf6); color:#0f2c44;
+  font-family:inherit; font-size:clamp(21px,5.6vmin,42px); font-weight:800;
+  box-shadow:0 6px 0 #90b2c9, 0 12px 26px rgba(6,20,36,.45);
+  animation:btnBob 2.4s ease-in-out infinite;
+}
+#startBtn:active{ transform:translateY(4px); box-shadow:0 2px 0 #90b2c9, 0 6px 16px rgba(6,20,36,.45); animation:none; }
+@keyframes btnBob{ 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+.sIco{ font-size:1.12em; }
+#startHint{ color:#bcd6e8; font-size:clamp(11px,2.7vmin,19px); font-weight:600; opacity:.9; }
+
+/* ---------- corner buttons ---------- */
+#sndBtn,#againBtn{
+  position:absolute; top:calc(var(--safeT) + 10px);
+  width:clamp(38px,9.2vmin,62px); height:clamp(38px,9.2vmin,62px);
+  border:none; border-radius:50%; cursor:pointer; pointer-events:auto;
+  background:var(--paper); color:var(--ink);
+  font-family:inherit; font-size:clamp(17px,4.2vmin,28px); line-height:1;
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 3px 12px rgba(10,30,50,.28);
+  backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
+}
+#sndBtn{ right:calc(var(--safeR) + 12px); }
+#againBtn{ right:calc(var(--safeR) + 12px + clamp(38px,9.2vmin,62px) + 9px); font-size:clamp(19px,4.8vmin,32px); }
+#sndBtn:active,#againBtn:active{ transform:scale(.92); }
+#sndBtn.off{ opacity:.5; }
+
+/* ---------- white flash for the two magic moments ---------- */
+#flash{
+  position:absolute; inset:0; background:#fff; opacity:0; pointer-events:none;
+  mix-blend-mode:screen;
+}
+#flash.go{ animation:flashOut .5s ease-out; }
+@keyframes flashOut{ 0%{opacity:.62} 100%{opacity:0} }
+
+/* landscape on short screens: keep the coach out of the way */
+@media (orientation:landscape) and (max-height:520px){
+  #coach{ bottom:calc(var(--safeB) + 2vmin); flex-direction:row; gap:.45em; align-items:center; }
+  #coachArt{ width:clamp(38px,13vmin,66px); height:clamp(38px,13vmin,66px); }
+  #coachText{ font-size:clamp(15px,5.2vmin,25px); padding:.28em .8em .36em; }
+  #coach.big #coachText{ font-size:clamp(18px,6.6vmin,30px); }
+  #ring{ width:clamp(78px,30vmin,140px); height:clamp(78px,30vmin,140px); }
+  #startTitle{ font-size:clamp(26px,9vmin,56px); }
+  #startSub{ font-size:clamp(13px,3.6vmin,20px); }
+  #startBtn{ font-size:clamp(19px,6vmin,34px); }
+}
+@media (prefers-reduced-motion:reduce){
+  #startBtn{ animation:none; }
+}
