@@ -20,7 +20,7 @@ export class Lighting {
   constructor(quality: 'high' | 'low') {
     this.hemi = new THREE.HemisphereLight(0xdfe9f5, 0xb59a76, 0.62)
 
-    this.key = new THREE.DirectionalLight(0xfdfaf4, 2.05)
+    this.key = new THREE.DirectionalLight(0xfdfaf4, 2.3)
     this.key.castShadow = true
     const size = quality === 'high' ? 2048 : 1024
     this.key.shadow.mapSize.set(size, size)
@@ -31,9 +31,9 @@ export class Lighting {
     this.key.shadow.camera.right = s
     this.key.shadow.camera.top = s
     this.key.shadow.camera.bottom = -s
-    this.key.shadow.bias = -0.0006
-    this.key.shadow.normalBias = 0.004
-    this.key.shadow.radius = 3
+    this.key.shadow.bias = -0.00022
+    this.key.shadow.normalBias = 0.0015
+    this.key.shadow.radius = 2
 
     this.fill = new THREE.DirectionalLight(0xe8eef6, 0.5)
     this.fill.position.set(-0.6, -0.15, 0.85)

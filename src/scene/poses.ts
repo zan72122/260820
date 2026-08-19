@@ -38,12 +38,12 @@ export const POSES: Record<string, PoseSet> = {
     landscape: { pos: [-0.02, 0.3, 0.22], target: [-0.42, 0.19, -0.3], fov: 49 },
   },
   flip: {
-    portrait: { pos: [0.06, 0.31, 0.88], target: [0.0, 0.28, 0.14], fov: 52 },
-    landscape: { pos: [0.03, 0.33, 0.62], target: [0.0, 0.31, 0.14], fov: 46 },
+    portrait: { pos: [0.06, 0.31, 0.84], target: [0.0, 0.29, 0.1], fov: 52 },
+    landscape: { pos: [0.03, 0.33, 0.58], target: [0.0, 0.31, 0.1], fov: 46 },
   },
   mount: {
-    portrait: { pos: [0.14, 0.18, 0.5], target: [0.0, 0.16, 0.02], fov: 46 },
-    landscape: { pos: [0.16, 0.19, 0.4], target: [0.0, 0.15, 0.02], fov: 44 },
+    portrait: { pos: [0.13, 0.26, 0.6], target: [0.0, 0.2, 0.04], fov: 46 },
+    landscape: { pos: [0.17, 0.26, 0.58], target: [0.0, 0.2, 0.04], fov: 44 },
   },
   cool: {
     portrait: { pos: [0.11, 0.13, 0.48], target: [0.0, 0.15, 0.02], fov: 47 },
@@ -66,7 +66,7 @@ export const POSES: Record<string, PoseSet> = {
     landscape: { pos: [0.16, 0.2, 0.36], target: [0.0, 0.08, 0.06], fov: 44 },
   },
   final: {
-    portrait: { pos: [0.24, 0.3, 0.7], target: [0.0, 0.07, 0.04], fov: 46 },
-    landscape: { pos: [0.28, 0.26, 0.56], target: [0.0, 0.065, 0.04], fov: 46 },
+    portrait: { pos: [0.24, 0.28, 0.66], target: [0.0, 0.03, 0.04], fov: 46 },
+    landscape: { pos: [0.28, 0.26, 0.56], target: [0.0, 0.055, 0.04], fov: 46 },
   },
 }

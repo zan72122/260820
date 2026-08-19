@@ -11,6 +11,7 @@ import { introStage, mixStage, pourStage, toOvenStage } from './stages/mixPour'
 import { bakeStage, coolStage, flipStage, mountStage, takeoutStage } from './stages/bakeFlip'
 import { liftStage, pressStage, releaseStage } from './stages/unmold'
 import { LAYOUT } from './world'
+import type { ChiffonState } from './automation'
 
 const ORDER: StageId[] = [
   'intro',
@@ -187,7 +188,7 @@ export class Game {
   }
 
   /** Deterministic hooks for automated play-throughs. */
-  debugState() {
+  debugState(): ChiffonState {
     return {
       stage: this.currentStage,
       flavor: this.flavor.id,

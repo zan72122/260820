@@ -60,13 +60,13 @@ export class ChiffonPan {
     const rough = aluminiumRough()
     const tint = aluminiumTint()
     this.material = new THREE.MeshStandardMaterial({
-      color: 0xc9cac6,
+      color: 0xbcc0c0,
       map: tint,
       roughnessMap: rough,
       bumpMap: rough,
-      bumpScale: 0.07,
+      bumpScale: 0.04,
       metalness: 0.82,
-      roughness: 0.86,
+      roughness: 0.78,
       side: THREE.DoubleSide,
       emissive: new THREE.Color(0x000000),
     })

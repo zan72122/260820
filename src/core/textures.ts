@@ -127,12 +127,12 @@ export function aluminiumRough(): THREE.Texture {
 export function aluminiumTint(): THREE.Texture {
   return once('alu-tint', () => {
     const cv = makeCanvas(256, (c, s) => {
-      c.fillStyle = '#cfd0cd'
+      c.fillStyle = '#dcdedd'
       c.fillRect(0, 0, s, s)
       const rng = new Rng(3311)
       for (let i = 0; i < 40; i++) {
         const g = c.createRadialGradient(rng.range(0, s), rng.range(0, s), 1, rng.range(0, s), rng.range(0, s), rng.range(14, 60))
-        g.addColorStop(0, `rgba(${188 + rng.range(0, 20) | 0},${172 + rng.range(0, 20) | 0},148,0.28)`)
+        g.addColorStop(0, `rgba(${196 + rng.range(0, 18) | 0},${188 + rng.range(0, 16) | 0},170,0.2)`)
         g.addColorStop(1, 'rgba(190,175,150,0)')
         c.fillStyle = g
         c.fillRect(0, 0, s, s)

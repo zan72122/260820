@@ -69,7 +69,7 @@ const log = []
 let guard = 0
 const t0 = Date.now()
 let last = ''
-while (guard++ < 400 && Date.now() - t0 < 300000) {
+while (guard++ < 400 && Date.now() - t0 < 800000) {
   const st = await state()
   if (st.stage !== last) {
     last = st.stage

@@ -17,7 +17,7 @@ export const LAYOUT = {
   bowl: new THREE.Vector3(-0.16, 0, 0.1),
   panRest: new THREE.Vector3(0.02, 0, 0.06),
   panOven: new THREE.Vector3(-0.52, 0.087, -0.68),
-  panHold: new THREE.Vector3(0.0, 0.3, 0.14),
+  panHold: new THREE.Vector3(0.0, 0.3, 0.1),
   bottle: new THREE.Vector3(0.0, 0, 0.02),
   /** Pan-root height when the pan hangs upside-down on the bottle neck. */
   mountY: 0.182,
@@ -60,7 +60,7 @@ export class World {
     this.pmrem = new THREE.PMREMGenerator(renderer)
     const env = this.pmrem.fromScene(new RoomEnvironment(), 0.02)
     this.scene.environment = env.texture
-    this.scene.environmentIntensity = 0.42
+    this.scene.environmentIntensity = 0.55
 
     this.kitchen = buildKitchen(quality)
     this.lighting = new Lighting(quality)

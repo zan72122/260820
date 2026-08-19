@@ -63,6 +63,7 @@ export function bakeStage(ctx: Ctx): Stage {
       ctx.world.setCutaway(false)
       ctx.world.kitchen.oven.glassFade = 1
       ctx.audio.stopBakeAmbient()
+      ctx.world.kitchen.oven.glow.intensity = 1.1
       ctx.world.chiffon.setRise(1)
       ctx.world.chiffon.setBake(1)
     },
@@ -105,8 +106,11 @@ export function takeoutStage(ctx: Ctx): Stage {
       ctx.world.lighting.setWarmth(1 - move * 0.55)
       ctx.world.steam.amount = damp(ctx.world.steam.amount, 0.55 * grip, 2.4, dt)
       ctx.world.kitchen.oven.open = move > 0.5 ? 0 : 1
-      ctx.world.kitchen.oven.glow.intensity = 1.1 * (1 - move * 0.7)
+      ctx.world.kitchen.oven.glow.intensity = 1.1 * (1 - move)
       if (t >= 1) ctx.next()
+    },
+    exit() {
+      ctx.world.kitchen.oven.glow.intensity = 0
     },
   }
 }
@@ -134,6 +138,8 @@ export function flipStage(ctx: Ctx): Stage {
       ctx.world.pan.root.position.copy(LAYOUT.panHold)
       ctx.world.mitts.root.visible = true
       ctx.world.mitts.grip = 1
+      ctx.world.kitchen.oven.open = 0
+      ctx.world.kitchen.oven.glow.intensity = 0
       spring.set(ctx.world.pan.flipPivot.rotation.z)
 
       g.onProgress = (p) => {
@@ -230,6 +236,7 @@ export function mountStage(ctx: Ctx): Stage {
       p.x += Math.sin(value * 4.1) * 0.004 * (1 - value)
 
       ctx.world.steam.amount = damp(ctx.world.steam.amount, 0.34, 1.2, dt)
+      ctx.rig.followTarget.set(0, 0.07 * (1 - value), 0)
       if (!snapped && value > 0.94) {
         snapped = true
         ctx.audio.clink()
@@ -245,6 +252,7 @@ export function mountStage(ctx: Ctx): Stage {
     exit() {
       ctx.input.set(null)
       ctx.hud.hideGuide()
+      ctx.rig.followTarget.set(0, 0, 0)
       ctx.world.pan.root.position.copy(seat)
     },
   }

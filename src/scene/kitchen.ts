@@ -32,7 +32,7 @@ export class Oven {
       color: 0x8a6b4e,
       roughness: 0.55,
       metalness: 0.35,
-      emissive: new THREE.Color(0x3d1a08),
+      emissive: new THREE.Color(0x1c0b04),
       side: THREE.FrontSide,
     })
 
@@ -88,7 +88,7 @@ export class Oven {
     rail2.position.z = -D + 0.08
     this.interior.add(rail, rail2)
 
-    this.glow = new THREE.PointLight(0xffa04a, 1.1, 1.1, 2)
+    this.glow = new THREE.PointLight(0xffa04a, 0, 1.1, 2)
     this.glow.position.set(0, H * 0.78, -D * 0.5)
     this.interior.add(this.glow)
 
@@ -212,8 +212,8 @@ export function buildKitchen(quality: 'high' | 'low'): Kitchen {
   winGroup.position.set(1.14, 0.62, -0.4)
 
   // ---- background dressing -------------------------------------------------
-  const shelfMat = new THREE.MeshStandardMaterial({ color: 0xcfc4b2, roughness: 0.75 })
-  const shelf = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.022, 0.16), shelfMat)
+  const shelfMat = new THREE.MeshStandardMaterial({ color: 0xa08a69, roughness: 0.8 })
+  const shelf = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.03, 0.17), shelfMat)
   shelf.position.set(0.5, 0.66, -0.95)
   shelf.castShadow = false
   const shelf2 = shelf.clone()

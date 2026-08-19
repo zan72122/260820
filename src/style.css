@@ -156,7 +156,7 @@ html, body {
 }
 #flavors { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
 .flavor {
-  width: 62px;
+  width: 74px;
   height: 62px;
   border-radius: 20px;
   border: 4px solid transparent;
@@ -167,6 +167,7 @@ html, body {
   padding-bottom: 5px;
   font-size: 11px;
   font-weight: 700;
+  letter-spacing: -0.02em;
   color: #5a4128;
   cursor: pointer;
   box-shadow: inset 0 -14px 18px rgba(0, 0, 0, 0.06);
@@ -188,7 +189,7 @@ html, body {
 
 @media (orientation: landscape) and (max-height: 480px) {
   .panel { flex-direction: row; bottom: calc(10px + var(--safe-b)); padding: 10px 16px; }
-  .flavor { width: 52px; height: 52px; }
+  .flavor { width: 66px; height: 52px; }
 }
 
 /* ---- loading ------------------------------------------------------------- */

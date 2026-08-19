@@ -213,7 +213,7 @@ export class Chiffon {
         .replace('#include <common>', '#include <common>\nuniform float uBubble;\nuniform float uBake;')
         .replace(
           '#include <map_fragment>',
-          `vec2 cUv = (vMapUv - 0.5) / mix(2.6, 1.0, uBubble) + 0.5;
+          `vec2 cUv = (vMapUv - 0.5) / mix(1.0, 2.4, uBubble) + 0.5;
            vec4 sampledDiffuseColor = texture2D( map, cUv );
            diffuseColor *= sampledDiffuseColor;
            diffuseColor.rgb = mix(diffuseColor.rgb * vec3(1.02, 0.98, 0.86), diffuseColor.rgb, uBake);`,

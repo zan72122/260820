@@ -21,7 +21,7 @@ export class Mitt {
       roughness: 0.95,
       metalness: 0,
     })
-    const sleeve = new THREE.MeshStandardMaterial({ color: 0xdfdacf, roughness: 0.92, metalness: 0 })
+    const sleeve = new THREE.MeshStandardMaterial({ color: 0xcdc7ba, roughness: 0.92, metalness: 0 })
     const trim = new THREE.MeshStandardMaterial({ color: 0x9c3628, roughness: 0.92, metalness: 0 })
 
     // Palm pad: tall and shallow, so it hugs the pan wall rather than balling up.
@@ -50,9 +50,9 @@ export class Mitt {
     cuff.castShadow = true
 
     // Forearms recede away from the lens: the chef stands opposite the camera.
-    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.027, 0.031, 0.19, 16), sleeve)
-    arm.position.set(-side * 0.048, -0.128, -0.116)
-    arm.rotation.set(-0.82, 0, side * 0.34)
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.025, 0.34, 16), sleeve)
+    arm.position.set(-side * 0.052, -0.176, -0.03)
+    arm.rotation.set(-1.02, 0, side * 0.3)
     arm.castShadow = true
 
     this.root.add(this.pad, this.fingers, this.thumb, cuff, arm)
@@ -88,8 +88,8 @@ export class MittPair {
     this.right.root.rotation.z = -0.12
     // Sit the pair a touch toward the camera so the cloth reads as foreground
     // and the pan silhouette stays clean behind it.
-    this.left.root.position.z = 0.014
-    this.right.root.position.z = 0.014
+    this.left.root.position.z = 0.03
+    this.right.root.position.z = 0.03
     this.left.root.position.y = 0.014
     this.right.root.position.y = 0.014
     this.root.add(this.left.root, this.right.root)
