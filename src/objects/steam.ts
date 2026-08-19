@@ -33,7 +33,7 @@ export class Steam {
       uTime: { value: 0 },
       uAmount: { value: 0 },
       uRise: { value: rise },
-      uSize: { value: 26 },
+      uSize: { value: 17 },
       uMap: { value: steamSprite() },
       uTint: { value: new THREE.Color(0xffffff) },
     }
@@ -58,7 +58,7 @@ export class Steam {
           vec4 mv = modelViewMatrix * vec4(p, 1.0);
           gl_Position = projectionMatrix * mv;
           gl_PointSize = uSize * (0.35 + life * 1.9) / max(0.05, -mv.z);
-          vAlpha = uAmount * sin(life * 3.14159) * (0.30 + 0.35 * aWob * 0.4);
+          vAlpha = uAmount * sin(life * 3.14159) * (0.13 + 0.10 * aWob);
         }`,
       fragmentShader: `
         uniform sampler2D uMap; uniform vec3 uTint;

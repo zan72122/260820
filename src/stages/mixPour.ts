@@ -12,9 +12,8 @@ export function introStage(ctx: Ctx): Stage {
     enter() {
       ctx.hud.hideGuide()
       ctx.hud.setVerb(null)
-      ctx.rig.snapTo(POSES.final)
-      ctx.rig.goTo(POSES.intro, 0.01)
-      ctx.rig.goTo(POSES.mix, 2.0)
+      ctx.rig.snapTo(POSES.intro)
+      ctx.rig.goTo(POSES.mix, 1.8)
       ctx.world.lighting.lookAt(-0.1, 0.06, 0.05)
       ctx.world.pan.root.position.copy(LAYOUT.panRest)
       ctx.world.pan.root.rotation.set(0, 0, 0)
@@ -93,9 +92,10 @@ export function mixStage(ctx: Ctx): Stage {
         LAYOUT.bowl.z + Math.sin(a) * rr,
       )
       const sp = ctx.world.spatula
-      sp.position.lerp(tip, 1 - Math.exp(-14 * dt))
-      sp.rotation.z = damp(sp.rotation.z, -0.5 + Math.cos(a) * 0.5 + strokeP * 1.5, 8, dt)
-      sp.rotation.x = damp(sp.rotation.x, 0.35 - dip * 0.5, 8, dt)
+      // `tip` is where the blade should be; the handle rides above it.
+      sp.position.lerp(tip.clone().add(new THREE.Vector3(0, 0.082, 0)), 1 - Math.exp(-14 * dt))
+      sp.rotation.z = damp(sp.rotation.z, Math.cos(a) * 0.42 - strokeP * 0.5, 8, dt)
+      sp.rotation.x = damp(sp.rotation.x, -0.32 + dip * 0.42, 8, dt)
       sp.rotation.y = damp(sp.rotation.y, -a + Math.PI * 0.5, 8, dt)
 
       bladeLocal.set(tip.x - LAYOUT.bowl.x, 0, tip.z - LAYOUT.bowl.z)
@@ -183,6 +183,8 @@ export function pourStage(ctx: Ctx): Stage {
 
       if (done >= 0) {
         done += dt
+        fill = Math.min(1, fill + dt * 1.4)
+        ctx.world.chiffon.setFill(fill)
         ctx.world.bowl.rotation.z = damp(ctx.world.bowl.rotation.z, 0, 4, dt)
         ctx.world.bowl.position.lerp(bowlStart, 1 - Math.exp(-3 * dt))
         if (done > 1.2) ctx.next()
@@ -205,7 +207,7 @@ export function toOvenStage(ctx: Ctx): Stage {
   const guide = linePoints(0.2, -0.5, -0.16, 0.46, 0.12, 20)
   const g = new PathGesture(guide, 0.6, 0.4)
   const start = LAYOUT.panRest.clone()
-  const mid = new THREE.Vector3(-0.2, 0.14, -0.12)
+  const mid = new THREE.Vector3(-0.32, 0.15, -0.26)
   const end = LAYOUT.panOven.clone()
 
   return {

@@ -37,9 +37,12 @@ function topHeight(s: Shape, u: number, theta: number, seed: number): number {
   if (s.crack > 0) {
     const ridge =
       Math.sin(theta * 5 + seed) * 0.6 + Math.sin(theta * 9 + seed * 1.7) * 0.28 + Math.sin(theta * 14 + seed * 0.4) * 0.16
-    y += s.crack * 0.0026 * arch * ridge
-    const fissure = Math.pow(Math.max(0, Math.sin(theta * 3 + seed * 0.9)), 10)
-    y -= s.crack * 0.0038 * Math.pow(arch, 0.4) * fissure
+    y += s.crack * 0.0042 * arch * ridge
+    // Two or three real fissures, the way a chiffon top actually splits.
+    const fissure =
+      Math.pow(Math.max(0, Math.sin(theta * 3 + seed * 0.9)), 8) +
+      0.7 * Math.pow(Math.max(0, Math.sin(theta * 5 - seed * 1.3)), 12)
+    y -= s.crack * 0.0075 * Math.pow(arch, 0.35) * Math.min(1.4, fissure)
   }
   if (s.squash > 0) y -= s.squash * 0.0062 * Math.pow(arch, 0.5)
   return y
@@ -47,7 +50,7 @@ function topHeight(s: Shape, u: number, theta: number, seed: number): number {
 
 function wallR(s: Shape, base: number, y: number, hi: number, theta: number): number {
   let r = base
-  if (s.stria > 0) r += s.stria * 0.00032 * Math.sin(theta * 44)
+  if (s.stria > 0) r += s.stria * (0.00055 * Math.sin(theta * 46) + 0.00028 * Math.sin(theta * 97 + 1.1))
   if (s.squash > 0) {
     const f = Math.sin(Math.PI * clamp((y - Y0) / Math.max(1e-4, hi - Y0)))
     r += s.squash * 0.0017 * f * Math.sign(base - 0.05)
@@ -182,6 +185,8 @@ export class Chiffon {
     this.material = new THREE.MeshStandardMaterial({
       color: 0xffffff,
       map: crustTexture(flavor.crustA, flavor.crustB, flavor.seed),
+      bumpMap: crustTexture(flavor.crustA, flavor.crustB, flavor.seed),
+      bumpScale: 0.4,
       roughness: 0.72,
       metalness: 0,
     })
@@ -243,7 +248,7 @@ export class Chiffon {
            baked = mix(baked, uBottom, botMask);
            float mottle = dot(diffuseColor.rgb, vec3(0.3333));
            vec3 tint = mix(uRaw, baked, uBake);
-           diffuseColor.rgb = tint * (0.86 + 0.34 * (mottle - 0.55));`,
+           diffuseColor.rgb = tint * (0.74 + 0.66 * mottle);`,
         )
         .replace(
           '#include <roughnessmap_fragment>',

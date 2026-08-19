@@ -18,9 +18,9 @@ export class Lighting {
   private warmth = 0
 
   constructor(quality: 'high' | 'low') {
-    this.hemi = new THREE.HemisphereLight(0xdfe9f5, 0xb59a76, 0.72)
+    this.hemi = new THREE.HemisphereLight(0xdfe9f5, 0xb59a76, 0.62)
 
-    this.key = new THREE.DirectionalLight(0xfdfaf4, 2.5)
+    this.key = new THREE.DirectionalLight(0xfdfaf4, 2.05)
     this.key.castShadow = true
     const size = quality === 'high' ? 2048 : 1024
     this.key.shadow.mapSize.set(size, size)
@@ -38,7 +38,7 @@ export class Lighting {
     this.fill = new THREE.DirectionalLight(0xe8eef6, 0.5)
     this.fill.position.set(-0.6, -0.15, 0.85)
 
-    this.rim = new THREE.DirectionalLight(0xfff2df, 1.15)
+    this.rim = new THREE.DirectionalLight(0xfff2df, 0.8)
     this.rim.position.set(-0.5, 0.75, -1.0)
 
     this.warm = new THREE.PointLight(0xffa04a, 0, 1.2, 2)
@@ -65,7 +65,7 @@ export class Lighting {
     this.key.target.updateMatrixWorld()
     const w = this.warmth
     this.key.color.setRGB(0.995 - w * 0.02, 0.982 - w * 0.03, 0.957 - w * 0.09)
-    this.hemi.intensity = 0.72 - w * 0.12
+    this.hemi.intensity = 0.62 - w * 0.1
     this.rim.color.setRGB(1, 0.95 - w * 0.03, 0.874 - w * 0.09)
   }
 }

@@ -16,12 +16,12 @@ import { BOTTLE } from './core/dims'
 export const LAYOUT = {
   bowl: new THREE.Vector3(-0.16, 0, 0.1),
   panRest: new THREE.Vector3(0.02, 0, 0.06),
-  panOven: new THREE.Vector3(-0.34, 0.087, -0.44),
+  panOven: new THREE.Vector3(-0.52, 0.087, -0.68),
   panHold: new THREE.Vector3(0.0, 0.3, 0.14),
   bottle: new THREE.Vector3(0.0, 0, 0.02),
   /** Pan-root height when the pan hangs upside-down on the bottle neck. */
   mountY: 0.182,
-  rack: new THREE.Vector3(0.44, 0, -0.16),
+  rack: new THREE.Vector3(0.5, 0, -0.46),
 }
 
 export type Quality = 'high' | 'low'

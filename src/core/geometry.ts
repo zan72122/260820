@@ -35,7 +35,7 @@ export function buildRevolve(
       const b = a + 1
       const c = a + row
       const d = c + 1
-      idx.push(a, c, b, b, c, d)
+      idx.push(a, b, c, b, d, c)
     }
   }
   const g = new THREE.BufferGeometry()

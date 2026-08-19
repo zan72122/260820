@@ -20,9 +20,9 @@ const renderer = new THREE.WebGLRenderer({
 })
 renderer.outputColorSpace = THREE.SRGBColorSpace
 renderer.toneMapping = THREE.ACESFilmicToneMapping
-renderer.toneMappingExposure = 1.02
+renderer.toneMappingExposure = 0.94
 renderer.shadowMap.enabled = true
-renderer.shadowMap.type = THREE.PCFSoftShadowMap
+renderer.shadowMap.type = THREE.PCFShadowMap
 renderer.localClippingEnabled = true
 renderer.setClearColor(0xe9e2d6, 1)
 
@@ -111,6 +111,9 @@ declare global {
       setTimeScale: (s: number) => void
       goto: (id: string) => void
       pickFlavor: (id: string) => void
+      step: (seconds: number, dt?: number) => void
+      render: () => void
+      progress: () => number | null
       fast: boolean
       running: () => boolean
     }
@@ -138,9 +141,50 @@ window.__chiffon = {
     timeScale = Math.max(0.1, Math.min(8, s))
   },
   goto: (id: string) => game.goto(id as never),
+  // Lets an automated play-through advance logical time without waiting on
+  // a software rasteriser to draw every frame.
+  step: (seconds: number, dt = 1 / 60) => {
+    const n = Math.max(1, Math.min(4000, Math.round(seconds / dt)))
+    for (let i = 0; i < n; i++) game.update(dt)
+  },
+  render: () => renderer.render(game.world.scene, game.rig.camera),
+  progress: () => game.input.active?.progress ?? null,
   pickFlavor: (id: string) => game.setFlavorById(id),
   fast: FAST,
   running: () => running && rafId !== 0,
 }
 
 if (FAST) timeScale = 2
+
+// Development-only inspection helpers (tree-shaken out unless ?fast=1 is used).
+if (FAST) {
+  ;(window as unknown as { __dbg: unknown }).__dbg = {
+    isolateCake: () => {
+      game.world.chiffon.setFill(1)
+      game.world.chiffon.setRise(1)
+      game.world.chiffon.setBake(1)
+      game.world.scene.traverse((o) => {
+        if (o !== game.world.chiffon.mesh && (o as THREE.Mesh).isMesh) o.visible = false
+      })
+      game.world.chiffon.mesh.visible = true
+      game.rig.snapTo({
+        portrait: { pos: [0.02, 0.22, 0.42], target: [0.02, 0.06, 0.06], fov: 40 },
+        landscape: { pos: [0.02, 0.22, 0.42], target: [0.02, 0.06, 0.06], fov: 40 },
+      })
+    },
+    look: (px: number, py: number, pz: number, tx: number, ty: number, tz: number, fov = 40) => {
+      const pose = { pos: [px, py, pz] as [number, number, number], target: [tx, ty, tz] as [number, number, number], fov }
+      game.rig.snapTo({ portrait: pose, landscape: pose })
+    },
+    cakeInfo: () => {
+      const m = game.world.chiffon.mesh
+      m.geometry.computeBoundingBox()
+      return {
+        parent: m.parent?.name,
+        worldPos: m.getWorldPosition(new THREE.Vector3()).toArray(),
+        bbox: m.geometry.boundingBox?.min.toArray().concat(m.geometry.boundingBox.max.toArray()),
+        influences: m.morphTargetInfluences,
+      }
+    },
+  }
+}

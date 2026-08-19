@@ -72,6 +72,7 @@ export class Hud {
     this.strokeW = opts.width ?? (opts.tap ? 6 : 18)
     this.guide.classList.toggle('faint', !!opts.faint)
     this.guide.classList.toggle('tap', this.isTap)
+    this.arrow.setAttribute('opacity', this.isTap ? '0' : '0.95')
     this.guide.classList.add('on')
     this.layout()
     this.setProgress(0)
@@ -79,6 +80,7 @@ export class Hud {
 
   hideGuide() {
     this.guide.classList.remove('on')
+    this.arrow.setAttribute('opacity', '0')
     this.points = []
   }
 

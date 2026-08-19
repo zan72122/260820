@@ -69,12 +69,14 @@ export class BowlBatter {
     this.mesh.add(this.bubbles)
 
     this.draw(0)
+    this.mesh.scale.setScalar(0.96)
   }
 
   setFlavor(f: Flavor) {
     this.flavor = f
     this.lastDrawn = -1
     this.draw(0)
+    this.mesh.scale.setScalar(0.96)
   }
 
   /** Redraw the meringue streaks for the current fold progress. */
@@ -85,7 +87,7 @@ export class BowlBatter {
     const c = this.ctx
     const s = this.canvas.width
     const base = new THREE.Color(this.flavor.batter)
-    const yolk = base.clone().lerp(new THREE.Color(0xffffff), 0.06 + q * 0.1)
+    const yolk = base.clone().lerp(new THREE.Color(0xffffff), 0.02 + q * 0.07)
     c.fillStyle = `#${yolk.getHexString()}`
     c.fillRect(0, 0, s, s)
 

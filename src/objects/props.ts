@@ -31,8 +31,8 @@ export function makeBowl(): THREE.Mesh {
     [0.0, 0.0016],
   ])
   const mat = new THREE.MeshStandardMaterial({
-    color: 0xf6f3ec,
-    roughness: 0.36,
+    color: 0xebe5d9,
+    roughness: 0.4,
     metalness: 0.02,
     side: THREE.DoubleSide,
   })
@@ -56,7 +56,7 @@ export function makeSpatula(): THREE.Group {
     bevelSegments: 2,
     curveSegments: 12,
   })
-  blade.translate(0, 0.041, -0.003)
+  blade.translate(0, -0.047, -0.003)
   const bladeMat = new THREE.MeshStandardMaterial({ color: 0xe8e2d6, roughness: 0.55, metalness: 0.02 })
   const bladeMesh = new THREE.Mesh(blade, bladeMat)
   bladeMesh.castShadow = true
@@ -65,14 +65,14 @@ export function makeSpatula(): THREE.Group {
     new THREE.CylinderGeometry(0.0092, 0.0115, 0.165, 20, 1),
     new THREE.MeshStandardMaterial({ color: 0x3f5c60, roughness: 0.45, metalness: 0.05 }),
   )
-  handle.position.y = -0.082
+  handle.position.y = 0.082
   handle.castShadow = true
 
   const collar = new THREE.Mesh(
     new THREE.CylinderGeometry(0.0102, 0.0102, 0.012, 20),
     new THREE.MeshStandardMaterial({ color: 0x2c4448, roughness: 0.4, metalness: 0.1 }),
   )
-  collar.position.y = -0.003
+  collar.position.y = 0.004
   g.add(bladeMesh, handle, collar)
   g.name = 'spatula'
   return g
@@ -175,11 +175,19 @@ export function makeBottle(): THREE.Group {
 
   // A faint contact shadow disc keeps the bottle grounded without depth writes.
   const shade = new THREE.Mesh(
-    new THREE.CircleGeometry(0.042, 32),
-    new THREE.MeshBasicMaterial({ color: 0x2a2118, transparent: true, opacity: 0.3, depthWrite: false }),
+    new THREE.CircleGeometry(0.046, 32),
+    new THREE.MeshBasicMaterial({
+      color: 0x3a2c1e,
+      transparent: true,
+      opacity: 0.22,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -2,
+      polygonOffsetUnits: -2,
+    }),
   )
   shade.rotation.x = -Math.PI / 2
-  shade.position.y = 0.0006
+  shade.position.y = 0.0022
   shade.renderOrder = 1
 
   g.add(shade, body)
@@ -222,7 +230,7 @@ export function makeCondensation(): THREE.Points {
 export function makeCoolingRack(): THREE.Group {
   const g = new THREE.Group()
   const mat = new THREE.MeshStandardMaterial({ color: 0x9aa0a6, roughness: 0.4, metalness: 0.8 })
-  const bar = new THREE.CylinderGeometry(0.0016, 0.0016, 0.24, 6)
+  const bar = new THREE.CylinderGeometry(0.0022, 0.0022, 0.24, 6)
   for (let i = 0; i < 13; i++) {
     const m = new THREE.Mesh(bar, mat)
     m.rotation.z = Math.PI / 2
@@ -230,7 +238,7 @@ export function makeCoolingRack(): THREE.Group {
     m.castShadow = true
     g.add(m)
   }
-  const cross = new THREE.CylinderGeometry(0.0018, 0.0018, 0.235, 6)
+  const cross = new THREE.CylinderGeometry(0.0024, 0.0024, 0.235, 6)
   for (let i = 0; i < 3; i++) {
     const m = new THREE.Mesh(cross, mat)
     m.rotation.x = Math.PI / 2

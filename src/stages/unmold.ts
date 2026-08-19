@@ -38,8 +38,9 @@ function projectToUnit(v: THREE.Vector3, ctx: Ctx): UnitPt {
  * separation line follows the finger exactly where it has already been.
  */
 export function releaseStage(ctx: Ctx): Stage {
-  type Phase = 'wait' | 'wall' | 'tube' | 'done'
+  type Phase = 'wait' | 'wall' | 'tubeWait' | 'tube' | 'done'
   let phase: Phase = 'wait'
+  let tubeWait = 0
   let g: CircleGesture | null = null
   let seamStart = 0
   let knifeAngle = 0
@@ -74,8 +75,8 @@ export function releaseStage(ctx: Ctx): Stage {
       ctx.hud.hideGuide()
       ctx.world.wallSeam.set(seamStart, Math.PI * 2)
       ctx.rig.goTo(POSES.releaseTube, 1.0)
-      phase = 'tube'
-      setTimeout(startTube, 700)
+      phase = 'tubeWait'
+      tubeWait = 0
     }
     ctx.input.set(g)
     ctx.hud.showGuide(g.guide(), { faint: ctx.plays > 0, width: 20 })
@@ -113,6 +114,13 @@ export function releaseStage(ctx: Ctx): Stage {
     },
     update(dt, elapsed) {
       if (phase === 'wait' && elapsed > 1.4) startWall()
+      if (phase === 'tubeWait') {
+        tubeWait += dt
+        if (tubeWait > 0.7) {
+          phase = 'tube'
+          startTube()
+        }
+      }
 
       if (g && (phase === 'wall' || phase === 'tube')) {
         const dir = g.direction || 1
@@ -220,8 +228,9 @@ export function pressStage(ctx: Ctx): Stage {
   let finishAt = -1
   let tap: TapGesture
 
+  let tapCenter: UnitPt = { x: 0, y: 0 }
   const arm = () => {
-    tap = new TapGesture(0.5)
+    tap = new TapGesture(tapCenter, 0.5)
     tap.onComplete = () => {
       taps++
       pressT = 0
@@ -238,16 +247,10 @@ export function pressStage(ctx: Ctx): Stage {
     enter() {
       ctx.rig.goTo(POSES.press, 1.2)
       ctx.hud.setVerb('press', 'おすと もどる')
-      const c = projectToUnit(new THREE.Vector3(LAYOUT.panRest.x, 0.11, LAYOUT.panRest.z), ctx)
-      ctx.hud.showGuide(
-        [
-          { x: c.x - 0.14, y: c.y },
-          { x: c.x + 0.14, y: c.y },
-        ],
-        { tap: true, faint: ctx.plays > 0, width: 5 },
-      )
-      ctx.hud.setProgress(0.5)
+      tapCenter = projectToUnit(new THREE.Vector3(LAYOUT.panRest.x, 0.11, LAYOUT.panRest.z), ctx)
       arm()
+      ctx.hud.showGuide(tap.guide(), { tap: true, faint: ctx.plays > 0, width: 5 })
+      ctx.hud.setProgress(0.5)
     },
     update(dt, _elapsed) {
       if (pressT >= 0) {

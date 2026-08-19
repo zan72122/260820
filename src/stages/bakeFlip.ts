@@ -28,6 +28,8 @@ export function bakeStage(ctx: Ctx): Stage {
       ctx.world.lighting.lookAt(-0.34, 0.13, -0.36)
       ctx.world.lighting.setWarmth(1)
       ctx.world.pan.root.position.copy(LAYOUT.panOven)
+      // The pan always enters the oven full, whatever route got us here.
+      ctx.world.chiffon.setFill(1)
       ctx.audio.startBakeAmbient()
     },
     update(dt, elapsed) {
@@ -70,7 +72,7 @@ export function bakeStage(ctx: Ctx): Stage {
 /** Mitted adult hands bring the hot pan out. The child never touches it. */
 export function takeoutStage(ctx: Ctx): Stage {
   const p0 = LAYOUT.panOven.clone()
-  const p1 = new THREE.Vector3(-0.22, 0.2, -0.05)
+  const p1 = new THREE.Vector3(-0.4, 0.22, -0.28)
   const p2 = LAYOUT.panHold.clone()
   const TOTAL = 3.1
 
@@ -103,6 +105,7 @@ export function takeoutStage(ctx: Ctx): Stage {
       ctx.world.lighting.setWarmth(1 - move * 0.55)
       ctx.world.steam.amount = damp(ctx.world.steam.amount, 0.55 * grip, 2.4, dt)
       ctx.world.kitchen.oven.open = move > 0.5 ? 0 : 1
+      ctx.world.kitchen.oven.glow.intensity = 1.1 * (1 - move * 0.7)
       if (t >= 1) ctx.next()
     },
   }
@@ -318,7 +321,8 @@ export function coolStage(ctx: Ctx): Stage {
       cond.opacity = 0
       ctx.world.pan.heat = 0
       // Nudge the bottle aside so it never crowds the reveal.
-      ctx.world.bottle.position.set(LAYOUT.bottle.x - 0.24, 0, LAYOUT.bottle.z - 0.1)
+      // Park the bottle out of the reveal's sightline.
+      ctx.world.bottle.position.set(LAYOUT.bottle.x + 0.3, 0, LAYOUT.bottle.z - 0.24)
     },
   }
 }

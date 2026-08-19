@@ -172,8 +172,17 @@ export class CircleGesture extends Gesture {
 
 export class TapGesture extends Gesture {
   private startPt: UnitPt = { x: 0, y: 0 }
-  constructor(private maxDrift = 0.35) {
+  constructor(
+    private center: UnitPt = { x: 0, y: 0 },
+    private maxDrift = 0.4,
+  ) {
     super()
+  }
+  guide() {
+    return [
+      { x: this.center.x - 0.13, y: this.center.y },
+      { x: this.center.x + 0.13, y: this.center.y },
+    ]
   }
   begin(p: UnitPt) {
     this.down = true
@@ -240,7 +249,11 @@ export class Input {
 
   private onDown = (e: PointerEvent) => {
     e.preventDefault()
-    this.el.setPointerCapture?.(e.pointerId)
+    try {
+      this.el.setPointerCapture?.(e.pointerId)
+    } catch {
+      /* no capture available for this pointer; events still reach the canvas */
+    }
     this.hasPointer = true
     const p = this.toUnit(e.clientX, e.clientY)
     this.pointerPos = p

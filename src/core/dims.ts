@@ -21,7 +21,7 @@ export const BOTTLE = {
 
 export const BOWL = { r: 0.115, height: 0.085 }
 
-export const WORKTOP = { y: 0, width: 1.5, depth: 0.72, thickness: 0.045 }
+export const WORKTOP = { y: 0, width: 1.6, depth: 1.25, centerZ: -0.225, thickness: 0.045 }
 
 /** Radius of the pan's inner wall at a given height above its base. */
 export const panInnerR = (y: number) => PAN.rBot + (PAN.rTop - PAN.rBot) * Math.min(1, Math.max(0, y / PAN.height))

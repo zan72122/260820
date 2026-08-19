@@ -64,9 +64,9 @@ export class ChiffonPan {
       map: tint,
       roughnessMap: rough,
       bumpMap: rough,
-      bumpScale: 0.12,
-      metalness: 0.88,
-      roughness: 0.46,
+      bumpScale: 0.07,
+      metalness: 0.82,
+      roughness: 0.86,
       side: THREE.DoubleSide,
       emissive: new THREE.Color(0x000000),
     })

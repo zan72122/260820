@@ -94,7 +94,7 @@ export function tileTexture(): THREE.Texture {
 export function aluminiumRough(): THREE.Texture {
   return once('alu-rough', () => {
     const cv = makeCanvas(512, (c, s) => {
-      c.fillStyle = '#7a7a7a'
+      c.fillStyle = '#c2c2c2'
       c.fillRect(0, 0, s, s)
       const rng = new Rng(9091)
       for (let i = 0; i < 1400; i++) {

@@ -8,44 +8,54 @@ import { damp } from '../core/math'
  */
 export class Mitt {
   readonly root = new THREE.Group()
-  private palm: THREE.Mesh
+  private pad: THREE.Mesh
+  private fingers: THREE.Mesh
   private thumb: THREE.Mesh
   private gripValue = 0
   private gripTarget = 0
 
   constructor(side: 1 | -1) {
     const cloth = new THREE.MeshStandardMaterial({
-      map: mittTexture('#d8543f'),
+      map: mittTexture('#c8543c'),
       color: 0xffffff,
-      roughness: 0.94,
+      roughness: 0.95,
       metalness: 0,
     })
-    const sleeve = new THREE.MeshStandardMaterial({ color: 0xf2f0ea, roughness: 0.88, metalness: 0 })
-    const trim = new THREE.MeshStandardMaterial({ color: 0xb33f2e, roughness: 0.9, metalness: 0 })
+    const sleeve = new THREE.MeshStandardMaterial({ color: 0xdfdacf, roughness: 0.92, metalness: 0 })
+    const trim = new THREE.MeshStandardMaterial({ color: 0x9c3628, roughness: 0.92, metalness: 0 })
 
-    const palmGeo = new THREE.SphereGeometry(1, 26, 20)
-    palmGeo.scale(0.036, 0.062, 0.05)
-    this.palm = new THREE.Mesh(palmGeo, cloth)
-    this.palm.castShadow = true
+    // Palm pad: tall and shallow, so it hugs the pan wall rather than balling up.
+    const padGeo = new THREE.SphereGeometry(1, 24, 18)
+    padGeo.scale(0.028, 0.05, 0.056)
+    this.pad = new THREE.Mesh(padGeo, cloth)
+    this.pad.castShadow = true
 
-    const thumbGeo = new THREE.CapsuleGeometry(0.017, 0.03, 6, 14)
-    thumbGeo.rotateZ(Math.PI * 0.5)
-    thumbGeo.rotateY(-side * 0.5)
+    // Fingers folded over the rim — the thing that actually says "holding".
+    const fingerGeo = new THREE.CapsuleGeometry(0.017, 0.062, 5, 14)
+    fingerGeo.rotateX(Math.PI / 2)
+    this.fingers = new THREE.Mesh(fingerGeo, cloth)
+    this.fingers.position.set(-side * 0.012, 0.042, 0.002)
+    this.fingers.rotation.z = side * 0.28
+    this.fingers.castShadow = true
+
+    const thumbGeo = new THREE.CapsuleGeometry(0.0145, 0.03, 5, 12)
+    thumbGeo.rotateX(Math.PI * 0.42)
     this.thumb = new THREE.Mesh(thumbGeo, cloth)
-    this.thumb.position.set(side * 0.017, 0.024, 0.036)
+    this.thumb.position.set(-side * 0.004, -0.004, 0.05)
     this.thumb.castShadow = true
 
-    const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.038, 0.028, 20), trim)
-    cuff.position.set(-side * 0.032, -0.052, 0)
-    cuff.rotation.z = side * 0.38
+    const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.031, 0.03, 18), trim)
+    cuff.position.set(-side * 0.018, -0.052, -0.026)
+    cuff.rotation.set(-0.5, 0, side * 0.34)
     cuff.castShadow = true
 
-    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.04, 0.16, 18), sleeve)
-    arm.position.set(-side * 0.072, -0.126, -0.005)
-    arm.rotation.z = side * 0.38
+    // Forearms recede away from the lens: the chef stands opposite the camera.
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.027, 0.031, 0.19, 16), sleeve)
+    arm.position.set(-side * 0.048, -0.128, -0.116)
+    arm.rotation.set(-0.82, 0, side * 0.34)
     arm.castShadow = true
 
-    this.root.add(this.palm, this.thumb, cuff, arm)
+    this.root.add(this.pad, this.fingers, this.thumb, cuff, arm)
     this.root.name = side > 0 ? 'mitt-right' : 'mitt-left'
   }
 
@@ -57,9 +67,11 @@ export class Mitt {
   update(dt: number) {
     this.gripValue = damp(this.gripValue, this.gripTarget, 9, dt)
     const g = this.gripValue
-    this.palm.scale.set(1 - g * 0.16, 1 + g * 0.05, 1 - g * 0.06)
-    this.thumb.rotation.z = -g * 0.5
-    this.thumb.position.y = 0.024 - g * 0.012
+    this.pad.scale.set(1 - g * 0.2, 1 + g * 0.06, 1 + g * 0.04)
+    this.fingers.position.y = 0.042 - g * 0.006
+    this.fingers.scale.set(1 - g * 0.12, 1, 1)
+    this.thumb.position.y = -0.004 - g * 0.008
+    this.thumb.rotation.z = -g * 0.35
   }
 }
 
@@ -74,6 +86,12 @@ export class MittPair {
     this.right.root.position.set(reach, 0, 0)
     this.left.root.rotation.z = 0.12
     this.right.root.rotation.z = -0.12
+    // Sit the pair a touch toward the camera so the cloth reads as foreground
+    // and the pan silhouette stays clean behind it.
+    this.left.root.position.z = 0.014
+    this.right.root.position.z = 0.014
+    this.left.root.position.y = 0.014
+    this.right.root.position.y = 0.014
     this.root.add(this.left.root, this.right.root)
     this.root.visible = false
     this.root.name = 'mitts'
