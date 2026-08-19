@@ -1,8 +1,8 @@
-.DS_Store
-260820
-node_modules
-dist
-test-results
-playwright-report
 *.local
+.DS_Store
 .scratch
+260820
+dist
+node_modules
+playwright-report
+test-results

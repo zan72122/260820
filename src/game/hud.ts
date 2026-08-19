@@ -62,6 +62,7 @@ const ICONS: Record<string, string> = {
   done: `<svg viewBox="0 0 64 64" aria-hidden="true">
     <path d="M10 34l14 14 30-32" stroke="#ffe6a8" stroke-width="9" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`,
+  chevron: `<svg viewBox="0 0 64 64" aria-hidden="true"><path d="M40 8L16 32l24 24" stroke="#fff2cf" stroke-width="9" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   hand: `<svg viewBox="0 0 64 64" aria-hidden="true">
     <path d="M26 44V14a5 5 0 0 1 10 0v18" stroke="#ffeec4" stroke-width="5" fill="none" stroke-linecap="round"/>
     <path d="M36 32a5 5 0 0 1 10 0v14a14 14 0 0 1-14 14h-4a12 12 0 0 1-9-4l-9-11 4-4 8 5" stroke="#ffeec4" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
@@ -89,6 +90,8 @@ export class Hud {
   private touchDot!: HTMLElement
   private finish!: HTMLElement
   private soundBtn!: HTMLButtonElement
+  private chevL!: HTMLElement
+  private chevR!: HTMLElement
   private current: ActionKind = null
 
   onAction: ((k: Exclude<ActionKind, null>) => void) | null = null
@@ -112,6 +115,8 @@ export class Hud {
       </div>
       <button id="sound" aria-label="おと">${ICONS.soundOn}</button>
       <div id="banner"></div>
+      <div class="chev l">${ICONS.chevron}</div>
+      <div class="chev r" style="transform: scaleX(-1)">${ICONS.chevron}</div>
       <div id="steer"><div class="hint">${ICONS.hand}<span class="arrow">← ゆびで すすむむき →</span></div></div>
       <div id="touchdot"></div>
       <div id="actions"></div>
@@ -132,6 +137,8 @@ export class Hud {
     this.touchDot = this.root.querySelector('#touchdot')!
     this.finish = this.root.querySelector('#finish')!
     this.soundBtn = this.root.querySelector('#sound')!
+    this.chevL = this.root.querySelector('.chev.l')!
+    this.chevR = this.root.querySelector('.chev.r')!
 
     this.soundBtn.addEventListener('click', () => {
       this.soundOn = !this.soundOn
@@ -180,6 +187,18 @@ export class Hud {
 
   setSteerHint(on: boolean) {
     this.steer.classList.toggle('show', on)
+    this.chevL.classList.toggle('on', on)
+    this.chevR.classList.toggle('on', on)
+    if (!on) {
+      this.chevL.classList.remove('lit')
+      this.chevR.classList.remove('lit')
+    }
+  }
+
+  /** -1..1 — lights the arrow on the side the machine is leaning towards */
+  setSteer(v: number) {
+    this.chevL.classList.toggle('lit', v < -0.12)
+    this.chevR.classList.toggle('lit', v > 0.12)
   }
 
   setTouch(active: boolean, x: number, y: number) {

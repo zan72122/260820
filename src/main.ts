@@ -1,11 +1,5 @@
 import { Game } from './game/game'
 
-declare global {
-  interface Window {
-    __game?: Game
-  }
-}
-
 function fail(msg: string) {
   const n = document.createElement('div')
   n.id = 'notice'
@@ -31,7 +25,7 @@ async function boot() {
     const game = new Game(canvas, ui)
     await game.build()
     game.start()
-    window.__game = game
+    ;(window as unknown as { __game: Game }).__game = game
     requestAnimationFrame(() => {
       document.getElementById('boot')?.classList.add('hidden')
       window.setTimeout(() => document.getElementById('boot')?.remove(), 700)

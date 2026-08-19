@@ -369,6 +369,27 @@ body {
   50% { transform: translateX(0.22em); }
 }
 
+/* steering chevrons: the whole left / right half of the screen is the control,
+   so the arrows sit at the very edges and light up as the machine leans */
+.chev {
+  position: absolute;
+  top: 50%;
+  width: 3.4em;
+  height: 6em;
+  margin-top: -3em;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.chev.on { opacity: 0.34; }
+.chev svg { width: 2.6em; height: 2.6em; }
+.chev.l { left: calc(var(--safe-l) + 0.2em); }
+.chev.r { right: calc(var(--safe-r) + 0.2em); }
+.chev.lit { opacity: 0.95 !important; }
+.chev.lit svg { filter: drop-shadow(0 0 0.5em rgba(255, 232, 170, 0.9)); }
+
 /* touch marker */
 #touchdot {
   position: absolute;

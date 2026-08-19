@@ -214,6 +214,12 @@ export class Truck {
     return this.mode === 'idle' || (this.mode === 'park' && this.parkT >= 1)
   }
 
+  /** Close enough that the auger can start swinging out to meet it. */
+  get nearlyThere() {
+    if (this.mode !== 'drive') return true
+    return Math.hypot(this.targetX - this.x, this.targetZ - this.z) < 2.6
+  }
+
   /** container mouth in world space, where the grain should land */
   binTop(out: THREE.Vector3): THREE.Vector3 {
     out.set(0, BIN.y + 0.1 + this.fill * (BIN.h - 0.18), BIN.z)
@@ -235,7 +241,7 @@ export class Truck {
         const want = Math.atan2(dx, dz)
         const turn = angleDelta(this.heading, want)
         this.heading += clamp(turn, -1.7 * dt, 1.7 * dt)
-        this.speed = damp(this.speed, Math.min(4.2, dist * 1.5 + 0.8), 3, dt)
+        this.speed = damp(this.speed, Math.min(6, dist * 1.6 + 1), 3.4, dt)
         this.x += Math.sin(this.heading) * this.speed * dt
         this.z += Math.cos(this.heading) * this.speed * dt
       }

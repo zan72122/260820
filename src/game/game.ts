@@ -686,6 +686,12 @@ export class Game {
       case 'harvest':
         this.harvestStep(dt, true)
         this.cycleShots(dt)
+        // Send the receiver over before the tank is quite full, so the
+        // truck is rolling into place while the last rows go in.
+        if (this.tankUnits > TANK.capacity * 0.82) {
+          this.chooseAugerSide()
+          this.sendTruck()
+        }
         this.nextCutaway -= dt
         if (this.nextCutaway <= 0 && this.field.standing > 40) {
           this.nextCutaway = 34
@@ -712,14 +718,11 @@ export class Game {
         this.combine.speedFrac = damp(this.combine.speedFrac, 0, 3, dt)
         this.headerT = damp(this.headerT, 0.15, 3, dt)
         this.combine.headerDown = this.headerT
-        if (this.stateT > 1.9) this.setState('trucking')
+        if (this.stateT > 1.4) this.setState('trucking')
         break
       case 'trucking':
         this.combine.speedFrac = damp(this.combine.speedFrac, 0, 3, dt)
-        if (this.truck.arrived || this.stateT > 9) {
-          if (!this.hud) break
-          this.hud.setAction('auger')
-        }
+        if (this.truck.nearlyThere || this.stateT > 7) this.hud.setAction('auger')
         break
       case 'augerOut':
         this.combine.augerOut = damp(this.combine.augerOut, 1, 2.6, dt)
@@ -764,7 +767,11 @@ export class Game {
 
     this.applyMachine()
     this.combine.update(dt, this.now)
-    this.truck.update(dt, this.now, this.state === 'tankfull' || this.state === 'trucking')
+    this.truck.update(
+      dt,
+      this.now,
+      this.state === 'tankfull' || this.state === 'trucking' || this.state === 'augerIn',
+    )
     this.field.update(dt, this.now)
     this.field.refreshLod(
       this.mx + Math.sin(this.mh) * 3,
@@ -784,6 +791,7 @@ export class Game {
     this.env.update(dt, ctx.pos)
     this.dir.update(dt, ctx)
 
+    this.hud.setSteer(this.state === 'harvest' && this.controls.active ? this.controls.steer : 0)
     const driving = this.state === 'harvest' || this.state === 'cutaway' || this.state === 'turning'
     this.audio.setEngine(driving ? this.combine.speedFrac : 0.1, this.state !== 'intro')
     this.audio.setCut(driving ? clamp(this.cutRate, 0, 1) * this.headerT : 0)
