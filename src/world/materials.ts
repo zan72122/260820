@@ -119,9 +119,9 @@ export function buildMaterials(): Mats {
   })
 
   const chocolate = new THREE.MeshStandardMaterial({
-    roughness: 0.42,
+    roughness: 0.38,
     metalness: 0.03,
-    envMapIntensity: 0.9,
+    envMapIntensity: 1.25,
   })
 
   const sugarSoft = new THREE.MeshStandardMaterial({

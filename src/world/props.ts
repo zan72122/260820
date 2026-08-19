@@ -44,8 +44,14 @@ export class Props {
   readonly knifeEdge = new THREE.Object3D()
   readonly spatula = new THREE.Group()
   readonly spatulaTip = new THREE.Object3D()
+  /** shadow-shaped landing spot shown while a layer is being carried */
+  readonly dropTarget: THREE.Mesh
 
   constructor(mats: Mats) {
+    this.dropTarget = contactDecal(DIM.cakeRadius + 1.6, 0, 0)
+    this.dropTarget.visible = false
+    this.turntable.add(this.dropTarget)
+
     this.buildBench(mats)
     this.buildTurntable(mats)
     this.buildBowl(mats)
@@ -166,11 +172,11 @@ export class Props {
   private buildKnife(mats: Mats) {
     // blade profile in XY: length along X, width along Y, edge at y = 0
     const s = new THREE.Shape()
-    s.moveTo(-11.5, 0.15)
-    s.lineTo(8.6, 0.0)
-    s.quadraticCurveTo(11.4, 0.12, 11.9, 1.5)
-    s.lineTo(11.2, 3.05)
-    s.lineTo(-11.5, 3.3)
+    s.moveTo(-11.5, 0.12)
+    s.lineTo(7.4, 0.0)
+    s.quadraticCurveTo(11.5, 0.22, 12.5, 1.85)
+    s.lineTo(10.9, 2.6)
+    s.lineTo(-11.5, 2.9)
     s.closePath()
     const bladeGeo = new THREE.ExtrudeGeometry(s, {
       depth: 0.17,
@@ -185,23 +191,23 @@ export class Props {
     const blade = cast(new THREE.Mesh(bladeGeo, mats.steel))
 
     const bolster = cast(
-      new THREE.Mesh(new THREE.BoxGeometry(1.5, 3.7, 1.05), mats.darkSteel),
+      new THREE.Mesh(new THREE.BoxGeometry(1.5, 3.2, 1.05), mats.darkSteel),
     )
-    bolster.position.set(-12.1, 1.75, 0)
+    bolster.position.set(-12.1, 1.5, 0)
 
     const handleGeo = new THREE.CylinderGeometry(1.0, 0.82, 10.5, 16)
     handleGeo.rotateZ(Math.PI / 2)
     const handle = cast(new THREE.Mesh(handleGeo, mats.handle))
-    handle.position.set(-18.0, 1.75, 0)
+    handle.position.set(-18.0, 1.5, 0)
     const cap = cast(new THREE.Mesh(new THREE.SphereGeometry(0.84, 14, 10), mats.handle))
-    cap.position.set(-23.2, 1.75, 0)
+    cap.position.set(-23.2, 1.5, 0)
 
     for (let i = 0; i < 3; i++) {
       const rivet = cast(
         new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.19, 1.9, 10), mats.steel),
       )
       rivet.rotation.x = Math.PI / 2
-      rivet.position.set(-15.2 - i * 2.4, 1.75, 0)
+      rivet.position.set(-15.2 - i * 2.4, 1.5, 0)
       this.knife.add(rivet)
     }
 

@@ -52,7 +52,8 @@ const PALETTE = [
   0xf5efe2, // sugar white
   0xd98a5f, // caramel
 ]
-const CHOC_COLORS = [0x6a4227, 0x513121, 0x7d5432]
+// milk chocolate rather than dark: at 1.4cm across, a dark piece just reads as a hole
+const CHOC_COLORS = [0x8f5c33, 0x74462a, 0xa1703f]
 
 interface ShapeGroup {
   mesh: THREE.InstancedMesh
@@ -86,6 +87,8 @@ export class CandySystem {
   private shape!: Uint8Array
   private slot!: Uint16Array
   private asleep!: Uint8Array
+  private support!: Uint8Array
+  private prev!: Float32Array
   private sleepT!: Float32Array
   private quat!: Float32Array
   private spin!: Float32Array
@@ -166,6 +169,8 @@ export class CandySystem {
     this.shape = new Uint8Array(n)
     this.slot = new Uint16Array(n)
     this.asleep = new Uint8Array(n)
+    this.support = new Uint8Array(n)
+    this.prev = new Float32Array(n * 3)
     this.sleepT = new Float32Array(n)
     this.quat = new Float32Array(n * 4)
     this.spin = new Float32Array(n * 4) // axis xyz + speed
@@ -301,11 +306,28 @@ export class CandySystem {
     return c
   }
 
-  /** Non-sleeping pieces — used to know when the spill has finished. */
+  /** Non-sleeping pieces. */
   get moving() {
     let c = 0
     for (let i = 0; i < this.count; i++)
       if (this.mode[i] === MODE_SIM && !this.asleep[i]) c++
+    return c
+  }
+
+  /**
+   * Pieces actually travelling far enough to see. This, not `moving`, is what
+   * tells us the spill has finished: a settled pile keeps micro-adjusting long
+   * after it has visibly stopped.
+   */
+  get busy() {
+    let c = 0
+    for (let i = 0; i < this.count; i++) {
+      if (this.mode[i] !== MODE_SIM || this.asleep[i]) continue
+      const dx = this.px[i] - this.prev[i * 3]
+      const dy = this.py[i] - this.prev[i * 3 + 1]
+      const dz = this.pz[i] - this.prev[i * 3 + 2]
+      if (dx * dx + dy * dy + dz * dz > 0.02) c++
+    }
     return c
   }
 
@@ -389,6 +411,9 @@ export class CandySystem {
     const c = this.cfg
     for (let i = 0; i < this.count; i++) {
       if (this.mode[i] !== MODE_SIM || this.asleep[i]) continue
+      this.prev[i * 3] = this.px[i]
+      this.prev[i * 3 + 1] = this.py[i]
+      this.prev[i * 3 + 2] = this.pz[i]
       this.vy[i] -= G * dt
       // a whisper of air drag; keeps a crowded pile from buzzing forever
       this.vx[i] *= 0.995
@@ -399,15 +424,20 @@ export class CandySystem {
       this.resolveWorld(i, c)
     }
     this.collidePairs()
-    // sleep bookkeeping
+    this.settleSupported()
+    // Sleep on *displacement*, not speed. A supported piece re-arms a full step of
+    // gravity every tick and then has it taken away again, so its velocity never
+    // looks small even when it has not actually gone anywhere.
     for (let i = 0; i < this.count; i++) {
       if (this.mode[i] !== MODE_SIM || this.asleep[i]) continue
-      const sp = this.vx[i] * this.vx[i] + this.vy[i] * this.vy[i] + this.vz[i] * this.vz[i]
       if (c.drain > 0.05 && Math.hypot(this.px[i], this.pz[i]) < c.holeR + 1) {
         this.sleepT[i] = 0
         continue
       }
-      if (sp < 55) {
+      const dx = this.px[i] - this.prev[i * 3]
+      const dy = this.py[i] - this.prev[i * 3 + 1]
+      const dz = this.pz[i] - this.prev[i * 3 + 2]
+      if (dx * dx + dy * dy + dz * dz < 0.0032) {
         this.sleepT[i] += dt
         if (this.sleepT[i] > 0.3) {
           this.asleep[i] = 1
@@ -492,8 +522,8 @@ export class CandySystem {
         onCake = true
         if (c.drain > 0.02) {
           // the pile leans towards the opening instead of standing in a column
-          this.vx[i] += Math.cos(c.drainAngle) * 58 * c.drain * DT
-          this.vz[i] += Math.sin(c.drainAngle) * 58 * c.drain * DT
+          this.vx[i] += Math.cos(c.drainAngle) * 92 * c.drain * DT
+          this.vz[i] += Math.sin(c.drainAngle) * 92 * c.drain * DT
         }
         if (c.ceilY < Infinity && y + rad > c.ceilY) {
           y = c.ceilY - rad
@@ -557,9 +587,32 @@ export class CandySystem {
     return cx * 1024 + cz
   }
 
+  /**
+   * A piece resting on other pieces never touches a floor, so gravity would keep
+   * re-arming its velocity every step and it would never sleep. Contacts from
+   * below are treated like ground contacts: that is what lets a poured pile go
+   * quiet instead of buzzing under the lid.
+   */
+  private settleSupported() {
+    for (let i = 0; i < this.count; i++) {
+      if (this.mode[i] !== MODE_SIM || !this.support[i]) continue
+      if (this.vy[i] < 0) {
+        this.vy[i] *= -0.2
+        if (Math.abs(this.vy[i]) < 12) this.vy[i] = 0
+      }
+      this.vx[i] *= 0.93
+      this.vz[i] *= 0.93
+    }
+  }
+
   private collidePairs() {
     const grid = this.grid
     grid.clear()
+    this.support.fill(0)
+    // Rigid vertical contacts let a pile go quiet, but they also stop it flowing.
+    // While the cake is collapsing into the notch, contacts stay soft so the pile
+    // can pour; once the collapse has faded they stiffen again and it settles.
+    const rigid = this.cfg.drain < 0.02
     for (let i = 0; i < this.count; i++) {
       if (this.mode[i] !== MODE_SIM) continue
       const k = this.cellKey(this.px[i], this.pz[i])
@@ -593,7 +646,15 @@ export class CandySystem {
           const pen = (minD - d) * 0.5
           const iAsleep = this.asleep[i] === 1
           const jAsleep = this.asleep[j] === 1
-          const wi = iAsleep && !jAsleep ? 0 : jAsleep && !iAsleep ? 1 : 0.5
+          // Who gives way. A sleeping body never does, and in a vertical contact
+          // the upper body takes the whole correction: splitting it 50/50 makes a
+          // stack sink a little every step, which is exactly the jitter that stops
+          // a poured pile from ever going to sleep.
+          let wi = 0.5
+          if (iAsleep && !jAsleep) wi = 0
+          else if (jAsleep && !iAsleep) wi = 1
+          else if (rigid && ny > 0.45) wi = 0
+          else if (rigid && ny < -0.45) wi = 1
           const wj = 1 - wi
           this.px[i] -= nx * pen * 2 * wi
           this.py[i] -= ny * pen * 2 * wi
@@ -605,9 +666,14 @@ export class CandySystem {
           const rvx = this.vx[j] - this.vx[i]
           const rvy = this.vy[j] - this.vy[i]
           const rvz = this.vz[j] - this.vz[i]
+          // remember who is being held up by whom
+          if (ny > 0.45) this.support[j] = 1
+          else if (ny < -0.45) this.support[i] = 1
+
           const vn = rvx * nx + rvy * ny + rvz * nz
           if (vn < 0) {
-            const imp = -vn * 0.34
+            // cancel the approach almost completely; candy is not bouncy
+            const imp = -vn * 0.53
             this.vx[i] -= nx * imp * wi * 2
             this.vy[i] -= ny * imp * wi * 2
             this.vz[i] -= nz * imp * wi * 2

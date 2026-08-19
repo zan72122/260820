@@ -141,6 +141,7 @@ export class Game {
   private cutProgress = 0
   private cutPhase = 0
   private cutTimer = 0
+  private cutY = 0
   private revealT = 0
   private opened = false
   private openedAt = 0
@@ -372,6 +373,20 @@ export class Game {
     const vp = this.stageObj.viewport
     const hoverY = l.y0 + 2.6
 
+    // a soft shadow where the layer belongs; it darkens as the layer comes over
+    // it, which is the whole instruction for this scene
+    const spot = this.props.dropTarget
+    spot.visible = true
+    spot.position.y = l.y0 + 0.04
+    const away = Math.hypot(l.holder.position.x, l.holder.position.z)
+    const near = 1 - clamp(away / 16, 0, 1)
+    const pulse = 0.82 + Math.sin(this.t * 3.4) * 0.18
+    const mat = spot.material as THREE.MeshBasicMaterial
+    mat.opacity = (0.16 + near * 0.5) * (this.dragging ? 1 : pulse)
+    // on the board it may spill past the cake; on a stack it must stay on top
+    const spread = (key === 'base' ? 1 : 0.83) * (0.88 + near * 0.12)
+    spot.scale.set(spread, spread, 1)
+
     if (this.input.pressed && !this.returning) {
       this.dragging = true
       this.audio.unlock()
@@ -423,6 +438,7 @@ export class Game {
   private placeLayer(key: LayerKey) {
     const l = this.cake.layer(key)
     l.placed = true
+    this.props.dropTarget.visible = false
     l.holder.position.set(0, l.y0, 0)
     l.holder.scale.set(1, 1, 1)
     this.settleKey = key
@@ -677,10 +693,16 @@ export class Game {
     const k = this.props.knife
 
     if (this.cutPhase === 0) {
-      // knife flies from the bench into position over the first cut plane
+      // knife flies from the bench into position over the first cut plane.
+      // A swipe started during the approach still counts: on a slow device the
+      // approach can outlast a child's patience, and losing that first gesture
+      // reads as the game ignoring them.
+      if (this.input.active && this.input.dy > 0)
+        this.cutProgress = clamp(this.cutProgress + this.input.dy / (vp.height * 0.4), 0, 1)
       this.cutTimer += dt
-      const u = smoothstep(0, 1, Math.min(1, this.cutTimer / 0.75))
+      const u = smoothstep(0, 1, Math.min(1, this.cutTimer / 0.45))
       k.position.lerpVectors(this.knifeHome, tmpV.set(0, topY, 0), u)
+      this.cutY = topY
       k.rotation.set(
         this.knifeHomeRot.x * (1 - u),
         this.knifeHomeRot.y * (1 - u) + -WEDGE_START * u,
@@ -699,7 +721,13 @@ export class Game {
         this.cutProgress += this.input.dy / (vp.height * 0.4)
       }
       this.cutProgress = clamp(this.cutProgress, 0, 1)
-      const y = topY + (botY - topY) * this.cutProgress
+      // the blade follows the swipe through a spring rather than snapping to it:
+      // that is where the weight of steel entering sponge comes from, and it also
+      // means a swipe banked during the approach plays out instead of teleporting
+      const want = topY + (botY - topY) * this.cutProgress
+      const inCake = this.cutY < Y.top + 0.5
+      this.cutY += (want - this.cutY) * damp(dt, inCake ? 0.16 : 0.07)
+      const y = this.cutY
       this.knifeTo(WEDGE_START, y)
       if (this.cutProgress > 0.12 && this.cutProgress < 0.95) {
         if (Math.random() < dt * 9) {
@@ -722,7 +750,7 @@ export class Game {
       } else {
         this.hud.setRing(null)
       }
-      if (this.cutProgress >= 1) {
+      if (this.cutProgress >= 1 && this.cutY < botY + 0.35) {
         this.cutPhase = 2
         this.cutTimer = 0
         this.hud.setRing(null)
@@ -734,7 +762,7 @@ export class Game {
     this.cutTimer += dt
     if (this.cutPhase === 2) {
       const u = Math.min(1, this.cutTimer / 0.45)
-      this.knifeTo(WEDGE_START, botY + (topY - botY) * smoothstep(0, 1, u))
+      this.knifeTo(WEDGE_START, this.cutY + (topY - this.cutY) * smoothstep(0, 1, u))
       if (u >= 1) {
         this.cutPhase = 3
         this.cutTimer = 0
@@ -793,7 +821,7 @@ export class Game {
     const u = smoothstep(0, 1, Math.min(1, this.revealT / dur))
     // the slice travels out along the far edge of the notch, clearing the lane
     // the candy is about to use
-    const dist = 11.2 * u
+    const dist = 12.6 * u
     const exit = WEDGE_END - 0.04
     const w = this.cake.wedgeGroup
     w.position.set(Math.cos(exit) * dist, -0.55 * u, Math.sin(exit) * dist)
@@ -819,11 +847,11 @@ export class Game {
       // ramp in, then let it die away so the flow tapers instead of emptying
       const since = this.revealT - this.openedAt
       this.candy.cfg.drain =
-        Math.min(1, since / 0.55) * Math.exp(-Math.max(0, since - 1.3) / 1.5)
+        Math.min(1, since / 0.5) * Math.exp(-Math.max(0, since - 1.6) / 1.8)
     }
 
-    const settled = this.candy.moving <= 3
-    if (this.revealT > 2.6 && (settled || this.revealT > 7.5)) {
+    const settled = this.candy.busy <= 1
+    if (this.revealT > 2.8 && (settled || this.revealT > 8)) {
       this.candy.cfg.drain = 0
       this.go('done')
     }
@@ -881,6 +909,7 @@ export class Game {
     this.props.knife.rotation.copy(this.knifeHomeRot)
     this.props.spatula.visible = false
     this.props.spatula.position.copy(this.spatulaHome)
+    this.props.dropTarget.visible = false
     this.pouring = false
     this.bowlTilt = 0
     this.knifeSounded = false
@@ -941,8 +970,11 @@ export class Game {
       spilled: this.candy.spilled,
       inCavity: this.candy.inCavity,
       moving: this.candy.moving,
+      busy: this.candy.busy,
       coat: this.coatProgress,
       cut: this.cutProgress,
+      cutPhase: this.cutPhase,
+      cutY: Math.round(this.cutY * 10) / 10,
       split: this.cake.isSplit,
       fast: FAST,
     }

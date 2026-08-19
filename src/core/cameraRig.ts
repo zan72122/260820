@@ -50,9 +50,9 @@ export const SHOTS = {
    * the opening and the candy is biased towards the near edge, so the two do not
    * pile into the same corner of the frame and nothing important is hidden.
    */
-  reveal: shot([1.5, 4.0, 4.5], [12.0, 11.0, 23], 13.8),
+  reveal: shot([1.5, 4.0, 4.5], [18.5, 11.5, 19.0], 13.8),
   /** finish: cross-section + cavity + spilled candy + remaining cake together */
-  done: shot([2.0, 2.6, 4.5], [13.5, 9.8, 20.5], 13.5),
+  done: shot([2.0, 2.6, 4.5], [17.0, 10.0, 17.5], 13.5),
 } as const
 
 export type ShotName = keyof typeof SHOTS
