@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>もちつき ぺったん</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#1b1410">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232b1d12'/%3E%3Cellipse cx='32' cy='44' rx='20' ry='8' fill='%23b8875a'/%3E%3Cpath d='M12 44V36c0-6 9-10 20-10s20 4 20 10v8z' fill='%23c9a179'/%3E%3Cellipse cx='32' cy='34' rx='13' ry='6' fill='%23fbf8f1'/%3E%3Crect x='27' y='8' width='10' height='22' rx='4' fill='%23e6c295'/%3E%3Crect x='14' y='11' width='36' height='6' rx='3' fill='%23d9b184'/%3E%3C/svg%3E">
+<meta name="description" content="杵で餅をつく、4歳から遊べる冬の3Dミニゲーム。">
+<style>
+  :root{ --safe-t: env(safe-area-inset-top,0px); --safe-b: env(safe-area-inset-bottom,0px);
+         --safe-l: env(safe-area-inset-left,0px); --safe-r: env(safe-area-inset-right,0px); }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#14100d;
+    font-family: "Hiragino Maru Gothic ProN","Hiragino Sans",system-ui,sans-serif;
+    overscroll-behavior:none; touch-action:none; user-select:none; -webkit-user-select:none; }
+  #app{ position:fixed; inset:0; }
+  canvas{ display:block; width:100%; height:100%; touch-action:none; }
+  #ui{ position:fixed; inset:0; pointer-events:none; z-index:5; }
+
+  .vignette{ position:absolute; inset:0; pointer-events:none;
+    background:radial-gradient(ellipse at 50% 46%, rgba(0,0,0,0) 42%, rgba(20,12,6,0.42) 100%); }
+  .flash{ position:absolute; inset:0; pointer-events:none; opacity:0; }
+
+  /* --- 操作ヒント (文字なし) --- */
+  .hint{ position:absolute; left:50%; top:62%; transform:translate(-50%,-50%);
+    width:min(30vmin,150px); height:min(30vmin,150px); opacity:0; transition:opacity .45s ease;
+    pointer-events:none; filter:drop-shadow(0 6px 14px rgba(0,0,0,.55)); }
+  .hint .hand{ position:absolute; left:22%; top:24%; width:56%; height:56%; }
+  .hint .arrows{ position:absolute; inset:0; width:100%; height:100%; }
+  .chev path,.chev circle{ fill:none; stroke:#ffe9b8; stroke-width:9; stroke-linecap:round; stroke-linejoin:round; }
+  .hint[data-type="tap"] .hand{ animation:tapA 1.5s ease-in-out infinite; }
+  .hint[data-type="down"] .hand{ animation:downA 1.5s ease-in-out infinite; }
+  .hint[data-type="up"] .hand{ animation:upA 1.6s ease-in-out infinite; }
+  .hint[data-type="across"] .hand{ animation:acrossA 1.6s ease-in-out infinite; }
+  .hint[data-type="circle"] .hand{ animation:circleA 2.0s linear infinite; }
+  .cdown{ animation:pulseDown 1.5s ease-in-out infinite; }
+  .cup{ animation:pulseUp 1.6s ease-in-out infinite; }
+  .cacross{ animation:pulseAcross 1.6s ease-in-out infinite; }
+  .ccircle{ transform-origin:60px 76px; animation:spin 3.2s linear infinite; }
+  @keyframes tapA{ 0%,100%{ transform:scale(1)} 45%{ transform:scale(.80)} }
+  @keyframes downA{ 0%{ transform:translateY(-16%) scale(1)} 45%{ transform:translateY(26%) scale(.94)} 100%{ transform:translateY(-16%) scale(1)} }
+  @keyframes upA{ 0%{ transform:translateY(26%) scale(.95)} 50%{ transform:translateY(-22%) scale(1)} 100%{ transform:translateY(26%) scale(.95)} }
+  @keyframes acrossA{ 0%{ transform:translateX(-30%)} 50%{ transform:translateX(30%)} 100%{ transform:translateX(-30%)} }
+  @keyframes circleA{ 0%{ transform:translate(18%,0)} 25%{ transform:translate(0,18%)} 50%{ transform:translate(-18%,0)} 75%{ transform:translate(0,-18%)} 100%{ transform:translate(18%,0)} }
+  @keyframes pulseDown{ 0%,100%{ opacity:.35; transform:translateY(-6px)} 50%{ opacity:1; transform:translateY(6px)} }
+  @keyframes pulseUp{ 0%,100%{ opacity:.35; transform:translateY(6px)} 50%{ opacity:1; transform:translateY(-6px)} }
+  @keyframes pulseAcross{ 0%,100%{ opacity:.35; transform:translateX(-6px)} 50%{ opacity:1; transform:translateX(6px)} }
+  @keyframes spin{ to{ transform:rotate(360deg)} }
+
+  /* --- 進み具合 (餅の粒) --- */
+  .steps{ position:absolute; left:50%; transform:translateX(-50%);
+    top:calc(var(--safe-t) + 14px); display:flex; gap:9px; padding:8px 14px;
+    background:rgba(28,20,14,.34); border-radius:999px; backdrop-filter:blur(6px); }
+  .stepdot{ width:12px; height:12px; border-radius:50%; background:rgba(255,248,236,.26);
+    transition:all .35s cubic-bezier(.34,1.56,.64,1); }
+  .stepdot.on{ background:#fdf6e8; box-shadow:0 0 10px rgba(255,235,190,.8); }
+  .stepdot.cur{ background:#ffd98a; transform:scale(1.45); box-shadow:0 0 14px rgba(255,205,120,.95); }
+
+  /* --- ボタン --- */
+  .iconbtn{ position:absolute; pointer-events:auto; border:none; background:rgba(28,20,14,.42);
+    width:46px; height:46px; border-radius:50%; padding:8px; backdrop-filter:blur(6px); }
+  .iconbtn svg{ width:100%; height:100%; }
+  .sound{ right:calc(var(--safe-r) + 12px); top:calc(var(--safe-t) + 12px); }
+
+  .bigbtn{ position:absolute; left:50%; top:auto; bottom:calc(var(--safe-b) + 6%);
+    transform:translate(-50%,0) scale(.6); opacity:0; transition:all .5s cubic-bezier(.34,1.56,.64,1);
+    width:min(25vmin,112px); height:min(25vmin,112px); pointer-events:auto; display:flex;
+    align-items:center; justify-content:center; }
+  .bigbtn.in{ transform:translate(-50%,0) scale(1); opacity:1; }
+  .bigbtn .ring{ position:absolute; inset:0; border-radius:50%;
+    background:radial-gradient(circle at 50% 38%, rgba(255,236,200,.96), rgba(246,205,148,.9));
+    box-shadow:0 10px 30px rgba(0,0,0,.5), 0 0 0 6px rgba(255,240,214,.22);
+    animation:breathe 1.9s ease-in-out infinite; }
+  .bigbtn .glyph{ position:relative; width:66%; height:66%; }
+  .bigbtn .glyph svg{ width:100%; height:100%; }
+  @keyframes breathe{ 0%,100%{ transform:scale(1); box-shadow:0 10px 30px rgba(0,0,0,.5),0 0 0 6px rgba(255,240,214,.20)}
+                      50%{ transform:scale(1.06); box-shadow:0 12px 34px rgba(0,0,0,.5),0 0 0 16px rgba(255,240,214,.06)} }
+
+  /* --- 読み込み --- */
+  #boot{ position:fixed; inset:0; z-index:9; display:flex; align-items:center; justify-content:center;
+    flex-direction:column; gap:20px; background:#171009;
+    color:#f3e3c6; transition:opacity .8s ease; }
+  #boot .b{ width:74px; height:74px; border-radius:50%; background:#f6efe0;
+    box-shadow:0 8px 20px rgba(0,0,0,.5); animation:bounce 1.05s cubic-bezier(.5,0,.5,1) infinite; }
+  #boot .t{ font-size:15px; letter-spacing:.32em; opacity:.75; }
+  @keyframes bounce{ 0%,100%{ transform:translateY(-14px) scaleY(1)} 55%{ transform:translateY(10px) scaleY(.72) scaleX(1.14)} }
+  #boot.gone{ opacity:0; pointer-events:none; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="ui"></div>
+<div id="boot"><div class="b"></div><div class="t">もちつき</div></div>
+<script type="module" src="./src/main.js"></script>
+<noscript><p style="color:#eee;padding:2em">JavaScript を有効にしてください。</p></noscript>
+</body>
+</html>
