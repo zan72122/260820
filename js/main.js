@@ -32,12 +32,12 @@ const SHOTS = {
   drill:   { pos: V3(0.58, 1.02, 1.55), look: V3(0.00, 0.46, 0.00), fov: 0 },
   reveal:  { pos: V3(0.17, 0.35, 0.31), look: V3(0.00, -0.05, 0.00), fov: 2 },
   scoop:   { pos: V3(0.20, 0.41, 0.37), look: V3(0.00, -0.03, 0.00), fov: 2 },
-  mouth:   { pos: V3(0.00, 0.24, 0.15), look: V3(0.00, -0.09, 0.00), fov: 4 },
+  mouth:   { pos: V3(0.00, 0.33, 0.21), look: V3(0.00, -0.08, 0.00), fov: 4 },
   throat:  { pos: V3(0.00, -0.04, 0.035), look: V3(0.00, -0.62, 0.01), fov: 10 },
   descend: { pos: V3(0.11, -0.50, 0.24), look: V3(0.00, -0.82, 0.00), fov: 14 },
   fishing: { pos: V3(0.40, -1.30, 0.56), look: V3(0.03, -0.86, 0.02), fov: 16 },
   rising:  { pos: V3(0.08, -0.48, 0.18), look: V3(0.00, -0.70, 0.00), fov: 10 },
-  popup:   { pos: V3(0.29, 0.30, 0.73), look: V3(-0.15, 0.36, -0.08), fov: 0 },
+  popup:   { pos: V3(0.30, 0.30, 0.76), look: V3(-0.11, 0.34, -0.06), fov: 0 },
   show:    { pos: V3(0.24, 0.50, 0.72), look: V3(-0.19, 0.13, -0.10), fov: 0 },
 };
 
@@ -177,6 +177,7 @@ class Game {
     this.shaft.visible = false;
     this.slush.visible = false;
     this.plankton.visible = false;
+    this.waterReveal = 0;
   }
 
   initGear() {
@@ -199,7 +200,7 @@ class Game {
     this.scoop.rotation.set(-0.15, 1.1, 0.25);
     this.scoop.visible = false;
 
-    this.augerRest = { pos: V3(-0.92, 0.05, -0.62), rot: new THREE.Euler(Math.PI / 2 * 0.98, 2.3, 0.2) };
+    this.augerRest = { pos: V3(-1.15, 0.05, -0.90), rot: new THREE.Euler(Math.PI / 2 * 0.98, 2.5, 0.2) };
 
     // the rig on the end of the line
     this.lure = V3(0, WATER_Y - 0.08, 0);
@@ -476,6 +477,7 @@ class Game {
     this.skyWindow.visible = false;
     this.shaft.visible = false;
     this.slush.visible = false;
+    this.waterReveal = 0;
     this.slush.children.forEach(m => {
       m.visible = true;
       m.userData.alive = true; m.userData.state = null;
@@ -612,9 +614,8 @@ class Game {
       this.shaft.visible = true;
     }
     if (this.waterTop.visible) {
-      const k = clamp((t - 0.34) / 0.5, 0, 1);
-      this.waterTop.material.uniforms.uOpacity.value = k;
-      this.holeLight.intensity = k * 2.6;
+      this.waterReveal = clamp((t - 0.34) / 0.5, 0, 1);
+      this.holeLight.intensity = this.waterReveal * 2.6;
     }
     if (t > 1.15 && !this.slush.visible) {
       this.slush.visible = true;
@@ -787,7 +788,7 @@ class Game {
       fl.f.obj.position.copy(fl.p);
       fl.f.obj.rotation.x += dt * fl.spin;
       fl.f.obj.rotation.z = Math.sin(this.time * 24) * 0.5;
-      const grow = 1 + 0.4 * Math.sin(Math.PI * Math.min(1, fl.t / fl.T));
+      const grow = 1 + 0.75 * Math.sin(Math.PI * Math.min(1, fl.t / fl.T));
       fl.f.obj.scale.setScalar(grow);
       fl.f.u.uRate.value = 20; fl.f.u.uAmp.value = 1.8;
       if (Math.random() < dt * 26 && fl.t < 0.4) {
@@ -813,9 +814,11 @@ class Game {
     const n = this.bucketFish.length;
     const a = n * 1.4;
     fish.position.copy(this.bucket.position).add(
-      V3(Math.cos(a) * 0.045, 0.132 + Math.min(n, 5) * 0.008, Math.sin(a) * 0.045));
-    fish.rotation.set(Math.PI / 2 * (0.62 + Math.random() * 0.28), a + Math.random(), 0.35);
-    fish.scale.setScalar(0.95);
+      V3(Math.cos(a) * 0.026, 0.118 + Math.min(n, 5) * 0.006, Math.sin(a) * 0.026));
+    // rolled onto its flank, which is the side that reads as a silver fish
+    fish.rotation.set(0.10 + Math.random() * 0.14, a + Math.random(),
+      Math.PI / 2 * (0.82 + Math.random() * 0.24));
+    fish.scale.setScalar(1.1);
     this.scene.add(fish);
     this.bucketFish.push(fish);
     if (this.bucketFish.length > 8) {
@@ -960,10 +963,17 @@ class Game {
 
     // --- shaders / lights --------------------------------------------
     this.waterTop.material.uniforms.uTime.value = this.time;
+    // fade the surface out just before the camera passes through it
+    const nearSurface = clamp((this.camera.position.y - WATER_Y - 0.015) / 0.13, 0, 1);
+    this.waterTop.material.uniforms.uOpacity.value = (this.waterReveal ?? 0) * nearSurface;
     const rip = this.waterTop.material.uniforms.uRipple;
     rip.value = Math.max(0, rip.value - dt * 0.85);
     this.skyWindow.material.uniforms.uTime.value = this.time;
     this.shaft.material.uniforms.uTime.value = this.time;
+    // hold the beam back while the camera is inside the top of it, or the
+    // additive haze whites out the whole plunge
+    this.shaft.material.uniforms.uStr.value =
+      clamp((WATER_Y - this.camera.position.y) / 0.55, 0, 1);
     this.lureLight.position.copy(this.lure);
     this.lureLight.intensity = lerp(this.lureLight.intensity, this.rig3.visible ? 0.9 : 0, dt * 3);
     this.rig3.userData.glow.material.opacity = (0.12 + 0.10 * Math.sin(this.time * 3)) * u;

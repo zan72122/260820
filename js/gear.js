@@ -1,7 +1,7 @@
 /* Hand gear: the ice auger, the slush scoop, the little rod, the rig,
    and the bucket the catch goes into. All modelled, not sprites. */
 import * as THREE from 'three';
-import { HOLE_R, ICE_T, WATER_Y } from './world.js';
+import { HOLE_R } from './world.js';
 import { softDot } from './textures.js';
 
 const steel = (c = 0xb9c6ce, r = 0.34, m = 0.8) =>
@@ -241,7 +241,7 @@ export function createRig() {
    --------------------------------------------------------------------- */
 export function createBucket() {
   const g = new THREE.Group();
-  const mat = plastic(0x3fa9e0, 0.5);
+  const mat = plastic(0x3fa9e0, 0.68);
   const body = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.068, 0.125, 26, 1, true), mat);
   body.material.side = THREE.DoubleSide;
   body.position.y = 0.0625;
@@ -257,12 +257,10 @@ export function createBucket() {
   g.add(rim);
   // a splash of water inside
   const water = new THREE.Mesh(new THREE.CircleGeometry(0.075, 26),
-    new THREE.MeshStandardMaterial({ color: 0x0d3d55, roughness: 0.15, metalness: 0.2 }));
+    new THREE.MeshStandardMaterial({ color: 0x0b3247, roughness: 0.42, metalness: 0.1 }));
   water.rotation.x = -Math.PI / 2;
   water.position.y = 0.05;
   g.add(water);
   g.userData = { water };
   return g;
 }
-
-export const GEAR_CONST = { HOLE_R, ICE_T, WATER_Y };

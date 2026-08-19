@@ -249,8 +249,8 @@ export function createSkyWindow() {
 
 /* Shaft of daylight pouring down through the hole. */
 export function createLightShaft() {
-  const h = 4.4;
-  const geo = new THREE.CylinderGeometry(HOLE_R * 0.95, HOLE_R * 5.0, h, 40, 1, true);
+  const h = 3.6;
+  const geo = new THREE.CylinderGeometry(HOLE_R * 0.95, HOLE_R * 3.4, h, 40, 1, true);
   const mat = new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, side: THREE.DoubleSide,
     blending: THREE.AdditiveBlending,
@@ -262,11 +262,13 @@ export function createLightShaft() {
       precision mediump float; varying vec2 vUv; varying vec3 vN;
       uniform vec3 uCol; uniform float uTime, uStr;
       void main(){
-        float fade = pow(1.0 - vUv.y, 1.7);              // brightest at the ice
+        // cylinder v runs 0 at the bottom to 1 at the top: the shaft has to be
+        // brightest where the daylight enters, i.e. up at the hole
+        float fade = pow(vUv.y, 1.7);
         float edge = pow(sin(vUv.x * 3.14159), 0.6);
         float shimmer = 0.82 + 0.18 * sin(vUv.x * 26.0 + uTime * 0.9)
-                                   * sin(vUv.y * 9.0 - uTime * 0.6);
-        gl_FragColor = vec4(uCol * fade * shimmer * uStr * 0.85, fade * edge * 0.95 * uStr);
+                                   * sin(vUv.y * 9.0 + uTime * 0.6);
+        gl_FragColor = vec4(uCol * fade * shimmer * uStr * 0.26, fade * edge * 0.38 * uStr);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
       }`,
@@ -425,7 +427,7 @@ export function createSnowfall(count = 900) {
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  const p = new THREE.Points(g, pointsMaterial(flakeSprite(64), 0.021, 0xffffff, 0.78));
+  const p = new THREE.Points(g, pointsMaterial(flakeSprite(64), 0.017, 0xffffff, 0.7));
   p.userData = { vel };
   p.frustumCulled = false;
   p.renderOrder = 8;
@@ -487,11 +489,11 @@ export class Breath {
     this.timer = 2.2;
   }
   puff(origin, dir) {
-    for (let k = 0; k < 7; k++) {
+    for (let k = 0; k < 5; k++) {
       const p = this.pool[this.i++ % this.pool.length];
       p.s.visible = true;
       p.life = 0; p.ttl = 1.5 + Math.random() * 1.1;
-      p.gr = 0.05 + Math.random() * 0.05;
+      p.gr = 0.018 + Math.random() * 0.026;
       p.s.position.copy(origin).add(new THREE.Vector3(
         (Math.random() - 0.5) * 0.05, (Math.random() - 0.5) * 0.05, (Math.random() - 0.5) * 0.05));
       p.vel.copy(dir).multiplyScalar(0.22 + Math.random() * 0.2)
@@ -519,8 +521,8 @@ export class Breath {
       p.s.position.addScaledVector(p.vel, dt);
       p.vel.multiplyScalar(1 - 1.1 * dt);
       p.vel.y += 0.16 * dt;
-      p.s.scale.setScalar(0.035 + p.gr * t * 5.5);
-      p.s.material.opacity = 0.4 * Math.sin(Math.PI * Math.min(1, t * 1.05)) * (1 - t * 0.3);
+      p.s.scale.setScalar(0.028 + p.gr * t * 5.5);
+      p.s.material.opacity = 0.5 * Math.sin(Math.PI * Math.min(1, t * 1.05)) * (1 - t * 0.3);
     }
   }
 }
