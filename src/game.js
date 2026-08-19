@@ -112,6 +112,8 @@ export class Game {
     this.plane = new THREE.Plane();
     this._up = new THREE.Vector3(0, 1, 0);
     this.cratePos = new THREE.Vector3();
+    this._axis = new THREE.Vector3();
+    this._q = new THREE.Quaternion();
 
     this.newRound(true);
     this.enterIntro();
@@ -831,11 +833,15 @@ export class Game {
     if ((!this.carried && this.idleT > 2.2) || this.stateT > 7) {
       this.carryPos.lerp(this.tmpV.set(c.x, c.y + 0.30, c.z), 1 - Math.exp(-2.0 * dt));
     }
+    // Tip the carrot across the line of sight, whichever way the shot is
+    // angled, so its whole orange length is on show rather than pointing
+    // straight down the lens.
+    this._axis.set(c.x - this.camera.position.x, 0, c.z - this.camera.position.z).normalize();
+    this._q.setFromAxisAngle(this._axis, 0.80 + Math.sin(this.stateT * 1.5) * 0.06);
+    s.plant.quaternion.slerp(this._q, 1 - Math.exp(-5 * dt));
     s.plant.position.copy(this.carryPos);
-    s.plant.rotation.x = damp(s.plant.rotation.x, 0.16, 5, dt);
-    s.plant.rotation.z = damp(s.plant.rotation.z, Math.sin(this.stateT * 1.6) * 0.12, 5, dt);
     // gathered in a fist, the way you actually carry a carrot by its tops
-    s.plant.userData.setStretch(Math.min(0.7, this.stateT * 1.1));
+    s.plant.userData.setStretch(Math.min(0.88, this.stateT * 1.2));
 
     const scr = this.toScreen(this.carryPos);
     const cs = this.toScreen(this.tmpV.set(c.x, c.y + 0.22, c.z));
@@ -854,7 +860,8 @@ export class Game {
     const e = easeOutCubic(t);
     s.plant.position.lerpVectors(this.boxFrom, this.boxTo, e);
     s.plant.position.y += Math.sin(t * Math.PI) * 0.09;   // little arc
-    s.plant.rotation.x = lerp(s.plant.rotation.x, Math.PI * 0.5, e * 0.6);
+    this._q.setFromAxisAngle(this._axis, 0.80 + e * 0.75);  // tips over as it drops in
+    s.plant.quaternion.slerp(this._q, 1 - Math.exp(-6 * dt));
     s.plant.scale.setScalar(lerp(1, 0.85, e));
     if (t >= 1 && !s.done) {
       s.done = true;
