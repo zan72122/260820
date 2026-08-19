@@ -142,7 +142,7 @@ export class World {
 
     // wheel ruts: wet, dark, slightly reflective streaks
     const rutMat = new THREE.MeshStandardMaterial({
-      color: 0x2a3038, transparent: true, opacity: 0.26, roughness: 0.18, metalness: 0.15,
+      color: 0x333b44, transparent: true, opacity: 0.2, roughness: 0.18, metalness: 0.15,
       depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3,
     });
     this.ruts = [];
@@ -447,24 +447,27 @@ export class World {
     this.site = site;
 
     // cleared lot
-    const lot = new THREE.Mesh(new THREE.PlaneGeometry(30, 34), M.snowGround);
+    const lotMat = M.snowGround.clone();
+    lotMat.color = new THREE.Color(0xc9d6e4);
+    lotMat.roughness = 0.95;
+    const lot = new THREE.Mesh(new THREE.PlaneGeometry(30, 34), lotMat);
     lot.rotateX(-Math.PI / 2);
     lot.position.set(-16, 0.09, 0);
     lot.receiveShadow = true;
     site.add(lot);
 
     // the growing snow mountain
-    this.sitePile = new THREE.Mesh(heapGeometry(7.0, 8.0, 6.2, 30, 9), M.snowPile);
-    this.sitePile.position.set(-14.0, 0.1, 1.5);
+    this.sitePile = new THREE.Mesh(heapGeometry(6.2, 7.4, 9.0, 34, 9, 0.3), M.snowPile);
+    this.sitePile.position.set(-13.5, 0.1, 1.5);
     this.sitePile.castShadow = true;
     this.sitePile.receiveShadow = true;
     site.add(this.sitePile);
     // a few frozen boulders of snow around the base
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 12; i++) {
       const a = Math.random() * Math.PI * 2;
-      const r = 7 + Math.random() * 3;
+      const r = 5.5 + Math.random() * 4;
       const b = new THREE.Mesh(lumpySphere(0.8 + Math.random() * 0.7, 1, 0.3, i), M.snowPile);
-      b.position.set(-14.0 + Math.cos(a) * r, 0.4, 1.5 + Math.sin(a) * r * 0.8);
+      b.position.set(-13.5 + Math.cos(a) * r, 0.4, 1.5 + Math.sin(a) * r * 0.8);
       b.scale.y = 0.6;
       b.castShadow = true; b.receiveShadow = true;
       site.add(b);
@@ -529,8 +532,8 @@ export class World {
       loader.add(w);
     }
 
-    this.pileCenter = new THREE.Vector3(-14.0, 0, 1.5);
-    this.pileRadX = 7.0; this.pileRadZ = 8.0; this.pileH = 6.2;
+    this.pileCenter = new THREE.Vector3(-13.5, 0, 1.5);
+    this.pileRadX = 6.2; this.pileRadZ = 7.4; this.pileH = 9.0;
     this.siteFill = 0.35;
     this.siteZ = 0;
     this.siteActive = false;

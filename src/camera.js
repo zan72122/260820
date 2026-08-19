@@ -6,30 +6,35 @@ import * as THREE from 'three';
 ------------------------------------------------------------------- */
 
 const SHOTS = {
-  // wide establishing shot of the street: wall on the right, machines small
+  // wide establishing shot of the street: the bank, the machines, the scale
   intro: {
     anchor: 'plow',
-    pos: [-18, 9.0, -21], look: [-2.2, 2.6, 10], fov: 48, speed: 0.9, push: [7, -3.0, 8],
+    pos: [-18, 9.0, -21], posP: [-6.0, 9.0, -30],
+    look: [-2.2, 2.6, 10], lookP: [-2.2, 2.6, 10], fov: 48, speed: 0.9, push: [7, -3.0, 8],
   },
-  // low, close on the auger biting into the bank
+  // low side shot: the auger biting in, the machine's weight
   bite: {
     anchor: 'plow',
-    pos: [7.6, 3.3, 7.2], look: [0.5, 1.45, 3.0], fov: 54, speed: 2.4,
+    pos: [-3.7, 1.35, -1.2], posP: [-3.0, 2.0, -7.0],
+    look: [-0.2, 1.25, 3.9], lookP: [-0.2, 1.5, 3.9], fov: 54, speed: 2.3,
   },
-  // the main working shot: auger, the arc of snow, and the truck bed
+  // the main working shot: the head, the arc of snow, and the truck bed
   work: {
     anchor: 'plow',
-    pos: [-9.6, 4.3, -8.6], look: [-0.9, 2.0, 3.8], fov: 52, speed: 1.7,
+    pos: [-9.6, 4.3, -8.6], posP: [-2.6, 5.7, -18.0],
+    look: [-0.9, 2.0, 3.8], lookP: [-4.0, 3.5, 5.5], fov: 52, speed: 1.7,
   },
   // driving to the dump site
   toDump: {
     anchor: 'plow',
-    pos: [-11.5, 7.4, -13.5], look: [-4.0, 1.8, 10.0], fov: 54, speed: 1.4,
+    pos: [-11.5, 7.4, -13.5], posP: [-4.6, 8.6, -22.0],
+    look: [-4.0, 1.8, 10.0], lookP: [-3.4, 2.2, 9.0], fov: 54, speed: 1.4,
   },
   // tipping the load: pulled back so the growing mountain reads
   dump: {
     anchor: 'truck',
-    pos: [9.0, 6.0, -9.0], look: [-6.0, 2.2, 1.0], fov: 50, speed: 1.5,
+    pos: [9.0, 6.0, -9.0], posP: [7.7, 7.2, -4.5],
+    look: [-6.0, 2.2, 1.0], lookP: [-3.8, 3.0, -1.0], fov: 50, speed: 1.5,
   },
 };
 
@@ -56,12 +61,12 @@ export class CameraDirector {
     if (snap) this._snap = true;
   }
 
-  /** portrait phones need the camera further out to frame the same action */
+  /** Portrait has far less horizontal room, so each shot has a taller,
+      further-back variant and the two are blended by how tall the screen is. */
   setAspect(aspect) {
-    // 0.46 (tall phone) -> 1.55 ; 2.2 (landscape pad) -> 1.0
-    const k = THREE.MathUtils.clamp((1.25 - aspect) / 0.85, 0, 1);
-    this.fit = 1 + k * 0.62;
-    this.fovBoost = k * 6;
+    this.k = THREE.MathUtils.clamp((1.25 - aspect) / 0.8, 0, 1);
+    this.fit = 1;
+    this.fovBoost = this.k * 10;
   }
 
   update(dt, anchors) {
@@ -71,13 +76,19 @@ export class CameraDirector {
     const push = s.push || [0, 0, 0];
     const k = s.push ? Math.min(1, this.t / 6) : 0;
 
-    const f = this.fit;
+    const kp = this.k || 0;
+    const p0 = s.pos, p1 = s.posP || s.pos;
+    const l0 = s.look, l1 = s.lookP || s.look;
     this._p.set(
-      a.x + (s.pos[0] + push[0] * k) * f,
-      a.y + (s.pos[1] + push[1] * k) * (0.55 + 0.45 * f),
-      a.z + (s.pos[2] + push[2] * k) * f,
+      a.x + (p0[0] + (p1[0] - p0[0]) * kp) + push[0] * k,
+      a.y + (p0[1] + (p1[1] - p0[1]) * kp) + push[1] * k,
+      a.z + (p0[2] + (p1[2] - p0[2]) * kp) + push[2] * k,
     );
-    this._l.set(a.x + s.look[0], a.y + s.look[1], a.z + s.look[2]);
+    this._l.set(
+      a.x + l0[0] + (l1[0] - l0[0]) * kp,
+      a.y + l0[1] + (l1[1] - l0[1]) * kp,
+      a.z + l0[2] + (l1[2] - l0[2]) * kp,
+    );
 
     if (this._snap) {
       this.pos.copy(this._p); this.look.copy(this._l);

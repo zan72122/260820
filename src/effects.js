@@ -69,20 +69,18 @@ export class ChunkSystem {
       q.life += dt;
 
       if (!q.grounded) {
-        // gentle homing keeps the throw landing in a moving bed
+        // Steering, not teleporting: the arc stays a real ballistic curve and
+        // only the horizontal aim is nudged, so snow still visibly falls in.
         if (q.homing > 0 && q.target) {
           const t = q.target;
-          const dx = t.x - q.pos.x, dy = t.y - q.pos.y, dz = t.z - q.pos.z;
-          const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-          if (dist > 0.4) {
-            const tf = Math.max(0.16, dist / Math.max(4, q.vel.length()));
-            const wantX = dx / tf, wantZ = dz / tf;
-            const wantY = dy / tf + 0.5 * GRAV * tf;
-            const k = Math.min(1, dt * 6.0 * q.homing);
-            q.vel.x += (wantX - q.vel.x) * k;
-            q.vel.y += (wantY - q.vel.y) * k;
-            q.vel.z += (wantZ - q.vel.z) * k;
-          }
+          // how long until this chunk drops to the height of the bed
+          const dy = q.pos.y - t.y;
+          const disc = q.vel.y * q.vel.y + 2 * GRAV * dy;
+          let tRem = disc > 0 ? (q.vel.y + Math.sqrt(disc)) / GRAV : 0.12;
+          tRem = Math.max(0.12, Math.min(2.5, tRem));
+          const k = Math.min(1, dt * 5.0 * q.homing);
+          q.vel.x += ((t.x - q.pos.x) / tRem - q.vel.x) * k;
+          q.vel.z += ((t.z - q.pos.z) / tRem - q.vel.z) * k;
         }
         q.vel.y -= GRAV * dt;
         q.pos.addScaledVector(q.vel, dt);
@@ -103,7 +101,7 @@ export class ChunkSystem {
             // dump-site debris settles into the pile
             q.grounded = true;
             q.vel.set(0, 0, 0);
-            q.maxLife = q.life + 6.0;
+            q.maxLife = q.life + 9.0;
           } else {
             q.alive = false;
             continue;
@@ -113,7 +111,7 @@ export class ChunkSystem {
 
       if (q.life > q.maxLife) { q.alive = false; continue; }
 
-      const fade = q.grounded ? Math.max(0, 1 - (q.life - (q.maxLife - 6.0)) / 6.0) : 1;
+      const fade = q.grounded ? Math.max(0, 1 - (q.life - (q.maxLife - 9.0)) / 9.0) : 1;
       this._q.setFromEuler(q.rot);
       this._s.setScalar(q.size * (0.5 + 0.5 * fade));
       this._m.compose(q.pos, this._q, this._s);

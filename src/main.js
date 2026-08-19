@@ -44,7 +44,7 @@ class Game {
     this.wall = new SnowWall(this.scene);
     this.marker = new Marker(this.scene);
 
-    this.chunks = new ChunkSystem(this.scene, 260, 0.21);
+    this.chunks = new ChunkSystem(this.scene, 260, 0.25);
     this.dumpChunks = new ChunkSystem(this.scene, 190, 0.26);
     this.snowDust = new PuffSystem(this.scene, 240, { color: '250,253,255', size: 0.55, opacity: 0.42, rise: 0.5, drag: 2.1 });
     this.smoke = new PuffSystem(this.scene, 80, { color: '206,209,214', size: 0.5, opacity: 0.34, rise: 1.5, drag: 0.9, hardness: 0.1 });
@@ -64,7 +64,7 @@ class Game {
     /* --------- initial placement --------- */
     this.plow.root.position.set(ROAD.plowX, 0, 0);
     this.truck.root.position.set(ROAD.truckX, 0, 4.2);
-    this.plow.chuteAngle = this.plow.chuteAngleCur = -1.3;
+    this.plow.chuteAngle = this.plow.chuteAngleCur = -1.5;
 
     /* --------- run state --------- */
     this.state = 'intro';
@@ -307,7 +307,10 @@ class Game {
       trot = 0;
     }
     const prev = this.tmp.copy(t.position);
-    const k = Math.min(1, dt * (this.state === 'toDump' ? 1.5 : 2.4));
+    const k = Math.min(1, dt * (this.state === 'toDump' ? 1.5 : 3.0));
+    // match the plow's pace first, then correct - otherwise the truck
+    // trails behind and the chute has to lead it awkwardly
+    if (this.state === 'plow' || this.state === 'intro') t.position.z += this.speed * dt;
     t.position.x += (tx - t.position.x) * k;
     t.position.z += (tz - t.position.z) * k;
     let rd = trot - t.rotation.y;
@@ -361,7 +364,7 @@ class Game {
 
       // ballistic solution that actually lands in the bed
       const dist = Math.hypot(dx, dz);
-      const tf = THREE.MathUtils.clamp(dist / 13.0, 0.42, 1.25);
+      const tf = THREE.MathUtils.clamp(dist / 7.0, 0.85, 1.5);   // a lofted, readable arc
       const ball = this.tmp.set(
         dx / tf,
         (this.aim.y - this.muzzle.y) / tf + 0.5 * 17.0 * tf,
@@ -380,18 +383,22 @@ class Game {
         p.y += (Math.random() - 0.5) * 0.35;
         p.z += (Math.random() - 0.5) * 0.5;
         this.chunks.spawn(p, v, {
-          life: 3.2, size: 0.85 + Math.random() * 0.9,
+          life: 3.2, size: 0.8 + Math.random() * 1.0,
           target: this.aim, homing: assist * 0.9, kind: 0,
         });
       }
 
-      // white plume right at the chute mouth
-      this.dustAcc += this.emitRate * dt * 0.5;
+      // a plume that rides along the throw so the arc reads as a jet of snow
+      this.dustAcc += this.emitRate * dt * 1.1;
       while (this.dustAcc >= 1) {
         this.dustAcc -= 1;
-        const v = this.mdir.clone().multiplyScalar(4 + Math.random() * 3);
-        v.x += (Math.random() - 0.5) * 2; v.z += (Math.random() - 0.5) * 2;
-        this.snowDust.spawn(this.muzzle, v, { life: 0.8, size: 0.7, grow: 2.8, alpha: 0.5 });
+        const v = straight.clone().lerp(ball, assist * 0.82).multiplyScalar(0.55);
+        v.x += (Math.random() - 0.5) * 2.2;
+        v.y += (Math.random() - 0.5) * 1.4;
+        v.z += (Math.random() - 0.5) * 2.2;
+        const p = this.muzzle.clone();
+        p.y += (Math.random() - 0.5) * 0.4;
+        this.snowDust.spawn(p, v, { life: 1.0, size: 0.8, grow: 2.4, alpha: 0.45 });
       }
     }
 
@@ -459,8 +466,17 @@ class Game {
         break;
       }
       case 'plow': {
-        if (this.round === 0) this.teachRound0(dt);
-        else if (this.stateT > 1.2 && this.speed < 0.2) this.ui.showHint('go');
+        if (this.round === 0) { this.teachRound0(dt); break; }
+        // every round opens with a low shot of the auger biting in,
+        // then eases back to the working view
+        if (!this._biteShown && this.cutting > 0.4) {
+          this._biteShown = true; this._biteT = 0;
+          this.dir.set('bite');
+        } else if (this._biteShown && this.dir.shotName === 'bite') {
+          this._biteT += dt;
+          if (this._biteT > 2.6) this.dir.set('work');
+        }
+        if (this.stateT > 1.2 && this.speed < 0.2) this.ui.showHint('go');
         else if (this.speed > 0.6) this.ui.showHint(null);
         break;
       }
@@ -482,15 +498,15 @@ class Game {
           const n = Math.ceil(drop * 90);
           for (let i = 0; i < n; i++) {
             const p = this.tmp.set(
-              this.truck.root.position.x - 3.2 - Math.random() * 1.2,
-              2.4 + Math.random() * 1.6,
+              this.truck.root.position.x - 3.3 - Math.random() * 0.8,
+              2.5 + Math.random() * 1.5,
               this.truck.root.position.z + (Math.random() - 0.5) * 2.0,
             );
             this.dumpChunks.spawn(p, this.tmp2.set(
-              -2.2 - Math.random() * 3.2,
-              0.6 + Math.random() * 1.4,
-              (Math.random() - 0.5) * 2.2,
-            ), { life: 9, size: 0.8 + Math.random() * 0.9, kind: 1 });
+              -0.8 - Math.random() * 2.6,
+              0.2 + Math.random() * 1.0,
+              (Math.random() - 0.5) * 1.8,
+            ), { life: 14, size: 0.9 + Math.random() * 1.0, kind: 1 });
           }
           if (!this._dumpRoar) { this._dumpRoar = true; Audio.bigDump(); }
         }
@@ -551,6 +567,7 @@ class Game {
     this.wall.refill(z + 10);
     this.setState('plow');
     this.dir.set('work');
+    this._biteShown = false;
     this.ui.showHint('go');
     Audio.horn();
   }

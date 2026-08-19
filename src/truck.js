@@ -167,7 +167,8 @@ export class Truck {
   get position() { return this.root.position; }
 
   aimWorld(out) {
-    this.aimPoint.position.y = BED.floorY + 0.45 + this.fill * 0.55;
+    // aim at the surface of the load, comfortably inside the catch volume
+    this.aimPoint.position.y = BED.floorY + 0.2 + this.fill * 0.75;
     return this.aimPoint.getWorldPosition(out);
   }
 
@@ -179,8 +180,10 @@ export class Truck {
     this.root.worldToLocal(tmp);
     if (tmp.x < -BED.halfW - 0.5 || tmp.x > BED.halfW + 0.5) return false;
     if (tmp.z < BED.zBack - 0.4 || tmp.z > BED.zFront + 0.4) return false;
-    const top = BED.floorY + 0.25 + this.fill * 1.05;
-    return tmp.y <= top && tmp.y > BED.floorY - 0.6;
+    // the catch volume reaches just under the top of the side rails, so
+    // snow visibly drops over the edge before it counts as loaded
+    const top = BED.floorY + 0.8 + this.fill * 0.9;
+    return tmp.y <= top && tmp.y > BED.floorY - 0.7;
   }
 
   addSnow(amount, worldPoint, tmp) {
@@ -233,8 +236,9 @@ export class Truck {
     const f = this.fill;
     this.heap.visible = f > 0.005;
     if (this.heap.visible) {
-      const h = 0.12 + f * 1.05;
-      this.heap.scale.set(0.72 + f * 0.28, h, 0.66 + f * 0.34);
+      // at full load the heap mounds well above the side rails
+      const h = 0.14 + f * 1.62;
+      this.heap.scale.set(0.74 + f * 0.34, h, 0.7 + f * 0.32);
       // as the bed tips the load slumps back toward the tailgate
       this.heap.position.set(0, 0.16, this.cz - (1 - f) * 0.25 - this.tilt * this.L * 0.32);
     }
@@ -242,7 +246,7 @@ export class Truck {
     let n = 0;
     for (const d of this._lumpData) {
       if (d.atFill > this.fill + 0.02) continue;
-      const y = 0.16 + (0.12 + this.fill * 1.0) *
+      const y = 0.16 + (0.14 + this.fill * 1.55) *
         Math.max(0.15, 1 - (Math.abs(d.x) / BED.halfW) ** 2 * 0.7) * 0.92;
       this._v.set(d.x, y, d.z);
       this._q.setFromEuler(new THREE.Euler(d.rx, d.ry, d.rz));

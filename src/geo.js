@@ -70,14 +70,15 @@ export function lumpySphere(radius, detail = 2, lumpiness = 0.18, seed = 1) {
 }
 
 /** A dome-ish heap that sits on the ground (flat bottom at y = 0). */
-export function heapGeometry(radiusX, radiusZ, height, segs = 24, seed = 3) {
+export function heapGeometry(radiusX, radiusZ, height, segs = 24, seed = 3, lump = 0.13) {
   const g = new THREE.SphereGeometry(1, segs, Math.max(6, segs / 2), 0, Math.PI * 2, 0, Math.PI / 2);
   const p = g.attributes.position;
   const v = new THREE.Vector3();
   for (let i = 0; i < p.count; i++) {
     v.fromBufferAttribute(p, i);
-    const lump = 1 + 0.13 * Math.sin(v.x * 4.3 + seed) * Math.cos(v.z * 3.9 - seed * 1.7);
-    p.setXYZ(i, v.x * radiusX * lump, v.y * height * (0.85 + 0.15 * lump), v.z * radiusZ * lump);
+    const l = 1 + lump * (Math.sin(v.x * 4.3 + seed) * Math.cos(v.z * 3.9 - seed * 1.7)
+      + 0.55 * Math.sin(v.x * 9.1 - seed) * Math.sin(v.z * 8.3 + seed));
+    p.setXYZ(i, v.x * radiusX * l, v.y * height * (0.85 + 0.15 * l), v.z * radiusZ * l);
   }
   g.computeVertexNormals();
   return g;

@@ -50,8 +50,13 @@ export function materials() {
     color: 0xffffff, roughness: 0.52, metalness: 0.45,
   });
   const yellowPaint = T.stdMaterial({
-    mapCanvas: T.paintTexture(0xf2b21a, { rust: 0.8, dirt: 1.0 }),
+    mapCanvas: T.paintTexture(0xf6c81c, { rust: 0.8, dirt: 1.0 }),
     color: 0xffffff, roughness: 0.55, metalness: 0.4,
+  });
+  // the chute is the part a child should track with their eyes: keep it loud
+  const chutePaint = T.stdMaterial({
+    mapCanvas: T.paintTexture(0xffd815, { rust: 0.45, dirt: 0.5 }),
+    color: 0xffffff, roughness: 0.45, metalness: 0.3,
   });
   const bluePaint = T.stdMaterial({
     mapCanvas: T.paintTexture(0x2b6ec4, { rust: 0.7, dirt: 0.9 }),
@@ -64,6 +69,10 @@ export function materials() {
   const darkPaint = T.stdMaterial({
     mapCanvas: T.paintTexture(0x37414c, { rust: 0.9, dirt: 1.0 }),
     color: 0xffffff, roughness: 0.62, metalness: 0.45,
+  });
+
+  const hazard = T.stdMaterial({
+    mapCanvas: T.hazardTexture(), color: 0xffffff, roughness: 0.6, metalness: 0.35,
   });
 
   const bareSteel = new THREE.MeshStandardMaterial({
@@ -96,8 +105,8 @@ export function materials() {
 
   lib = {
     road, sidewalk, packedSnow, snowGround, snowPile, snowChunk,
-    orangePaint, yellowPaint, bluePaint, greyPaint, darkPaint,
-    bareSteel, chrome, rubber, rubberDirty, glass,
+    orangePaint, yellowPaint, chutePaint, bluePaint, greyPaint, darkPaint,
+    bareSteel, chrome, rubber, rubberDirty, glass, hazard,
     lampWhite, lampAmber, lampRed,
     canvases: { asphaltC, packedC, snowC },
   };

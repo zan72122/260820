@@ -166,7 +166,11 @@ export class Plow {
     mesh(roundedBox(HW, 0.5, 0.14, 0.05), M.orangePaint, head, [0, 1.92, -0.16], [-0.5, 0, 0]);
     // side plates
     for (const sx of [-1, 1]) {
-      mesh(roundedBox(0.12, 1.9, 1.15, 0.04), M.orangePaint, head, [sx * (HW / 2 - 0.05), 1.0, 0.0]);
+      mesh(roundedBox(0.12, 1.25, 1.15, 0.04), M.orangePaint, head, [sx * (HW / 2 - 0.05), 0.66, 0.0]);
+      // hazard-striped outer face so the working width is unmistakable
+      const stripe = mesh(new THREE.PlaneGeometry(1.1, 0.55), M.hazard, head,
+        [sx * (HW / 2 + 0.02), 0.62, 0.0], [0, sx * Math.PI / 2, 0]);
+      stripe.material = M.hazard;
       // hazard-striped end marker
       mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.1, 6), M.yellowPaint, head,
         [sx * (HW / 2 + 0.02), 2.35, -0.2]);
@@ -176,6 +180,7 @@ export class Plow {
     }
     // scraper / cutting edge along the bottom
     mesh(new THREE.BoxGeometry(HW - 0.1, 0.16, 0.4), M.bareSteel, head, [0, 0.09, 0.42], [0.22, 0, 0]);
+    mesh(new THREE.BoxGeometry(HW, 0.26, 0.09), M.hazard, head, [0, 0.36, 0.58]);
     for (let i = 0; i < 9; i++) {
       mesh(new THREE.ConeGeometry(0.07, 0.22, 5), M.bareSteel, head,
         [-1.35 + i * 0.34, 0.14, 0.62], [Math.PI / 2 + 0.3, 0, 0]);
@@ -226,22 +231,21 @@ export class Plow {
     this.chuteYaw = chuteYaw;
 
     mesh(new THREE.CylinderGeometry(0.5, 0.55, 0.16, 18), M.darkPaint, chuteYaw, [0, -0.02, 0]);
-    mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.9, 18, 1, true), M.yellowPaint, chuteYaw, [0, 0.45, 0]);
+    mesh(new THREE.CylinderGeometry(0.44, 0.44, 1.25, 18, 1, true), M.chutePaint, chuteYaw, [0, 0.62, 0]);
     // ribs
     for (let i = 0; i < 3; i++) {
-      mesh(new THREE.TorusGeometry(0.45, 0.032, 6, 18), M.darkPaint, chuteYaw, [0, 0.16 + i * 0.3, 0], [Math.PI / 2, 0, 0]);
+      mesh(new THREE.TorusGeometry(0.45, 0.032, 6, 18), M.darkPaint, chuteYaw, [0, 0.18 + i * 0.38, 0], [Math.PI / 2, 0, 0]);
     }
 
     // elbow + nozzle: rotates up/down a little for feel
     const elbow = new THREE.Group();
-    elbow.position.set(0, 0.9, 0);
+    elbow.position.set(0, 1.25, 0);
     chuteYaw.add(elbow);
     this.elbow = elbow;
     this.chuteElev = 0.62;                        // radians up from horizontal
     elbow.rotation.x = (Math.PI / 2 - this.chuteElev);   // tip the nozzle forward-up
-    mesh(new THREE.CylinderGeometry(0.42, 0.44, 0.5, 18, 1, true), M.yellowPaint, elbow, [0, 0.25, 0]);
-    const nozzle = mesh(new THREE.CylinderGeometry(0.36, 0.43, 0.8, 18, 1, true), M.yellowPaint, elbow, [0, 0.78, 0]);
-    nozzle.material = M.yellowPaint;
+    mesh(new THREE.CylinderGeometry(0.42, 0.44, 0.5, 18, 1, true), M.chutePaint, elbow, [0, 0.25, 0]);
+    mesh(new THREE.CylinderGeometry(0.36, 0.43, 0.8, 18, 1, true), M.chutePaint, elbow, [0, 0.78, 0]);
     mesh(new THREE.TorusGeometry(0.37, 0.04, 6, 18), M.darkPaint, elbow, [0, 1.16, 0], [Math.PI / 2, 0, 0]);
     // deflector cap
     mesh(roundedBox(0.8, 0.06, 0.44, 0.03), M.orangePaint, elbow, [0, 1.28, -0.16], [-0.5, 0, 0]);
@@ -269,8 +273,8 @@ export class Plow {
     /* ---------------- state ---------------- */
     this.speed = 0;
     this.augerSpin = 0;
-    this.chuteAngle = -1.3;     // target yaw, negative = toward the truck lane
-    this.chuteAngleCur = -1.3;
+    this.chuteAngle = -1.5;     // target yaw, negative = toward the truck lane
+    this.chuteAngleCur = -1.5;
     this.bounce = 0;
     this.load = 0;
     this._t = 0;

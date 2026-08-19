@@ -17,14 +17,15 @@ export class SnowWall {
     const M = materials();
 
     // main body: a slightly tapered block, origin at its base
-    const body = new THREE.BoxGeometry(1, 1, SEG * 1.02);
+    const body = new THREE.BoxGeometry(1, 1, SEG * 1.35);
     body.translate(0, 0.5, 0);
     // pull the road-facing top edge in so the bank has a plowed slope
     {
       const p = body.attributes.position;
       for (let i = 0; i < p.count; i++) {
         const y = p.getY(i), x = p.getX(i);
-        if (y > 0.9) p.setX(i, x * 0.62 - 0.13);
+        if (y > 0.9) p.setX(i, x * 0.55 - 0.16);
+        else if (y < 0.1) p.setX(i, x * 1.05);
       }
       body.computeVertexNormals();
     }
@@ -110,12 +111,16 @@ export class SnowWall {
   }
 
   update(dt, focusZ, cutZ, cutting) {
-    // recycle: keep the pool centred a little behind the machine
+    // Recycle as a ring buffer: slot i always holds the segment whose index
+    // is congruent to i mod COUNT, so only the slots that actually scroll off
+    // the back get a fresh bank.  (Re-seeding the whole pool every 0.6 m would
+    // silently regrow the wall the player just ate.)
     const base = Math.floor((focusZ - 40) / SEG);
     if (base !== this.baseIdx) {
       this.baseIdx = base;
+      const off = ((base % COUNT) + COUNT) % COUNT;
       for (let i = 0; i < COUNT; i++) {
-        const idx = base + i;
+        const idx = base + ((i - off) + COUNT) % COUNT;
         const s = this.segs[i];
         if (s.idx !== idx) this._reseed(s, idx);
       }
@@ -147,9 +152,9 @@ export class SnowWall {
       visible++;
 
       if (i % 2 === 0) {
-        const cw = s.w * 0.42;
-        this._v.set(wallX + s.jx - 0.12 + Math.sin(s.idx * 3.3) * 0.18, 0.05 + s.h * 0.94, s.z);
-        this._s.set(cw, Math.min(0.42, s.h * 0.42), cw * 1.5);
+        const cw = s.w * 0.56;
+        this._v.set(wallX + s.jx - 0.14 + Math.sin(s.idx * 3.3) * 0.14, 0.05 + s.h * 0.9, s.z);
+        this._s.set(cw, Math.min(0.34, s.h * 0.3), cw * 1.35);
         this._q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), s.idx * 0.9);
         this._m.compose(this._v, this._q, this._s);
         this.caps.setMatrixAt(capN, this._m);

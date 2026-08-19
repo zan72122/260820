@@ -53,30 +53,30 @@ function blobs(ctx, size, count, radius, color, alphaRange) {
 /* ---------- wet asphalt ---------- */
 export function asphaltTexture() {
   const S = 512, c = makeCanvas(S), x = c.getContext('2d');
-  x.fillStyle = '#4c535b'; x.fillRect(0, 0, S, S);
-  noiseFill(x, S, { base: [76, 83, 91], spread: 26 });
+  x.fillStyle = '#767e88'; x.fillRect(0, 0, S, S);
+  noiseFill(x, S, { base: [118, 126, 136], spread: 26 });
   // aggregate stones
   for (let i = 0; i < 2600; i++) {
     const px = Math.random() * S, py = Math.random() * S;
     const r = 0.6 + Math.random() * 2.2;
-    const v = 70 + Math.random() * 70;
+    const v = 105 + Math.random() * 75;
     x.fillStyle = `rgba(${v},${v + 3},${v + 8},${0.25 + Math.random() * 0.5})`;
     x.beginPath(); x.arc(px, py, r, 0, Math.PI * 2); x.fill();
   }
   // wet dark patches + slush
-  blobs(x, S, 40, 60, '24,30,38', [0.06, 0.24]);
+  blobs(x, S, 34, 60, '36,44,54', [0.05, 0.2]);
   // frozen slush smeared over the surface
-  blobs(x, S, 48, 44, '206,218,232', [0.06, 0.3]);
-  blobs(x, S, 16, 90, '224,234,244', [0.04, 0.16]);
+  blobs(x, S, 56, 44, '214,226,238', [0.08, 0.36]);
+  blobs(x, S, 18, 90, '230,238,246', [0.05, 0.2]);
   // cracks
-  x.strokeStyle = 'rgba(16,18,22,0.55)';
-  for (let i = 0; i < 14; i++) {
-    x.lineWidth = 0.6 + Math.random() * 1.4;
+  x.strokeStyle = 'rgba(46,52,60,0.3)';
+  for (let i = 0; i < 8; i++) {
+    x.lineWidth = 0.5 + Math.random() * 0.9;
     x.beginPath();
     let px = Math.random() * S, py = Math.random() * S;
     x.moveTo(px, py);
     for (let k = 0; k < 7; k++) {
-      px += (Math.random() - 0.5) * 70; py += (Math.random() - 0.5) * 70;
+      px += (Math.random() - 0.5) * 46; py += (Math.random() - 0.5) * 46;
       x.lineTo(px, py);
     }
     x.stroke();
@@ -304,3 +304,24 @@ export function stdMaterial(opts) {
 }
 
 export { toTexture };
+
+/** Yellow/black hazard stripes for the cutting edge and head sides. */
+export function hazardTexture() {
+  const S = 256, c = makeCanvas(S), x = c.getContext('2d');
+  x.fillStyle = '#f2c21a'; x.fillRect(0, 0, S, S);
+  x.fillStyle = '#1a1c20';
+  x.save();
+  x.translate(S / 2, S / 2); x.rotate(-Math.PI / 4); x.translate(-S, -S);
+  for (let i = 0; i < 10; i++) x.fillRect(0, i * S * 0.25, S * 2, S * 0.125);
+  x.restore();
+  // salt burn and scraped paint
+  blobs(x, S, 26, 26, '210,214,220', [0.05, 0.28]);
+  blobs(x, S, 18, 22, '60,52,44', [0.06, 0.3]);
+  for (let i = 0; i < 90; i++) {
+    x.strokeStyle = `rgba(150,155,162,${0.1 + Math.random() * 0.4})`;
+    x.lineWidth = 0.6 + Math.random() * 1.6;
+    const px = Math.random() * S, py = Math.random() * S, len = 10 + Math.random() * 60;
+    x.beginPath(); x.moveTo(px, py); x.lineTo(px + len, py + (Math.random() - 0.5) * 6); x.stroke();
+  }
+  return c;
+}
