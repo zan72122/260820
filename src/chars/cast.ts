@@ -128,8 +128,8 @@ export class Teacher {
         const bz = lerp(gapPos.z, playerPos.z, 0.25 + w * 0.4) - p.root.position.z;
         p.faceDirection(bx, bz, dt, 0.004);
         // Hands lightly clasped in front.
-        c.left = { pitch: -0.42, spread: -0.02, twist: 0.1, elbow: 1.5, wrist: 0.15 };
-        c.right = { pitch: -0.42, spread: -0.02, twist: -0.1, elbow: 1.5, wrist: 0.15 };
+        c.left = { pitch: -0.05, spread: -0.04, twist: 0.34, elbow: 0.95, wrist: 0.25 };
+        c.right = { pitch: -0.05, spread: -0.04, twist: -0.34, elbow: 0.95, wrist: 0.25 };
         break;
       }
 
@@ -172,7 +172,7 @@ export class Teacher {
           pitch: -1.05 * open + beckon,
           spread: 0.18 + 0.98 * open,
           twist: 0.5 * open,
-          elbow: 0.2,
+          elbow: 0.3,
           wrist: 0.32 * open,
         };
         c.right = { pitch: -0.26, spread: 0.12, twist: 0, elbow: 0.62, wrist: 0 };

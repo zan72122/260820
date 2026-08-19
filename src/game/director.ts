@@ -634,10 +634,12 @@ export class Director {
       const l = Math.hypot(toGapX, toGapZ);
       const nx = toGapX / l;
       const nz = toGapZ / l;
-      const lean = smoothstep(0, 1, this.peek) * 1.25;
+      const lean = smoothstep(0, 1, this.peek) * 1.14;
       // Sidestep a few centimetres to line an eye up with the gap, exactly as
       // far as the cloth has actually opened.
-      const side = this.peek * 0.1;
+      // Sidestep the few centimetres AWAY from the teacher: leaning in with her
+      // right beside you should not put her forearm across the gap.
+      const side = this.peek * 0.14;
       this.eye.set(
         P.x + nx * lean + nz * side,
         eyeY + this.peek * 0.02 - this.rig.portrait * 0.02,

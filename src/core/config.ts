@@ -70,7 +70,7 @@ export const LAYOUT = {
   /** Player's mark on the wing floor (a vinyl tape cross). */
   playerMark: { x: 6.3, z: 4.2 },
 
-  teacherMark: { x: 5.76, z: 2.16 },
+  teacherMark: { x: 5.62, z: 1.74 },
 
   /** Where the child ends up on stage, facing the house. */
   stageMark: { x: 0.7, z: 0.45 },
