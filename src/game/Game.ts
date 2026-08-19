@@ -62,7 +62,7 @@ export class Game {
   private speed = 0;
   private zDir: 1 | -1 = 1;
   private sweep: 1 | -1 = 1;
-  private targetX = laneCenterX(2);
+  private targetX = laneCenterX(1);
   private forward = new THREE.Vector3(0, 0, 1);
   private right = new THREE.Vector3(1, 0, 0);
   private bob = 0;
@@ -149,8 +149,8 @@ export class Game {
   /* ------------------------------------------------------------------ */
 
   private resetMachine() {
-    this.pos.set(laneCenterX(2), 0, -HEADROOM_Z);
-    this.targetX = laneCenterX(2);
+    this.pos.set(laneCenterX(1), 0, -HEADROOM_Z);
+    this.targetX = laneCenterX(1);
     this.yaw = 0;
     this.zDir = 1;
     this.sweep = 1;
@@ -441,9 +441,9 @@ export class Game {
     const p = this.peek;
     const L = THREE.MathUtils.lerp;
     this.aimLocal(
-      L(-4.35, -4.6, p), L(3.45, 2.5, p), L(-7.6, -3.7, p),
+      L(-4.35, -5.2, p), L(3.45, 2.6, p), L(-7.6, -2.9, p),
       L(0.1, -0.5, p), L(1.7, 1.62, p), L(2.3, -1.95, p),
-      L(52, 40, p), 3.0, 1.5
+      L(52, 42, p), 3.0, 1.5
     );
   }
 
