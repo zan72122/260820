@@ -15,6 +15,8 @@ export interface ChiffonState {
 
 export interface ChiffonAutomation {
   state: () => ChiffonState
+  /** Every stage entered so far, snapshotted the moment it started. */
+  history: () => ChiffonState[]
   /** Current gesture's ghost trajectory in client pixels, or null. */
   guidePx: () => { x: number; y: number }[] | null
   gestureKind: () => string | null

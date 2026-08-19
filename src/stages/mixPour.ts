@@ -38,6 +38,7 @@ export function mixStage(ctx: Ctx): Stage {
   let closeUp = -1
   const guide = arcPoints(0, 0.02, 0.62, -95, -285, 42)
   const tip = new THREE.Vector3()
+  const hold = new THREE.Vector3()
   const bladeLocal = new THREE.Vector3()
 
   const newGesture = () => {
@@ -93,7 +94,8 @@ export function mixStage(ctx: Ctx): Stage {
       )
       const sp = ctx.world.spatula
       // `tip` is where the blade should be; the handle rides above it.
-      sp.position.lerp(tip.clone().add(new THREE.Vector3(0, 0.082, 0)), 1 - Math.exp(-14 * dt))
+      hold.set(tip.x, tip.y + 0.082, tip.z)
+      sp.position.lerp(hold, 1 - Math.exp(-14 * dt))
       sp.rotation.z = damp(sp.rotation.z, Math.cos(a) * 0.42 - strokeP * 0.5, 8, dt)
       sp.rotation.x = damp(sp.rotation.x, -0.32 + dip * 0.42, 8, dt)
       sp.rotation.y = damp(sp.rotation.y, -a + Math.PI * 0.5, 8, dt)

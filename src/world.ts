@@ -48,6 +48,7 @@ export class World {
   readonly cakeAnchor = new THREE.Object3D()
   readonly clipPlane = new THREE.Plane(new THREE.Vector3(0, 0, -1), 0.0006)
   private pmrem?: THREE.PMREMGenerator
+  private cutDir = new THREE.Vector3()
 
   constructor(
     renderer: THREE.WebGLRenderer,
@@ -120,7 +121,7 @@ export class World {
 
   /** Orient the cut so it always faces whoever is watching. */
   aimCutaway(camera: THREE.Camera) {
-    const dir = new THREE.Vector3()
+    const dir = this.cutDir
     camera.getWorldDirection(dir)
     dir.y = 0
     dir.normalize()

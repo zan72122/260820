@@ -47,6 +47,7 @@ export function releaseStage(ctx: Ctx): Stage {
   let lastSound = 0
   let doneAt = -1
   const center = new THREE.Vector3()
+  const tiltAxis = new THREE.Vector3(1, 0, 0)
 
   const makeCircle = (worldR: number, worldY: number, turns: number, scale: number) => {
     center.set(LAYOUT.panRest.x, worldY, LAYOUT.panRest.z)
@@ -111,6 +112,7 @@ export function releaseStage(ctx: Ctx): Stage {
       ctx.world.pan.root.position.copy(LAYOUT.panRest)
       ctx.world.pan.flipPivot.rotation.z = 0
       ctx.world.knife.visible = false
+      ctx.world.mitts.root.visible = false
     },
     update(dt, elapsed) {
       if (phase === 'wait' && elapsed > 1.4) startWall()
@@ -140,7 +142,7 @@ export function releaseStage(ctx: Ctx): Stage {
           LAYOUT.panRest.z + Math.cos(knifeAngle) * wallR,
         )
         k.rotation.set(Math.PI, -knifeAngle + (phase === 'wall' ? 0 : Math.PI), 0)
-        k.rotateOnAxis(new THREE.Vector3(1, 0, 0), phase === 'wall' ? 0.16 : -0.16)
+        k.rotateOnAxis(tiltAxis, phase === 'wall' ? 0.16 : -0.16)
       }
 
       if (doneAt >= 0) {

@@ -56,21 +56,19 @@ export async function traceGuide(page: Page): Promise<boolean> {
   return true
 }
 
-/** Play the whole cake through, recording the state at every stage change. */
+/**
+ * Play the whole cake through. Stage transitions are recorded inside the page
+ * as they happen, so nothing is missed between two round trips.
+ */
 export async function playThrough(page: Page, maxIterations = 400) {
-  const seen: string[] = []
-  const marks: Record<string, ChiffonState> = {}
-  let last = ''
   for (let i = 0; i < maxIterations; i++) {
     const st = await state(page)
-    if (st.stage !== last) {
-      last = st.stage
-      seen.push(st.stage)
-    }
-    marks[st.stage] = st
     if (st.stage === 'done' && st.finishVisible) break
     if (await traceGuide(page)) await step(page, 0.4)
     else await step(page, 0.5)
   }
-  return { seen, marks, final: await state(page) }
+  const history = await page.evaluate(() => window.__chiffon.history())
+  const marks: Record<string, ChiffonState> = {}
+  for (const h of history) if (!(h.stage in marks)) marks[h.stage] = h
+  return { seen: history.map((h) => h.stage), marks, final: await state(page) }
 }

@@ -33,6 +33,7 @@ export class Hud {
   private points: UnitPt[] = []
   private isTap = false
   private strokeW = 18
+  private pathLen = 0
 
   onSound?: (muted: boolean) => void
   onRestart?: () => void
@@ -100,11 +101,12 @@ export class Hud {
     this.track.style.strokeDasharray = this.isTap ? 'none' : `${Math.max(3, w * 0.16)} ${Math.max(10, w * 0.95)}`
     this.fill.style.strokeWidth = `${Math.max(6, w)}px`
     this.dot.setAttribute('r', String(Math.max(9, w * 0.44)))
+    this.pathLen = this.fill.getTotalLength ? this.fill.getTotalLength() : 0
   }
 
   setProgress(p: number) {
     if (!this.points.length) return
-    const len = this.fill.getTotalLength ? this.fill.getTotalLength() : 0
+    const len = this.pathLen
     if (!len) return
     const at = Math.max(0.0001, Math.min(1, p)) * len
     this.fill.style.strokeDasharray = `${at} ${len + 10}`

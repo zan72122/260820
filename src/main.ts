@@ -105,6 +105,7 @@ requestAnimationFrame(() => game.hud.setLoaded())
 // ---- automation surface ----------------------------------------------------
 const automation: ChiffonAutomation = {
   state: () => game.debugState(),
+  history: () => game.history.slice(),
   guidePx: () => {
     const g = game.input.active
     if (!g) return null

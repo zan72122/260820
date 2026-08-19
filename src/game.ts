@@ -39,6 +39,8 @@ export class Game {
   private stageElapsed = 0
   private clock = 0
   flavor: Flavor = FLAVORS[0]
+  /** Stage entries in order — the automated play-throughs assert on this. */
+  readonly history: ChiffonState[] = []
   nextFlavor: Flavor = FLAVORS[0]
   plays = 0
 
@@ -131,6 +133,7 @@ export class Game {
     this.stage = this.build(id)
     this.stageElapsed = 0
     this.stage.enter()
+    if (this.history.length < 400) this.history.push(this.debugState())
   }
 
   advance() {

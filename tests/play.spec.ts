@@ -104,10 +104,19 @@ test('rotating the screen keeps the stage and re-lays the guide', async ({ page 
 })
 
 test('a hidden tab freezes the bake instead of racing ahead', async ({ page }) => {
-  await boot(page, '')
-  await page.evaluate(() => window.__chiffon.goto('bake'))
-  await page.waitForTimeout(300)
+  await boot(page)
+  // get the rise under way, then let real frames drive it
+  await page.evaluate(() => {
+    window.__chiffon.goto('bake')
+    window.__chiffon.step(1.6)
+  })
   expect(await page.evaluate(() => window.__chiffon.running())).toBe(true)
+
+  const before = (await state(page)).rise
+  expect(before).toBeGreaterThan(0)
+  await page.waitForTimeout(2000)
+  const visible = (await state(page)).rise
+  expect(visible).toBeGreaterThan(before)
 
   const hidden = await page.evaluate(() => {
     Object.defineProperty(document, 'hidden', { configurable: true, get: () => true })
@@ -116,11 +125,9 @@ test('a hidden tab freezes the bake instead of racing ahead', async ({ page }) =
   })
   expect(hidden).toBe(false)
 
-  // nothing advances while the tab is away
-  const before = await state(page)
-  await page.waitForTimeout(900)
-  const during = await state(page)
-  expect(during.rise).toBeCloseTo(before.rise, 5)
+  const paused = (await state(page)).rise
+  await page.waitForTimeout(2000)
+  expect((await state(page)).rise).toBeCloseTo(paused, 6)
 
   const resumed = await page.evaluate(() => {
     Object.defineProperty(document, 'hidden', { configurable: true, get: () => false })
@@ -128,6 +135,6 @@ test('a hidden tab freezes the bake instead of racing ahead', async ({ page }) =
     return window.__chiffon.running()
   })
   expect(resumed).toBe(true)
-  await page.waitForTimeout(900)
-  expect((await state(page)).rise).toBeGreaterThan(before.rise)
+  await page.waitForTimeout(2000)
+  expect((await state(page)).rise).toBeGreaterThan(paused)
 })

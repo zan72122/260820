@@ -18,8 +18,8 @@ export const POSES: Record<string, PoseSet> = {
     landscape: { pos: [-0.14, 0.16, 0.21], target: [-0.16, 0.05, 0.1], fov: 42 },
   },
   pour: {
-    portrait: { pos: [0.13, 0.38, 0.5], target: [0.0, 0.085, 0.06], fov: 45 },
-    landscape: { pos: [0.12, 0.28, 0.36], target: [0.0, 0.075, 0.06], fov: 46 },
+    portrait: { pos: [0.08, 0.42, 0.66], target: [-0.045, 0.09, 0.065], fov: 54 },
+    landscape: { pos: [0.06, 0.34, 0.48], target: [-0.045, 0.085, 0.065], fov: 46 },
   },
   toOven: {
     portrait: { pos: [-0.08, 0.38, 0.44], target: [-0.4, 0.11, -0.3], fov: 52 },
