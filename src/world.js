@@ -407,14 +407,11 @@ export class World {
 
   // ------------------------------------------------------- gutter + lids
   _gutter() {
-    const slabTex = TX.makeConcrete({ size: 512, moss: 0.2, wetLine: -1, tint: 1.0 });
+    const slabTex = TX.makeGutterCover(512);
     this.mats.slab = new THREE.MeshStandardMaterial({
       map: slabTex.map, normalMap: slabTex.normal, roughnessMap: slabTex.roughness,
       roughness: 1, metalness: 0, envMapIntensity: 0.7,
     });
-    this.mats.slab.map.repeat.set(1, 1);
-    this.mats.slab.normalMap.repeat.set(1, 1);
-    this.mats.slab.roughnessMap.repeat.set(1, 1);
 
     const g = new THREE.Group();
     this.scene.add(g);
@@ -423,22 +420,15 @@ export class World {
     const zc = (CFG.chZ0 + CFG.chZ1) / 2, zw = CFG.chZ1 - CFG.chZ0;
     const cuts = CFG.inlets.map((ix) => [ix - CFG.lidHalfX - 0.06, ix + CFG.lidHalfX + 0.06]);
     let x = CFG.xMin;
+    // one solid run per stretch; the joints between slabs live in the texture,
+    // so there is no gap for daylight to squeeze through into the channel
     const addSlab = (a, b) => {
       if (b - a < 0.02) return;
-      // a continuous rebate under the run, so daylight never shows at the joints
-      const back = new THREE.Mesh(this._wallBox(b - a, 0.1, zw, 1.1, 1.1), this.mats.slab);
-      back.position.set((a + b) / 2, CFG.ceilY + 0.05, zc);
-      back.castShadow = true; back.receiveShadow = true;
-      g.add(back);
-      // individual slabs with joints, like a real gutter run
       const n = Math.max(1, Math.round((b - a) / 0.62));
-      const w = (b - a) / n;
-      for (let i = 0; i < n; i++) {
-        const m = new THREE.Mesh(this._wallBox(w - 0.008, thick - 0.07, zw, 1.1, 1.1), this.mats.slab);
-        m.position.set(a + w * (i + 0.5), (CFG.coverTop + CFG.ceilY + 0.1) / 2 + 0.015, zc);
-        m.castShadow = true; m.receiveShadow = true;
-        g.add(m);
-      }
+      const m = new THREE.Mesh(this._wallBox(b - a, thick, zw, (b - a) / n, zw), this.mats.slab);
+      m.position.set((a + b) / 2, (CFG.coverTop + CFG.ceilY) / 2, zc);
+      m.castShadow = true; m.receiveShadow = true;
+      g.add(m);
     };
     for (const [a, b] of cuts) { addSlab(x, a); x = b; }
     addSlab(x, CFG.xMax);

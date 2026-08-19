@@ -318,6 +318,32 @@ export function makeConcrete({ size = 512, moss = 0, wetLine = -1, tint = 1 } = 
   return { map, normal, roughness };
 }
 
+/**
+ * Gutter cover run. The joint between slabs is baked at the tile edge, so a whole
+ * run can be one box: no gaps for daylight to squeeze through.
+ */
+export function makeGutterCover(size = 512) {
+  const g = fbm(9393, 10, 5);
+  const fine = fbm(9494, 55, 3);
+  const stain = fbm(9595, 4, 4);
+  const seam = (u) => Math.max(smoothstep(0.030, 0.004, u), smoothstep(0.970, 0.996, u));
+
+  const heightC = paintGray(size, size, (u, v) =>
+    0.62 + (g(u, v) - 0.5) * 0.32 + (fine(u, v) - 0.5) * 0.3 - seam(u) * 0.62);
+  const normal = tex(heightToNormal(heightC, 1.5), { aniso: 8 });
+
+  const map = tex(paint(size, size, (u, v) => {
+    let base = 158 + (g(u, v) - 0.5) * 40 + (fine(u, v) - 0.5) * 20;
+    base = lerp(base, base * 0.66, smoothstep(0.5, 0.88, stain(u * 0.6, v * 1.4)));
+    base = lerp(base, 46, seam(u));                        // the joint reads as shadow
+    return [clamp(base, 0, 255), clamp(base * 1.005, 0, 255), clamp(base * 1.02, 0, 255)];
+  }), { srgb: true, aniso: 8 });
+
+  const roughness = tex(paintGray(size, size, (u, v) =>
+    clamp(0.88 + (fine(u, v) - 0.5) * 0.14 + seam(u) * 0.1, 0.2, 1)));
+  return { map, normal, roughness };
+}
+
 // ------------------------------------------------------------------ soil
 export function makeSoil(size = 256, punch = 1) {
   const g = fbm(8181, 10, 5);
