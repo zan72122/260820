@@ -661,6 +661,11 @@ export class DigSite {
   dispose() {
     this.group.traverse((o) => {
       if (o.geometry) o.geometry.dispose();
+      // テクスチャは共有キャッシュなので、マテリアルだけ捨てる
+      if (o.material) {
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        for (const m of mats) m.dispose();
+      }
     });
   }
 }

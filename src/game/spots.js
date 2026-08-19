@@ -108,6 +108,16 @@ export class Decoy {
     }
   }
 
+  dispose() {
+    this.group.traverse((o) => {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) {
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        for (const m of mats) m.dispose();
+      }
+    });
+  }
+
   update(dt) {
     if (!this.revealed) return;
     this.t += dt;

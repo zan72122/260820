@@ -10,7 +10,8 @@
     "preview": "vite preview --host",
     "lint": "eslint src tests --ext .js",
     "test:e2e": "playwright test",
-    "test:smoke": "playwright test tests/smoke.spec.js"
+    "test:smoke": "playwright test tests/smoke.spec.js",
+    "pack": "npm run build && node scripts/pack-artifact.mjs takenoko.html"
   },
   "dependencies": {
     "three": "^0.185.1"

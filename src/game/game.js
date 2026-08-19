@@ -147,25 +147,32 @@ export class Game {
     this.guideGlow = glow;
     scene.add(guide);
 
+    // クリップ(断面表示)の対象になるマテリアル。掘り場のぶんは作るたびに足す
+    this.baseClippables = [this.ground.material];
+    this.litter.traverse((o) => { if (o.material) this.baseClippables.push(o.material); });
+    this.clippables = this.baseClippables.slice();
+
     this.sites = [];
     this.decoys = [];
     this._buildSites();
-
-    // クリップ(断面表示)の対象になるマテリアルを集める
-    this.clippables.push(this.ground.material);
-    this.litter.traverse((o) => { if (o.material) this.clippables.push(o.material); });
 
     this._startIntro();
   }
 
   _buildSites() {
+    // やりなおしのたびにクリップ対象が増えていかないよう、地面と落ち葉まで戻す
+    this.setCrossSection(false);
     for (const s of this.sites) {
       this.scene.remove(s.group);
       s.dispose();
     }
-    for (const d of this.decoys) this.scene.remove(d.group);
+    for (const d of this.decoys) {
+      this.scene.remove(d.group);
+      d.dispose();
+    }
     this.sites = [];
     this.decoys = [];
+    this.clippables = this.baseClippables ? this.baseClippables.slice() : this.clippables;
     for (const s of SPOT_LAYOUT) {
       const site = new DigSite({
         rng: this.rng,
@@ -340,6 +347,7 @@ export class Game {
   }
 
   _enterSurvey() {
+    this.setCrossSection(false);
     const b = this.shot('survey');
     this.currentShot = 'survey';
     this.rig.moveTo(b.pos, b.target, { fov: b.fov, duration: this.rig.busy ? 0.9 : 0.001 });

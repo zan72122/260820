@@ -152,6 +152,66 @@ test.describe('たけのこほり', () => {
     await waitState(page, 'dig');
   });
 
+  test('5本ぜんぶ掘りきると、もういちど はじめられる', async ({ page }) => {
+    await page.goto('/?fast=1');
+    await waitReady(page);
+    await waitState(page, 'survey');
+
+    // 1本目は本物の指の動きで、残りはゲーム内部の手順をそのまま呼んで進める
+    await digOneTakenoko(page, 0);
+    await advance(page, 4);
+    expect((await state(page)).collected).toBe(1);
+
+    for (let n = 0; n < 4; n++) {
+      await page.evaluate(() => {
+        const T = window.__TAKENOKO__;
+        const g = T.game;
+        const site = g.sites.find((s) => !s.taken);
+        g.approach(site);
+        T.advance(4);
+        site.brushAll();
+        g._brushDone();
+        T.advance(4);
+        for (let i = 0; i < 400; i++) site.dig(i * 0.11, 0.11);
+        g._digDone();
+        T.advance(6);
+        g._enterPull();
+        T.advance(4);
+        g._pop();
+        T.advance(8);
+      });
+      await advance(page, 3);
+    }
+
+    const done = await state(page);
+    expect(done.collected).toBe(5);
+    expect(done.remaining).toBe(0);
+    expect(done.state).toBe('done');
+
+    // 画面を触ると、新しい竹林でやりなおせる
+    await advance(page, 3);
+    await tapAt(page, 200, 300);
+    await advance(page, 2);
+    const again = await state(page);
+    expect(again.collected).toBe(0);
+    expect(again.remaining).toBe(5);
+    expect(['survey', 'approach']).toContain(again.state);
+  });
+
+  test('ヒントは奥の場所ほど控えめになる', async ({ page }) => {
+    await page.goto('/?fast=1');
+    await waitReady(page);
+    await waitState(page, 'survey');
+    const infos = [];
+    for (let i = 0; i < 5; i++) infos.push(await siteInfo(page, i));
+    // 先端の出かたが、手前から奥へ向かって単調に小さくなる
+    for (let i = 1; i < infos.length; i++) {
+      expect(infos[i].exposure).toBeLessThan(infos[i - 1].exposure);
+      expect(infos[i].hintLevel).toBe(i);
+    }
+    expect(infos[0].exposure).toBeGreaterThan(0.05);
+  });
+
   test('横画面でも一周できる', async ({ page }) => {
     await page.setViewportSize({ width: 740, height: 390 });
     await page.goto('/?fast=1');
