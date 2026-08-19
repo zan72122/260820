@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#c9a24a" />
+    <meta name="description" content="稲コンバイン — 田んぼの稲を刈って、お米をタンクにためて、オーガからザーッと出す3Dゲーム" />
+    <title>稲コンバイン</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23d8a83c'/%3E%3Cpath d='M6 24h20v-4H6z' fill='%238c3b2a'/%3E%3Cpath d='M8 20l4-8h10l3 8z' fill='%23c0392b'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="scene"></canvas>
+      <div id="ui"></div>
+      <div id="boot">
+        <div class="boot-inner">
+          <div class="boot-title">稲コンバイン</div>
+          <div class="boot-sub">よみこみちゅう…</div>
+          <div class="boot-bar"><i></i></div>
+        </div>
+      </div>
+      <noscript>
+        <p style="color: #fff; padding: 2rem">このゲームは JavaScript と WebGL が必要です。</p>
+      </noscript>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
