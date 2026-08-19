@@ -819,6 +819,19 @@ export class Game {
     for (let i = 0; i < steps; i++) this.tick(dt)
   }
 
+  debugStats() {
+    const i = this.renderer.info
+    return {
+      calls: i.render.calls,
+      triangles: i.render.triangles,
+      programs: i.programs?.length ?? 0,
+      textures: i.memory.textures,
+      geometries: i.memory.geometries,
+      pixelRatio: this.renderer.getPixelRatio(),
+      shadows: this.renderer.shadowMap.enabled,
+    }
+  }
+
   debugCamera() {
     const c = this.dir.camera
     return { shot: this.dir.shot, x: c.position.x, y: c.position.y, z: c.position.z, fov: c.fov }

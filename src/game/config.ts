@@ -17,8 +17,8 @@ export const PADDY_HALF_L = HALF_L + HEADLAND
 export const laneX = (i: number) => -HALF_W + LANE_W * (i + 0.5)
 
 /** rice hill spacing — one instance is a clump of stalks, like a transplanted hill */
-export const CROP_DX = 0.42
-export const CROP_DZ = 0.36
+export const CROP_DX = 0.4
+export const CROP_DZ = 0.34
 export const CROP_JITTER = 0.1
 
 export const COMBINE = {

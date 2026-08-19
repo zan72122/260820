@@ -68,7 +68,7 @@ const SHOTS: Record<ShotName, (c: ShotCtx) => Placement> = {
     lookF: 5.0,
     lambda: 2.4,
   }),
-  header: (c) => ({ r: c.cutSide * 4.6, u: 2.3, f: 1.4, lookR: 0, lookU: 0.7, lookF: 3.1, lambda: 2.3 }),
+  header: (c) => ({ r: c.cutSide * 5.4, u: 2.5, f: -0.4, lookR: c.cutSide * 0.3, lookU: 0.75, lookF: 3.0, lambda: 2.3 }),
   cutaway: (c) => ({ r: c.cutSide * 6.8, u: 2.5, f: -0.35, lookR: 0, lookU: 1.45, lookF: 0.15, lambda: 3.2 }),
   tank: (c) => ({ r: c.cutSide * 5.0, u: 5.0, f: -5.6, lookR: 0, lookU: 2.2, lookF: -0.3, lambda: 2.4 }),
   // auger arc, receiver and falling grain all inside one frame
@@ -117,9 +117,10 @@ export class CameraDirector {
       // portrait: a taller frame plus a step back keeps the machine whole
       this.camera.fov = 63
       this.distScale = 1.2
-    } else if (a > 2) {
-      this.camera.fov = 47
-      this.distScale = 1.0
+    } else if (a > 1.85) {
+      // a wide frame sees plenty sideways, so move in and fill it
+      this.camera.fov = 48
+      this.distScale = 0.87
     } else {
       this.camera.fov = 53
       this.distScale = 1.0

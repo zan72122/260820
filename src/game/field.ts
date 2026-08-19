@@ -34,7 +34,7 @@ const Y_AXIS = new THREE.Vector3(0, 1, 0)
 function riceClumpGeometry(detail: boolean): THREE.BufferGeometry {
   const b = new MeshBuilder()
   const rng = new Rng(detail ? 4242 : 909)
-  const stalks = detail ? 3 : 3
+  const stalks = detail ? 3 : 4
 
   const cStem = new THREE.Color(COLORS.riceStem)
   const cGreen = new THREE.Color(COLORS.riceGreen)
@@ -43,12 +43,12 @@ function riceClumpGeometry(detail: boolean): THREE.BufferGeometry {
 
   for (let s = 0; s < stalks; s++) {
     const a = (s / stalks) * Math.PI * 2 + rng.range(-0.5, 0.5)
-    const spread = rng.range(0.015, 0.075)
+    const spread = rng.range(0.02, 0.15)
     const bx = Math.cos(a) * spread
     const bz = Math.sin(a) * spread
     const h = rng.range(0.76, 0.94)
-    const leanX = Math.cos(a) * rng.range(0.05, 0.15)
-    const leanZ = Math.sin(a) * rng.range(0.05, 0.15)
+    const leanX = Math.cos(a) * rng.range(0.1, 0.28)
+    const leanZ = Math.sin(a) * rng.range(0.1, 0.28)
 
     if (detail) {
       // --- culm: thin, upright, greener at the node than at the neck ---
@@ -68,12 +68,12 @@ function riceClumpGeometry(detail: boolean): THREE.BufferGeometry {
       // The radius pulses along its length so the silhouette is lumpy —
       // that reads as individual spikelets from a metre away.
       const top = stemPts[seg]
-      const pl = rng.range(0.19, 0.27)
+      const pl = rng.range(0.21, 0.3)
       const dirA = a + rng.range(-0.8, 0.8)
       const pts: THREE.Vector3[] = []
       const rad: number[] = []
       const cols: THREE.Color[] = []
-      const pseg = 10
+      const pseg = 8
       for (let i = 0; i <= pseg; i++) {
         const t = i / pseg
         const droop = t * t * 1.35
@@ -85,7 +85,7 @@ function riceClumpGeometry(detail: boolean): THREE.BufferGeometry {
           ),
         )
         const swell = Math.sin(Math.min(1, t * 1.35) * Math.PI) * 0.75 + 0.25
-        const bump = 1 + 0.42 * Math.sin(t * 30 + s * 2.1)
+        const bump = 1 + 0.42 * Math.sin(t * 24 + s * 2.1)
         rad.push((0.0035 + 0.0075 * swell) * bump)
         cols.push(cGreen.clone().lerp(cGold, clamp(t * 2.0, 0, 1)).lerp(cTip, t * t * 0.75))
       }
@@ -97,15 +97,15 @@ function riceClumpGeometry(detail: boolean): THREE.BufferGeometry {
       const rad: number[] = []
       const cols: THREE.Color[] = []
       const seg = 4
-      const bend = rng.range(0.24, 0.38)
+      const bend = rng.range(0.3, 0.46)
       for (let i = 0; i <= seg; i++) {
         const t = i / seg
         const droop = t * t * t * bend
         pts.push(
           new THREE.Vector3(
-            bx + leanX * t * t + Math.cos(a) * droop * 1.3,
+            bx + leanX * t * t + Math.cos(a) * droop * 1.7,
             h * 1.12 * t - droop * 0.85,
-            bz + leanZ * t * t + Math.sin(a) * droop * 1.3,
+            bz + leanZ * t * t + Math.sin(a) * droop * 1.7,
           ),
         )
         rad.push(t < 0.5 ? 0.0085 * (1 - t * 0.3) : 0.0065 + 0.013 * Math.sin((t - 0.5) * 6.1))
@@ -148,9 +148,9 @@ function stubbleGeometry(): THREE.BufferGeometry {
   const rng = new Rng(77)
   const cBase = new THREE.Color(0x9c9a55)
   const cCut = new THREE.Color(0xe9e0a6)
-  for (let s = 0; s < 5; s++) {
+  for (let s = 0; s < 3; s++) {
     const a = rng.range(0, Math.PI * 2)
-    const r = rng.range(0.01, 0.08)
+    const r = rng.range(0.012, 0.075)
     const h = rng.range(0.1, 0.17)
     b.strand(
       [
@@ -258,7 +258,7 @@ export class Field {
         this.cz[k] = z
         this.cy[k] = paddyHeight(x, z)
         this.cyaw[k] = rng.range(0, Math.PI * 2)
-        this.cscale[k] = rng.range(0.85, 1.18)
+        this.cscale[k] = rng.range(0.82, 1.32)
         const lane = clamp(Math.floor((x + HALF_W) / LANE_W), 0, LANE_COUNT - 1)
         this.laneOf[k] = lane
         this.laneRemaining[lane]++
@@ -325,12 +325,12 @@ export class Field {
           vec4 hm = texture2D( uMask, vPaddyUv );
           float cutM = clamp( hm.r * 1.4, 0.0, 1.0 );
           float trackM = clamp( hm.g * 1.7, 0.0, 1.0 );
-          float churn = clamp( hm.b * 1.0, 0.0, 1.0 );
+          float churn = clamp( hm.b * 0.75, 0.0, 1.0 );
           vec3 wetCol = texture2D( uWet, vMapUv ).rgb;
-          vec3 shaded = diffuseColor.rgb * vec3( 0.40, 0.36, 0.26 );
+          vec3 shaded = diffuseColor.rgb * vec3( 0.30, 0.28, 0.18 );
           vec3 opened = mix( diffuseColor.rgb * 1.02, wetCol, 0.32 + churn * 0.26 );
           diffuseColor.rgb = mix( shaded, opened, cutM );
-          diffuseColor.rgb = mix( diffuseColor.rgb, wetCol * 0.58, trackM );`,
+          diffuseColor.rgb = mix( diffuseColor.rgb, wetCol * 0.72, trackM );`,
         )
         .replace(
           '#include <roughnessmap_fragment>',
@@ -669,8 +669,8 @@ export class Field {
     this.stamp(x, z, heading, (ctx) => {
       ctx.fillStyle = 'rgba(255,0,0,1)'
       ctx.fillRect(-halfWidth, -len * 0.5, halfWidth * 2, len)
-      ctx.fillStyle = 'rgba(0,0,12,1)'
-      ctx.fillRect(-halfWidth * 0.9, -len * 0.5, halfWidth * 1.8, len)
+      ctx.fillStyle = 'rgba(0,0,8,1)'
+      ctx.fillRect(-halfWidth * 0.75, -len * 0.5, halfWidth * 1.5, len)
     })
   }
 

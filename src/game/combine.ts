@@ -220,6 +220,24 @@ export class Combine {
     // shoulder panel and belt-line moulding
     put(hard, box(1.94, 0.09, 3.02), PD, [0, 1.86, -0.28])
     put(hard, box(1.95, 0.07, 3.04), 0xf0e4cc, [0, 1.05, -0.28])
+    // chamfered shoulders so the housing is not a plain brick
+    for (const sx of [-1, 1]) {
+      put(shell, box(0.34, 0.34, 3.0), P, [sx * 0.86, 1.79, -0.28], [0, 0, (sx * Math.PI) / 4])
+      // hinged service panels with latches, one each side
+      put(hard, box(0.03, 0.62, 1.15), PD, [sx * 0.95, 1.42, -0.55])
+      for (const dz of [-1.05, -0.05]) {
+        put(hard, box(0.05, 0.1, 0.06), COLORS.steel, [sx * 0.98, 1.42, -0.55 + dz * 0.5])
+      }
+    }
+    // lower front fairing over the feeder throat
+    put(hard, box(1.86, 0.42, 0.22), PD, [0, 0.86, 1.2], [-0.5, 0, 0])
+    // mud flaps behind the crawlers
+    for (const sx of [-1, 1]) put(hard, box(0.5, 0.34, 0.03), 0x24282b, [sx * 0.76, 0.36, -1.62])
+    // rear lamp bar
+    put(hard, box(1.2, 0.09, 0.07), COLORS.chassisDark, [0, 1.02, -2.16])
+    for (const sx of [-1, 1]) put(hard, box(0.16, 0.11, 0.06), 0xc2331f, [sx * 0.46, 1.02, -2.19])
+    // tool box on the flank
+    put(hard, box(0.42, 0.26, 0.5), PD, [-1.02, 1.3, 0.55])
     // rear straw hood, sloping down and back
     put(shell, box(1.7, 0.9, 0.7), P, [0, 1.35, -1.95], [0.35, 0, 0])
     put(hard, box(1.55, 0.06, 0.62), PD, [0, 0.95, -2.12], [0.5, 0, 0])
@@ -498,7 +516,7 @@ export class Combine {
   /* -------------------------- unloading auger ------------------------- */
 
   private buildUnloadingAuger() {
-    this.augerYaw.position.set(-0.1, 2.62, -1.42)
+    this.augerYaw.position.set(-0.1, 2.78, -1.46)
     this.root.add(this.augerYaw)
     this.augerYaw.add(this.augerPitch)
 

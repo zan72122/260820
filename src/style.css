@@ -466,7 +466,10 @@ body {
 }
 @keyframes rice-pop { from { transform: scale(0) rotate(-40deg); opacity: 0 } to { transform: none; opacity: 1 } }
 #finish .sub {
-  font-size: 0.95em;
+  font-size: 0.88em;
+  max-width: 17em;
+  margin-left: auto;
+  margin-right: auto;
   opacity: 0.85;
   margin-top: 0.35em;
 }
@@ -492,11 +495,24 @@ body {
 #notice.show { display: grid; }
 
 /* landscape: keep controls reachable, shrink chrome */
-@media (orientation: landscape) and (max-height: 500px) {
+@media (orientation: landscape) and (max-height: 560px) {
   #ui { font-size: calc(14px * var(--ui-scale)); }
-  #actions { bottom: calc(var(--safe-b) + 0.6em); }
-  #steer { bottom: calc(var(--safe-b) + 6.6em); }
-  .act .disc { width: 4.9em; height: 4.9em; }
-  .act::after { width: 4.9em; height: 4.9em; margin-left: -2.45em; }
-  #banner { top: 17%; }
+  /* thumbs are on opposite corners when the phone is held sideways */
+  #actions {
+    bottom: calc(var(--safe-b) + 0.5em);
+    justify-content: flex-end;
+    padding-right: calc(var(--safe-r) + 1.1em);
+  }
+  #steer {
+    bottom: calc(var(--safe-b) + 0.7em);
+    justify-content: flex-start;
+    padding-left: calc(var(--safe-l) + 1em);
+  }
+  .act .disc { width: 4.6em; height: 4.6em; }
+  .act::after { width: 4.6em; height: 4.6em; margin-left: -2.3em; }
+  .act .disc svg { width: 2.9em; height: 2.9em; }
+  #banner { top: 15%; }
+  #finish .card { padding: 0.9em 1.2em 1em; }
+  #finish h2 { font-size: 1.25em; }
+  #sound { transform: translateY(3.3em); }
 }
