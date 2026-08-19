@@ -92,9 +92,9 @@ const SHOTS: Record<ShotName, (c: ShotCtx) => Placement> = {
   turn: (c) => ({ r: c.roomSide * 3.4, u: 9.0, f: -10.0, lookR: 0, lookU: 0.6, lookF: 2.4, lambda: 2.1 }),
   // slow orbit of the finished paddy, high enough to take the whole thing in
   finish: (c) => ({
-    r: Math.sin(c.time * 0.16) * 30,
-    u: 19,
-    f: Math.cos(c.time * 0.16) * 30,
+    r: Math.sin(c.time * 0.16) * 25,
+    u: 16,
+    f: Math.cos(c.time * 0.16) * 25,
     lookR: 0,
     lookU: 0.5,
     lookF: 0,

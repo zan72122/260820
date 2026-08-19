@@ -447,9 +447,12 @@ body {
   position: absolute;
   inset: 0;
   display: none;
-  place-items: center;
+  /* the card sits low so the paddy you just cleared stays in view above it */
+  align-items: end;
+  justify-items: center;
+  padding-bottom: calc(var(--safe-b) + 1.4em);
   pointer-events: none;
-  background: radial-gradient(90% 70% at 50% 45%, rgba(20, 14, 6, 0) 30%, rgba(16, 11, 4, 0.62) 100%);
+  background: linear-gradient(to bottom, rgba(16, 11, 4, 0) 30%, rgba(16, 11, 4, 0.55) 78%);
 }
 #finish.show {
   display: grid;
@@ -534,7 +537,10 @@ body {
   .act::after { width: 4.6em; height: 4.6em; margin-left: -2.3em; }
   .act .disc svg { width: 2.9em; height: 2.9em; }
   #banner { top: 15%; }
+  #finish { align-items: center; padding-bottom: 0; }
   #finish .card { padding: 0.9em 1.2em 1em; }
   #finish h2 { font-size: 1.25em; }
+  #finish .rice-row span { font-size: 1.2em; }
+  #finish .again .act .disc { width: 3.8em; height: 3.8em; }
   #sound { transform: translateY(3.3em); }
 }

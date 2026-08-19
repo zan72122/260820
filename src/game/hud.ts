@@ -216,7 +216,7 @@ export class Hud {
     for (let i = 0; i < n; i++) {
       const s = document.createElement('span')
       s.textContent = '🍚'
-      s.style.animationDelay = `${0.35 + i * 0.11}s`
+      s.style.animationDelay = `${0.18 + i * 0.07}s`
       row.appendChild(s)
     }
     this.finish.querySelector('.sub')!.textContent = `おこめを ${loads}かい はこびました（${grains.toLocaleString('ja-JP')}つぶ）`
