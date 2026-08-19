@@ -29,13 +29,13 @@ export class Ghost {
         depthWrite: false,
         depthTest: false,
       });
-    this.tube = new THREE.Mesh(new THREE.BufferGeometry(), mat(0.3, 0xfff2d8));
+    this.tube = new THREE.Mesh(new THREE.BufferGeometry(), mat(0.3, 0xffb257));
     this.tube.renderOrder = 20;
     this.group.add(this.tube);
-    this.bead = new THREE.Mesh(new THREE.SphereGeometry(0.0022, 12, 8), mat(0.8, 0xffffff));
+    this.bead = new THREE.Mesh(new THREE.SphereGeometry(0.003, 12, 8), mat(0.85, 0xffffff));
     this.bead.renderOrder = 21;
     this.group.add(this.bead);
-    this.ring = new THREE.Mesh(new THREE.TorusGeometry(0.006, 0.0008, 8, 32), mat(0.5, 0xffe9c0));
+    this.ring = new THREE.Mesh(new THREE.TorusGeometry(0.007, 0.0011, 8, 32), mat(0.5, 0xffb257));
     this.ring.rotation.x = -Math.PI / 2;
     this.ring.renderOrder = 20;
     this.group.add(this.ring);
@@ -51,7 +51,7 @@ export class Ghost {
     const pts = ghostPath(layer, coneHeight, startAngle);
     this.curve = new THREE.CatmullRomCurve3(pts);
     this.tube.geometry.dispose();
-    this.tube.geometry = new THREE.TubeGeometry(this.curve, 40, 0.0011, 6, false);
+    this.tube.geometry = new THREE.TubeGeometry(this.curve, 40, 0.0019, 6, false);
     this.mode = 'path';
     this.targetOpacity = 1;
     this.group.visible = true;
@@ -73,6 +73,10 @@ export class Ghost {
     this.arrow.position.y = height + 0.016;
   }
 
+  get shown() {
+    return this.opacity;
+  }
+
   hide() {
     this.targetOpacity = 0;
   }
@@ -88,7 +92,7 @@ export class Ghost {
     const pulse = 0.55 + 0.45 * Math.sin(this.t * Math.PI * 2);
     for (const m of [this.tube, this.bead, this.ring, this.arrow]) {
       const mm = m.material as THREE.MeshBasicMaterial;
-      mm.opacity = this.opacity * (m === this.bead ? 0.85 : 0.34) * (0.6 + pulse * 0.6);
+      mm.opacity = this.opacity * (m === this.bead ? 0.95 : 0.85) * (0.62 + pulse * 0.45);
     }
     if (this.mode === 'path' && this.curve) {
       this.curve.getPointAt(Math.min(0.999, this.t), this.bead.position);

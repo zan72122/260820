@@ -36,7 +36,7 @@ export class Flower {
     this.cone = new ConeMesh(this.material, Config.fast);
     this.group.add(this.cone.mesh);
     const nu = Config.fast ? 20 : 30;
-    const nv = Config.fast ? 7 : 10;
+    const nv = Config.fast ? 7 : 12;
     this.live = new PetalGeometry(nu, nv);
     this.shaper = new PetalShaper(nu);
     this.liveMesh = new THREE.Mesh(this.live.geometry, this.material);

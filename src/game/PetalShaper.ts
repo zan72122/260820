@@ -204,7 +204,8 @@ export function ghostPath(
     const u = i / (points - 1);
     const a = startAngle - span / 2 + span * u;
     const rise = layer.rise * Math.pow(Math.sin(Math.PI * u), 0.5);
-    out.push(new THREE.Vector3(Math.cos(a) * r, baseY + rise * 0.55, Math.sin(a) * r));
+    // floated a little above the real path so the tool never hides the hint
+    out.push(new THREE.Vector3(Math.cos(a) * (r + 0.004), baseY + rise * 0.4 + 0.001, Math.sin(a) * (r + 0.004)));
   }
   return out;
 }

@@ -17,6 +17,7 @@ interface Shot {
   /** framing nudge in metres, applied to the look-at point */
   shiftY: number;
   shiftX: number;
+  /** Degrees of gentle swing either side of `azim`. */
   orbit?: number;
   /** portrait overrides */
   portrait?: Partial<Shot>;
@@ -76,7 +77,7 @@ const SHOTS: Record<ShotName, Shot> = {
     fov: 34,
     shiftY: -0.01,
     shiftX: 0,
-    orbit: 5,
+    orbit: 9,
     portrait: { dist: 0.42, elev: 24, azim: -22, shiftY: 0.008, shiftX: 0 },
   },
 };
@@ -89,7 +90,7 @@ export class CameraDirector {
   private targetPos = new THREE.Vector3();
   private targetLook = new THREE.Vector3();
   private targetFov = 32;
-  private orbitPhase = 0;
+  private shotTime = 0;
   private current: ShotName = 'tools';
   /** Extra look-at follow while the flower is being carried. */
   readonly follow = new THREE.Vector3();
@@ -102,6 +103,7 @@ export class CameraDirector {
   }
 
   set(shot: ShotName) {
+    if (shot !== this.current) this.shotTime = 0;
     this.current = shot;
   }
 
@@ -127,8 +129,10 @@ export class CameraDirector {
     this.subjectPos(shot, this.targetLook);
     if (this.followWeight > 0) this.targetLook.lerp(this.follow, this.followWeight);
 
-    this.orbitPhase += (shot.orbit ?? 0) * dt;
-    const azim = THREE.MathUtils.degToRad(shot.azim + this.orbitPhase);
+    this.shotTime += dt;
+    // a short swing rather than an endless turntable
+    const orbit = (shot.orbit ?? 0) * Math.sin(this.shotTime * 0.42);
+    const azim = THREE.MathUtils.degToRad(shot.azim + orbit);
     const elev = THREE.MathUtils.degToRad(shot.elev);
     const d = shot.dist * aspectPad;
     this.targetPos.set(

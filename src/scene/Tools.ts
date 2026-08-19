@@ -40,6 +40,7 @@ function petalTipGeometry(): THREE.BufferGeometry {
 export class PipingBag {
   readonly group = new THREE.Group();
   private bag: THREE.Mesh;
+  private bagMaterial: THREE.MeshPhysicalMaterial;
   private bead: THREE.Mesh;
   private press = 0;
   private wobble = 0;
@@ -73,7 +74,7 @@ export class PipingBag {
     const bp = bagGeo.getAttribute('position') as THREE.BufferAttribute;
     for (let i = 0; i < bp.count; i++) {
       const y = bp.getY(i);
-      const tw = clamp((y - 0.086) / 0.05, 0, 1) * 1.5;
+      const tw = clamp((y - 0.086) / 0.05, 0, 1) * 0.8;
       const c = Math.cos(tw);
       const s = Math.sin(tw);
       const x = bp.getX(i);
@@ -81,7 +82,23 @@ export class PipingBag {
       bp.setXYZ(i, x * c - z * s, y, x * s + z * c);
     }
     bagGeo.computeVertexNormals();
-    this.bag = new THREE.Mesh(bagGeo, mats.bagMat);
+    // the filled lower half shows the colour of the cream through the bag
+    const bagColors = new Float32Array(bp.count * 3);
+    const white = new THREE.Color(0xffffff);
+    const filled = creamColor.clone().lerp(white, 0.45);
+    const c = new THREE.Color();
+    for (let i = 0; i < bp.count; i++) {
+      const t = clamp((bp.getY(i) - 0.045) / 0.05, 0, 1);
+      c.copy(filled).lerp(white, t);
+      bagColors[i * 3] = c.r;
+      bagColors[i * 3 + 1] = c.g;
+      bagColors[i * 3 + 2] = c.b;
+    }
+    bagGeo.setAttribute('color', new THREE.BufferAttribute(bagColors, 3));
+    const bagMat = mats.bagMat.clone();
+    bagMat.vertexColors = true;
+    this.bagMaterial = bagMat;
+    this.bag = new THREE.Mesh(bagGeo, bagMat);
     this.bag.castShadow = !Config.fast;
     this.group.add(this.bag);
 
@@ -104,7 +121,7 @@ export class PipingBag {
 
     // Hold angle: the bag comes in over the child's shoulder from the upper
     // right, so the tip and the new petal are never behind the hand.
-    this.group.rotation.set(-0.42, -0.8, -0.62, 'YXZ');
+    this.group.rotation.set(-0.42, -0.97, -0.62, 'YXZ');
     this.group.scale.setScalar(0.68);
   }
 
@@ -113,25 +130,38 @@ export class PipingBag {
    * fingers wrapped round the bag and the edge of the palm behind it. A full
    * arm at this scale reads as a cartoon, so it is deliberately cropped away.
    */
+  /**
+   * Only what the camera would really catch of the chef: four fingers lying on
+   * the surface of the bag and the edge of the hand behind it. The bag radius
+   * at grip height is about 31 mm, so everything sits on that circle instead of
+   * sinking into it.
+   */
   private buildHand(mats: MaterialLibrary): THREE.Mesh {
     const parts: THREE.BufferGeometry[] = [];
-    const palm = new THREE.SphereGeometry(0.027, 16, 12);
-    palm.scale(1.0, 0.95, 0.62);
-    palm.translate(0.02, 0.094, -0.004);
-    parts.push(palm);
+    // The hand grips from the far side, so the bag hides most of it and only
+    // the fingertips break its silhouette.
+    const bagR = (y: number) => {
+      const t = Math.min(1, Math.max(0, (y - 0.021) / 0.105));
+      return 0.011 + Math.pow(t, 0.85) * 0.029;
+    };
     for (let i = 0; i < 4; i++) {
+      const y = 0.1 - i * 0.015;
       const len = 0.03 - i * 0.003;
-      const f = new THREE.CapsuleGeometry(0.0062 - i * 0.0003, len, 4, 8);
-      f.rotateZ(Math.PI / 2);
-      f.rotateY(-0.42 + i * 0.1);
-      f.translate(0.004, 0.107 - i * 0.0145, 0.011 - i * 0.0015);
+      const f = new THREE.CapsuleGeometry(0.0058 - i * 0.0003, len, 4, 10);
+      f.rotateX(Math.PI / 2);
+      f.rotateY(0.16 - i * 0.04);
+      f.translate(-(bagR(y) - 0.0015), y, 0.004 - i * 0.001);
       parts.push(f);
     }
-    const knuckles = new THREE.CapsuleGeometry(0.0085, 0.042, 4, 10);
-    knuckles.rotateX(Math.PI / 2);
-    knuckles.rotateZ(0.2);
-    knuckles.translate(0.026, 0.076, 0.004);
-    parts.push(knuckles);
+    const back = new THREE.SphereGeometry(0.026, 16, 12);
+    back.scale(0.55, 1.1, 0.8);
+    back.translate(-(bagR(0.086) + 0.011), 0.086, -0.004);
+    parts.push(back);
+    const thumb = new THREE.CapsuleGeometry(0.0072, 0.026, 4, 10);
+    thumb.rotateZ(-0.5);
+    thumb.rotateY(-0.4);
+    thumb.translate(-(bagR(0.062) - 0.002), 0.062, 0.014);
+    parts.push(thumb);
     const mesh = new THREE.Mesh(mergeGeometries(parts, false)!, mats.skinMat);
     mesh.castShadow = !Config.fast;
     return mesh;
@@ -139,10 +169,20 @@ export class PipingBag {
 
   setCreamColor(c: THREE.Color) {
     (this.bead.material as THREE.MeshPhysicalMaterial).color.copy(c);
+    this.bagMaterial.color.copy(c).lerp(new THREE.Color(0xffffff), 0.55);
   }
 
   setPressing(on: boolean) {
     this.press = on ? 1 : 0;
+  }
+
+  /**
+   * Keep the same read of the tool on every shot: the bag turns with the
+   * camera so the hand always sits behind it and never covers the flower.
+   */
+  faceCamera(cameraPos: THREE.Vector3) {
+    const azim = Math.atan2(cameraPos.x - this.group.position.x, cameraPos.z - this.group.position.z);
+    this.group.rotation.y = azim - 0.97;
   }
 
   update(dt: number, extruding: boolean) {

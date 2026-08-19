@@ -85,7 +85,7 @@ export class Patisserie {
 
     // shelf with silhouette props: real geometry, merged into one draw call
     const shelfBoard = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.026, 0.16), mats.woodMat);
-    shelfBoard.position.set(-0.05, 0.34, -0.63);
+    shelfBoard.position.set(-0.05, 0.235, -0.63);
     shelfBoard.castShadow = !Config.fast;
     this.group.add(shelfBoard);
 
@@ -95,10 +95,10 @@ export class Patisserie {
       const h = rng.range(0.05, 0.12);
       const r = rng.range(0.022, 0.04);
       const g = new THREE.CylinderGeometry(r * rng.range(0.85, 1), r, h, 14, 1);
-      g.translate(-0.55 + i * 0.14 + rng.sym(0.015), 0.353 + h / 2, -0.63 + rng.sym(0.02));
+      g.translate(-0.55 + i * 0.14 + rng.sym(0.015), 0.248 + h / 2, -0.63 + rng.sym(0.02));
       clutter.push(g);
       const lid = new THREE.CylinderGeometry(r * 1.06, r * 1.06, 0.008, 14);
-      lid.translate(-0.55 + i * 0.14, 0.353 + h + 0.004, -0.63);
+      lid.translate(-0.55 + i * 0.14, 0.248 + h + 0.004, -0.63);
       clutter.push(lid);
     }
     const jars = new THREE.Mesh(

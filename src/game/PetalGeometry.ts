@@ -171,7 +171,7 @@ export class PetalGeometry {
         const endTaper = spec.finished
           ? Math.min(1, Math.sin(Math.PI * Math.min(1, Math.max(0, u))) * 1.9)
           : Math.min(1, Math.min(u * 9, 1) * 1.0);
-        const ridge = 1 + 0.06 * Math.sin(v * Math.PI * 6.5 + spec.seed);
+        const ridge = 1 + 0.03 * Math.sin(v * Math.PI * 7.5 + spec.seed);
         const half =
           0.5 *
           Math.max(0.00004, spec.thick[i] * (1 - v) * (1 - v * 0.45) * endTaper * ridge);

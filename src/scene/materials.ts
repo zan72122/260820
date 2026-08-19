@@ -36,12 +36,12 @@ export function makeCreamMaterial(color: THREE.ColorRepresentation, opts: { stre
   });
   if (opts.streak) {
     mat.normalMap = opts.streak;
-    mat.normalScale = new THREE.Vector2(0.16, 0.16);
+    mat.normalScale = new THREE.Vector2(0.09, 0.09);
   }
   mat.userData.sss = {
     uSssColor: { value: new THREE.Color(color).lerp(new THREE.Color(0xffd9b0), 0.5) },
     uSssDir: { value: lightDirView },
-    uSssStrength: { value: 1.35 },
+    uSssStrength: { value: 0.95 },
   };
   mat.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, mat.userData.sss);

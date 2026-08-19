@@ -78,7 +78,7 @@ export class Game {
   private lastRealTime = performance.now();
 
   /** Test/debug telemetry. */
-  readonly stats = { petals: 0, coneHeight: 0, flowers: 0, drawCalls: 0 };
+  readonly stats = { petals: 0, coneHeight: 0, flowers: 0, drawCalls: 0, ghost: 0 };
 
   constructor(private renderer: Renderer, private pointer: PointerInput) {
     this.rng = new Rng(Config.seed);
@@ -204,7 +204,8 @@ export class Game {
         cam.z - this.nail.group.position.z,
         cam.x - this.nail.group.position.x,
       );
-      this.ghost.showPetalPath(LAYERS[li], this.flower.coneHeight, front - this.nail.spinner.rotation.y);
+      // biased away from the side the bag comes in on, so the hint stays clear
+      this.ghost.showPetalPath(LAYERS[li], this.flower.coneHeight, front - 0.95 - this.nail.spinner.rotation.y);
     } else {
       this.ghost.hide();
     }
@@ -466,6 +467,7 @@ export class Game {
     this.nail.update(dt);
     if (!this.flowerIsPlaced) this.flower.update(dt);
     for (const f of this.placed) f.update(dt);
+    this.bag.faceCamera(this.renderer.camera.position);
     this.bag.update(dt, this.extruding);
     this.ghost.update(dt, this.flower.coneHeight);
     this.sfx.setSpin(this.nail.spinSpeed > 0 ? 1 : 0);
@@ -481,6 +483,7 @@ export class Game {
 
     this.stats.coneHeight = this.flower.coneHeight;
     this.stats.drawCalls = this.renderer.gl.info.render.calls;
+    this.stats.ghost = this.ghost.shown;
   }
 
   private updateParchment(hasHit: boolean) {
@@ -561,6 +564,8 @@ export class Game {
     }
     this.tmp.copy(this.hitLocal);
     this.nail.spinner.localToWorld(this.tmp);
+    // between petals the bag lifts clear of the work
+    if (!this.extruding) this.tmp.y += 0.014;
     this.bag.group.position.lerp(this.tmp, 1 - Math.exp(-22 * dt));
 
     if (!this.extruding) {
