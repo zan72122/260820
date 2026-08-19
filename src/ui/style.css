@@ -1,0 +1,450 @@
+:root {
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  --ink: #3a2f33;
+  --paper: rgba(255, 251, 250, 0.94);
+  font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Maru Gothic ProN',
+    'Hiragino Sans', 'Segoe UI', Roboto, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #100f11;
+  overscroll-behavior: none;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-text-size-adjust: 100%;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+#scene {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+#ui {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: calc(var(--safe-t) + 12px) calc(var(--safe-r) + 12px)
+    calc(var(--safe-b) + 12px) calc(var(--safe-l) + 12px);
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.35s ease;
+}
+
+.layer.show {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+/* ---------- title ---------- */
+
+#title {
+  background: radial-gradient(
+    120% 90% at 50% 35%,
+    rgba(24, 20, 24, 0.35) 0%,
+    rgba(14, 12, 14, 0.82) 70%
+  );
+  gap: min(5vh, 34px);
+}
+
+.brand {
+  text-align: center;
+  color: #fff5f6;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.6);
+  line-height: 1.15;
+}
+
+.brand .jp {
+  display: block;
+  font-size: clamp(24px, 6.4vmin, 46px);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+}
+
+.brand .en {
+  display: block;
+  margin-top: 0.5em;
+  font-size: clamp(11px, 2.4vmin, 17px);
+  letter-spacing: 0.34em;
+  opacity: 0.72;
+  text-transform: uppercase;
+}
+
+.big-button {
+  pointer-events: auto;
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: min(3.4vmin, 22px) min(6vmin, 40px);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #fff 0%, #ffe6ef 100%);
+  color: var(--ink);
+  font-size: clamp(19px, 4.4vmin, 30px);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), inset 0 -4px 0 rgba(0, 0, 0, 0.08);
+  transition: transform 0.14s ease, box-shadow 0.14s ease;
+  min-width: min(62vw, 320px);
+  min-height: 76px;
+}
+
+.big-button:active {
+  transform: scale(0.955);
+  box-shadow: 0 5px 16px rgba(0, 0, 0, 0.4);
+}
+
+.swatches {
+  display: flex;
+  gap: 12px;
+}
+
+.swatch {
+  width: clamp(28px, 7vmin, 46px);
+  height: clamp(28px, 7vmin, 46px);
+  border-radius: 50%;
+  box-shadow: inset 0 -3px 6px rgba(0, 0, 0, 0.22),
+    inset 0 4px 7px rgba(255, 255, 255, 0.75), 0 3px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* ---------- hint ---------- */
+
+/* the hint must never eat a touch: it floats above the game, not in front of it */
+#hint,
+#hint.show,
+#hint .hint-card {
+  pointer-events: none;
+}
+
+#hint {
+  justify-content: flex-start;
+  align-items: center;
+  transition: opacity 0.45s ease;
+}
+
+.hint-card {
+  margin-top: calc(2vh + 4px);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 22px 12px 16px;
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: clamp(15px, 3.2vmin, 22px);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.hint-icon {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  position: relative;
+}
+
+.hint-icon::after {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border-radius: 50% 50% 50% 12%;
+  background: linear-gradient(160deg, #ffd9e2, #ff9fb8);
+  box-shadow: inset 0 -3px 5px rgba(0, 0, 0, 0.18);
+}
+
+.hint-icon.up::after {
+  animation: nudgeUp 1.5s ease-in-out infinite;
+}
+.hint-icon.side::after {
+  animation: nudgeSide 1.6s ease-in-out infinite;
+}
+.hint-icon.tap::after {
+  animation: nudgeTap 1.3s ease-in-out infinite;
+}
+
+@keyframes nudgeUp {
+  0%, 100% { transform: translateY(5px); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes nudgeSide {
+  0%, 100% { transform: translateX(-6px); }
+  50% { transform: translateX(6px); }
+}
+@keyframes nudgeTap {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(0.76); }
+}
+
+/* ---------- finish ---------- */
+
+#finish {
+  justify-content: flex-end;
+  background: linear-gradient(
+    0deg,
+    rgba(12, 10, 12, 0.78) 0%,
+    rgba(12, 10, 12, 0.18) 42%,
+    rgba(12, 10, 12, 0) 62%
+  );
+  gap: 14px;
+}
+
+.finish-title {
+  color: #fffaf8;
+  font-size: clamp(20px, 5vmin, 34px);
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.6);
+  margin-bottom: 2px;
+}
+
+.choices {
+  display: flex;
+  gap: min(4vmin, 26px);
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: min(3vh, 18px);
+}
+
+.choice {
+  pointer-events: auto;
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  width: min(38vw, 210px);
+  min-height: 118px;
+  padding: 14px 10px 12px;
+  border-radius: 30px;
+  background: linear-gradient(180deg, #fffdfd 0%, #f4e9ec 100%);
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: clamp(14px, 3.2vmin, 21px);
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.46), inset 0 -5px 0 rgba(0, 0, 0, 0.08);
+  transition: transform 0.14s ease;
+}
+
+.choice:active {
+  transform: scale(0.955);
+}
+
+/* ---------- settings ---------- */
+
+#gear {
+  position: absolute;
+  top: calc(var(--safe-t) + 8px);
+  right: calc(var(--safe-r) + 8px);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: #fff;
+  font-size: 22px;
+  line-height: 1;
+  pointer-events: auto;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.5;
+}
+
+#gear:active {
+  transform: scale(0.94);
+}
+
+#settings {
+  background: rgba(10, 9, 11, 0.72);
+  gap: 14px;
+}
+
+.toggle {
+  pointer-events: auto;
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  min-width: min(72vw, 330px);
+  padding: 16px 24px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--ink);
+  font-size: clamp(15px, 3.4vmin, 21px);
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+}
+
+.toggle .state {
+  padding: 4px 14px;
+  border-radius: 999px;
+  background: #ffd7e2;
+  font-size: 0.9em;
+}
+
+.toggle .state.off {
+  background: #dcdcdc;
+  color: #7c7379;
+}
+
+/* ---------- misc ---------- */
+
+#loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #100f11;
+  color: #f6e8ec;
+  font-size: 15px;
+  letter-spacing: 0.3em;
+  z-index: 20;
+  transition: opacity 0.5s ease;
+}
+
+#loading.hide {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#fatal {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  background: #141214;
+  color: #ffd9e2;
+  text-align: center;
+  font-size: 15px;
+  line-height: 1.7;
+  z-index: 30;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hint-icon::after {
+    animation: none;
+  }
+}
+
+/* ---------- done button ---------- */
+
+#done {
+  position: absolute;
+  right: calc(var(--safe-r) + 12px);
+  bottom: calc(var(--safe-b) + 12px);
+  transform: scale(0.6);
+  opacity: 0;
+  pointer-events: none;
+  appearance: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 30px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ffffff 0%, #ffe2ec 100%);
+  color: var(--ink);
+  font-size: clamp(17px, 3.6vmin, 25px);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45), inset 0 -4px 0 rgba(0, 0, 0, 0.08);
+  transition: opacity 0.3s ease, transform 0.3s cubic-bezier(0.2, 1.4, 0.5, 1);
+}
+
+#done.show {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+
+#done:active {
+  transform: scale(0.95);
+}
+
+.check {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: linear-gradient(160deg, #8fe3b0, #46bd7c);
+  position: relative;
+  box-shadow: inset 0 -3px 5px rgba(0, 0, 0, 0.15);
+}
+
+.check::after {
+  content: '';
+  position: absolute;
+  left: 9px;
+  top: 7px;
+  width: 8px;
+  height: 14px;
+  border: solid #fff;
+  border-width: 0 3.5px 3.5px 0;
+  transform: rotate(42deg);
+}
+
+/* landscape: keep the hint out of the way of the cake */
+@media (orientation: landscape) and (max-height: 480px) {
+  .hint-card {
+    margin-top: 2px;
+    padding: 8px 16px;
+  }
+  #done {
+    bottom: calc(var(--safe-b) + 8px);
+    padding: 10px 22px;
+  }
+}
