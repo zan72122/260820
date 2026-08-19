@@ -305,21 +305,17 @@ export class Game {
         this.dir.setShot('harvest')
         this.camMode = 'chase'
         this.camCycle = 5
-        this.hud.setSteerHint(true)
         break
       case 'cutaway':
         this.dir.setShot('cutaway', true)
         this.cutawayLeft = 3.8
-        this.hud.setSteerHint(false)
         this.hud.showBanner('rice', 'なかで お米を わけているよ')
         break
       case 'turning':
         this.dir.setShot('turn')
-        this.hud.setSteerHint(false)
         break
       case 'tankfull':
         this.dir.setShot('tank')
-        this.hud.setSteerHint(false)
         this.hud.showBanner('tankFull', 'タンクが いっぱい！')
         this.audio.chime(0)
         this.chooseAugerSide()
@@ -339,7 +335,6 @@ export class Game {
         break
       case 'finished':
         this.dir.setShot('finish', true)
-        this.hud.setSteerHint(false)
         this.hud.setAction(null)
         this.hud.showFinish(this.loads, this.grainsDelivered)
         this.audio.fanfare()
@@ -583,12 +578,10 @@ export class Game {
       this.camMode = 'header'
       this.camCycle = 3.6
       this.dir.setShot('header', true)
-      this.hud.setSteerHint(false)
     } else {
       this.camMode = 'chase'
       this.camCycle = 11
       this.dir.setShot('harvest', true)
-      this.hud.setSteerHint(true)
     }
   }
 
@@ -791,19 +784,38 @@ export class Game {
     this.env.update(dt, ctx.pos)
     this.dir.update(dt, ctx)
 
-    this.hud.setSteer(this.state === 'harvest' && this.controls.active ? this.controls.steer : 0)
+    // the steering affordance belongs to exactly one situation: driving
+    // the chase shot with nothing else asked of the player
+    const steering = this.state === 'harvest' && this.camMode === 'chase'
+    this.hud.setSteerHint(steering)
+    this.hud.setSteer(steering && this.controls.active ? this.controls.steer : 0)
     const driving = this.state === 'harvest' || this.state === 'cutaway' || this.state === 'turning'
     this.audio.setEngine(driving ? this.combine.speedFrac : 0.1, this.state !== 'intro')
     this.audio.setCut(driving ? clamp(this.cutRate, 0, 1) * this.headerT : 0)
   }
 
+  private slowWindows = 0
+
   private trackPerf(dt: number) {
     this.frames++
     this.fpsAcc += dt
+    // ignore the first seconds: shader compilation and texture upload make
+    // the opening frames slow on every device, and that is not a verdict
+    if (this.now < 6) {
+      this.frames = 0
+      this.fpsAcc = 0
+      return
+    }
     if (this.fpsAcc >= 2.5) {
       const fps = this.frames / this.fpsAcc
       this.frames = 0
       this.fpsAcc = 0
+      if (fps >= 42) {
+        this.slowWindows = 0
+        return
+      }
+      if (++this.slowWindows < 2) return
+      this.slowWindows = 0
       if (fps < 42 && this.quality > 1) {
         this.quality = this.quality === 2 ? 1.5 : 1
         this.onResize()
