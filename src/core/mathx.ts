@@ -112,10 +112,18 @@ export class Rng {
   }
 }
 
-/** Cheap 2D value noise, used for cloth folds and texture painting. */
+/**
+ * Cheap 2D value noise, used for cloth folds and texture painting.
+ *
+ * Integer hash rather than the usual sin-fract trick: the texture bake calls
+ * this tens of millions of times at boot, and Math.sin was most of the loading
+ * bar. Same character, a quarter of the time.
+ */
 export function hash2(x: number, y: number): number {
-  const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453123;
-  return s - Math.floor(s);
+  let h = Math.imul(x | 0, 0x27d4eb2d) ^ Math.imul(y | 0, 0x165667b1);
+  h = Math.imul(h ^ (h >>> 15), 0x2545f491);
+  h ^= h >>> 13;
+  return (h >>> 0) / 4294967296;
 }
 
 export function valueNoise2(x: number, y: number): number {

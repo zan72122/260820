@@ -46,6 +46,7 @@ export class Materials {
   hair!: MeshStandardMaterial;
   teacherWear!: MeshStandardMaterial;
   shoe!: MeshStandardMaterial;
+  shoeAdult!: MeshStandardMaterial;
   tape!: MeshStandardMaterial;
   tapeAlt!: MeshStandardMaterial;
   cardboard!: MeshStandardMaterial;
@@ -87,14 +88,17 @@ export class Materials {
       sheenRoughness: 0.62,
       sheenColor: new Color(0xd8564a),
       side: DoubleSide,
-      normalScale: { x: 0.42, y: 0.42 } as never,
+      normalScale: { x: 0.3, y: 0.3 } as never,
     });
 
-    const grand = makeCurtainMaps(S, 0.35);
+    // The house curtain is the same cloth in a warmer dye. Sharing the maps and
+    // tinting through `color` saves painting a second 512x512 set at boot,
+    // which on a phone is real time the player would spend looking at a bar.
     this.grandCurtain = new MeshPhysicalMaterial({
-      map: grand.map,
-      roughnessMap: grand.roughnessMap,
-      normalMap: grand.normalMap,
+      map: cur.map,
+      roughnessMap: cur.roughnessMap,
+      normalMap: cur.normalMap,
+      color: new Color(0xffb493),
       roughness: 1,
       metalness: 0,
       sheen: 1,
@@ -175,7 +179,8 @@ export class Materials {
     this.skinTeacher = new MeshStandardMaterial({ color: 0xefc09c, roughness: 0.7, metalness: 0 });
     this.hair = new MeshStandardMaterial({ color: 0x2a1c16, roughness: 0.62, metalness: 0 });
     this.teacherWear = new MeshStandardMaterial({ color: 0x3f6f8a, roughness: 0.85, metalness: 0 });
-    this.shoe = new MeshStandardMaterial({ color: 0xf0ece2, roughness: 0.82, metalness: 0 });
+    this.shoe = new MeshStandardMaterial({ color: 0xe6e0d2, roughness: 0.85, metalness: 0 });
+    this.shoeAdult = new MeshStandardMaterial({ color: 0x4a4550, roughness: 0.7, metalness: 0 });
 
     // 立ち位置テープ - the vinyl tape crosses on the wing floor.
     this.tape = new MeshStandardMaterial({

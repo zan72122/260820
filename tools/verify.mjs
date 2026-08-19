@@ -4,14 +4,18 @@
  * software rasteriser in this container renders at roughly half a frame per
  * second; that says nothing about a real device and everything about GPU-less CI.
  */
-import { chromium } from 'playwright';
+import { arg, launch } from './browser.mjs';
 
-const arg = (k, d) => {
-  const m = process.argv.find((a) => a.startsWith(`--${k}=`));
-  return m ? m.split('=').slice(1).join('=') : d;
-};
-const W = Number(arg('w', 390));
-const H = Number(arg('h', 844));
+const device = arg('device', 'iphone');
+const { browser, page, dev, errors } = await launch(device, {
+  url: arg('url', 'http://127.0.0.1:4173/?fast=1&quality=high&seed=3'),
+});
+const W = dev.width;
+const H = dev.height;
+// Gestures are normalised by the short screen edge, so the same finger travel
+// means the same thing however the device is held. Drive the test that way too.
+const U = Math.min(W, H);
+
 
 const fails = [];
 const ok = (cond, msg) => {
@@ -19,27 +23,7 @@ const ok = (cond, msg) => {
   if (!cond) fails.push(msg);
 };
 
-const browser = await chromium.launch({
-  executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
-  args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'],
-});
-const page = await browser.newPage({
-  viewport: { width: W, height: H },
-  deviceScaleFactor: 1,
-  isMobile: true,
-  hasTouch: true,
-});
-const errors = [];
-page.on('pageerror', (e) => errors.push('PAGEERROR ' + e.message));
-page.on('console', (m) => {
-  if (m.type() === 'error') errors.push('console.error ' + m.text());
-});
 
-await page.goto(arg('url', `http://127.0.0.1:4173/?fast=1&quality=high&seed=3`), {
-  waitUntil: 'load',
-  timeout: 90000,
-});
-await page.waitForFunction(() => !!window.__butai, null, { timeout: 90000 });
 const tick = (s) => page.evaluate((v) => window.__butai.tick(v), s);
 const st = () => page.evaluate(() => window.__butai.state());
 const cam = () => page.evaluate(() => window.__butai.camera());
@@ -69,7 +53,7 @@ const camBefore = await cam();
 // A small pull: the cloth follows, the camera leans, nothing else happens yet.
 await page.mouse.move(W * 0.66, H * 0.55);
 await page.mouse.down();
-for (let i = 1; i <= 5; i++) await page.mouse.move(W * (0.66 - 0.035 * i), H * 0.55);
+for (let i = 1; i <= 5; i++) await page.mouse.move(W * 0.66 - U * 0.035 * i, H * 0.55);
 await tick(0.5); // let the cloth and the camera respond to what has been pulled
 const mid = await st();
 const camPeek = await cam();
@@ -79,7 +63,7 @@ ok(Math.abs(camPeek.z - camBefore.z) > 0.15, `the camera leans in with the peek 
 ok(mid.phase === 'wait', 'a glance alone does not interrupt anything');
 
 // Pull further and the teacher answers.
-for (let i = 6; i <= 12; i++) await page.mouse.move(W * (0.66 - 0.035 * i), H * 0.55);
+for (let i = 6; i <= 12; i++) await page.mouse.move(W * 0.66 - U * 0.035 * i, H * 0.55);
 await page.mouse.up();
 await tick(0.4);
 ok((await st()).phase === 'notYet', 'a real peek gets the "not yet" answer');
@@ -89,7 +73,7 @@ ok((await st()).phase === 'wait', 'the "not yet" resolves back to waiting, never
 ok((await st()).warned === true, 'the not-yet only happens once');
 
 // dragging the other way must work too
-await drag(W * 0.35, H * 0.5, W * 0.72, H * 0.5);
+await drag(W * 0.5 - U * 0.16, H * 0.5, W * 0.5 + U * 0.16, H * 0.5);
 const rightDrag = await st();
 ok(rightDrag.gap > 0.05, `dragging RIGHT also opens the cloth (gap ${rightDrag.gap}m)`);
 
@@ -103,7 +87,7 @@ for (let i = 0; i < 30; i++) {
 ok(phase === 'cue', 'the previous act ends and the teacher signals');
 
 // --- going out ---------------------------------------------------------
-await drag(W * 0.7, H * 0.72, W * 0.34, H * 0.4, 8);
+await drag(W * 0.5 + U * 0.2, H * 0.72, W * 0.5 - U * 0.16, H * 0.4, 8);
 ok((await st()).phase === 'walk', 'a swipe toward the stage sends the child out');
 
 let sawReveal = false;

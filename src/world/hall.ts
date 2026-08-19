@@ -182,21 +182,21 @@ export class Hall {
     const bodyGeo = new CapsuleGeometry(0.18, 0.36, 4, 8);
     bodyGeo.scale(1.32, 1, 0.78);
     bodyGeo.translate(0, 0.9, -0.04);
-    const headGeo = new SphereGeometry(0.108, 10, 8);
+    const headGeo = new SphereGeometry(0.122, 10, 8);
     headGeo.scale(0.95, 1.1, 1);
-    headGeo.translate(0, 1.27, -0.02);
+    headGeo.translate(0, 1.29, -0.02);
     this.audienceBody = new InstancedMesh(bodyGeo, mats.audience, seatCount);
     this.audienceHead = new InstancedMesh(headGeo, mats.audience, seatCount);
     this.audienceBody.frustumCulled = false;
     this.audienceHead.frustumCulled = false;
     // Coats, cardigans, dark winter jackets - a 発表会 audience in February.
     const COATS: [number, number, number][] = [
-      [0.16, 0.17, 0.22], [0.24, 0.2, 0.19], [0.13, 0.15, 0.17],
-      [0.28, 0.22, 0.24], [0.18, 0.21, 0.2], [0.3, 0.27, 0.24],
-      [0.14, 0.18, 0.25], [0.22, 0.15, 0.16],
+      [0.085, 0.09, 0.125], [0.13, 0.105, 0.1], [0.062, 0.07, 0.085],
+      [0.15, 0.115, 0.13], [0.095, 0.11, 0.105], [0.17, 0.15, 0.13],
+      [0.07, 0.095, 0.14], [0.12, 0.078, 0.085],
     ];
     const HAIRS: [number, number, number][] = [
-      [0.09, 0.07, 0.06], [0.13, 0.1, 0.08], [0.07, 0.06, 0.06], [0.2, 0.17, 0.14],
+      [0.045, 0.035, 0.03], [0.07, 0.052, 0.04], [0.032, 0.028, 0.028], [0.11, 0.093, 0.076],
     ];
     const col = new Color();
 
@@ -270,7 +270,7 @@ export class Hall {
       [4.78, 2.41, false],
       [5.75, 1.62, false],
       [7.1, 3.0, false],
-      [7.4, 4.7, false],
+      [7.5, 5.45, false],
     ];
     for (const [x, z, isPlayer] of marks) {
       const mat = isPlayer ? mats.tape : mats.tapeAlt;
@@ -450,7 +450,7 @@ export class Hall {
    */
   setAudienceBrightness(mats: Materials, t: number): void {
     const k = clamp01(t);
-    const v = 0.2 + k * 0.62;
+    const v = 0.24 + k * 0.7;
     mats.audience.color.setRGB(v, v * 0.97, v * 1.02);
     mats.seat.color.setRGB(0.05 + k * 0.14, 0.045 + k * 0.12, 0.06 + k * 0.16);
   }

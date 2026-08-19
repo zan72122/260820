@@ -74,7 +74,7 @@ export class Teacher {
         hair: mats.hair,
         top: mats.teacherWear,
         bottom: skirt,
-        shoe: mats.shoe,
+        shoe: mats.shoeAdult,
         eye,
       },
     });
@@ -218,7 +218,7 @@ export class WaitingChildren {
       [4.78, 2.41, Math.PI * 1.14],
       [5.75, 1.62, Math.PI * 1.0],
       [7.1, 3.0, Math.PI * 0.86],
-      [7.4, 4.7, Math.PI * 0.95],
+      [7.5, 5.45, Math.PI * 0.95],
     ];
     spots.forEach(([x, z, yaw], i) => {
       const p = makeChild(mats, rng, i + 1 + round);
@@ -240,7 +240,9 @@ export class WaitingChildren {
     if (this.demoTimer >= 0) return;
     this.demoTimer = 0;
     this.demoKind = kind;
-    this.demoIndex = this.rng.int(0, this.puppets.length - 1);
+    // Only the two who already stand near the curtain demonstrate: the ones
+    // further back would have to walk straight through the player to get there.
+    this.demoIndex = this.rng.int(0, Math.min(1, this.puppets.length - 1));
   }
 
   get demoActive(): boolean {

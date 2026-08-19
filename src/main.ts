@@ -14,6 +14,10 @@ import { CameraRig } from './game/cameraRig';
 import { Director } from './game/director';
 import { Overlay } from './ui/overlay';
 
+/** Lets the browser paint the loading bar between heavy synchronous steps. */
+const yieldToPaint = (): Promise<void> =>
+  new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+
 async function boot(): Promise<void> {
   const flags = readFlags();
   const overlay = new Overlay();
@@ -22,18 +26,23 @@ async function boot(): Promise<void> {
   const canvasEl = document.getElementById('stage-canvas') as HTMLCanvasElement;
   const { renderer, canvas, backend } = await createRenderer(canvasEl, flags);
   overlay.setProgress(0.2);
+  await yieldToPaint();
 
   const scene = new Scene();
   // Just enough aerial perspective to separate near cloth from far house.
   scene.fog = new FogExp2(0x120c10, 0.021);
 
   const rng = new Rng(flags.seed || 0x1b7a3f);
+  const bakeStart = performance.now();
   const mats = new Materials(flags.fast);
+  const bakeMs = Math.round(performance.now() - bakeStart);
   overlay.setProgress(0.45);
+  await yieldToPaint();
 
   const hall = new Hall(mats, new Rng(flags.seed || 991), flags.fast);
   scene.add(hall.group);
   overlay.setProgress(0.62);
+  await yieldToPaint();
 
   const lighting = new Lighting(mats, new Rng(flags.seed || 41));
   scene.add(lighting.group);
@@ -42,6 +51,7 @@ async function boot(): Promise<void> {
   const grand = new GrandCurtain(mats);
   scene.add(legCurtain.group, grand.group);
   overlay.setProgress(0.8);
+  await yieldToPaint();
 
   const rig = new CameraRig();
   const audio = new AudioEngine();
@@ -145,6 +155,7 @@ async function boot(): Promise<void> {
   (window as unknown as { __butai: unknown }).__butai = {
     backend,
     flags,
+    bakeMs,
     state: () => director.debugState(),
     quality: () => quality.profile.tier,
     camera: () => {
@@ -193,6 +204,8 @@ async function boot(): Promise<void> {
         };
       });
     },
+    /** Counts what is actually drawn, so cosmetics cannot fail silently. */
+    draws: () => renderer.info.render,
     lookAt: () => {
       const v = new Vector3();
       rig.camera.getWorldDirection(v);

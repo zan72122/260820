@@ -124,11 +124,10 @@ body {
 /* ---- "one more time" affordance: a breathing ring, no words ---- */
 .again {
   position: absolute;
-  left: 50%;
-  bottom: calc(var(--safe-b) + 8vh);
+  right: calc(var(--safe-r) + 5vw);
+  bottom: calc(var(--safe-b) + 6vh);
   width: 86px;
   height: 86px;
-  margin-left: -43px;
   border-radius: 50%;
   opacity: 0;
   transition: opacity 700ms ease;

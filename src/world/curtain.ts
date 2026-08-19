@@ -442,7 +442,10 @@ export class LegCurtain {
     // flat card sitting exactly where the stage should be.
     const g = clamp01((gap - 0.03) / 0.16);
     const mat = this.seamGlow.material as MeshBasicMaterial;
-    mat.opacity = 0.5 * (1 - g) + 0.04;
+    // A light behind a curtain is never steady: somebody else's number is
+    // still running out there.
+    const flicker = 0.86 + Math.sin(time * 1.7) * 0.1 + Math.sin(time * 5.3 + 1.2) * 0.04;
+    mat.opacity = (0.5 * (1 - g) + 0.04) * flicker;
     this.seamGlow.visible = mat.opacity > 0.04;
     this.seamGlow.scale.x = 0.85 + g * 0.5;
     this.seamGlow.position.x = (this.left.freeEdgeX + this.right.freeEdgeX) / 2;

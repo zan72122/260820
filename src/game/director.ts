@@ -65,6 +65,7 @@ export class Director {
   private gestureSign = 0;
   private gestureAccum = 0;
   private everPeeked = false;
+  private ambientPeekDone = false;
   private handHintUsed = { drag: false, out: false };
   private hintStage = 0;
   /** Test-only: pins the peek so framing can be photographed. */
@@ -238,6 +239,7 @@ export class Director {
     this.round++;
     this.warned = false;
     this.everPeeked = false;
+    this.ambientPeekDone = false;
     this.hintStage = 0;
     this.peek = 0;
     this.peekTarget = 0;
@@ -281,6 +283,9 @@ export class Director {
 
   private beginWalk(strength: number): void {
     if (this.phase !== 'cue') return;
+    // A child who goes the instant they are signalled must not walk into a shut
+    // house curtain: if the beat has not fired yet, it fires now.
+    if (!this.grandOpened) this.openGrandCurtain();
     this.phase = 'walk';
     this.t = 0;
     this.walkS = 0;
@@ -364,6 +369,14 @@ export class Director {
     void dt;
     if (!this.everPeeked && this.peek > 0.02) this.everPeeked = true;
 
+    // Unprompted, a couple of seconds in: somebody else has a quick look and
+    // comes straight back. Not a hint - just something true about the room,
+    // early enough to be the first thing the player notices.
+    if (!this.ambientPeekDone && this.t > 2.4 && !this.warned) {
+      this.ambientPeekDone = true;
+      this.mates.playPeekDemo('peek');
+    }
+
     // A real peek - not a twitch - gets the teacher's answer.
     if (!this.warned && this.peek > 0.42) {
       this.phase = 'notYet';
@@ -432,13 +445,15 @@ export class Director {
   private updateCue(dt: number): void {
     void dt;
     // 緞帳が開く - the house curtain goes out for us, a beat after her signal.
-    if (!this.grandOpened && this.t > 0.7) {
-      this.grandOpened = true;
-      this.grand.setOpen(1);
-      this.audio.curtainMotor(3.6);
-      this.rig.bump(0.012);
-    }
+    if (!this.grandOpened && this.t > 0.7) this.openGrandCurtain();
     this.escalateHints(['out']);
+  }
+
+  private openGrandCurtain(): void {
+    this.grandOpened = true;
+    this.grand.setOpen(1);
+    this.audio.curtainMotor(3.6);
+    this.rig.bump(0.012);
   }
 
   private updateWalk(dt: number): void {

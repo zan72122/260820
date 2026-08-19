@@ -8,7 +8,10 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview --port 4173",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "verify": "node tools/verify.mjs",
+    "shoot": "node tools/shoot.mjs",
+    "frame": "node tools/frame.mjs"
   },
   "dependencies": {
     "three": "^0.180.0"

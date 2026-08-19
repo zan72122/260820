@@ -1,28 +1,12 @@
 /** Single-shot framing check: node tools/frame.mjs --peek=0.6 --device=iphone --name=x */
-import { chromium } from 'playwright';
 import fs from 'node:fs';
-const arg = (k, d) => {
-  const m = process.argv.find((a) => a.startsWith(`--${k}=`));
-  return m ? m.split('=').slice(1).join('=') : d;
-};
-const DEVICES = {
-  iphone: { width: 390, height: 844 },
-  iphoneland: { width: 844, height: 390 },
-  ipad: { width: 1024, height: 768 },
-  small: { width: 320, height: 568 },
-};
-const dev = DEVICES[arg('device', 'iphone')];
-fs.mkdirSync('shots', { recursive: true });
-const browser = await chromium.launch({
-  executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
-  args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'],
+import { arg, launch } from './browser.mjs';
+
+const device = arg('device', 'iphone');
+const { browser, page, dev, errors: logs } = await launch(device, {
+  url: arg('url', 'http://127.0.0.1:4173/?fast=1&quality=high&seed=7'),
 });
-const page = await browser.newPage({ viewport: dev, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
-const logs = [];
-page.on('pageerror', (e) => logs.push('PAGEERROR ' + e.message));
-page.on('console', (m) => { if (m.type() !== 'log') logs.push(m.type() + ': ' + m.text()); });
-await page.goto(arg('url', 'http://127.0.0.1:4173/?fast=1&quality=high&seed=7'), { waitUntil: 'load', timeout: 90000 });
-await page.waitForFunction(() => !!window.__butai, null, { timeout: 90000 });
+fs.mkdirSync('shots', { recursive: true });
 await page.mouse.click(dev.width / 2, dev.height / 2);
 await page.waitForTimeout(1200);
 const peekV = Number(arg('peek', '0'));

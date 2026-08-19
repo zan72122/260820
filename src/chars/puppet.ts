@@ -258,8 +258,8 @@ export class Puppet {
       hip.add(knee);
       shin.add(limb(this.shinLen, limbR * 0.95, opts.skin.shin ?? opts.skin.skin));
       // 上履き - indoor shoes.
-      const shoeGeo = new BoxGeometry(limbR * 2.5, h * 0.045, h * 0.1);
-      shoeGeo.translate(0, -this.shinLen - h * 0.018, h * 0.018);
+      const shoeGeo = new BoxGeometry(limbR * 2.15, h * 0.032, h * 0.13);
+      shoeGeo.translate(0, -this.shinLen - h * 0.014, h * 0.026);
       const shoe = new Mesh(shoeGeo, opts.skin.shoe);
       shoe.castShadow = true;
       shin.add(shoe);

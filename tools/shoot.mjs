@@ -7,44 +7,18 @@
  * frames we photograph. FPS numbers from this harness mean nothing (see
  * CLAUDE.md); framing, exposure and state flow do.
  */
-import { chromium } from 'playwright';
 import fs from 'node:fs';
+import { arg, launch } from './browser.mjs';
 
-const arg = (k, d) => {
-  const m = process.argv.find((a) => a.startsWith(`--${k}=`));
-  return m ? m.split('=').slice(1).join('=') : d;
-};
-
-const DEVICES = {
-  iphone: { width: 390, height: 844, dpr: 1 },
-  iphoneland: { width: 844, height: 390, dpr: 1 },
-  ipad: { width: 1024, height: 768, dpr: 1 },
-  small: { width: 320, height: 568, dpr: 1 },
-};
-
-const dev = DEVICES[arg('device', 'iphone')];
-const tag = arg('tag', arg('device', 'iphone'));
-const url = arg('url', 'http://127.0.0.1:4173/?fast=1&quality=high&seed=7');
+const device = arg('device', 'iphone');
+const tag = arg('tag', device);
 const outDir = arg('out', 'shots');
+const { browser, page, dev, errors: logs } = await launch(device, {
+  url: arg('url', 'http://127.0.0.1:4173/?fast=1&quality=high&seed=7'),
+});
 fs.mkdirSync(outDir, { recursive: true });
 
-const browser = await chromium.launch({
-  executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
-  args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage'],
-});
-const ctx = await browser.newContext({
-  viewport: { width: dev.width, height: dev.height },
-  deviceScaleFactor: dev.dpr,
-  isMobile: true,
-  hasTouch: true,
-});
-const page = await ctx.newPage();
-const logs = [];
-page.on('console', (m) => logs.push(`${m.type()}: ${m.text()}`));
-page.on('pageerror', (e) => logs.push(`PAGEERROR: ${e.message}`));
 
-await page.goto(url, { waitUntil: 'load', timeout: 90000 });
-await page.waitForFunction(() => !!window.__butai, null, { timeout: 90000 });
 
 const shot = async (name) => {
   await page.waitForTimeout(120);

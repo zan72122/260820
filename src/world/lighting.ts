@@ -115,14 +115,16 @@ export class Lighting {
     this.group.add(this.keySpot, this.keyTarget);
 
     // Front wash from the FOH bar: fills faces, casts nothing.
-    this.wash = new SpotLight(0xffe0b8, this.current.wash, 30, 0.86, 0.75, 1.15);
+    // Tight enough that its cone lands on the deck and not on the first three
+    // rows of parents - the house has to stay a dark room with people in it.
+    this.wash = new SpotLight(0xffe0b8, this.current.wash, 26, 0.52, 0.6, 1.2);
     this.wash.position.set(0, 5.3, -2.6);
     this.washTarget.position.set(0, LAYOUT.stageY + 0.6, 1.1);
     this.wash.target = this.washTarget;
     this.group.add(this.wash, this.washTarget);
 
     for (const s of [-1, 1]) {
-      const sp = new SpotLight(s < 0 ? 0xffcf9a : 0xbcd4ff, this.current.side, 20, 0.8, 0.8, 1.4);
+      const sp = new SpotLight(s < 0 ? 0xffcf9a : 0xbcd4ff, this.current.side, 16, 0.62, 0.8, 1.4);
       sp.position.set(s * 4.6, 4.6, 1.2);
       const t = new Object3D();
       t.position.set(-s * 0.8, LAYOUT.stageY + 0.7, 2.0);
