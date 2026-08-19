@@ -229,8 +229,9 @@ export function buildWorld(scene, renderer) {
   const step = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.24, 0.8), M.stone);
   step.position.set(doorCx, -0.16, wallZ - 0.62); step.castShadow = step.receiveShadow = true;
   outside.add(step);
-  const stepSnow = new THREE.Mesh(new THREE.BoxGeometry(1.54, 0.05, 0.84), M.snow);
-  stepSnow.position.set(doorCx, -0.02, wallZ - 0.62); outside.add(stepSnow);
+  const stepSnow = new THREE.Mesh(new THREE.SphereGeometry(1, 18, 10), M.snow);
+  stepSnow.scale.set(0.74, 0.075, 0.42);
+  stepSnow.position.set(doorCx, -0.045, wallZ - 0.62); outside.add(stepSnow);
   const rnd = TEX.mulberry32(5);
   {
     const tr = [];
@@ -473,7 +474,7 @@ export function buildWorld(scene, renderer) {
     }
     maki.add(instance(new THREE.CylinderGeometry(0.038, 0.040, 0.42, 7), M.beam, tr));
   }
-  maki.position.set(-2.55, 0, -0.55); maki.rotation.y = 0.22;
+  maki.position.set(-2.62, 0, -1.35); maki.rotation.y = 0.22;
   g.add(maki);
 
   // 竹ざると大根
@@ -493,8 +494,39 @@ export function buildWorld(scene, renderer) {
     leaf.position.set((i - 1) * 0.05 + Math.sin((i - 1) * 0.3) * 0.14, 0.085, 0.14);
     zaru.add(leaf);
   }
-  zaru.position.set(-2.15, 0.0, -1.95); zaru.rotation.y = -0.4;
+  zaru.position.set(-2.30, 0.0, -0.05); zaru.rotation.y = -0.4;
   g.add(zaru);
+
+  // 石臼 (使わないが冬の土間らしさと石の質感のために置く)
+  const ishiusu = new THREE.Group();
+  const stoneMat = new THREE.MeshStandardMaterial({
+    color: 0x9a978f, roughness: 0.86, metalness: 0.02,
+    map: clayMaps.map, normalMap: clayMaps.normalMap,
+  });
+  const lower = new THREE.Mesh(new THREE.CylinderGeometry(0.245, 0.255, 0.16, 26), stoneMat);
+  lower.position.y = 0.08; ishiusu.add(lower);
+  const upper2 = new THREE.Mesh(new THREE.CylinderGeometry(0.225, 0.235, 0.15, 26), stoneMat);
+  upper2.position.y = 0.235; ishiusu.add(upper2);
+  const spout = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.05, 0.10), stoneMat);
+  spout.position.set(0.25, 0.145, 0); ishiusu.add(spout);
+  const handleArm = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.30), M.beam);
+  handleArm.position.set(0.10, 0.325, 0.12); handleArm.rotation.y = -0.5; ishiusu.add(handleArm);
+  const handleGrip = new THREE.Mesh(new THREE.CylinderGeometry(0.021, 0.021, 0.20, 10), M.beam);
+  handleGrip.position.set(0.20, 0.41, 0.24); ishiusu.add(handleGrip);
+  const feedHole = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.04, 12),
+    new THREE.MeshStandardMaterial({ color: 0x2a2723, roughness: 1 }));
+  feedHole.position.set(-0.09, 0.305, 0.03); ishiusu.add(feedHole);
+  ishiusu.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  ishiusu.position.set(-2.34, 0, -0.42);
+  ishiusu.rotation.y = 0.85;
+  g.add(ishiusu);
+
+  // 沓脱石 (戸口の内側)
+  const kutsunugi = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 12), M.stone);
+  kutsunugi.scale.set(0.44, 0.115, 0.26);
+  kutsunugi.position.set(doorCx - 0.1, 0.045, wallZ + 0.45);
+  kutsunugi.castShadow = kutsunugi.receiveShadow = true;
+  g.add(kutsunugi);
 
   /* ---------- 三方 (鏡餅を載せる) ---------- */
   const sanpo = new THREE.Group();

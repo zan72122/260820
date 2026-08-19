@@ -137,7 +137,7 @@ const SHOTS = {
   pour: { pos: [1.42, 1.62, 1.72], look: [-0.18, 0.86, -0.34], fov: 46, smooth: 1.1 },
   pound: { pos: [1.08, 1.40, 1.60], look: [0.0, 0.76, 0.02], fov: 50, smooth: 0.85 },
   stretch: { pos: [0.72, 1.16, 0.98], look: [0, 0.60, 0], fov: 44, smooth: 0.5 },
-  carry: { pos: [1.55, 1.48, 1.55], look: [0.9, 0.85, -0.2], fov: 46, smooth: 0.9, wr: 0.85 },
+  carry: { pos: [1.42, 1.42, 1.62], look: [0.82, 0.82, -0.22], fov: 46, smooth: 0.9, wr: 0.85 },
   cut: { pos: [1.74, 1.31, 0.56], look: [1.63, 0.78, -0.33], fov: 40, smooth: 0.8, wr: 1.0 },
   roll: { pos: [1.72, 1.24, 0.44], look: [1.62, 0.79, -0.28], fov: 40, smooth: 0.6, wr: 1.0 },
   finaleClose: { pos: [2.06, 1.22, 0.62], look: [1.22, 1.01, -0.38], fov: 34, smooth: 0.9, wr: 0.88 },
@@ -365,6 +365,8 @@ function setPhase(p) {
   ui.hideHint();
   if (p !== PHASE.TITLE && p !== PHASE.FINALE) ui.hideBig();
   if (p === PHASE.TITLE) {
+    mochi.mesh.visible = false;
+    hideArms();
     rig.set(SHOTS.establish);
     ui.clearSteps();
     ui.showBig(GLYPH.kine, () => { sound.init(); startGame(); });
@@ -604,15 +606,15 @@ function startCarry() {
 function updateCarry(dt) {
   const c = S.carry; if (!c) return;
   c.t += dt;
-  const T = 2.4;
+  const T = 2.1;
   const u = clamp(c.t / T, 0, 1);
   // 餅を持ち上げて板へ運ぶ
   const from = new THREE.Vector3(0, USU_FLOOR + 0.05, 0);
   const to = boardPos(0, 0.033, 0);
   if (u < 0.18) {
     mochi.topY = mix(REST_H, REST_H * 0.7, u / 0.18);
-    aimArm(armL, -0.15, USU_FLOOR + 0.06, -0.10, D(0.85, 0.30, 0.42), D(0, 1, 0));
-    aimArm(armR, 0.15, USU_FLOOR + 0.06, -0.10, D(-0.85, 0.30, 0.42), D(0, 1, 0));
+    aimArm(myL, -0.17, USU_FLOOR + 0.03, 0.04, D(0.66, 0.34, -0.67), D(-0.30, 0.95, 0));
+    aimArm(myR, 0.17, USU_FLOOR + 0.03, 0.04, D(-0.66, 0.34, -0.67), D(0.30, 0.95, 0));
   } else {
     if (mochi.mesh.visible) {
       mochi.mesh.visible = false;
@@ -623,8 +625,8 @@ function updateCarry(dt) {
     const k = ease.inOut(clamp((u - 0.18) / 0.66, 0, 1));
     const pos = new THREE.Vector3().lerpVectors(from, to, k);
     pos.y += Math.sin(k * Math.PI) * 0.30;
-    aimArm(armL, pos.x - 0.16, pos.y - 0.02, pos.z - 0.06, D(0.85, 0.34, 0.36), D(0, 1, 0));
-    aimArm(armR, pos.x + 0.16, pos.y - 0.02, pos.z - 0.06, D(-0.85, 0.34, 0.36), D(0, 1, 0));
+    aimArm(myL, pos.x - 0.18, pos.y - 0.03, pos.z + 0.05, D(0.66, 0.36, -0.66), D(-0.30, 0.95, 0));
+    aimArm(myR, pos.x + 0.18, pos.y - 0.03, pos.z + 0.05, D(-0.66, 0.36, -0.66), D(0.30, 0.95, 0));
     layoutLog(pos, 0, k);
     if (u > 0.86) hideArms();
   }
@@ -823,6 +825,12 @@ function onDown(e) {
     if (S.pulls < PULLS_TOTAL) beginGrab();
   } else if (S.phase === PHASE.ROLL) {
     S.rolling = true; sound.rollStart(); ui.hideHint();
+  } else if (S.phase === PHASE.POUR || S.phase === PHASE.CARRY) {
+    // 待ちきれない子のために、触ると少しだけ早送りする
+    const d = 0.55;
+    S.pt += d;
+    if (S.carry) S.carry.t += d;
+    sound.blip(520, 0.05, 0.15, 'triangle');
   }
 }
 function onMove(e) {

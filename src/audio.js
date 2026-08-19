@@ -156,7 +156,7 @@ export class Sound {
   riceSettle(power = 1) {
     if (!this.ready || this.muted) return;
     const ctx = this.ctx, t0 = this.t;
-    const n = 10 + Math.floor(power * 10);
+    const n = 14 + Math.floor(power * 12);
     for (let i = 0; i < n; i++) {
       const t = t0 + Math.random() * 0.22;
       const s = this._src(false);
@@ -164,7 +164,7 @@ export class Sound {
       f.frequency.value = 1400 + Math.random() * 4200; f.Q.value = 7;
       const g = ctx.createGain();
       g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(0.020 * power, t + 0.002);
+      g.gain.linearRampToValueAtTime(0.068 * power, t + 0.002);
       g.gain.exponentialRampToValueAtTime(0.0001, t + 0.03 + Math.random() * 0.05);
       s.connect(f).connect(g).connect(this.master);
       s.start(t); s.stop(t + 0.12);
@@ -283,7 +283,7 @@ export class Sound {
   rollUpdate(speed) {
     const v = this.rollVoice; if (!v) return;
     const t = this.t;
-    v.g.gain.setTargetAtTime(Math.min(1, speed) * 0.10, t, 0.06);
+    v.g.gain.setTargetAtTime(Math.min(1, speed) * 0.15, t, 0.06);
     v.lp.frequency.setTargetAtTime(430 + Math.min(1, speed) * 900, t, 0.08);
   }
   rollEnd() {
