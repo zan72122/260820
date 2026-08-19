@@ -66,6 +66,9 @@ const rig = new CameraRig(camera);
 const world = buildWorld(scene, renderer);
 scene.attach(world.seiro);          // 蒸籠を独立して動かせるようにする
 world.seiro.userData.home = world.seiro.position.clone();
+const seiroLid = world.seiroLid;
+seiroLid.userData.homeLocal = seiroLid.position.clone();
+const LID_ASIDE = new THREE.Vector3(-1.34, 0.055, -0.10);   // 外して土間に立てかける
 
 const usu = makeUsu(scene, world.mats.usuWood);
 const kine = makeKine(scene, world.mats.kineWood);
@@ -91,7 +94,7 @@ const daidai = makeDaidai(scene);
 const pieces = [];
 const strings = [];
 for (let i = 0; i < PIECES; i++) {
-  const b = new MochiBlob(scene, 0.050);
+  const b = new MochiBlob(scene, 0.058);
   b.mesh.visible = false;
   pieces.push(b);
 }
@@ -135,10 +138,10 @@ const SHOTS = {
   pound: { pos: [1.08, 1.40, 1.60], look: [0.0, 0.76, 0.02], fov: 50, smooth: 0.85 },
   stretch: { pos: [0.72, 1.16, 0.98], look: [0, 0.60, 0], fov: 44, smooth: 0.5 },
   carry: { pos: [1.55, 1.48, 1.55], look: [0.9, 0.85, -0.2], fov: 46, smooth: 0.9, wr: 0.85 },
-  cut: { pos: [1.76, 1.44, 0.74], look: [1.62, 0.79, -0.33], fov: 42, smooth: 0.8, wr: 1.0 },
+  cut: { pos: [1.74, 1.31, 0.56], look: [1.63, 0.78, -0.33], fov: 40, smooth: 0.8, wr: 1.0 },
   roll: { pos: [1.72, 1.24, 0.44], look: [1.62, 0.79, -0.28], fov: 40, smooth: 0.6, wr: 1.0 },
-  finaleClose: { pos: [2.10, 1.20, 0.68], look: [1.22, 0.98, -0.38], fov: 34, smooth: 0.9, wr: 0.88 },
-  finale: { pos: [2.05, 1.52, 2.30], look: [0.85, 0.76, -0.75], fov: 48, smooth: 1.6 },
+  finaleClose: { pos: [2.06, 1.22, 0.62], look: [1.22, 1.01, -0.38], fov: 34, smooth: 0.9, wr: 0.88 },
+  finale: { pos: [1.92, 1.42, 1.92], look: [0.95, 0.80, -0.72], fov: 46, smooth: 1.6 },
 };
 
 /* ---------- 補助 ---------- */
@@ -404,6 +407,11 @@ function setPhase(p) {
 
 function startGame() {
   resetGrains();
+  if (seiroLid.parent !== world.seiro) {
+    world.seiro.add(seiroLid);
+    seiroLid.position.copy(seiroLid.userData.homeLocal);
+    seiroLid.rotation.set(0, 0, 0);
+  }
   S.hits = 0; S.pulls = 0; S.cuts = 0; S.rollIdx = 0; S.cohesion = 0;
   S.pourP = 0; S.logSpread = 0; S.finaleDone = false; S.poured = 0; S.rollSpin = 0;
   S.grabbing = false; S.swing = null; S.queued = false; S.tegaeshi = false; S.foldDone = false;
@@ -417,7 +425,7 @@ function startGame() {
   mochi.mesh.visible = true;
   mochi.mesh.rotation.y = 0;
   mochi.newShape(0);
-  pieces.forEach(p => { p.mesh.visible = false; p.roundness = 0; p.flat = 0; p.r = 0.050; });
+  pieces.forEach(p => { p.mesh.visible = false; p.roundness = 0; p.flat = 0; p.r = 0.058; });
   strings.forEach(s => s.hide());
   daidai.visible = false;
   hideArms();
@@ -434,10 +442,36 @@ function toStretch() {
 }
 
 /* ---------- 各フェーズの更新 ---------- */
+/* 蒸籠の両脇を掴む手。腕は上から降りてくるように見せる。 */
+function gripSeiro(seiro, tilt) {
+  const c = Math.cos(tilt), s = Math.sin(tilt);
+  const R = 0.305, hy = 0.085;
+  for (const [sgn, arm] of [[-1, armL], [1, armR]]) {
+    const lx = sgn * R, ly = hy;
+    const wx = seiro.position.x + lx * c - ly * s;
+    const wy = seiro.position.y + lx * s + ly * c;
+    aimArm(arm, wx, wy, seiro.position.z - 0.04,
+      D(-sgn * 0.36, -0.54, 0.76), D(sgn * 1, 0.20, 0));
+  }
+}
+
 function updatePour(dt) {
   const t = S.pt;
   const seiro = world.seiro;
   const home = seiro.userData.home;
+  // 蓋を外す
+  if (t > 0.15 && seiroLid.parent !== scene) {
+    scene.attach(seiroLid);
+    seiroLid.userData.from = seiroLid.position.clone();
+    sound.blip(210, 0.07, 0.22, 'triangle');
+  }
+  if (seiroLid.parent === scene) {
+    const u = clamp((t - 0.15) / 0.85, 0, 1);
+    const k = ease.inOut(u);
+    seiroLid.position.lerpVectors(seiroLid.userData.from, LID_ASIDE, k);
+    seiroLid.position.y += Math.sin(k * Math.PI) * 0.16;
+    seiroLid.rotation.set(0.10 * k, 0, 1.42 * k);
+  }
   const over = new THREE.Vector3(0.0, 1.10, 0.02);
   // 0.0-0.4 蓋をとる / 0.3-1.5 運ぶ / 1.5-3.0 傾ける / 3.0-4.0 戻す
   if (t < 1.6) {
@@ -448,8 +482,7 @@ function updatePour(dt) {
     seiro.rotation.z = 0;
     seiroSteam.pos.set(seiro.position.x, seiro.position.y + 0.34, seiro.position.z);
     if (u > 0.02) {
-      aimArm(armL, seiro.position.x - 0.33, seiro.position.y + 0.10, seiro.position.z - 0.02, D(1, 0.10, -0.16), D(0, 1, 0));
-      aimArm(armR, seiro.position.x + 0.33, seiro.position.y + 0.10, seiro.position.z - 0.02, D(-1, 0.10, -0.16), D(0, 1, 0));
+      gripSeiro(seiro, 0);
     }
   } else if (t < 3.25) {
     const u = clamp((t - 1.6) / 0.45, 0, 1);
@@ -457,8 +490,7 @@ function updatePour(dt) {
     seiro.position.copy(over);
     seiro.position.x -= ease.out3(u) * 0.10;
     seiroSteam.pos.set(seiro.position.x, seiro.position.y + 0.20, seiro.position.z);
-    aimArm(armL, seiro.position.x - 0.30, seiro.position.y + 0.20, seiro.position.z - 0.02, D(1, -0.25, -0.16), D(0.2, 1, 0));
-    aimArm(armR, seiro.position.x + 0.25, seiro.position.y - 0.04, seiro.position.z - 0.02, D(-1, 0.35, -0.16), D(-0.2, 1, 0));
+    gripSeiro(seiro, seiro.rotation.z);
     // 米を落とす
     const p = clamp((t - 1.85) / 1.15, 0, 1);
     S.pourP = p;
@@ -473,8 +505,7 @@ function updatePour(dt) {
     seiro.rotation.z = (1 - ease.inOut(u)) * 1.30;
     seiro.position.lerpVectors(over, home, ease.inOut(u));
     seiroSteam.pos.set(seiro.position.x, seiro.position.y + 0.34, seiro.position.z);
-    aimArm(armL, seiro.position.x - 0.33, seiro.position.y + 0.10, seiro.position.z - 0.02, D(1, 0.10, -0.16), D(0, 1, 0));
-    aimArm(armR, seiro.position.x + 0.33, seiro.position.y + 0.10, seiro.position.z - 0.02, D(-1, 0.10, -0.16), D(0, 1, 0));
+    gripSeiro(seiro, 0);
     if (u > 0.85) hideArms();
   } else {
     seiro.position.copy(home); seiro.rotation.z = 0;
@@ -577,7 +608,7 @@ function updateCarry(dt) {
   const u = clamp(c.t / T, 0, 1);
   // 餅を持ち上げて板へ運ぶ
   const from = new THREE.Vector3(0, USU_FLOOR + 0.05, 0);
-  const to = boardPos(0, 0.055, 0);
+  const to = boardPos(0, 0.033, 0);
   if (u < 0.18) {
     mochi.topY = mix(REST_H, REST_H * 0.7, u / 0.18);
     aimArm(armL, -0.15, USU_FLOOR + 0.06, -0.10, D(0.85, 0.30, 0.42), D(0, 1, 0));
@@ -602,7 +633,7 @@ function updateCarry(dt) {
 
 /* 4つの塊を一本の棒状に並べる */
 function layoutLog(center, spread, flatten = 1) {
-  const gap = 0.062 + spread;
+  const gap = 0.070 + spread;
   for (let i = 0; i < PIECES; i++) {
     const p = pieces[i];
     const lx = (i - (PIECES - 1) / 2) * gap;
@@ -614,7 +645,7 @@ function layoutLog(center, spread, flatten = 1) {
 }
 
 function updateCut(dt) {
-  const base = boardPos(0, 0.055, 0);
+  const base = boardPos(0, 0.033, 0);
   layoutLog(base, 0, 1);
   // 切り離しの糸
   for (let i = 0; i < strings.length; i++) {
@@ -645,8 +676,8 @@ function doCut() {
   if (S.cuts >= PIECES - 1) return;
   const i = S.cuts;
   if (!S.cutSpread) { S.cutSpread = new Array(PIECES).fill(0); S.cutTarget = new Array(PIECES).fill(0); }
-  for (let k = 0; k <= i; k++) S.cutTarget[k] -= 0.026;
-  for (let k = i + 1; k < PIECES; k++) S.cutTarget[k] += 0.026;
+  for (let k = 0; k <= i; k++) S.cutTarget[k] -= 0.030;
+  for (let k = i + 1; k < PIECES; k++) S.cutTarget[k] += 0.030;
   strings[i].prog = 0.001;
   pieces[i].squash.kick(-4); pieces[i + 1].squash.kick(-4);
   sound.cut();
@@ -666,18 +697,18 @@ function updateRoll(dt) {
   for (let i = 0; i < PIECES; i++) {
     const p = pieces[i];
     if (i < idx) {
-      const t = boardPos(-0.165 + i * 0.11, 0.052, -0.175);
+      const t = boardPos(-0.175 + i * 0.115, 0.039, -0.175);
       p.mesh.position.lerp(t, 1 - Math.exp(-dt * 6));
       p.flat = mix(p.flat, 0.55, 1 - Math.exp(-dt * 5));
     } else if (i === idx) {
-      const t = boardPos(0, 0.058, 0.045);
+      const t = boardPos(0, 0.049, 0.045);
       p.mesh.position.lerp(t, 1 - Math.exp(-dt * 7));
       p.flat = mix(p.flat, 0.25, 1 - Math.exp(-dt * 5));
       p.mesh.rotation.y += S.rollSpin * dt;
       p.mesh.rotation.x += S.rollSpin * 0.5 * dt;
       S.rollSpin *= Math.exp(-dt * 2.5);
     } else {
-      const t = boardPos(-0.12 + (i - idx) * 0.12, 0.052, 0.20);
+      const t = boardPos(-0.12 + (i - idx) * 0.125, 0.039, 0.20);
       p.mesh.position.lerp(t, 1 - Math.exp(-dt * 5));
     }
   }
@@ -728,12 +759,12 @@ function updateFinale(dt) {
   f.t += dt;
   const sp = world.sanpo.position;
   const targets = [
-    new THREE.Vector3(sp.x, sp.y + 0.185, sp.z),
-    new THREE.Vector3(sp.x, sp.y + 0.301, sp.z),
-    boardPos(-0.05, 0.046, -0.15),
-    boardPos(0.13, 0.046, -0.11),
+    new THREE.Vector3(sp.x, sp.y + 0.176, sp.z),
+    new THREE.Vector3(sp.x, sp.y + 0.300, sp.z),
+    boardPos(-0.02, 0.038, -0.16),
+    boardPos(0.16, 0.038, -0.12),
   ];
-  const rads = [0.086, 0.062, 0.050, 0.050];
+  const rads = [0.105, 0.075, 0.058, 0.058];
   for (let i = 0; i < PIECES; i++) {
     const p = pieces[i];
     const d = clamp((f.t - 0.25 - i * 0.30) / 0.80, 0, 1);
@@ -751,21 +782,21 @@ function updateFinale(dt) {
   }
   if (f.t > 1.9 && !daidai.visible) {
     daidai.visible = true;
-    daidai.position.set(sp.x, sp.y + 0.399, sp.z);
+    daidai.position.set(sp.x, sp.y + 0.401, sp.z);
     daidai.scale.setScalar(0.01);
     sparkle.burst(daidai.position.clone(), 34);
     sound.blip(1046, 0.11, 0.8);
   }
   if (daidai.visible) {
     const k = clamp((f.t - 1.9) / 0.75, 0, 1);
-    daidai.scale.setScalar(ease.outElastic(k));
+    daidai.scale.setScalar(ease.outElastic(k) * 1.15);
     daidai.rotation.y = Math.sin(f.t * 0.7) * 0.25;
   }
   // 寄り -> 引き
   if (f.t > 3.1 && !f.pulled) {
     f.pulled = true;
     rig.set(SHOTS.finale);
-    sparkle.burst(new THREE.Vector3(sp.x, sp.y + 0.40, sp.z), 26);
+    sparkle.burst(new THREE.Vector3(sp.x, sp.y + 0.42, sp.z), 26);
   }
   if (f.pulled) {
     const a = (f.t - 3.1) * 0.11;

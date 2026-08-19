@@ -90,6 +90,8 @@ export class MochiMass {
     this.ripple = 0; this.rippleAge = 9;
     this.harm = [0, 0, 0];
     this.harmPhase = [0, 1.7, 3.4];
+    this.leanX = 0; this.leanZ = 0;
+    this._up = new THREE.Vector3(0, 1, 0);
     this.time = 0;
     this.stretchPeak = 0;
     this.visualR0 = MOCHI_R0;
@@ -104,9 +106,11 @@ export class MochiMass {
 
   newShape(amount = 1) {
     for (let i = 0; i < 3; i++) {
-      this.harm[i] = (Math.random() - 0.5) * 0.16 * amount;
+      this.harm[i] = (Math.random() - 0.5) * 0.19 * amount;
       this.harmPhase[i] = Math.random() * Math.PI * 2;
     }
+    this.leanX = (Math.random() - 0.5) * 0.075 * amount;
+    this.leanZ = (Math.random() - 0.5) * 0.075 * amount;
   }
 
   hit(power = 1) {
@@ -207,10 +211,11 @@ export class MochiMass {
       const poleFade = smoothstep(0.0, 0.13, t) * smoothstep(1.0, 0.87, t);
       r += (this.grain[i] * grainAmp + this.lump[i] * lumpAmp) * poleFade;
       const lat = smoothstep(0.05, 1.0, t);
+      const bend = s * Math.sin(Math.PI * clamp(t, 0, 1)) * H;
       const i3 = i * 3;
-      pos[i3] = -Math.cos(a) * r + swayX * lat;
+      pos[i3] = -Math.cos(a) * r + swayX * lat + this.leanX * bend;
       pos[i3 + 1] = this._ringY[j];
-      pos[i3 + 2] = Math.sin(a) * r + swayZ * lat;
+      pos[i3 + 2] = Math.sin(a) * r + swayZ * lat + this.leanZ * bend;
     }
     this.geo.attributes.position.needsUpdate = true;
     this.geo.computeVertexNormals();
@@ -233,7 +238,7 @@ export class MochiMass {
     const j = clamp(Math.round(t * this.RINGS), 0, this.RINGS);
     const r = this._ringR[j];
     out.set(-Math.cos(theta) * r, this._ringY[j], Math.sin(theta) * r);
-    out.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.mesh.rotation.y);
+    out.applyAxisAngle(this._up, this.mesh.rotation.y);
     out.y += USU_FLOOR;
     return out;
   }

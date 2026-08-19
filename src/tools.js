@@ -13,6 +13,11 @@ export function makeUsu(scene, mat) {
   const m = new THREE.Mesh(lathe(prof, 56), mat);
   m.castShadow = true; m.receiveShadow = true;
   scene.add(m);
+  // 内底 (ロクロ状の UV の伸びを隠す平面)
+  const inner = new THREE.Mesh(new THREE.CircleGeometry(0.145, 40), mat.clone());
+  inner.material.map = mat.map; inner.rotation.x = -Math.PI / 2;
+  inner.position.y = 0.3985; inner.receiveShadow = true;
+  scene.add(inner);
   // 割れ止めの縄
   const rope = new THREE.Mesh(new THREE.TorusGeometry(0.331, 0.018, 8, 44), mat);
   rope.rotation.x = Math.PI / 2; rope.position.y = 0.245;
@@ -45,7 +50,7 @@ export function makeKine(scene, mat) {
 
 /* 手 (指先 +Z / 掌 -Y)。割烹着の袖付き */
 export function makeArm(scene, opts = {}) {
-  const { sleeveColor = 0xf6f3ea, skinColor = 0xdcaa88, scale = 1, withSleeve = true, sleeveR = 1, sleeveLen = 1 } = opts;
+  const { sleeveColor = 0xe7e0d0, skinColor = 0xdcaa88, scale = 1, withSleeve = true, sleeveR = 1, sleeveLen = 1 } = opts;
   const skin = new THREE.MeshStandardMaterial({ color: skinColor, roughness: 0.72, metalness: 0 });
   const cloth = new THREE.MeshStandardMaterial({ color: sleeveColor, roughness: 0.92 });
   const g = new THREE.Group();
@@ -78,18 +83,21 @@ export function makeArm(scene, opts = {}) {
   g.add(hand);
 
   if (withSleeve) {
-    const fore = new THREE.Mesh(new THREE.CapsuleGeometry(0.0265, 0.055, 4, 12), skin);
+    // 腕まくりした前腕 + まくり上げた袖口
+    const fore = new THREE.Mesh(new THREE.CylinderGeometry(0.0295, 0.0355, 0.20 * sleeveLen + 0.06, 14), skin);
     fore.rotation.x = Math.PI / 2;
-    fore.position.set(0, 0.002, -0.078);
+    fore.position.set(0, 0.002, -0.062 - (0.20 * sleeveLen + 0.06) * 0.5);
     g.add(fore);
-    const sl = new THREE.Mesh(new THREE.CylinderGeometry(0.040 * sleeveR, 0.050 * sleeveR, 0.28 * sleeveLen, 16), cloth);
-    sl.rotation.x = Math.PI / 2;
-    sl.position.set(0, 0.004, -0.106 - 0.14 * sleeveLen);
-    g.add(sl);
-    const cuff = new THREE.Mesh(new THREE.TorusGeometry(0.039 * sleeveR, 0.0095, 7, 18), cloth);
-    cuff.rotation.x = Math.PI / 2;
-    cuff.position.set(0, 0.003, -0.106);
-    g.add(cuff);
+    const zc = -0.062 - (0.20 * sleeveLen + 0.06);
+    const roll1 = new THREE.Mesh(new THREE.TorusGeometry(0.040 * sleeveR + 0.006, 0.017, 8, 18), cloth);
+    roll1.rotation.x = Math.PI / 2; roll1.position.set(0, 0.002, zc + 0.010);
+    g.add(roll1);
+    const roll2 = new THREE.Mesh(new THREE.TorusGeometry(0.043 * sleeveR + 0.008, 0.019, 8, 18), cloth);
+    roll2.rotation.x = Math.PI / 2; roll2.position.set(0, 0.002, zc - 0.026);
+    g.add(roll2);
+    const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.046 * sleeveR + 0.006, 0.056 * sleeveR + 0.006, 0.16, 14), cloth);
+    upper.rotation.x = Math.PI / 2; upper.position.set(0, 0.002, zc - 0.10);
+    g.add(upper);
   }
   g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   g.scale.setScalar(scale * 0.94);

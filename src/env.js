@@ -80,7 +80,7 @@ export function buildWorld(scene, renderer) {
   const woodDark = TEX.woodMaps({ seed: 7, base: [0.30, 0.20, 0.13], light: [0.55, 0.39, 0.25], ringScale: 22 });
   const woodUsu = TEX.woodMaps({ seed: 47, base: [0.42, 0.29, 0.18], light: [0.76, 0.58, 0.39], ringScale: 11, stretch: 18, knots: 0.5 });
   const woodLight = TEX.woodMaps({ seed: 31, base: [0.52, 0.38, 0.24], light: [0.80, 0.64, 0.44], ringScale: 14, stretch: 12 });
-  const woodBoard = TEX.woodMaps({ seed: 63, base: [0.66, 0.53, 0.37], light: [0.92, 0.82, 0.64], ringScale: 64, stretch: 26 });
+  const woodBoard = TEX.woodMaps({ seed: 63, base: [0.68, 0.56, 0.40], light: [0.92, 0.83, 0.66], ringScale: 40, stretch: 16 });
   const doma = TEX.domaMaps();
   const snow = TEX.snowMaps();
   const plaster = TEX.plasterMaps();
@@ -401,7 +401,8 @@ export function buildWorld(scene, renderer) {
   const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.305, 0.305, 0.032, 26), seiroMat);
   lid.position.y = 0.336; lid.castShadow = true; seiro.add(lid);
   const lidKnob = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.011, 6, 16), M.rope);
-  lidKnob.rotation.x = Math.PI / 2; lidKnob.position.y = 0.356; seiro.add(lidKnob);
+  lidKnob.rotation.x = Math.PI / 2; lidKnob.position.y = 0.356; lid.add(lidKnob);
+  lidKnob.position.y = 0.020;
   seiro.position.set(-1.55, 0.615, -1.35);
   g.add(seiro);
   kamado.position.set(-1.55, 0, -1.35);
@@ -509,8 +510,8 @@ export function buildWorld(scene, renderer) {
     side.position.set(Math.sin(a2) * 0.093, 0.058, Math.cos(a2) * 0.093);
     side.rotation.y = a2;
     sanpo.add(side);
-    if (i < 3) {
-      const hole = new THREE.Mesh(new THREE.CircleGeometry(0.026, 14),
+    if (i >= 2) {
+      const hole = new THREE.Mesh(new THREE.CircleGeometry(0.021, 14),
         new THREE.MeshStandardMaterial({ color: 0x2b2018, roughness: 1 }));
       hole.position.set(Math.sin(a2) * 0.099, 0.058, Math.cos(a2) * 0.099);
       hole.rotation.y = a2;
@@ -590,7 +591,7 @@ export function buildWorld(scene, renderer) {
 
   return {
     group: g, mats: M, sun, fire, lamp, key, hemi, ember, bulb, glaze, oke, water,
-    seiro, kamado, table, board, sanpo, flourBowl: bowl,
+    seiro, seiroLid: lid, kamado, table, board, sanpo, flourBowl: bowl,
     doorCx, wallZ, woodLight, woodDark,
   };
 }
