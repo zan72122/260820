@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { makeRng, clamp } from '../core/rng.js';
 import { Ease, Tweener } from '../core/tween.js';
-import { createGround, heightAt } from '../world/ground.js';
+import { createGround, createFarGround, heightAt } from '../world/ground.js';
 import { createBambooForest } from '../world/bamboo.js';
 import { createLitter } from '../world/litter.js';
 import { Atmosphere, setupLighting, createSky } from '../world/atmosphere.js';
@@ -79,6 +79,7 @@ export class Game {
 
     this.ground = createGround({ bumps: this.bumps });
     scene.add(this.ground);
+    scene.add(createFarGround());
 
     const avoid = [
       ...SPOT_LAYOUT.map((s) => ({ x: s.x, z: s.z, r: 1.05 })),
@@ -239,7 +240,7 @@ export class Game {
     switch (name) {
       case 'approach': return at(1.15, 0.86, 0.02, 52);
       case 'brush': return at(0.66, 0.52, -0.01, 48);
-      case 'dig': return at(0.70, 0.54, -0.05, 46);
+      case 'dig': return at(0.80, 0.44, -0.06, 46);
       case 'cross': return at(0.86, 0.15, -0.13, 42);
       case 'cut': {
         // 根元の接写。手前の土を切り取った断面で見せるので、
@@ -257,7 +258,7 @@ export class Game {
         return { pos: target.clone().addScaledVector(u, dist), target, fov };
       }
       case 'pull': return at(0.58, 0.36, -0.02, 50);
-      case 'reveal': return at(0.46, 0.30, 0.18, 45);
+      case 'reveal': return at(0.52, 0.56, 0.46, 45);
       default: return this.shot('survey');
     }
   }

@@ -45,6 +45,7 @@ export class DigSite {
     this._buildTakenoko();
     this._buildHints();
     this._buildParticles();
+    this._buildClods();
     this.updateGeometry();
   }
 
@@ -95,7 +96,7 @@ export class DigSite {
     this.soilMat = new THREE.MeshStandardMaterial({
       map: soilTexture(),
       normalMap: soilNormalTexture(),
-      normalScale: new THREE.Vector2(1.15, 1.15),
+      normalScale: new THREE.Vector2(1.55, 1.55),
       vertexColors: true,
       roughness: 0.95,
       metalness: 0,
@@ -265,6 +266,7 @@ export class DigSite {
     );
     this.ring.position.y = this._baseY(0, 0) + 0.03;
     this.ring.renderOrder = 7;
+    this.ring.visible = false;
     this.group.add(this.ring);
     this.ringPulse = 0;
 
@@ -281,7 +283,49 @@ export class DigSite {
       })
     );
     this.hole.renderOrder = 3;
+    this.hole.visible = false;
     this.group.add(this.hole);
+  }
+
+  /** 掘り出した土の塊。掘るほど、ふちに積もっていく */
+  _buildClods() {
+    const n = this.fast ? 10 : 30;
+    const geo = new THREE.IcosahedronGeometry(0.021, 0);
+    const pos = geo.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      pos.setXYZ(i, pos.getX(i) * 1.35, pos.getY(i) * 0.42, pos.getZ(i) * 1.35);
+    }
+    geo.computeVertexNormals();
+    const mat = new THREE.MeshStandardMaterial({
+      map: soilTexture(),
+      color: 0xc9ab84,
+      roughness: 0.98,
+      metalness: 0,
+    });
+    this.clods = new THREE.InstancedMesh(geo, mat, n);
+    this.clods.castShadow = !this.fast;
+    this.clods.receiveShadow = !this.fast;
+    this.clods.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.clodState = [];
+    const dummy = new THREE.Object3D();
+    dummy.scale.setScalar(0.0001);
+    dummy.updateMatrix();
+    for (let i = 0; i < n; i++) {
+      // 黄金角で並べると、掘り進むにつれて全周へ均等に積もっていく
+      const a = i * 2.399 + this.rng.range(-0.12, 0.12);
+      const r = this.rng.range(0.345, 0.44);
+      this.clodState.push({
+        a,
+        r,
+        s: this.rng.range(0.55, 1.25),
+        rot: this.rng.range(0, 6.28),
+        tilt: this.rng.range(-0.4, 0.4),
+      });
+      this.clods.setMatrixAt(i, dummy.matrix);
+    }
+    this.clodShown = 0;
+    this.clodDummy = dummy;
+    this.group.add(this.clods);
   }
 
   _buildParticles() {
@@ -307,7 +351,7 @@ export class DigSite {
   // ---------- 状態 ----------
 
   get materials() {
-    return [this.soilMat, this.skirtMat, this.litter.material, this.crack.material];
+    return [this.soilMat, this.skirtMat, this.litter.material, this.crack.material, this.clods.material];
   }
 
   /** セクタ番号(0..SECTORS-1)を角度から */
@@ -433,6 +477,7 @@ export class DigSite {
   setCollapse(t) {
     this.collapseAmount = t;
     this.dirty = true;
+    this.hole.visible = t > 0.001;
     this.hole.material.opacity = t * 0.85;
     this.hole.position.y = this._baseY(0, 0) - MAX_DEPTH * (1 - t * 0.45) + 0.01;
   }
@@ -487,10 +532,15 @@ export class DigSite {
         // 外周は地面とぴったり合わせ、内側はわずかに持ち上げて継ぎ目を隠す
         const lift = i >= rings - 2 ? 0.001 : 0.006;
         pos.setY(k, this._baseY(x, z) + lift - d);
-        // 掘る前は周りの地面となじませ、掘るほど濡れた黒土の色になる
-        const w = clamp(d / (MAX_DEPTH * 0.5), 0, 1);
-        const light = 1.38 + (0.34 - 1.38) * w;
-        col.setXYZ(k, light, light * (1 - w * 0.04), light * (1 - w * 0.10));
+        // 掘る前は乾いた明るい土、掘るほど冷たく濡れた黒土になる。
+        // この色差が「掘れている」いちばん強い手がかりになる。
+        const w = clamp(d / (MAX_DEPTH * 0.45), 0, 1);
+        col.setXYZ(
+          k,
+          1.46 + (0.30 - 1.46) * w,
+          1.34 + (0.29 - 1.34) * w,
+          1.14 + (0.32 - 1.14) * w
+        );
       }
     }
     pos.needsUpdate = true;
@@ -569,6 +619,23 @@ export class DigSite {
     }
     if (anyAlive) this.particles.instanceMatrix.needsUpdate = true;
 
+    // 掘るにつれて、ふちに掘り出した土が積もる
+    const want = Math.floor(this.digProgress * this.clodState.length);
+    if (want > this.clodShown) {
+      for (let i = this.clodShown; i < want; i++) {
+        const c = this.clodState[i];
+        const x = Math.cos(c.a) * c.r;
+        const z = Math.sin(c.a) * c.r;
+        this.clodDummy.position.set(x, this.surfaceYLocal(x, z) + 0.007 * c.s, z);
+        this.clodDummy.rotation.set(c.tilt, c.rot, c.tilt * 0.5);
+        this.clodDummy.scale.setScalar(c.s);
+        this.clodDummy.updateMatrix();
+        this.clods.setMatrixAt(i, this.clodDummy.matrix);
+      }
+      this.clodShown = want;
+      this.clods.instanceMatrix.needsUpdate = true;
+    }
+
     // ヒントの光の輪
     if (this.ring.material.opacity > 0.001) {
       this.ringPulse += dt;
@@ -582,6 +649,7 @@ export class DigSite {
   showRing(on) {
     this.ring.userData.target = on ? 0.9 : 0;
     this.ring.material.opacity = on ? 0.9 : 0;
+    this.ring.visible = on;
     this.ringPulse = 0;
   }
 

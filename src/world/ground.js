@@ -26,6 +26,36 @@ export function groundNormalAt(x, z, e = 0.25) {
   return new THREE.Vector3(hL - hR, 2 * e, hD - hU).normalize();
 }
 
+/**
+ * 遠景の地面。詳細な地面(80m四方)の外側を埋めて、霧の中に地平が消えるようにする。
+ * ここが無いと、地面の端が線になって見えてしまう。
+ */
+export function createFarGround() {
+  const geo = new THREE.RingGeometry(GROUND_SIZE * 0.46, 220, 56, 4);
+  geo.rotateX(-Math.PI / 2);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const z = pos.getZ(i);
+    const r = Math.hypot(x, z);
+    // 内側は本物の地形に合わせ、外へゆくほど平らにならす
+    const k = clamp(1 - (r - GROUND_SIZE * 0.46) / 40, 0, 1);
+    pos.setY(i, heightAt(x, z) * k - (1 - k) * 1.2);
+  }
+  geo.computeVertexNormals();
+  const mesh = new THREE.Mesh(
+    geo,
+    new THREE.MeshStandardMaterial({
+      map: groundTexture(26),
+      color: 0xb6ada0,
+      roughness: 1,
+      metalness: 0,
+    })
+  );
+  mesh.name = 'farGround';
+  return mesh;
+}
+
 export function createGround(opts = {}) {
   const bumps = opts.bumps || []; // {x,z,radius,height}
   const geo = new THREE.PlaneGeometry(GROUND_SIZE, GROUND_SIZE, SEG, SEG);

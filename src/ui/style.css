@@ -197,15 +197,14 @@ canvas#scene {
   }
   #prompt .main { font-size: clamp(17px, 4.6vh, 27px); }
   #prompt .sub { font-size: clamp(11px, 2.9vh, 17px); margin-top: 0.35em; }
-  #progress { bottom: calc(env(safe-area-inset-bottom) + 15vh); }
+
 }
 
 /* ---- 進み具合のリング ---- */
 #progress {
   position: absolute;
-  left: 50%;
-  bottom: calc(env(safe-area-inset-bottom) + 21vmin);
-  transform: translateX(-50%);
+  right: calc(env(safe-area-inset-right) + 10px);
+  top: calc(env(safe-area-inset-top) + 8px);
   opacity: 0;
   transition: opacity 0.3s ease;
 }

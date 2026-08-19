@@ -1,7 +1,21 @@
 // たけのこ本体。皮が重なった円錐で、重さのある固まりとして作る。
 import * as THREE from 'three';
+import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 import { huskTexture } from '../world/textures.js';
 import { clamp } from '../core/rng.js';
+
+/** ジオメトリに単色の頂点カラーを焼き込む(まとめて 1 メッシュにするため) */
+function paint(geo, color) {
+  const n = geo.attributes.position.count;
+  const arr = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++) {
+    arr[i * 3] = color.r;
+    arr[i * 3 + 1] = color.g;
+    arr[i * 3 + 2] = color.b;
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(arr, 3));
+  return geo;
+}
 
 export const TAKENOKO_HEIGHT = 0.33;   // 全長 33cm
 export const TAKENOKO_RADIUS = 0.052;  // 根元の半径 5.2cm (直径 10cm ほど)
@@ -72,9 +86,12 @@ export function createTakenoko(rng, { fast = false } = {}) {
 
   // --- 重なった皮(外側にはみ出すふち) ---
   // 先へゆくほど濃く、根元はうすい黄土色。皮のふちだけがわずかに張り出す。
+  // モバイルの描画コールを増やさないよう、全部まとめて 1 メッシュにする。
   const sheathCount = fast ? 5 : 9;
   const tipCol = new THREE.Color(0xbfae86);
   const baseCol = new THREE.Color(0xefe2c8);
+  const sheathGeos = [];
+  const tmp = new THREE.Object3D();
   for (let i = 0; i < sheathCount; i++) {
     const t = 0.06 + (i / sheathCount) * 0.82;
     const rBot = radiusProfile(t) * 1.015;
@@ -85,49 +102,69 @@ export function createTakenoko(rng, { fast = false } = {}) {
     const uv = g.attributes.uv;
     for (let k = 0; k < uv.count; k++) uv.setY(k, t + uv.getY(k) * 0.075);
     uv.needsUpdate = true;
-    const col = baseCol.clone().lerp(tipCol, THREE.MathUtils.smoothstep(t, 0.05, 0.88));
-    const m = new THREE.Mesh(
-      g,
-      new THREE.MeshStandardMaterial({
-        map: huskTexture(),
-        color: col,
-        roughness: 0.86,
-        side: THREE.FrontSide,
-        metalness: 0,
-      })
-    );
-    m.position.y = t * H + H * 0.038;
-    m.rotation.y = i * 2.399; // 黄金角でずらす = 自然な互い違い
-    // 皮どうしが影を落としあうと縞模様が強く出すぎるので、影は本体だけ
-    m.castShadow = false;
-    group.add(m);
+    paint(g, baseCol.clone().lerp(tipCol, THREE.MathUtils.smoothstep(t, 0.05, 0.88)));
+    tmp.position.set(0, t * H + H * 0.038, 0);
+    tmp.rotation.set(0, i * 2.399, 0); // 黄金角でずらす = 自然な互い違い
+    tmp.scale.set(1, 1, 1);
+    tmp.updateMatrix();
+    g.applyMatrix4(tmp.matrix);
+    sheathGeos.push(g);
   }
+  const sheaths = new THREE.Mesh(
+    BufferGeometryUtils.mergeGeometries(sheathGeos, false),
+    new THREE.MeshStandardMaterial({
+      map: huskTexture(),
+      vertexColors: true,
+      roughness: 0.86,
+      side: THREE.FrontSide,
+      metalness: 0,
+    })
+  );
+  // 皮どうしが影を落としあうと縞模様が強く出すぎるので、影は本体だけ
+  sheaths.castShadow = false;
+  group.add(sheaths);
 
   // --- 先端の葉先 ---
-  const tipMat = new THREE.MeshStandardMaterial({ color: 0x3e4a22, roughness: 0.72, side: THREE.DoubleSide });
+  const tipGeos = [];
+  const tipGreen = new THREE.Color(0x3e4a22);
   const tipCount = fast ? 2 : 5;
   for (let i = 0; i < tipCount; i++) {
     const g = new THREE.ConeGeometry(0.008, 0.055, 5, 1, true);
-    const m = new THREE.Mesh(g, tipMat);
+    paint(g, tipGreen);
     const a = (i / tipCount) * Math.PI * 2 + rng.range(-0.3, 0.3);
-    m.position.set(Math.cos(a) * 0.008, H * 0.985 + 0.02, Math.sin(a) * 0.008);
-    m.rotation.set(Math.cos(a) * 0.35, 0, -Math.sin(a) * 0.35);
-    group.add(m);
+    tmp.position.set(Math.cos(a) * 0.008, H * 0.985 + 0.02, Math.sin(a) * 0.008);
+    tmp.rotation.set(Math.cos(a) * 0.35, 0, -Math.sin(a) * 0.35);
+    tmp.scale.set(1, 1, 1);
+    tmp.updateMatrix();
+    g.applyMatrix4(tmp.matrix);
+    tipGeos.push(g);
   }
+  const tips = new THREE.Mesh(
+    BufferGeometryUtils.mergeGeometries(tipGeos, false),
+    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.72, side: THREE.DoubleSide })
+  );
+  group.add(tips);
 
   // --- 根元の根 (切る前だけ見える) ---
-  const rootGroup = new THREE.Group();
-  const rootMat = new THREE.MeshStandardMaterial({ color: 0x6b5334, roughness: 0.95 });
+  const rootGeos = [];
+  const rootBrown = new THREE.Color(0x6b5334);
   const rootCount = fast ? 4 : 10;
   for (let i = 0; i < rootCount; i++) {
     const g = new THREE.ConeGeometry(0.006, rng.range(0.03, 0.075), 5);
-    const m = new THREE.Mesh(g, rootMat);
+    paint(g, rootBrown);
     const a = (i / rootCount) * Math.PI * 2 + rng.range(-0.2, 0.2);
     const r = TAKENOKO_RADIUS * rng.range(0.5, 0.95);
-    m.position.set(Math.cos(a) * r, -0.012, Math.sin(a) * r);
-    m.rotation.set(Math.cos(a) * 1.1, 0, -Math.sin(a) * 1.1);
-    rootGroup.add(m);
+    tmp.position.set(Math.cos(a) * r, -0.012, Math.sin(a) * r);
+    tmp.rotation.set(Math.cos(a) * 1.1, 0, -Math.sin(a) * 1.1);
+    tmp.scale.set(1, 1, 1);
+    tmp.updateMatrix();
+    g.applyMatrix4(tmp.matrix);
+    rootGeos.push(g);
   }
+  const rootGroup = new THREE.Mesh(
+    BufferGeometryUtils.mergeGeometries(rootGeos, false),
+    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 })
+  );
   group.add(rootGroup);
 
   // --- 切り口(切ったあとに出る明るいクリーム色の面) ---

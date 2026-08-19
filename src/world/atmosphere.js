@@ -6,7 +6,7 @@ export const SUN_DIR = new THREE.Vector3(-0.42, 0.78, 0.46).normalize();
 export const FOG_COLOR = new THREE.Color(0xadbcab);
 
 export function setupLighting(scene, { fast = false } = {}) {
-  scene.fog = new THREE.FogExp2(FOG_COLOR.getHex(), 0.031);
+  scene.fog = new THREE.FogExp2(FOG_COLOR.getHex(), 0.034);
   scene.background = FOG_COLOR.clone();
 
   const hemi = new THREE.HemisphereLight(0xd2e0cd, 0x342a1e, 1.0);
