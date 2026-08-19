@@ -15,6 +15,8 @@ import { DIM, WEDGE_END, WEDGE_START, Y } from '../world/dims'
 import { clamp, damp, smoothstep, TAU } from '../core/rng'
 import { FAST, SEED } from '../core/flags'
 
+const MAX_DT = FAST ? 1 / 8 : 1 / 24
+
 export type StageId =
   | 'intro'
   | 'placeBase'
@@ -224,7 +226,11 @@ export class Game {
 
   update(dtRaw: number) {
     const vp = this.stageObj.viewport
-    const dt = Math.min(dtRaw, 1 / 24)
+    // On a real device frames are short and the clamp only guards against a
+    // hitch. Under a software rasteriser frames are ~200ms, and clamping to 1/24
+    // would put the whole game into slow motion, so the test profile takes larger
+    // logical steps (the candy sim raises its substep budget to match).
+    const dt = Math.min(dtRaw, MAX_DT)
     this.input.beginFrame(dt, vp.width, vp.height)
     this.t += dt
     if (this.input.active || this.input.pressed) this.idle = 0
@@ -600,7 +606,9 @@ export class Game {
 
   private stageCoat(dt: number) {
     const vp = this.stageObj.viewport
-    if (this.input.active && Math.abs(this.input.dx) > 0.2) {
+    // once the coat has closed, further swipes stop driving the turntable: a
+    // child who keeps swiping should still see the cake settle and the beat end
+    if (this.coatProgress < 1 && this.input.active && Math.abs(this.input.dx) > 0.2) {
       this.spinVel += (this.input.dx / Math.max(220, vp.width)) * 26
     }
     this.spinVel *= Math.pow(0.12, dt)

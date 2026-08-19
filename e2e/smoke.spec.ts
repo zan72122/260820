@@ -53,13 +53,13 @@ test('one complete cake: stack, fill, close, coat, cut, spill, replay', async ({
   await waitStage(page, 'coat')
 
   /* 5 - spin the turntable until the coat hides everything */
-  for (let i = 0; i < 14; i++) {
+  for (let i = 0; i < 4; i++) {
     await page.mouse.move(size.width * 0.08, size.height * 0.55)
     await page.mouse.down()
-    await page.mouse.move(size.width * 0.94, size.height * 0.55, { steps: 14 })
+    await page.mouse.move(size.width * 0.94, size.height * 0.55, { steps: 8 })
     await page.mouse.up()
-    await page.waitForTimeout(240)
-    if ((await state(page)).stage !== 'coat') break
+    await page.waitForTimeout(300)
+    if ((await state(page)).coat >= 1) break
   }
   await waitStage(page, 'cut')
   expect((await state(page)).coat).toBeGreaterThan(0.99)
@@ -68,9 +68,9 @@ test('one complete cake: stack, fill, close, coat, cut, spill, replay', async ({
   for (let i = 0; i < 8; i++) {
     await page.mouse.move(size.width * 0.5, size.height * 0.18)
     await page.mouse.down()
-    await page.mouse.move(size.width * 0.5, size.height * 0.88, { steps: 16 })
+    await page.mouse.move(size.width * 0.5, size.height * 0.88, { steps: 8 })
     await page.mouse.up()
-    await page.waitForTimeout(220)
+    await page.waitForTimeout(260)
     if ((await state(page)).stage !== 'cut') break
   }
 

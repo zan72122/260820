@@ -6,7 +6,7 @@ import { FAST } from '../core/flags'
 
 const G = 981 // cm/s^2 — the scene is authored in centimetres
 const DT = 1 / 60
-const MAX_STEPS = 3
+const MAX_STEPS = FAST ? 8 : 3
 
 export const MODE_BOWL = 0
 export const MODE_SIM = 1

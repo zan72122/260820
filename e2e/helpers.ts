@@ -47,7 +47,7 @@ export async function dropLayer(page: Page, worldY: number) {
   const target = await project(page, 0, worldY + 2.6, 0)
   await page.mouse.move(size.width * 0.5, size.height * 0.7)
   await page.mouse.down()
-  await page.mouse.move(target.x, target.y + lift, { steps: 10 })
+  await page.mouse.move(target.x, target.y + lift, { steps: 6 })
   await page.waitForTimeout(400)
   await page.mouse.move(target.x, target.y + lift, { steps: 2 })
   await page.mouse.up()
@@ -60,7 +60,7 @@ export async function spreadCream(page: Page, next: string) {
     const y = size.height * (0.45 + (i % 2) * 0.06)
     await page.mouse.move(size.width * 0.1, y)
     await page.mouse.down()
-    await page.mouse.move(size.width * 0.9, y, { steps: 12 })
+    await page.mouse.move(size.width * 0.9, y, { steps: 8 })
     await page.mouse.up()
     await page.waitForTimeout(120)
     if ((await state(page)).stage === next) break
