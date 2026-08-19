@@ -16,7 +16,7 @@ import {
 
 /** how far outside the crop each pass starts and ends, so the header
  *  enters and leaves cleanly and no row is ever left standing */
-const HEADROOM_Z = FIELD_L / 2 + 4.2;
+const HEADROOM_Z = FIELD_L / 2 + 3.2;
 
 type State =
   | 'title' | 'drive' | 'full' | 'wrap' | 'gate' | 'eject' | 'admire'
@@ -57,7 +57,7 @@ export class Game {
   };
 
   /* --- machine state ------------------------------------------------ */
-  private pos = new THREE.Vector3(0, 0, -FIELD_L / 2 - 4.2);
+  private pos = new THREE.Vector3(0, 0, -FIELD_L / 2 - 3.2);
   private yaw = 0;
   private speed = 0;
   private zDir: 1 | -1 = 1;
@@ -441,9 +441,9 @@ export class Game {
     const p = this.peek;
     const L = THREE.MathUtils.lerp;
     this.aimLocal(
-      L(-3.7, -4.6, p), L(3.6, 2.5, p), L(-8.8, -3.7, p),
-      L(0.0, -0.5, p), L(1.45, 1.62, p), L(4.8, -1.95, p),
-      L(50, 40, p), 3.0, 1.3
+      L(-4.35, -4.6, p), L(3.45, 2.5, p), L(-7.6, -3.7, p),
+      L(0.1, -0.5, p), L(1.7, 1.62, p), L(2.3, -1.95, p),
+      L(52, 40, p), 3.0, 1.5
     );
   }
 
@@ -486,7 +486,7 @@ export class Game {
     this.turnCtrl.set(
       (this.turnFrom.x + this.turnTo.x) * 0.5,
       0,
-      this.zDir * (HEADROOM_Z + 5.0)
+      this.zDir * (HEADROOM_Z + 2.8)
     );
     this.turnYaw0 = this.yaw;
     const side = Math.sign(this.turnTo.x - this.turnFrom.x) || 1;
@@ -514,7 +514,7 @@ export class Game {
     this.wheelDust(dt);
 
     // pull out wide so the shape of the paddy and the cut rows read
-    this.aimLocal(-7.6, 7.6, -9.4, 0, 1.2, 1.5, 58, 2.1, 4.6);
+    this.aimLocal(-7.2, 6.3, -9.0, 0, 1.2, 3.0, 58, 2.1, 4.0);
 
     if (t >= 1) {
       this.zDir = (this.zDir === 1 ? -1 : 1);
@@ -584,7 +584,7 @@ export class Game {
     this.cutaway += (0.35 - this.cutaway) * Math.min(1, 2.4 * dt);
 
     // rear three-quarter, low, so the gate and the ground behind are visible
-    this.aimLocal(-2.2, 2.05, -6.2, 0, 1.55, -3.2, 52, 2.4, 1.0);
+    this.aimLocal(-2.2, 2.35, -6.2, 0, 1.6, -3.2, 52, 2.4, 1.45);
 
     if (!this.actionArmed && this.stateT > 0.5) {
       this.actionArmed = true;
@@ -619,11 +619,11 @@ export class Game {
     const camK = this.camK;
     this.tmp.set(
       -2.1 * (1 + (camK - 1) * 0.32),
-      THREE.MathUtils.lerp(2.05, 0.95, k),
+      THREE.MathUtils.lerp(2.35, 1.55, k),
       THREE.MathUtils.lerp(-6.2, -7.0, k) * camK
     );
     this.machine.group.localToWorld(this.tmp);
-    this.tmp.y = Math.max(0.85, this.tmp.y);
+    this.tmp.y = Math.max(1.45, this.tmp.y);
     if (this.ejected) {
       this.tmp2.copy(this.ejected.holder.position);
       this.tmp2.y += 0.45;
@@ -765,7 +765,7 @@ export class Game {
       const orbit = 4.0 * this.camK;
       this.camPos.set(
         b.holder.position.x + Math.sin(a + this.yaw + Math.PI) * orbit,
-        1.45 + Math.sin(a * 0.6) * 0.25,
+        1.8 + Math.sin(a * 0.6) * 0.25,
         b.holder.position.z + Math.cos(a + this.yaw + Math.PI) * orbit
       );
       this.camLook.copy(b.holder.position);

@@ -131,6 +131,9 @@ function buildStubble(): THREE.BufferGeometry {
     const ctrl = new THREE.Vector3(Math.cos(a) * r, h * 0.6, Math.sin(a) * r);
     pushRibbon(pos, uv, hgt, idx, base, ctrl, tip, 0.045, 0.03, { u0: 0.66, u1: 0.84 }, 1);
   }
+  // Sample only the sun-bleached top of the blade: cut stubble is pale
+  // straw, never the green of a growing leaf.
+  for (let i = 1; i < uv.length; i += 2) uv[i] = 0.78 + uv[i] * 0.22;
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
@@ -229,7 +232,7 @@ export class Field {
       alphaTest: 0.35,
       side: THREE.DoubleSide,
       roughness: 0.95,
-      color: 0xc8bd86,
+      color: 0xdcd0a2,
     });
     this.stubble = new THREE.InstancedMesh(buildStubble(), stubMat, count);
     this.stubble.instanceMatrix.setUsage(THREE.DynamicDrawUsage);

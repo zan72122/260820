@@ -142,7 +142,7 @@ export class Environment {
 
   /** The muddy floor of the paddy we are working, gently uneven. */
   private buildPaddyFloor(): THREE.Mesh {
-    const pad = 6.0;
+    const pad = 6.8;
     const w = FIELD_W + pad * 2;
     const l = FIELD_L + pad * 2;
     const geo = new THREE.PlaneGeometry(w, l, 48, 60);
@@ -224,27 +224,30 @@ export class Environment {
       for (let x = 0; x < size; x++) {
         const u = x / size;
         const v = y / size;
-        // blocky plots
-        const px = Math.floor(u * 9);
-        const py = Math.floor(v * 9);
-        const id = ((px * 7 + py * 13) % 5) / 4;
-        const n = fbm(u * 30, v * 30, 3, 1, 17);
+        // Plots of assorted sizes, nudged off the grid, so the middle
+        // distance reads as farmland rather than a chequerboard.
+        const rowH = 1 / 4;
+        const py = Math.floor(v * 4);
+        const shift = ((py * 37) % 11) / 11 * 0.5;
+        const px = Math.floor(u * 4 + shift);
+        const id = ((px * 7 + py * 13) % 7) / 6;
+        const n = fbm(u * 22, v * 22, 4, 1, 17) * 0.6 + fbm(u * 90, v * 90, 2, 1, 61) * 0.4;
         let r: number, gg: number, b: number;
-        if (id < 0.3) { r = 150; gg = 138; b = 66; }      // ripe, uncut
-        else if (id < 0.55) { r = 116; gg = 122; b = 60; } // green
-        else if (id < 0.8) { r = 128; gg = 116; b = 84; }  // stubble
-        else { r = 96; gg = 82; b = 60; }                  // ploughed
-        const k = 0.82 + n * 0.36;
-        // levee lines between plots
+        if (id < 0.28) { r = 146; gg = 133; b = 74; }      // ripe, uncut
+        else if (id < 0.5) { r = 118; gg = 121; b = 71; }  // still green
+        else if (id < 0.74) { r = 130; gg = 119; b = 90; } // stubble
+        else { r = 104; gg = 90; b = 70; }                 // ploughed
+        const k = 0.86 + n * 0.28;
+        // grassy levee lines between the plots
         const edge = Math.min(
-          Math.abs(u * 9 - px - 0.5),
-          Math.abs(v * 9 - py - 0.5)
+          Math.abs((u * 4 + shift) - px - 0.5),
+          Math.abs(v / rowH - py - 0.5)
         );
-        const lev = edge > 0.455 ? 1 : 0;
+        const lev = edge > 0.47 ? 1 : 0;
         const i = (y * size + x) * 4;
-        d[i] = Math.min(255, (r * k) + lev * 40);
-        d[i + 1] = Math.min(255, (gg * k) + lev * 34);
-        d[i + 2] = Math.min(255, (b * k) + lev * 24);
+        d[i] = Math.min(255, r * k + lev * 22);
+        d[i + 1] = Math.min(255, gg * k + lev * 30);
+        d[i + 2] = Math.min(255, b * k + lev * 16);
         d[i + 3] = 255;
       }
     }
@@ -252,7 +255,7 @@ export class Environment {
     const tex = new THREE.CanvasTexture(c);
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-    tex.repeat.set(9, 9);
+    tex.repeat.set(6, 6);
 
     const outer = new THREE.Mesh(
       new THREE.PlaneGeometry(560, 560),
@@ -260,6 +263,7 @@ export class Environment {
     );
     outer.rotateX(-Math.PI / 2);
     outer.position.y = -0.07;
+    outer.receiveShadow = true;
     g.add(outer);
 
     // gravel farm track running past the near levee
@@ -269,6 +273,7 @@ export class Environment {
     );
     track.rotateX(-Math.PI / 2);
     track.position.set(FIELD_W / 2 + 11, 0.02, 0);
+    track.receiveShadow = true;
     g.add(track);
 
     // concrete utility poles with a couple of wires: cheap, strong depth cue

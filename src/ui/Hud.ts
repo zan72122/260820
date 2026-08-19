@@ -104,14 +104,14 @@ export class Hud {
         <h1>いねロール</h1>
         <div class="tag">しりょういね ＷＣＳ</div>
         <div class="steps">
-          <div class="step">${STEP_RICE}<span>いねを あつめる</span></div>
+          <div class="step">${STEP_RICE}<span>あつめる</span></div>
           <div class="arrow">▶</div>
-          <div class="step">${STEP_MACHINE}<span>なかで まるくなる</span></div>
+          <div class="step">${STEP_MACHINE}<span>まるくなる</span></div>
           <div class="arrow">▶</div>
-          <div class="step">${STEP_BALE}<span>ゴロン！と でてくる</span></div>
+          <div class="step">${STEP_BALE}<span>ゴロン！</span></div>
         </div>
         <button class="start" id="start" type="button">あそぶ</button>
-        <div class="note">ゆびで さわって すすむ ／ よこに うごかして まがる</div>
+        <div class="note">ゆびで さわって すすむ・よこに うごかして まがる</div>
       </div>
 
       <div class="fade-black" id="fade"></div>

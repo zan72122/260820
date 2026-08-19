@@ -24,6 +24,7 @@ await shot('00-title');
 await page.locator('#start').dispatchEvent('pointerdown');
 await page.evaluate(() => window.__game.testHold(true));
 await step(3); await shot('01-drive');
+  if (!only) { await until(s => s.fill > 0.16); await shot('02-eat'); }
 if (!only) {
   await until(s => s.fill > 0.42); await step(0.5); await shot('03-peek');
   await until(s => s.state === 'full'); await step(1.2); await shot('05-chamber');
