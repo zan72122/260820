@@ -213,7 +213,7 @@ export class Game {
         lerp(wide.p[0], tallP.p[0], t2), lerp(wide.p[1], tallP.p[1], t2), lerp(wide.p[2], tallP.p[2], t2));
       const l2 = new THREE.Vector3(
         lerp(wide.l[0], tallP.l[0], t2), lerp(wide.l[1], tallP.l[1], t2), lerp(wide.l[2], tallP.l[2], t2));
-      const k2 = clamp(1.28 / Math.max(aspect, 0.001), 1, 1.3);
+      const k2 = clamp(1.28 / Math.max(aspect, 0.001), 0.88, 1.3);
       p2.sub(l2).multiplyScalar(k2).add(l2);
       return { pos: p2, look: l2, fov: lerp(wide.f, tallP.f, t2) };
     }
