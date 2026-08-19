@@ -166,11 +166,14 @@ export class Plow {
     mesh(roundedBox(HW, 0.5, 0.14, 0.05), M.orangePaint, head, [0, 1.92, -0.16], [-0.5, 0, 0]);
     // side plates
     for (const sx of [-1, 1]) {
-      mesh(roundedBox(0.12, 1.25, 1.15, 0.04), M.orangePaint, head, [sx * (HW / 2 - 0.05), 0.66, 0.0]);
+      // stepped side plate: tall at the back, cut away at the front so the
+      // spinning auger flights stay visible from a low side view
+      mesh(roundedBox(0.12, 1.9, 0.72, 0.04), M.orangePaint, head, [sx * (HW / 2 - 0.05), 1.0, -0.28]);
+      mesh(roundedBox(0.12, 1.15, 0.62, 0.04), M.orangePaint, head, [sx * (HW / 2 - 0.05), 0.62, 0.4]);
+      mesh(roundedBox(0.12, 0.9, 0.5, 0.04), M.orangePaint, head, [sx * (HW / 2 - 0.05), 1.24, 0.06], [0.6, 0, 0]);
       // hazard-striped outer face so the working width is unmistakable
-      const stripe = mesh(new THREE.PlaneGeometry(1.1, 0.55), M.hazard, head,
-        [sx * (HW / 2 + 0.02), 0.62, 0.0], [0, sx * Math.PI / 2, 0]);
-      stripe.material = M.hazard;
+      mesh(new THREE.PlaneGeometry(0.66, 0.6), M.hazard, head,
+        [sx * (HW / 2 + 0.02), 0.42, -0.28], [0, sx * Math.PI / 2, 0]);
       // hazard-striped end marker
       mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.1, 6), M.yellowPaint, head,
         [sx * (HW / 2 + 0.02), 2.35, -0.2]);

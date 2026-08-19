@@ -12,11 +12,12 @@ const SHOTS = {
     pos: [-18, 9.0, -21], posP: [-6.0, 9.0, -30],
     look: [-2.2, 2.6, 10], lookP: [-2.2, 2.6, 10], fov: 48, speed: 0.9, push: [7, -3.0, 8],
   },
-  // low side shot: the auger biting in, the machine's weight
+  // low and to the side: the machine's weight, the bank ending dead
+  // against the head, and the spray coming off the cut
   bite: {
     anchor: 'plow',
-    pos: [-3.7, 1.35, -1.2], posP: [-3.0, 2.0, -7.0],
-    look: [-0.2, 1.25, 3.9], lookP: [-0.2, 1.5, 3.9], fov: 54, speed: 2.3,
+    pos: [-6.0, 1.4, -4.5], posP: [-6.4, 2.0, -8.0],
+    look: [-0.2, 1.5, 4.2], lookP: [-0.2, 1.7, 4.2], fov: 54, speed: 2.3,
   },
   // the main working shot: the head, the arc of snow, and the truck bed
   work: {
