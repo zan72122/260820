@@ -1,0 +1,134 @@
+:root{
+  --ink:#243447;
+  --pane:rgba(255,255,255,.82);
+  --safeT:env(safe-area-inset-top,0px);
+  --safeB:env(safe-area-inset-bottom,0px);
+  --safeL:env(safe-area-inset-left,0px);
+  --safeR:env(safe-area-inset-right,0px);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#c6d4e2}
+body{
+  position:fixed;inset:0;
+  font-family:"Hiragino Maru Gothic ProN","Hiragino Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+  color:var(--ink);
+  -webkit-user-select:none;user-select:none;
+  -webkit-touch-callout:none;
+  -webkit-tap-highlight-color:transparent;
+  touch-action:none;
+  overscroll-behavior:none;
+}
+#gl{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+
+#ui{position:fixed;inset:0;pointer-events:none;z-index:5}
+
+/* ---- hint bubble ---- */
+.hint{
+  position:absolute;
+  left:50%;transform:translateX(-50%) translateY(14px);
+  top:calc(var(--safeT) + 12px);
+  max-width:min(84vw,26em);
+  padding:.5em 1.05em;
+  border-radius:999px;
+  background:var(--pane);
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);
+  box-shadow:0 6px 22px rgba(28,45,66,.22);
+  font-size:clamp(17px,4.4vmin,30px);
+  font-weight:700;
+  letter-spacing:.04em;
+  line-height:1.25;
+  text-align:center;
+  white-space:nowrap;
+  opacity:0;
+  transition:opacity .45s ease,transform .45s cubic-bezier(.2,.9,.3,1.2);
+}
+.hint.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* ---- corner tools ---- */
+#tools{
+  position:absolute;
+  right:calc(var(--safeR) + 10px);
+  top:calc(var(--safeT) + 10px);
+  display:flex;flex-direction:column;gap:10px;
+  pointer-events:auto;
+}
+.tool{
+  width:clamp(42px,8.2vmin,58px);height:clamp(42px,8.2vmin,58px);
+  border:0;border-radius:50%;
+  background:rgba(255,255,255,.6);
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+  box-shadow:0 3px 12px rgba(28,45,66,.18);
+  display:grid;place-items:center;
+  padding:0;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  transition:transform .12s ease,background .2s ease;
+}
+.tool:active{transform:scale(.9)}
+.tool svg{width:62%;height:62%;fill:none;stroke:var(--ink);stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.tool svg .spk{fill:var(--ink);stroke-width:2}
+.tool svg .mut{display:none}
+.tool.off svg .wav{display:none}
+.tool.off svg .mut{display:block}
+.tool.off{background:rgba(255,255,255,.34)}
+.tool.off svg{opacity:.5}
+
+/* ---- boot / title ---- */
+#boot,#oops{
+  position:fixed;inset:0;z-index:20;
+  display:grid;place-items:center;
+  background:linear-gradient(170deg,#e8f1f8 0%,#cfdeea 46%,#b7c9da 100%);
+  transition:opacity .55s ease;
+}
+#boot.gone{opacity:0;pointer-events:none}
+#oops[hidden],#boot[hidden]{display:none}
+.bootInner{
+  text-align:center;
+  padding:calc(var(--safeT) + 16px) 20px calc(var(--safeB) + 16px);
+  max-width:min(92vw,700px);
+}
+#boot h1,#oops h1{
+  margin:.1em 0 .35em;
+  font-size:clamp(28px,8.6vmin,64px);
+  letter-spacing:.1em;
+  color:#20364d;
+  text-shadow:0 2px 0 rgba(255,255,255,.75);
+}
+#boot p,#oops p{
+  margin:0 0 1.3em;
+  font-size:clamp(15px,3.7vmin,24px);
+  color:#4a5f78;
+  line-height:1.6;
+}
+.start{
+  pointer-events:auto;
+  border:0;cursor:pointer;
+  font-family:inherit;font-weight:700;
+  color:#123;
+  font-size:clamp(20px,5.6vmin,34px);
+  letter-spacing:.16em;
+  padding:.62em 2.1em .68em;
+  border-radius:999px;
+  background:linear-gradient(180deg,#ffffff,#dfeaf4);
+  box-shadow:0 8px 0 #9fb4c8,0 14px 26px rgba(30,50,72,.28);
+  transition:transform .1s ease,box-shadow .1s ease;
+  animation:breathe 2.4s ease-in-out infinite;
+}
+.start:active{transform:translateY(6px);box-shadow:0 2px 0 #9fb4c8,0 6px 14px rgba(30,50,72,.25);animation:none}
+@keyframes breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.045)}}
+
+.snowline{display:flex;justify-content:center;gap:.5em;margin-bottom:.5em}
+.snowline i{
+  width:clamp(8px,2.2vmin,15px);height:clamp(8px,2.2vmin,15px);
+  border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(40,60,80,.25);
+  animation:bob 1.6s ease-in-out infinite;
+}
+.snowline i:nth-child(2){animation-delay:.12s}
+.snowline i:nth-child(3){animation-delay:.24s}
+.snowline i:nth-child(4){animation-delay:.36s}
+.snowline i:nth-child(5){animation-delay:.48s}
+.snowline i:nth-child(6){animation-delay:.6s}
+@keyframes bob{0%,100%{transform:translateY(0);opacity:.55}50%{transform:translateY(-42%);opacity:1}}
+
+@media (prefers-reduced-motion:reduce){
+  .start,.snowline i{animation:none}
+}
