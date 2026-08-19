@@ -141,7 +141,7 @@ export class Truck {
     this.grainSlab.scale.y = 0.001
     this.grainSlab.receiveShadow = true
     this.root.add(this.grainSlab)
-    this.grainHeap = new THREE.Mesh(cyl(0.02, (bw - 0.09) * 0.55, 0.34, 16), gm)
+    this.grainHeap = new THREE.Mesh(cyl(0.02, 1, 1, 18), gm)
     this.grainHeap.position.set(0, BIN.y, BIN.z)
     this.grainHeap.visible = false
     this.root.add(this.grainHeap)
@@ -260,11 +260,16 @@ export class Truck {
 
     const f = clamp(this.fill, 0, 1)
     const h = (BIN.h - 0.14) * f
+    this.grainSlab.visible = f > 0.004
     this.grainSlab.scale.y = Math.max(0.001, h)
     this.grainSlab.position.y = BIN.y + 0.03 + h / 2
-    this.grainHeap.visible = f > 0.06
-    this.grainHeap.position.y = BIN.y + 0.03 + h
-    this.grainHeap.scale.setScalar(clamp(f * 2.2, 0.05, 1))
+    this.grainHeap.visible = f > 0.004
+    this.grainHeap.position.y = BIN.y + 0.025 + h
+    this.grainHeap.scale.set(
+      (BIN.w - 0.09) * 0.5 * (0.3 + 0.7 * f),
+      0.1 + 0.26 * f,
+      (BIN.d - 0.09) * 0.5 * (0.3 + 0.7 * f),
+    )
 
     this.farmerArm.rotation.z = beckon ? -1.9 + Math.sin(now * 7) * 0.55 : -0.05
     this.apply()

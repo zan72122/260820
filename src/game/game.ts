@@ -19,7 +19,7 @@ import { Hud } from './hud'
 import { GrainStream, PourColumn, PuffField, StrawSpray } from './particles'
 import { angleDelta, clamp, damp, lerp } from './rng'
 import { terrainY } from './terrain'
-import { makeCloud, makeGrain, makePaintRoughness, makePuff, makeSoil } from './textures'
+import { makeCloud, makeGrain, makeGrassland, makePaintRoughness, makePuff, makeSoil } from './textures'
 import { Truck } from './truck'
 
 type State =
@@ -68,6 +68,7 @@ export class Game {
     paint: THREE.Texture
     puff: THREE.Texture
     cloud: THREE.Texture
+    grass: THREE.Texture
   }
 
   /* ---- machine state ---- */
@@ -91,6 +92,10 @@ export class Game {
   private cutRate = 0
   private nextCutaway = 6
   private cutawayLeft = 0
+  /** the chase shot is broken up with closer looks at the header and the tank */
+  private camCycle = 5
+  private camMode: 'chase' | 'header' | 'tank' = 'chase'
+  private tankPeeked = false
   private seed = 1
   private turn: { pts: THREE.Vector2[]; dur: number; t: number; newLane: number } | null = null
 
@@ -108,6 +113,8 @@ export class Game {
     spout: new THREE.Vector3(),
     truck: new THREE.Vector3(),
     augerSide: -1,
+    cutSide: -1,
+    roomSide: 1,
     time: 0,
   }
 
@@ -147,17 +154,24 @@ export class Game {
   /* ------------------------------ build ------------------------------ */
 
   async build() {
+    // `?fx=low` keeps the software renderer in CI usable; it is never on for players
+    const q = new URLSearchParams(location.search)
+    if (q.get('fx') === 'low') {
+      this.quality = 1
+      this.renderer.shadowMap.enabled = false
+    }
     this.tex = {
       soil: makeSoil(256),
       grain: makeGrain(256),
       paint: makePaintRoughness(256),
       puff: makePuff(128),
       cloud: makeCloud(256),
+      grass: makeGrassland(256),
     }
     this.tex.paint.repeat.set(3, 3)
 
     this.scene.add(this.worldGroup)
-    this.env = buildEnvironment(this.scene, this.tex.cloud, this.tex.soil.dry)
+    this.env = buildEnvironment(this.scene, this.tex.cloud, this.tex.grass)
 
     this.combine = new Combine(this.tex.paint, this.tex.grain.color.clone())
     this.worldGroup.add(this.combine.root)
@@ -289,6 +303,8 @@ export class Game {
         break
       case 'harvest':
         this.dir.setShot('harvest')
+        this.camMode = 'chase'
+        this.camCycle = 5
         this.hud.setSteerHint(true)
         break
       case 'cutaway':
@@ -322,7 +338,7 @@ export class Game {
         this.truck.driveTo(TRUCK_WAIT_X, TRUCK_WAIT_Z, Math.PI)
         break
       case 'finished':
-        this.dir.setShot('finish')
+        this.dir.setShot('finish', true)
         this.hud.setSteerHint(false)
         this.hud.setAction(null)
         this.hud.showFinish(this.loads, this.grainsDelivered)
@@ -331,28 +347,13 @@ export class Game {
     }
   }
 
+  /**
+   * The auger always swings out over ground the machine has already cut,
+   * so the truck parks on clean stubble and the shot is never buried in
+   * standing crop.
+   */
   private chooseAugerSide() {
-    let best: 1 | -1 = -1
-    let bestScore = -1e9
-    for (const side of [-1, 1] as const) {
-      const rx = Math.cos(this.mh)
-      const rz = -Math.sin(this.mh)
-      const px = this.mx + rx * side * 3.2
-      const pz = this.mz + rz * side * 3.2
-      let score = 0
-      if (Math.abs(px) > HALF_W) score += 2.2 // out on the bank: always clear
-      else {
-        const li = clamp(Math.floor((px + HALF_W) / (HALF_W * 2)) * LANE_COUNT, 0, LANE_COUNT - 1)
-        score += this.field.laneRemaining[li] < 25 ? 1.6 : 0
-      }
-      if (Math.abs(pz) > PADDY_HALF_L - 1) score -= 2
-      score += px * 0.04 // a nudge towards the road side
-      if (score > bestScore) {
-        bestScore = score
-        best = side
-      }
-    }
-    this.combine.augerSide = best
+    this.combine.augerSide = Math.cos(this.mh) >= 0 ? -1 : 1
   }
 
   private truckTarget(out: THREE.Vector2) {
@@ -361,7 +362,7 @@ export class Game {
     const rz = -Math.sin(this.mh)
     const fx = Math.sin(this.mh)
     const fz = Math.cos(this.mh)
-    out.set(this.mx + rx * side * 3.25 - fx * 0.9, this.mz + rz * side * 3.25 - fz * 0.9)
+    out.set(this.mx + rx * side * 3.55 - fx * 0.9, this.mz + rz * side * 3.55 - fz * 0.9)
   }
 
   private tv = new THREE.Vector2()
@@ -567,6 +568,30 @@ export class Game {
     }
   }
 
+  /** Keeps the chase shot from going stale: a look at the header, then at the tank. */
+  private cycleShots(dt: number) {
+    if (!this.tankPeeked && this.tankUnits / TANK.capacity > 0.55) {
+      this.tankPeeked = true
+      this.camMode = 'tank'
+      this.camCycle = 2.7
+      this.dir.setShot('tank', true)
+      return
+    }
+    this.camCycle -= dt
+    if (this.camCycle > 0) return
+    if (this.camMode === 'chase') {
+      this.camMode = 'header'
+      this.camCycle = 3.6
+      this.dir.setShot('header', true)
+      this.hud.setSteerHint(false)
+    } else {
+      this.camMode = 'chase'
+      this.camCycle = 11
+      this.dir.setShot('harvest', true)
+      this.hud.setSteerHint(true)
+    }
+  }
+
   /* ----------------------------- unloading ---------------------------- */
 
   private unloadStep(dt: number) {
@@ -582,7 +607,7 @@ export class Game {
     this.pour.set(this.tmpA, this.tmpB, strength, dt)
     if (strength > 0) {
       this.tmpC.copy(this.tmpB).sub(this.tmpA).normalize()
-      this.grain.emit(this.tmpA, this.tmpC, 1.9, 420, dt, 0.55)
+      this.grain.emit(this.tmpA, this.tmpC, 2.1, 700, dt, 0.85)
       this.truck.addGrain((moved / TANK.capacity) * 0.24)
       this.dust.stream(this.tmpB.x, this.tmpB.y + 0.1, this.tmpB.z, 9, dt, 0.5)
       this.dir.kick(dt * 0.5)
@@ -592,6 +617,7 @@ export class Game {
 
     if (this.tankUnits <= 0.5) {
       this.tankUnits = 0
+      this.tankPeeked = false
       this.loads++
       this.audio.setPour(0)
       this.audio.chime(1)
@@ -610,6 +636,12 @@ export class Game {
     this.combine.worldSpout(c.spout)
     c.truck.set(this.truck.x, 0, this.truck.z)
     c.augerSide = this.combine.augerSide
+    // lanes are worked from -X to +X, so the opened ground is always world -X;
+    // express that along the machine's local +X so the shots can use it
+    c.cutSide = Math.cos(this.mh) >= 0 ? -1 : 1
+    // whichever local side has more paddy left before the bank
+    const roomWorld = this.mx > 0 ? -1 : 1
+    c.roomSide = Math.cos(this.mh) >= 0 ? roomWorld : -roomWorld
     c.time = this.now
     return c
   }
@@ -619,14 +651,18 @@ export class Game {
     this.loop()
   }
 
+  private tick(dt: number) {
+    this.now += dt
+    this.stateT += dt
+    this.step(dt)
+  }
+
   private loop = () => {
     this.raf = requestAnimationFrame(this.loop)
     let dt = this.clock.getDelta()
     if (!this.running) return
     dt = Math.min(dt, 1 / 20)
-    this.now += dt
-    this.stateT += dt
-    this.step(dt)
+    this.tick(dt)
     this.renderer.render(this.scene, this.dir.camera)
     this.trackPerf(dt)
   }
@@ -649,9 +685,10 @@ export class Game {
         break
       case 'harvest':
         this.harvestStep(dt, true)
+        this.cycleShots(dt)
         this.nextCutaway -= dt
         if (this.nextCutaway <= 0 && this.field.standing > 40) {
-          this.nextCutaway = 42
+          this.nextCutaway = 34
           this.setState('cutaway')
         }
         break
@@ -774,6 +811,17 @@ export class Game {
         })
       }
     }
+  }
+
+  /** Runs the simulation without drawing, so a test can play a whole round. */
+  debugAdvance(seconds: number, dt = 1 / 60) {
+    const steps = Math.min(60 * 60 * 10, Math.round(seconds / dt))
+    for (let i = 0; i < steps; i++) this.tick(dt)
+  }
+
+  debugCamera() {
+    const c = this.dir.camera
+    return { shot: this.dir.shot, x: c.position.x, y: c.position.y, z: c.position.z, fov: c.fov }
   }
 
   /** exposed for the smoke tests */

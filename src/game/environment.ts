@@ -150,7 +150,7 @@ export interface EnvHandles {
   dispose(): void
 }
 
-export function buildEnvironment(scene: THREE.Scene, cloudTex: THREE.Texture, soilDry: THREE.Texture): EnvHandles {
+export function buildEnvironment(scene: THREE.Scene, cloudTex: THREE.Texture, grassTex: THREE.Texture): EnvHandles {
   const group = new THREE.Group()
   const rng = new Rng(20260819)
   const sunDir = sunVector()
@@ -183,16 +183,33 @@ export function buildEnvironment(scene: THREE.Scene, cloudTex: THREE.Texture, so
   group.add(bounce)
 
   /* ---------------------------- far ground -------------------------- */
-  const landTex = soilDry.clone()
-  landTex.needsUpdate = true
-  landTex.repeat.set(90, 90)
-  const land = new THREE.Mesh(
-    new THREE.PlaneGeometry(1500, 1500, 1, 1),
-    new THREE.MeshStandardMaterial({ map: landTex, color: 0x93a06a, roughness: 1, metalness: 0 }),
-  )
-  land.rotation.x = -Math.PI / 2
-  land.position.y = LEVEE_TOP - 0.02
-  group.add(land)
+  // A ring, not a sheet: the paddy floor sits 30 cm lower than the surrounding
+  // land, so a single big plane would hide the whole thing from above.
+  const landMat = new THREE.MeshStandardMaterial({
+    map: grassTex,
+    roughness: 1,
+    metalness: 0,
+  })
+  const hx = HALF_W + PADDY_EDGE + LEVEE_OUT
+  const hz = PADDY_HALF_L + PADDY_EDGE + LEVEE_OUT
+  const FAR = 760
+  const landQuad = (x0: number, x1: number, z0: number, z1: number) => {
+    const g = new THREE.PlaneGeometry(x1 - x0, z1 - z0, 1, 1)
+    g.rotateX(-Math.PI / 2)
+    g.translate((x0 + x1) / 2, LEVEE_TOP - 0.02, (z0 + z1) / 2)
+    // world-anchored uv so the texel density matches on every quad
+    const pos = g.getAttribute('position')
+    const uv = g.getAttribute('uv') as THREE.BufferAttribute
+    for (let i = 0; i < pos.count; i++) uv.setXY(i, pos.getX(i) / 16, pos.getZ(i) / 16)
+    uv.needsUpdate = true
+    const m = new THREE.Mesh(g, landMat)
+    m.receiveShadow = false
+    group.add(m)
+  }
+  landQuad(-FAR, -hx, -FAR, FAR)
+  landQuad(hx, FAR, -FAR, FAR)
+  landQuad(-hx, hx, hz, FAR)
+  landQuad(-hx, hx, -FAR, -hz)
 
   /* ------------------------------ levees ----------------------------- */
   const levee = new MeshBuilder()
@@ -321,10 +338,10 @@ export function buildEnvironment(scene: THREE.Scene, cloudTex: THREE.Texture, so
 
   /* --------------------- neighbouring paddies ------------------------ */
   const plots = new MeshBuilder()
-  const standing = new THREE.Color(0xb59437)
-  const cutPlot = new THREE.Color(0x9c8f63)
-  const greenPlot = new THREE.Color(0x6d8a3c)
-  const bankC = new THREE.Color(0x7a6a4d)
+  const standing = new THREE.Color(0xc39c33)
+  const cutPlot = new THREE.Color(0xb5a879)
+  const greenPlot = new THREE.Color(0x5d8434)
+  const bankC = new THREE.Color(0x6f7a45)
   const plot = (cx: number, cz: number, w: number, d: number, col: THREE.Color) => {
     put(plots, box(w, 0.06, d), col, [cx, LEVEE_TOP - 0.09, cz])
     put(plots, box(w + 1.1, 0.1, 0.55), bankC, [cx, LEVEE_TOP - 0.03, cz - d / 2 - 0.28])
@@ -332,14 +349,19 @@ export function buildEnvironment(scene: THREE.Scene, cloudTex: THREE.Texture, so
     put(plots, box(0.55, 0.1, d), bankC, [cx - w / 2 - 0.28, LEVEE_TOP - 0.03, cz])
     put(plots, box(0.55, 0.1, d), bankC, [cx + w / 2 + 0.28, LEVEE_TOP - 0.03, cz])
   }
-  plot(-ox - 9, -6, 16, 17, standing)
-  plot(-ox - 9, 13, 16, 18, cutPlot)
-  plot(-ox - 26, 4, 16, 30, greenPlot)
-  plot(0, oz + 12, 22, 20, cutPlot)
-  plot(-20, oz + 16, 15, 26, standing)
-  plot(0, -oz - 13, 22, 22, greenPlot)
-  plot(ROAD_X + 12, -4, 18, 26, cutPlot)
-  plot(ROAD_X + 12, 24, 18, 24, standing)
+  plot(-ox - 11, -10, 19, 21, standing)
+  plot(-ox - 11, 13, 19, 22, cutPlot)
+  plot(-ox - 33, 2, 22, 40, greenPlot)
+  plot(-ox - 33, -36, 22, 30, standing)
+  plot(0, oz + 13, 26, 22, cutPlot)
+  plot(-26, oz + 18, 20, 30, standing)
+  plot(26, oz + 16, 20, 26, greenPlot)
+  plot(0, -oz - 14, 26, 24, greenPlot)
+  plot(-26, -oz - 18, 20, 30, cutPlot)
+  plot(ROAD_X + 14, -6, 22, 30, cutPlot)
+  plot(ROAD_X + 14, 26, 22, 26, standing)
+  plot(ROAD_X + 40, 4, 26, 44, standing)
+  plot(ROAD_X + 40, -44, 26, 34, cutPlot)
   group.add(
     new THREE.Mesh(
       plots.build(),
@@ -374,9 +396,10 @@ export function buildEnvironment(scene: THREE.Scene, cloudTex: THREE.Texture, so
   nMesh.frustumCulled = false
   nMesh.receiveShadow = true
   let ni = 0
+  // kept clear of every camera position: the shots all sit within ~14 m of the machine
   const strips: [number, number, number, number][] = [
-    [-ox - 17, -ox - 1.5, -14.5, 2.5],
-    [-28, -18, oz + 4, oz + 28],
+    [-31, -20, -19, 0],
+    [-31, -20, 3, 22],
   ]
   for (const [x0, x1, z0, z1] of strips) {
     const cols = Math.round((x1 - x0) / 0.55)
@@ -470,7 +493,7 @@ export function buildEnvironment(scene: THREE.Scene, cloudTex: THREE.Texture, so
   const rWood = new THREE.Color(0x6c5a42)
   const bundle = new THREE.Color(0xc7ab5f)
   for (let r = 0; r < 2; r++) {
-    const bx = -ox - 8 + r * 4.5
+    const bx = -24.5 + r * 4.5
     const bz = 13
     for (let p = 0; p < 5; p++) {
       put(rack, cyl(0.05, 0.06, 2.2, 5), rWood, [bx, LEVEE_TOP + 1.1, bz + p * 1.6])
@@ -495,10 +518,10 @@ export function buildEnvironment(scene: THREE.Scene, cloudTex: THREE.Texture, so
 
   /* ----------------------------- village ----------------------------- */
   const vill = new MeshBuilder()
-  const wallA = new THREE.Color(0xd8d2c2)
-  const wallB = new THREE.Color(0x8d7a60)
-  const roofA = new THREE.Color(0x4a5560)
-  const roofB = new THREE.Color(0x6b5b4c)
+  const wallA = new THREE.Color(0xbdb5a2)
+  const wallB = new THREE.Color(0x8a7860)
+  const roofA = new THREE.Color(0x5a6068)
+  const roofB = new THREE.Color(0x6d5f50)
   const houses: [number, number, number][] = [
     [46, -26, 1.1],
     [54, -12, 0.9],
@@ -537,17 +560,20 @@ export function buildEnvironment(scene: THREE.Scene, cloudTex: THREE.Texture, so
 
   /* ------------------------------ trees ------------------------------ */
   const nearTrees = new THREE.Group()
+  // Nothing tall inside ~18 m of the paddy: every directed shot lives there.
   const treeSpots: [number, number, number][] = [
-    [-ox - 1.2, -18, 2.6],
-    [ROAD_X + 5.5, -22, 3.1],
-    [ROAD_X + 5.0, 16, 2.4],
-    [-ox - 2, 26, 2.9],
-    [22, -30, 3.4],
-    [-30, -24, 3.0],
-    [14, 40, 3.2],
-    [-16, 44, 2.8],
-    [38, 16, 3.6],
-    [-40, 6, 3.3],
+    [ROAD_X + 9.5, -26, 3.2],
+    [ROAD_X + 9.0, 4, 2.7],
+    [ROAD_X + 11, 30, 3.4],
+    [-27, -16, 3.0],
+    [-25.5, 10, 3.3],
+    [-29, 30, 2.9],
+    [30, -42, 3.6],
+    [-38, -34, 3.2],
+    [16, 46, 3.4],
+    [-18, 48, 3.0],
+    [44, 20, 3.5],
+    [-46, 4, 3.3],
   ]
   const treeMat = new THREE.MeshLambertMaterial({ vertexColors: true })
   for (const [tx, tz, ts] of treeSpots) {

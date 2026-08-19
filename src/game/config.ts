@@ -48,7 +48,7 @@ export const CAM = {
 
 export const QUALITY = {
   /** detailed rice clumps kept around the machine */
-  nearCap: 1000,
+  nearCap: 820,
   maxGrains: 900,
   maxStraw: 260,
   maxChaff: 120,
@@ -67,14 +67,14 @@ export const COLORS = {
   grainLight: 0xf2dda1,
   straw: 0xd9c489,
   strawDark: 0xb59a5c,
-  riceGold: 0xd2a53c,
-  riceTip: 0xecca6a,
-  riceGreen: 0x82954a,
-  riceStem: 0x9aa651,
+  riceGold: 0xd8a733,
+  riceTip: 0xf0d180,
+  riceGreen: 0xa39c4a,
+  riceStem: 0x8a9c4e,
   leveeGrass: 0x6d7d3b,
   fog: 0xc8d2c6,
   sky: 0x8fb6d8,
   sun: 0xfff0d0,
 }
 
-export const SUN_DIR = { azimuth: -0.85, elevation: 0.62 }
+export const SUN_DIR = { azimuth: -0.92, elevation: 0.47 }

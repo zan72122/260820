@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { CAM } from './config'
+import { CAM, HALF_W, PADDY_HALF_L } from './config'
 import { damp } from './rng'
 import { terrainY } from './terrain'
 
@@ -26,6 +26,10 @@ export interface ShotCtx {
   spout: THREE.Vector3
   truck: THREE.Vector3
   augerSide: number
+  /** +1/-1 along the machine's local X, pointing at the already-cut ground */
+  cutSide: number
+  /** +1/-1 along the machine's local X, pointing where there is most room */
+  roomSide: number
   time: number
 }
 
@@ -41,37 +45,52 @@ interface Placement {
 }
 
 const SHOTS: Record<ShotName, (c: ShotCtx) => Placement> = {
+  // the machine small in frame, the standing crop laid out beyond it
   establish: (c) => ({
-    r: -5.2 + Math.sin(c.time * 0.22) * 1.4,
-    u: 6.4,
-    f: -9.4,
-    lookR: 0,
-    lookU: 1.0,
-    lookF: 7.5,
-    lambda: 1.6,
+    r: c.cutSide * (6.2 + Math.sin(c.time * 0.22) * 1.2),
+    u: 7.6,
+    f: -12.5,
+    lookR: c.cutSide * -2.6,
+    lookU: 0.6,
+    lookF: 8.0,
+    lambda: 1.5,
   }),
-  harvest: () => ({ r: 3.9, u: 3.55, f: -7.4, lookR: 0.2, lookU: 0.95, lookF: 4.6, lambda: 2.6 }),
-  header: () => ({ r: 4.4, u: 1.85, f: 1.9, lookR: 0.1, lookU: 0.85, lookF: 3.0, lambda: 2.4 }),
-  cutaway: () => ({ r: 7.2, u: 2.35, f: -0.3, lookR: 0, lookU: 1.55, lookF: 0.2, lambda: 3.2 }),
-  tank: () => ({ r: -3.6, u: 4.7, f: -4.2, lookR: 0.1, lookU: 2.25, lookF: -0.3, lambda: 2.6 }),
+  // over the cut ground, looking across the header at what is still standing
+  // behind and a little over the opened ground: the cut swath runs into
+  // the bottom of frame, the machine sits in the middle, the standing
+  // crop fills the top
+  harvest: (c) => ({
+    r: c.cutSide * 2.8,
+    u: 4.4,
+    f: -8.8,
+    lookR: c.cutSide * -0.7,
+    lookU: 0.75,
+    lookF: 5.0,
+    lambda: 2.4,
+  }),
+  header: (c) => ({ r: c.cutSide * 4.6, u: 2.3, f: 1.4, lookR: 0, lookU: 0.7, lookF: 3.1, lambda: 2.3 }),
+  cutaway: (c) => ({ r: c.cutSide * 6.8, u: 2.5, f: -0.35, lookR: 0, lookU: 1.45, lookF: 0.15, lambda: 3.2 }),
+  tank: (c) => ({ r: c.cutSide * 5.0, u: 5.0, f: -5.6, lookR: 0, lookU: 2.2, lookF: -0.3, lambda: 2.4 }),
+  // auger arc, receiver and falling grain all inside one frame
   unload: (c) => ({
-    r: c.augerSide * 8.6,
-    u: 5.0,
-    f: -5.8,
-    lookR: c.augerSide * 2.7,
-    lookU: 1.7,
-    lookF: -0.4,
-    lambda: 2.0,
+    r: c.augerSide * 8.2,
+    u: 5.4,
+    f: -6.6,
+    lookR: c.augerSide * 2.4,
+    lookU: 1.8,
+    lookF: -0.9,
+    lambda: 1.9,
   }),
-  turn: () => ({ r: 0.6, u: 7.6, f: -8.6, lookR: 0, lookU: 0.9, lookF: 1.4, lambda: 2.2 }),
+  turn: (c) => ({ r: c.roomSide * 3.4, u: 9.0, f: -10.0, lookR: 0, lookU: 0.6, lookF: 2.4, lambda: 2.1 }),
+  // slow orbit of the finished paddy, high enough to take the whole thing in
   finish: (c) => ({
-    r: Math.sin(c.time * 0.2) * 20,
-    u: 12,
-    f: Math.cos(c.time * 0.2) * 20,
+    r: Math.sin(c.time * 0.16) * 30,
+    u: 19,
+    f: Math.cos(c.time * 0.16) * 30,
     lookR: 0,
     lookU: 0.5,
     lookF: 0,
-    lambda: 1.1,
+    lambda: 1.0,
   }),
 }
 
@@ -123,6 +142,7 @@ export class CameraDirector {
     const p = SHOTS[this.shot](c)
     const s = this.shot === 'finish' ? 1 : this.distScale
     this.fwd.set(Math.sin(c.heading), 0, Math.cos(c.heading))
+    // the machine's local +X axis; `r` in a placement is measured along it
     this.right.set(Math.cos(c.heading), 0, -Math.sin(c.heading))
 
     if (this.shot === 'finish') {
@@ -141,9 +161,16 @@ export class CameraDirector {
       this.wantLook.y = c.pos.y + p.lookU
     }
 
-    // never let the lens dip below the mud
+    // never let the lens dip below the mud, and never let it wander so far
+    // off the paddy that the bank cuts the machine in half
     const floor = terrainY(this.wantPos.x, this.wantPos.z) + 0.9
     if (this.wantPos.y < floor) this.wantPos.y = floor
+    if (this.shot !== 'finish') {
+      const bx = HALF_W + 4.6
+      const bz = PADDY_HALF_L + 7
+      this.wantPos.x = Math.max(-bx, Math.min(bx, this.wantPos.x))
+      this.wantPos.z = Math.max(-bz, Math.min(bz, this.wantPos.z))
+    }
 
     if (this.snapNext) {
       this.snapNext = false

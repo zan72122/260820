@@ -72,7 +72,7 @@ export class GrainStream {
 
   constructor(cap: number) {
     const g = new THREE.IcosahedronGeometry(1, 0)
-    g.scale(0.0135, 0.0115, 0.026)
+    g.scale(0.017, 0.014, 0.032)
     const mat = new THREE.MeshLambertMaterial({ color: 0xe3c063 })
     this.mesh = new THREE.InstancedMesh(g, mat, cap)
     this.mesh.frustumCulled = false

@@ -34,7 +34,7 @@ const Y_AXIS = new THREE.Vector3(0, 1, 0)
 function riceClumpGeometry(detail: boolean): THREE.BufferGeometry {
   const b = new MeshBuilder()
   const rng = new Rng(detail ? 4242 : 909)
-  const stalks = detail ? 4 : 3
+  const stalks = detail ? 3 : 3
 
   const cStem = new THREE.Color(COLORS.riceStem)
   const cGreen = new THREE.Color(COLORS.riceGreen)
@@ -51,61 +51,65 @@ function riceClumpGeometry(detail: boolean): THREE.BufferGeometry {
     const leanZ = Math.sin(a) * rng.range(0.05, 0.15)
 
     if (detail) {
-      // --- culm ---------------------------------------------------
-      const seg = 4
+      // --- culm: thin, upright, greener at the node than at the neck ---
+      const seg = 3
       const stemPts: THREE.Vector3[] = []
       const stemR: number[] = []
       const stemC: THREE.Color[] = []
       for (let i = 0; i <= seg; i++) {
         const t = i / seg
         stemPts.push(new THREE.Vector3(bx + leanX * t * t, h * t, bz + leanZ * t * t))
-        stemR.push(0.0125 * (1 - t * 0.42))
-        stemC.push(cStem.clone().lerp(cGreen, t * 0.5))
+        stemR.push(0.008 * (1 - t * 0.35))
+        stemC.push(cStem.clone().lerp(cGreen, t * 0.55))
       }
       b.strand(stemPts, stemR, stemC, 3)
 
-      // --- panicle: bows over under the weight of its own grain ----
+      // --- panicle: bows right over under the weight of its own grain.
+      // The radius pulses along its length so the silhouette is lumpy —
+      // that reads as individual spikelets from a metre away.
       const top = stemPts[seg]
-      const pl = rng.range(0.2, 0.29)
-      const dirA = a + rng.range(-0.7, 0.7)
+      const pl = rng.range(0.19, 0.27)
+      const dirA = a + rng.range(-0.8, 0.8)
       const pts: THREE.Vector3[] = []
       const rad: number[] = []
       const cols: THREE.Color[] = []
-      const pseg = 7
+      const pseg = 10
       for (let i = 0; i <= pseg; i++) {
         const t = i / pseg
-        const droop = t * t * 1.25
+        const droop = t * t * 1.35
         pts.push(
           new THREE.Vector3(
-            top.x + Math.cos(dirA) * pl * Math.sin(t * 1.35) * 1.05,
-            top.y + pl * 0.55 * Math.sin(t * 1.1) - droop * pl * 1.05,
-            top.z + Math.sin(dirA) * pl * Math.sin(t * 1.35) * 1.05,
+            top.x + Math.cos(dirA) * pl * Math.sin(t * 1.4) * 1.15,
+            top.y + pl * 0.5 * Math.sin(t * 1.05) - droop * pl * 1.05,
+            top.z + Math.sin(dirA) * pl * Math.sin(t * 1.4) * 1.15,
           ),
         )
-        // the lumpy radius reads as individual spikelets at close range
-        const bump = 1 + 0.55 * Math.sin(t * 26 + s)
-        rad.push((0.006 + 0.017 * Math.sin(t * 2.6 + 0.35)) * bump)
-        cols.push(cGreen.clone().lerp(cGold, clamp(t * 1.5, 0, 1)).lerp(cTip, t * t * 0.7))
+        const swell = Math.sin(Math.min(1, t * 1.35) * Math.PI) * 0.75 + 0.25
+        const bump = 1 + 0.42 * Math.sin(t * 30 + s * 2.1)
+        rad.push((0.0035 + 0.0075 * swell) * bump)
+        cols.push(cGreen.clone().lerp(cGold, clamp(t * 2.0, 0, 1)).lerp(cTip, t * t * 0.75))
       }
-      b.strand(pts, rad, cols, 3, 0.5)
+      b.strand(pts, rad, cols, 3, 0.62)
     } else {
-      // --- far LOD: one tapered blade that keeps the gold silhouette
+      // --- far LOD: a thin culm that bows over at the tip, so the
+      // silhouette still says "heavy ear of rice" from twenty metres
       const pts: THREE.Vector3[] = []
       const rad: number[] = []
       const cols: THREE.Color[] = []
-      const seg = 3
+      const seg = 4
+      const bend = rng.range(0.24, 0.38)
       for (let i = 0; i <= seg; i++) {
         const t = i / seg
-        const droop = t * t * t * 0.3
+        const droop = t * t * t * bend
         pts.push(
           new THREE.Vector3(
-            bx + leanX * t * t + Math.cos(a) * droop * 0.7,
-            h * 1.06 * t - droop * 0.5,
-            bz + leanZ * t * t + Math.sin(a) * droop * 0.7,
+            bx + leanX * t * t + Math.cos(a) * droop * 1.3,
+            h * 1.12 * t - droop * 0.85,
+            bz + leanZ * t * t + Math.sin(a) * droop * 1.3,
           ),
         )
-        rad.push(0.019 * (1 - t * 0.35) + (t > 0.55 ? 0.014 : 0))
-        cols.push(cStem.clone().lerp(cGold, clamp(t * 1.6, 0, 1)).lerp(cTip, t * t * 0.55))
+        rad.push(t < 0.5 ? 0.0085 * (1 - t * 0.3) : 0.0065 + 0.013 * Math.sin((t - 0.5) * 6.1))
+        cols.push(cStem.clone().lerp(cGold, clamp(t * 1.7, 0, 1)).lerp(cTip, t * t * 0.6))
       }
       b.strand(pts, rad, cols, 3)
     }
@@ -114,7 +118,7 @@ function riceClumpGeometry(detail: boolean): THREE.BufferGeometry {
   if (detail) {
     for (let l = 0; l < 2; l++) {
       const a = rng.range(0, Math.PI * 2)
-      const len = rng.range(0.4, 0.56)
+      const len = rng.range(0.42, 0.6)
       const pts: THREE.Vector3[] = []
       const w: number[] = []
       const cols: THREE.Color[] = []
@@ -128,7 +132,7 @@ function riceClumpGeometry(detail: boolean): THREE.BufferGeometry {
             Math.sin(a) * len * t * 0.85,
           ),
         )
-        w.push(0.012 * (1 - t * 0.8) + 0.004)
+        w.push(0.0075 * (1 - t * 0.75) + 0.0022)
         cols.push(cGreen.clone().lerp(cGold, t * 0.55).multiplyScalar(0.92))
       }
       b.ribbon(pts, w, cols)
@@ -321,10 +325,10 @@ export class Field {
           vec4 hm = texture2D( uMask, vPaddyUv );
           float cutM = clamp( hm.r * 1.4, 0.0, 1.0 );
           float trackM = clamp( hm.g * 1.7, 0.0, 1.0 );
-          float churn = clamp( hm.b * 1.3, 0.0, 1.0 );
+          float churn = clamp( hm.b * 1.0, 0.0, 1.0 );
           vec3 wetCol = texture2D( uWet, vMapUv ).rgb;
           vec3 shaded = diffuseColor.rgb * vec3( 0.40, 0.36, 0.26 );
-          vec3 opened = mix( diffuseColor.rgb * 0.95, wetCol, 0.40 + churn * 0.30 );
+          vec3 opened = mix( diffuseColor.rgb * 1.02, wetCol, 0.32 + churn * 0.26 );
           diffuseColor.rgb = mix( shaded, opened, cutM );
           diffuseColor.rgb = mix( diffuseColor.rgb, wetCol * 0.58, trackM );`,
         )
@@ -665,8 +669,8 @@ export class Field {
     this.stamp(x, z, heading, (ctx) => {
       ctx.fillStyle = 'rgba(255,0,0,1)'
       ctx.fillRect(-halfWidth, -len * 0.5, halfWidth * 2, len)
-      ctx.fillStyle = 'rgba(0,0,26,1)'
-      ctx.fillRect(-halfWidth * 1.15, -len * 0.5, halfWidth * 2.3, len)
+      ctx.fillStyle = 'rgba(0,0,12,1)'
+      ctx.fillRect(-halfWidth * 0.9, -len * 0.5, halfWidth * 1.8, len)
     })
   }
 
@@ -675,8 +679,8 @@ export class Field {
     this.stamp(x, z, heading, (ctx) => {
       ctx.fillStyle = 'rgba(0,120,0,1)'
       for (const s of [-1, 1]) ctx.fillRect(s * trackHalf - 0.2, -len * 0.5, 0.4, len)
-      ctx.fillStyle = 'rgba(0,0,20,1)'
-      ctx.fillRect(-trackHalf - 0.35, -len * 0.5, (trackHalf + 0.35) * 2, len)
+      ctx.fillStyle = 'rgba(0,0,16,1)'
+      ctx.fillRect(-trackHalf - 0.28, -len * 0.5, (trackHalf + 0.28) * 2, len)
     })
   }
 

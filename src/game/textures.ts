@@ -171,6 +171,42 @@ export function makeSoil(size = 256): SoilSet {
   }
 }
 
+/** Rough farmland beyond the paddies: grass, weeds and bare patches. */
+export function makeGrassland(size = 256): THREE.CanvasTexture {
+  const [c, ctx] = canvas(size)
+  const img = ctx.createImageData(size, size)
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const u = (x / size) * 6
+      const v = (y / size) * 6
+      const n = fbm(u, v, 4, 6, 71)
+      const patch = fbm(u * 0.5 + 3, v * 0.5, 2, 3, 23)
+      const grit = fbm(u * 9, v * 9, 2, 54, 5)
+      const dry = Math.max(0, patch - 0.52) * 2.4
+      const i = (y * size + x) * 4
+      const l = 0.62 + n * 0.62 + grit * 0.18
+      const g = { r: 96, g: 116, b: 58 }
+      const d = { r: 138, g: 118, b: 74 }
+      img.data[i] = Math.min(255, (g.r + (d.r - g.r) * dry) * l)
+      img.data[i + 1] = Math.min(255, (g.g + (d.g - g.g) * dry) * l)
+      img.data[i + 2] = Math.min(255, (g.b + (d.b - g.b) * dry) * l)
+      img.data[i + 3] = 255
+    }
+  }
+  ctx.putImageData(img, 0, 0)
+  for (let i = 0; i < 500; i++) {
+    const x = Math.random() * size
+    const y = Math.random() * size
+    ctx.strokeStyle = `rgba(${120 + Math.random() * 70 | 0},${140 + Math.random() * 60 | 0},70,0.35)`
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.moveTo(x, y)
+    ctx.lineTo(x + (Math.random() - 0.5) * 5, y - 2 - Math.random() * 4)
+    ctx.stroke()
+  }
+  return finish(c, true, 1)
+}
+
 /** Loose rice grain: thousands of little hulled ellipses. Used for the pile + tank. */
 export function makeGrain(size = 256): { color: THREE.CanvasTexture; bump: THREE.CanvasTexture } {
   const [cc, ctx] = canvas(size)

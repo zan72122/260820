@@ -113,6 +113,22 @@ export class Combine {
     })
   }
 
+  /**
+   * Marks a material as part of the outer skin.  It has to be flagged
+   * transparent up front: three compiles an `OPAQUE` define into the shader
+   * when `transparent` is false, which clamps alpha to 1 no matter what we
+   * set later, and flipping the flag at runtime would force a recompile
+   * mid-shot.
+   */
+  private markShell(mat: THREE.Material) {
+    mat.transparent = true
+    mat.depthWrite = true
+    mat.opacity = 1
+    mat.userData.baseOpacity = mat.opacity
+    this.shellMats.push(mat)
+    return mat
+  }
+
   private addMesh(b: MeshBuilder, mat: THREE.Material, parent: THREE.Object3D, shadow = true) {
     if (b.idx.length === 0) return null
     const m = new THREE.Mesh(b.build(), mat)
@@ -234,8 +250,7 @@ export class Combine {
       put(hard, cyl(0.09, 0.09, 0.06, 10), 0xf7efd0, [sx * 0.7, 1.72, 1.24], [Math.PI / 2, 0, 0])
     }
     this.addMesh(hard, this.mkPaint(), this.root)
-    const shellMesh = this.addMesh(shell, this.mkPaint(), this.root)
-    if (shellMesh) this.shellMats.push(shellMesh.material as THREE.Material)
+    this.addMesh(shell, this.markShell(this.mkPaint()), this.root)
 
     const beaconMat = new THREE.MeshStandardMaterial({
       color: 0xffa424,
@@ -274,7 +289,7 @@ export class Combine {
     put(frame, box(w, 0.07, 0.07), P, [cx, y1, cz - d * 0.5])
     put(frame, box(w, 0.07, 0.07), P, [cx, y1, cz + d * 0.5])
     // floor pan sloping to the unloading auger
-    put(frame, box(w - 0.05, 0.06, d - 0.05), COLORS.steelDark, [cx, y0 + 0.02, cz])
+    put(frame, box(w - 0.05, 0.06, d - 0.05), 0x4a4032, [cx, y0 + 0.02, cz])
     // grab rail across the top
     for (let i = 0; i < 5; i++) put(frame, box(0.035, 0.035, d), S, [cx - 0.6 + i * 0.3, y1 + 0.02, cz])
     this.addMesh(frame, this.mkPaint(), this.root)
@@ -321,9 +336,12 @@ export class Combine {
     this.tankGrain = slab
     this.root.add(slab)
 
-    const heap = new THREE.Mesh(cyl(0.02, (w - 0.1) * 0.62, 0.3, 16), grainMat)
+    // A cone on top of the slab: from directly above, a growing heap is the
+    // only thing that reads as "the tank is filling up".
+    const heap = new THREE.Mesh(cyl(0.02, 1, 1, 18), grainMat)
     heap.position.set(cx, y0, cz)
     heap.visible = false
+    heap.receiveShadow = true
     this.tankHeap = heap
     this.root.add(heap)
   }
@@ -374,6 +392,7 @@ export class Combine {
       g.add(s)
     }
     this.root.add(g)
+    glassMat.userData.baseOpacity = glassMat.opacity
     this.shellMats.push(glassMat)
   }
 
@@ -390,8 +409,7 @@ export class Combine {
       put(fh, cyl(0.05, 0.05, 0.62, 8), COLORS.steelDark, [sx * 0.66, 0.86, 1.52], [-0.95, 0, 0])
       put(fh, cyl(0.032, 0.032, 0.5, 8), COLORS.steel, [sx * 0.66, 0.72, 1.83], [-0.95, 0, 0])
     }
-    const fm = this.addMesh(fh, this.mkPaint(), this.root)
-    if (fm) this.shellMats.push(fm.material as THREE.Material)
+    this.addMesh(fh, this.markShell(this.mkPaint()), this.root)
 
     // ---- header, hung off a pivot so it can be raised and lowered ----
     this.headerPivot.position.set(0, 0.66, 2.16)
@@ -480,12 +498,12 @@ export class Combine {
   /* -------------------------- unloading auger ------------------------- */
 
   private buildUnloadingAuger() {
-    this.augerYaw.position.set(-0.12, 2.52, -1.28)
+    this.augerYaw.position.set(-0.1, 2.62, -1.42)
     this.root.add(this.augerYaw)
     this.augerYaw.add(this.augerPitch)
 
     const b = new MeshBuilder()
-    const L = 3.05
+    const L = 3.15
     // pivot knuckle
     put(b, cyl(0.17, 0.17, 0.26, 12), COLORS.paintDark, [0, 0, 0])
     // tube runs out along +Z of the pitch group
@@ -507,89 +525,101 @@ export class Combine {
 
   /* ------------------------------ interior ---------------------------- */
 
+  /**
+   * The insides, laid out so the journey reads left to right in a side
+   * view: throat -> threshing cylinder -> the split, grain down through
+   * the sieve and up the elevator into the tank, straw back over the
+   * walkers and out of the hood.  Everything fits inside the housing
+   * (x +-0.88, y 0.76..1.86, z -1.7..1.15).
+   */
   private buildInterior() {
     this.interior.visible = false
-    const mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.62, metalness: 0.45 })
+    const steel = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.5 })
 
-    // feeder chain slats climbing the throat
+    const DRUM = new THREE.Vector3(0, 1.38, 0.52)
+
+    // --- feeder chain slats climbing the throat ---------------------
     const slat = new MeshBuilder()
-    put(slat, box(0.95, 0.05, 0.09), 0x8d949a, [0, 0, 0])
-    put(slat, box(0.06, 0.06, 0.06), 0x60686e, [-0.5, 0, 0])
-    put(slat, box(0.06, 0.06, 0.06), 0x60686e, [0.5, 0, 0])
+    put(slat, box(0.92, 0.05, 0.08), 0x99a1a7, [0, 0, 0])
+    for (const sx of [-1, 1]) put(slat, box(0.07, 0.07, 0.07), 0x5f676d, [sx * 0.48, 0, 0])
     const slatGeo = slat.build()
-    for (let i = 0; i < 8; i++) {
-      const m = new THREE.Mesh(slatGeo, mat)
-      this.feedSlats.add(m)
-    }
+    for (let i = 0; i < 8; i++) this.feedSlats.add(new THREE.Mesh(slatGeo, steel))
     this.interior.add(this.feedSlats)
 
-    // threshing cylinder with rasp bars
+    // --- threshing cylinder ----------------------------------------
     const db = new MeshBuilder()
-    put(db, cyl(0.3, 0.3, 1.25, 14), 0x7d858b, [0, 0, 0], [0, 0, Math.PI / 2])
+    put(db, cyl(0.27, 0.27, 1.4, 14), 0x6f777d, [0, 0, 0], [0, 0, Math.PI / 2])
     for (let i = 0; i < 8; i++) {
       const a = (i / 8) * Math.PI * 2
-      put(db, box(1.3, 0.07, 0.07), 0xb9c0c4, [0, Math.cos(a) * 0.32, Math.sin(a) * 0.32], [-a, 0, 0])
-      for (let j = 0; j < 9; j++) {
-        put(db, box(0.03, 0.045, 0.05), 0xd7dde0, [-0.55 + j * 0.14, Math.cos(a) * 0.36, Math.sin(a) * 0.36], [-a, 0, 0])
+      put(db, box(1.44, 0.06, 0.07), 0xc2c9cd, [0, Math.cos(a) * 0.3, Math.sin(a) * 0.3], [-a, 0, 0])
+      for (let j = 0; j < 10; j++) {
+        put(db, box(0.035, 0.05, 0.05), 0xe0e5e8, [-0.63 + j * 0.14, Math.cos(a) * 0.34, Math.sin(a) * 0.34], [-a, 0, 0])
       }
     }
-    this.addMesh(db, mat, this.drum, false)
-    this.drum.position.set(0, 1.34, 0.62)
+    this.addMesh(db, steel, this.drum, false)
+    this.drum.position.copy(DRUM)
     this.interior.add(this.drum)
 
-    // concave grate under the cylinder + upper cover
     const st = new MeshBuilder()
-    for (let i = 0; i < 13; i++) {
-      const a = Math.PI * (0.12 + (i / 12) * 0.76)
-      put(st, box(1.3, 0.03, 0.035), 0x9aa2a8, [0, 1.34 - Math.sin(a) * 0.42, 0.62 - Math.cos(a) * 0.42], [a, 0, 0])
+    // concave grate wrapping the underside of the cylinder
+    for (let i = 0; i <= 12; i++) {
+      const a = Math.PI * (-0.06 + (i / 12) * 0.62)
+      put(
+        st,
+        box(1.42, 0.03, 0.04),
+        0x9aa2a8,
+        [0, DRUM.y - Math.cos(a) * 0.4, DRUM.z + Math.sin(a) * 0.4],
+        [-a, 0, 0],
+      )
     }
-    for (let i = 0; i < 8; i++) {
-      put(st, box(0.03, 0.03, 0.86), 0x9aa2a8, [-0.6 + i * 0.17, 1.0, 0.62], [0.0, 0, 0])
+    // beater behind the cylinder, then the stepped straw walkers
+    put(st, cyl(0.16, 0.16, 1.3, 10), 0x7f878d, [0, 1.32, -0.22], [0, 0, Math.PI / 2])
+    for (let i = 0; i < 6; i++) {
+      put(st, box(1.4, 0.035, 0.28), 0x848c92, [0, 1.2 - i * 0.045, -0.5 - i * 0.2])
+      put(st, box(1.4, 0.07, 0.03), 0x9aa2a8, [0, 1.24 - i * 0.045, -0.62 - i * 0.2])
     }
-    // straw walker deck sloping to the rear
-    put(st, box(1.4, 0.04, 1.5), 0x6f767c, [0, 1.16, -0.62], [0.16, 0, 0])
-    for (let i = 0; i < 7; i++) put(st, box(1.35, 0.09, 0.04), 0x878e94, [0, 1.28 - i * 0.03, -0.1 - i * 0.2])
-    // clean-grain elevator casing
-    put(st, box(0.26, 1.5, 0.3), 0x5f666c, [-0.66, 1.35, -0.05], [-0.32, 0, 0])
-    this.addMesh(st, mat, this.interior, false)
+    // grain pan under the concave, feeding the shoe
+    put(st, box(1.4, 0.03, 1.0), 0x8b9298, [0, 0.99, 0.28], [0.13, 0, 0])
+    // elevator casing running up the left flank into the tank floor
+    put(st, box(0.2, 1.3, 0.24), 0x666e74, [-0.72, 1.38, -0.06], [-0.3, 0, 0])
+    this.addMesh(st, steel, this.interior, false)
 
-    // cleaning fan
+    // --- cleaning fan ----------------------------------------------
     const fb = new MeshBuilder()
-    put(fb, cyl(0.1, 0.1, 0.8, 10), 0x8d949a, [0, 0, 0], [0, 0, Math.PI / 2])
+    put(fb, cyl(0.08, 0.08, 0.7, 10), 0x8d949a, [0, 0, 0], [0, 0, Math.PI / 2])
     for (let i = 0; i < 6; i++) {
       const a = (i / 6) * Math.PI * 2
-      put(fb, box(0.76, 0.24, 0.03), 0xc3cace, [0, Math.cos(a) * 0.14, Math.sin(a) * 0.14], [-a, 0, 0])
+      put(fb, box(0.66, 0.2, 0.03), 0xc3cace, [0, Math.cos(a) * 0.12, Math.sin(a) * 0.12], [-a, 0, 0])
     }
-    this.addMesh(fb, mat, this.fan, false)
-    this.fan.position.set(0, 0.86, 0.9)
+    this.addMesh(fb, steel, this.fan, false)
+    this.fan.position.set(0, 0.94, 0.88)
     this.interior.add(this.fan)
 
-    // oscillating cleaning shoe
+    // --- oscillating cleaning shoe ---------------------------------
     const sb = new MeshBuilder()
-    put(sb, box(1.3, 0.03, 1.3), 0x9aa2a8, [0, 0, 0], [0.1, 0, 0])
-    for (let i = 0; i < 11; i++) put(sb, box(1.28, 0.05, 0.03), 0xb4bbbf, [0, 0.03, -0.6 + i * 0.12])
-    put(sb, box(1.24, 0.03, 1.15), 0x8b9298, [0, -0.16, 0.04], [0.1, 0, 0])
-    this.addMesh(sb, mat, this.sieve, false)
-    this.sieve.position.set(0, 0.78, 0.15)
+    put(sb, box(1.32, 0.025, 1.0), 0xa4acb1, [0, 0, 0], [0.09, 0, 0])
+    for (let i = 0; i < 9; i++) put(sb, box(1.3, 0.04, 0.025), 0xbcc3c7, [0, 0.025, -0.45 + i * 0.11])
+    put(sb, box(1.26, 0.025, 0.9), 0x8b9298, [0, -0.11, 0.03], [0.09, 0, 0])
+    this.addMesh(sb, steel, this.sieve, false)
+    this.sieve.position.set(0, 0.88, 0.02)
     this.interior.add(this.sieve)
 
-    // elevator flights carrying clean grain up to the tank
     const eb = new MeshBuilder()
-    put(eb, box(0.18, 0.03, 0.1), 0xc9d0d4, [0, 0, 0])
+    put(eb, box(0.16, 0.03, 0.09), 0xc9d0d4, [0, 0, 0])
     const eGeo = eb.build()
-    for (let i = 0; i < 7; i++) this.elevatorFlights.add(new THREE.Mesh(eGeo, mat))
+    for (let i = 0; i < 7; i++) this.elevatorFlights.add(new THREE.Mesh(eGeo, steel))
     this.interior.add(this.elevatorFlights)
 
-    // material flowing through: stalk, then grain and straw going separate ways
+    // --- what is actually moving through ---------------------------
     const bits = new MeshBuilder()
-    put(bits, box(0.055, 0.035, 0.055), 0xffffff, [0, 0, 0])
-    const bm = new THREE.InstancedMesh(bits.build(), new THREE.MeshLambertMaterial({ vertexColors: true }), 96)
+    put(bits, box(0.06, 0.04, 0.06), 0xffffff, [0, 0, 0])
+    const bm = new THREE.InstancedMesh(bits.build(), new THREE.MeshLambertMaterial({ vertexColors: true }), 110)
     bm.frustumCulled = false
     bm.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
     bm.setColorAt(0, new THREE.Color(1, 1, 1))
     this.flowBits = bm
-    this.flowSeed = new Float32Array(96)
-    for (let i = 0; i < 96; i++) this.flowSeed[i] = i / 96 + Math.random() * 0.01
+    this.flowSeed = new Float32Array(110)
+    for (let i = 0; i < 110; i++) this.flowSeed[i] = i / 110
     this.interior.add(bm)
   }
 
@@ -597,16 +627,12 @@ export class Combine {
 
   setCutaway(v: number) {
     this.cutawayAmount = v
-    const show = v > 0.01
-    this.interior.visible = show
+    this.interior.visible = v > 0.01
     for (const m of this.shellMats) {
       const mm = m as THREE.MeshStandardMaterial
-      const target = lerp(mm.userData.baseOpacity ?? 1, 0.13, v)
-      if (mm.userData.baseOpacity === undefined) mm.userData.baseOpacity = mm.opacity
-      mm.opacity = lerp(mm.userData.baseOpacity, 0.13, v)
-      mm.transparent = target < 0.999
-      mm.depthWrite = target > 0.9
-      mm.needsUpdate = false
+      const base = (mm.userData.baseOpacity as number) ?? 1
+      mm.opacity = lerp(base, base * 0.3, v)
+      mm.depthWrite = v < 0.05
     }
   }
 
@@ -649,17 +675,23 @@ export class Combine {
     // unloading auger: swings out to the chosen side, then lifts a little
     const swing = smoothstep(0, 0.75, this.augerOut)
     const lift = smoothstep(0.45, 1, this.augerOut)
-    this.augerYaw.rotation.y = lerp(Math.PI, Math.PI / 2 - this.augerSide * (Math.PI / 2 - 0.12), swing)
-    this.augerPitch.rotation.x = lerp(-0.06, -0.3, lift)
+    // Stowed, the tube lies forward over the tank on its cradle — where a
+    // real one rests.  Extended, it points out along local ±X.  Both ends
+    // are signed so the swing never sweeps across the header.
+    const side = this.augerSide
+    this.augerYaw.rotation.y = lerp(side * 0.3, side * (Math.PI / 2 - 0.08), swing)
+    this.augerPitch.rotation.x = lerp(0.12, -0.2, lift)
 
     // grain level in the tank
     const f = clamp(this.tankFill, 0, 1)
-    const h = 0.6 * f
+    const h = 0.5 * f
+    const show = f > 0.015
+    this.tankGrain.visible = show
     this.tankGrain.scale.y = Math.max(0.001, h)
     this.tankGrain.position.y = 1.95 + h / 2
-    this.tankHeap.visible = f > 0.55
-    this.tankHeap.position.y = 1.95 + h
-    this.tankHeap.scale.setScalar(clamp((f - 0.5) * 2, 0.01, 1))
+    this.tankHeap.visible = show
+    this.tankHeap.position.y = 1.945 + h
+    this.tankHeap.scale.set(0.5 * (0.3 + 0.7 * f), 0.12 + 0.24 * f, 0.58 * (0.3 + 0.7 * f))
 
     this.beacon.rotation.y += dt * 6
     const bm = this.beacon.material as THREE.MeshStandardMaterial
@@ -673,83 +705,79 @@ export class Combine {
     const spin = 0.4 + this.speedFrac * 0.6
     this.drum.rotation.x -= dt * 9 * spin
     this.fan.rotation.x += dt * 14 * spin
-    this.sieve.position.z = 0.15 + Math.sin(now * 11) * 0.05
-    this.sieve.position.y = 0.78 + Math.cos(now * 11) * 0.012
+    this.sieve.position.z = 0.02 + Math.sin(now * 11) * 0.045
+    this.sieve.position.y = 0.88 + Math.cos(now * 11) * 0.01
 
-    // feeder slats climb the throat and loop back
     const slats = this.feedSlats.children
     for (let i = 0; i < slats.length; i++) {
-      const t = ((now * 0.55 + i / slats.length) % 1)
-      const s = slats[i]
-      s.position.set(0, lerp(0.62, 1.16, t), lerp(2.05, 1.16, t))
-      s.rotation.x = -0.42
+      const t = (now * 0.6 + i / slats.length) % 1
+      slats[i].position.set(0, lerp(0.72, 1.3, t), lerp(2.05, 1.12, t))
+      slats[i].rotation.x = -0.55
     }
     const flights = this.elevatorFlights.children
     for (let i = 0; i < flights.length; i++) {
-      const t = (now * 0.7 + i / flights.length) % 1
-      const f = flights[i]
-      f.position.set(-0.66, lerp(0.62, 2.0, t), lerp(0.35, -0.5, t))
-      f.rotation.x = -0.32
+      const t = (now * 0.75 + i / flights.length) % 1
+      flights[i].position.set(-0.72, lerp(0.8, 1.96, t), lerp(-0.42, 0.24, t))
+      flights[i].rotation.x = -0.3
     }
 
-    // stalk in, grain down, straw out the back
     const c = new THREE.Color()
-    const grain = new THREE.Color(0xe4bd63)
+    const grain = new THREE.Color(0xe8c063)
     const straw = new THREE.Color(0xdccb96)
-    const stalk = new THREE.Color(0xc4b45e)
+    const stalk = new THREE.Color(0xbdae5c)
     for (let i = 0; i < this.flowSeed.length; i++) {
-      const t = (now * 0.42 + this.flowSeed[i] * 4.7) % 1
+      const t = (now * 0.4 + this.flowSeed[i] * 5.3) % 1
       const w = (this.flowSeed[i] * 37) % 1
-      const j = ((this.flowSeed[i] * 91) % 1) - 0.5
+      const j = (((this.flowSeed[i] * 91) % 1) - 0.5) * 1.3
       let x = 0
       let y = 0
       let z = 0
       let sc = 1
-      if (t < 0.3) {
-        // up the feeder throat, still whole stalks
-        const k = t / 0.3
-        x = j * 0.85
-        y = lerp(0.6, 1.2, k)
+      if (t < 0.26) {
+        // whole stalks climbing the throat
+        const k = t / 0.26
+        x = j * 0.6
+        y = lerp(0.72, 1.28, k)
         z = lerp(2.1, 1.1, k)
         c.copy(stalk)
-        sc = 1.35
-      } else if (t < 0.5) {
-        // through the threshing cylinder
-        const k = (t - 0.3) / 0.2
-        const a = k * 4.2
-        x = j * 1.1
-        y = 1.34 - Math.cos(a) * 0.42
-        z = lerp(1.1, 0.2, k) - Math.sin(a) * 0.1
+        sc = 1.5
+      } else if (t < 0.46) {
+        // beaten around the cylinder
+        const k = (t - 0.26) / 0.2
+        const a = 0.4 + k * 3.4
+        x = j * 0.55
+        y = 1.38 - Math.cos(a) * 0.36
+        z = lerp(1.02, 0.1, k) + Math.sin(a) * 0.08
         c.copy(stalk).lerp(grain, k)
-        sc = lerp(1.3, 0.85, k)
-      } else if (w < 0.45) {
-        // separated grain: down through the sieve, up the elevator, into the tank
-        const k = (t - 0.5) / 0.5
-        if (k < 0.35) {
-          x = j * 1.15
-          y = lerp(1.1, 0.78, k / 0.35)
-          z = lerp(0.3, 0.1, k / 0.35)
-        } else if (k < 0.6) {
-          const q = (k - 0.35) / 0.25
-          x = lerp(j * 1.15, -0.66, q)
-          y = lerp(0.78, 0.62, q)
-          z = lerp(0.1, 0.35, q)
+        sc = lerp(1.4, 0.9, k)
+      } else if (w < 0.5) {
+        // grain: down onto the pan, across the sieve, up the elevator
+        const k = (t - 0.46) / 0.54
+        if (k < 0.3) {
+          x = j * 0.55
+          y = lerp(1.1, 0.94, k / 0.3)
+          z = lerp(0.45, 0.2, k / 0.3)
+        } else if (k < 0.58) {
+          const q = (k - 0.3) / 0.28
+          x = lerp(j * 0.55, -0.72, q)
+          y = lerp(0.94, 0.82, q)
+          z = lerp(0.2, -0.4, q)
         } else {
-          const q = (k - 0.6) / 0.4
-          x = -0.66
-          y = lerp(0.62, 2.05, q)
-          z = lerp(0.35, -0.5, q)
+          const q = (k - 0.58) / 0.42
+          x = -0.72
+          y = lerp(0.82, 1.98, q)
+          z = lerp(-0.42, 0.24, q)
         }
         c.copy(grain)
-        sc = 0.7
+        sc = 0.75
       } else {
-        // straw: over the walkers and out of the hood
-        const k = (t - 0.5) / 0.5
-        x = j * 1.2
-        y = lerp(1.28, 0.92, k)
-        z = lerp(0.1, -2.1, k)
+        // straw: over the walkers, out of the hood
+        const k = (t - 0.46) / 0.54
+        x = j * 0.6
+        y = lerp(1.24, 0.94, k)
+        z = lerp(-0.2, -2.2, k)
         c.copy(straw)
-        sc = lerp(1.2, 1.5, k)
+        sc = lerp(1.3, 1.7, k)
       }
       this.tmpV.set(x, y, z)
       this.tmpQ.setFromEuler(this.tmpE.set(now * 3 + i, now * 2.2 + i, 0))
