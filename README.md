@@ -39,6 +39,7 @@ Then tap もういちど and the next cake has different candy.
 | --- | --- |
 | `?fast=1` | test profile: pixel ratio 1, no shadows, fixed candy count |
 | `?seed=N` | deterministic candy colours, shapes and amount |
+| `?shadows=0` / `?shadows=1` | force dynamic shadows off or on, independently of `fast` |
 | `?debug=1` | on-screen state readout |
 
 ## How it is built
@@ -62,6 +63,9 @@ Then tap もういちど and the next cake has different candy.
 ## Known limits
 
 - WebGL2 required; there is no 2D fallback.
+- The key light sits front-left, so its cast shadows fall away from the camera.
+  Contact with the board and bench is carried by soft decals under the cake, the
+  slice, the bowl and the turntable rather than by the shadow map.
 - The E2E run uses SwiftShader, so it proves the loop, not the frame rate or the
   final look. Judge those on real hardware.
 - The tablet E2E projects check boot and framing only; the full loop runs on the

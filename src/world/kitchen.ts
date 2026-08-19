@@ -3,7 +3,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import type { Mats } from './materials'
 import { atlasUV } from './textures'
 import { mulberry32 } from '../core/rng'
-import { FAST } from '../core/flags'
+import { SHADOWS } from '../core/flags'
 
 /** Squeeze a geometry's 0..1 UVs into one cell of the shared props atlas. */
 function atlasify(geo: THREE.BufferGeometry, cell: number) {
@@ -139,7 +139,7 @@ export function buildKitchen(mats: Mats): THREE.Group {
       mats.crustPlain,
     )
     sponge.position.set(-42 + i * 15, 0.1, -34 + i * 3)
-    sponge.castShadow = !FAST
+    sponge.castShadow = SHADOWS
     root.add(sponge)
   }
 

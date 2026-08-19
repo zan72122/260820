@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
-import { FAST, MAX_PIXEL_RATIO } from './flags'
+import { FAST, MAX_PIXEL_RATIO, SHADOWS } from './flags'
 
 export interface Viewport {
   width: number
@@ -36,7 +36,7 @@ export class Stage {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping
     this.renderer.toneMappingExposure = 1.18
-    this.renderer.shadowMap.enabled = !FAST
+    this.renderer.shadowMap.enabled = SHADOWS
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
     this.renderer.setClearColor(0x120d0b, 1)
 

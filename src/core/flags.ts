@@ -16,6 +16,14 @@ export const FAST = params.get('fast') === '1' || !!envFast
 /** Fixed seed keeps candy colours/shapes reproducible for tests. */
 export const SEED = params.has('seed') ? Number(params.get('seed')) || 1 : 0
 
+/**
+ * Dynamic shadows follow the fast profile by default, but can be forced either
+ * way — useful for checking the lighting under a software rasteriser without
+ * paying for the rest of the full-quality profile.
+ */
+export const SHADOWS =
+  params.get('shadows') === '1' ? true : params.get('shadows') === '0' ? false : !FAST
+
 export const MAX_PIXEL_RATIO = FAST ? 1 : 2
 
 export const DEBUG = params.get('debug') === '1'

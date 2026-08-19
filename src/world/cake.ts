@@ -3,7 +3,7 @@ import { coatingGeometry, sectorGeometry } from './geom'
 import { DIM, WEDGE_END, WEDGE_START, Y } from './dims'
 import type { Mats } from './materials'
 import { TAU } from '../core/rng'
-import { FAST } from '../core/flags'
+import { FAST, SHADOWS } from '../core/flags'
 
 export type LayerKey = 'base' | 'ring1' | 'ring2' | 'lid'
 export type CreamKey = 'cream1' | 'cream2' | 'cream3'
@@ -47,8 +47,8 @@ export interface Coating {
 }
 
 function shadowed(m: THREE.Mesh) {
-  m.castShadow = !FAST
-  m.receiveShadow = !FAST
+  m.castShadow = SHADOWS
+  m.receiveShadow = SHADOWS
   return m
 }
 

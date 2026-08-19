@@ -382,7 +382,7 @@ export class Game {
     const near = 1 - clamp(away / 16, 0, 1)
     const pulse = 0.82 + Math.sin(this.t * 3.4) * 0.18
     const mat = spot.material as THREE.MeshBasicMaterial
-    mat.opacity = (0.16 + near * 0.5) * (this.dragging ? 1 : pulse)
+    mat.opacity = (0.3 + near * 0.4) * (this.dragging ? 1 : pulse)
     // on the board it may spill past the cake; on a stack it must stay on top
     const spread = (key === 'base' ? 1 : 0.83) * (0.88 + near * 0.12)
     spot.scale.set(spread, spread, 1)
@@ -439,6 +439,14 @@ export class Game {
     const l = this.cake.layer(key)
     l.placed = true
     this.props.dropTarget.visible = false
+    // the cake presses harder into the board with every layer
+    let stacked = 0
+    for (const other of this.cake.layers.values()) if (other.placed) stacked++
+    const shadow = this.props.cakeShadow
+    shadow.visible = true
+    ;(shadow.material as THREE.MeshBasicMaterial).opacity = 0.3 + stacked * 0.1
+    const sp = 0.78 + stacked * 0.055
+    shadow.scale.set(sp, sp, 1)
     l.holder.position.set(0, l.y0, 0)
     l.holder.scale.set(1, 1, 1)
     this.settleKey = key
@@ -832,6 +840,19 @@ export class Game {
 
     if (this.revealT < 0.05) this.rig.follow(w, 1.1)
 
+    // the slice takes its own contact shadow with it
+    const ss = this.props.sliceShadow
+    ss.visible = u > 0.05
+    const ssR = dist + 3.4
+    // slides off the board rim onto the bench, without the shadow snapping down
+    const drop = smoothstep(10, 13.5, ssR)
+    ss.position.set(
+      Math.cos(exit) * ssR,
+      DIM.boardTop + 0.06 + (DIM.tableTop - DIM.boardTop) * drop,
+      Math.sin(exit) * ssR,
+    )
+    ;(ss.material as THREE.MeshBasicMaterial).opacity = 0.55 * u
+
     if (!this.opened && u > 0.16) {
       this.opened = true
       this.openedAt = this.revealT
@@ -910,6 +931,8 @@ export class Game {
     this.props.spatula.visible = false
     this.props.spatula.position.copy(this.spatulaHome)
     this.props.dropTarget.visible = false
+    this.props.cakeShadow.visible = false
+    this.props.sliceShadow.visible = false
     this.pouring = false
     this.bowlTilt = 0
     this.knifeSounded = false

@@ -2,11 +2,11 @@ import * as THREE from 'three'
 import { DIM } from './dims'
 import type { Mats } from './materials'
 import { contactShadowMap } from './textures'
-import { FAST } from '../core/flags'
+import { SHADOWS } from '../core/flags'
 
 const cast = (m: THREE.Mesh) => {
-  m.castShadow = !FAST
-  m.receiveShadow = !FAST
+  m.castShadow = SHADOWS
+  m.receiveShadow = SHADOWS
   return m
 }
 
@@ -46,18 +46,27 @@ export class Props {
   readonly spatulaTip = new THREE.Object3D()
   /** shadow-shaped landing spot shown while a layer is being carried */
   readonly dropTarget: THREE.Mesh
+  /** contact darkening where the cake meets the board; deepens as it gets heavier */
+  readonly cakeShadow: THREE.Mesh
+  /** and one under the slice, once it has been pulled clear */
+  readonly sliceShadow: THREE.Mesh
 
   constructor(mats: Mats) {
     this.dropTarget = contactDecal(DIM.cakeRadius + 1.6, 0, 0)
     this.dropTarget.visible = false
     this.turntable.add(this.dropTarget)
+    this.cakeShadow = contactDecal(DIM.cakeRadius + 2.6, 0.03, 0)
+    this.cakeShadow.visible = false
+    this.turntable.add(this.cakeShadow)
+    this.sliceShadow = contactDecal(7.5, DIM.boardTop + 0.05, 0)
+    this.sliceShadow.visible = false
 
     this.buildBench(mats)
     this.buildTurntable(mats)
     this.buildBowl(mats)
     this.buildKnife(mats)
     this.buildSpatula(mats)
-    this.root.add(this.turntable, this.bowl, this.knife, this.spatula)
+    this.root.add(this.turntable, this.bowl, this.knife, this.spatula, this.sliceShadow)
   }
 
   /* -- bench --------------------------------------------------------- */
@@ -73,7 +82,7 @@ export class Props {
     m.map!.needsUpdate = true
     m.color.set(0xbb9871)
     top.position.set(0, DIM.tableTop - 2.1, -12)
-    top.receiveShadow = !FAST
+    top.receiveShadow = SHADOWS
     this.root.add(top)
   }
 

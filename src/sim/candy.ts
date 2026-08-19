@@ -2,7 +2,7 @@ import * as THREE from 'three'
 import { chocChunk, dragee, heartShape, starShape } from '../world/geom'
 import type { Mats } from '../world/materials'
 import { mulberry32, norm, TAU } from '../core/rng'
-import { FAST } from '../core/flags'
+import { FAST, SHADOWS } from '../core/flags'
 
 const G = 981 // cm/s^2 — the scene is authored in centimetres
 const DT = 1 / 60
@@ -131,8 +131,8 @@ export class CandySystem {
     for (let s = 0; s < geos.length; s++) {
       const mesh = new THREE.InstancedMesh(geos[s], matsFor[s], maxCount)
       mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
-      mesh.castShadow = !FAST
-      mesh.receiveShadow = !FAST
+      mesh.castShadow = SHADOWS
+      mesh.receiveShadow = SHADOWS
       mesh.frustumCulled = false
       mesh.count = maxCount
       const colors = new Float32Array(maxCount * 3)

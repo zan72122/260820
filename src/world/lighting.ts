@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { FAST } from '../core/flags'
+import { SHADOWS } from '../core/flags'
 
 export interface Lights {
   key: THREE.DirectionalLight
@@ -23,7 +23,7 @@ export function setupLighting(scene: THREE.Scene): Lights {
   key.position.set(-16, 30, 20)
   key.target.position.set(0, 5, 0)
   scene.add(key, key.target)
-  if (!FAST) {
+  if (SHADOWS) {
     key.castShadow = true
     key.shadow.mapSize.set(1024, 1024)
     const c = key.shadow.camera
