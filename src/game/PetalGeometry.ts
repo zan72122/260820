@@ -19,6 +19,10 @@ export interface PetalSpec {
   curl: Float32Array;
   /** Outward tilt already applied at the root. */
   lean: Float32Array;
+  /** How far the petal ends wrap back towards the flower axis. */
+  cup: number;
+  /** How deep the root sinks into the cone, so no gap shows. */
+  embed: number;
   /** Edge ripple amplitude. */
   waviness: number;
   seed: number;
@@ -123,10 +127,13 @@ export class PetalGeometry {
       const rise = spec.rise[i];
       const curl = spec.curl[i];
       const lean = spec.lean[i];
+      const u = i / (nu - 1);
+      // the two ends of a piped petal wrap in around the core
+      const wrap = -spec.cup * (1 - Math.sin(Math.PI * u));
       for (let j = 0; j < nv; j++) {
         const v = j * inv;
         const ev = v * v * (3 - 2 * v) * 0.35 + v * 0.65; // gentle S so the root sits upright
-        const out = lean * ev + curl * ev * ev;
+        const out = lean * ev + curl * ev * ev + wrap * (0.35 + 0.65 * ev) - spec.embed * (1 - ev) * (1 - ev);
         const o = (j * nu + i) * 3;
         surface[o] = bx + rx * out;
         surface[o + 1] = by + rise * ev;
@@ -164,7 +171,7 @@ export class PetalGeometry {
         const endTaper = spec.finished
           ? Math.min(1, Math.sin(Math.PI * Math.min(1, Math.max(0, u))) * 1.9)
           : Math.min(1, Math.min(u * 9, 1) * 1.0);
-        const ridge = 1 + 0.16 * Math.sin(v * Math.PI * 5.5 + spec.seed);
+        const ridge = 1 + 0.06 * Math.sin(v * Math.PI * 6.5 + spec.seed);
         const half =
           0.5 *
           Math.max(0.00004, spec.thick[i] * (1 - v) * (1 - v * 0.45) * endTaper * ridge);

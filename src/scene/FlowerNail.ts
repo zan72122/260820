@@ -19,6 +19,8 @@ export class FlowerNail {
   readonly headY = LAYOUT.nailHeight;
   spinSpeed = 0;
   parchmentPlaced = false;
+  /** Radians still owed to the turn that presents the next empty spot. */
+  private spinQueue = 0;
 
   constructor(mats: MaterialLibrary, scene: THREE.Scene) {
     this.group.position.copy(LAYOUT.nail);
@@ -38,7 +40,7 @@ export class FlowerNail {
     stem.castShadow = !Config.fast;
     this.group.add(stem);
 
-    const shadow = contactShadow(0.05, 0.8);
+    const shadow = contactShadow(0.055, 0.85);
     shadow.position.y = 0.0009;
     this.group.add(shadow);
 
@@ -75,7 +77,7 @@ export class FlowerNail {
     this.parchment = new THREE.Mesh(pg, mats.parchmentMat);
     this.parchment.castShadow = !Config.fast;
     this.parchment.receiveShadow = true;
-    this.parchment.position.set(LAYOUT.nail.x + 0.085, 0.0009, LAYOUT.nail.z + 0.055);
+    this.parchment.position.set(LAYOUT.nail.x + 0.062, 0.0009, LAYOUT.nail.z + 0.05);
     this.parchment.rotation.y = 0.35;
     scene.add(this.parchment);
   }
@@ -85,7 +87,18 @@ export class FlowerNail {
     return this.flowerRoot.getWorldPosition(target);
   }
 
+  /** Turn the nail so the next petal lands on a fresh part of the flower. */
+  advance(radians: number) {
+    this.spinQueue += radians;
+  }
+
+  get settling() {
+    return this.spinQueue > 0.02;
+  }
+
   update(dt: number) {
-    this.spinner.rotation.y += this.spinSpeed * dt;
+    const step = Math.min(this.spinQueue, 2.6 * dt);
+    this.spinQueue -= step;
+    this.spinner.rotation.y += this.spinSpeed * dt + step;
   }
 }

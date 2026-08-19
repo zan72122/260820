@@ -50,6 +50,9 @@ export class Game {
 
   flower: Flower;
   flowersPlaced = 0;
+  /** Flowers already sitting on the cake; they keep their own settling sway. */
+  private placed: Flower[] = [];
+  private flowerIsPlaced = false;
   private colorIndex = 0;
   private rng: Rng;
   private mats: MaterialLibrary;
@@ -72,6 +75,7 @@ export class Game {
   private ghostShownForLayer = -1;
   private tipTarget = new THREE.Vector3();
   private firstFlowerDone = false;
+  private lastRealTime = performance.now();
 
   /** Test/debug telemetry. */
   readonly stats = { petals: 0, coneHeight: 0, flowers: 0, drawCalls: 0 };
@@ -127,6 +131,7 @@ export class Game {
       this.mats.creamStreak,
     );
     this.nail.flowerRoot.add(f.group);
+    this.flowerIsPlaced = false;
     this.bag?.setCreamColor(new THREE.Color(CREAM_COLORS[this.colorIndex].hex));
     return f;
   }
@@ -141,6 +146,7 @@ export class Game {
 
   private enterAct(act: Act) {
     this.act = act;
+    if (act !== 'carry') this.director.followWeight = 0;
     this.hud.setStep(ACT_STEP[act]);
     this.hud.showDone(false);
     this.hud.showChoices(0, 0, false);
@@ -153,13 +159,13 @@ export class Game {
         break;
       case 'core':
         this.director.set('core');
-        this.nail.spinSpeed = 0.22;
+        this.nail.spinSpeed = 0.14;
         this.hud.setHint('press');
         this.ghost.showCentre(0);
         break;
       case 'petals':
         this.director.set('petals');
-        this.nail.spinSpeed = 0.34;
+        this.nail.spinSpeed = 0.1;
         this.hud.setHint('draw');
         this.showGhostForLayer(true);
         break;
@@ -193,8 +199,12 @@ export class Game {
     this.ghostShownForLayer = li;
     // Show the invitation only for the very first petal of each layer.
     if (this.flower.petalsInLayer === 0) {
-      const a = -this.nail.spinner.rotation.y + Math.PI * 0.15;
-      this.ghost.showPetalPath(LAYERS[li], this.flower.coneHeight, a);
+      const cam = this.renderer.camera.position;
+      const front = Math.atan2(
+        cam.z - this.nail.group.position.z,
+        cam.x - this.nail.group.position.x,
+      );
+      this.ghost.showPetalPath(LAYERS[li], this.flower.coneHeight, front - this.nail.spinner.rotation.y);
     } else {
       this.ghost.hide();
     }
@@ -214,13 +224,18 @@ export class Game {
     const originY = this.nail.worldOrigin(this.tmp).y;
     switch (this.act) {
       case 'parchment':
-        return LAYOUT.nail.y + 0.001;
+        // Once lifted, the square travels at nail-head height, so what the eye
+        // aims at and what the finger controls are the same thing.
+        return this.draggingParchment ? originY + 0.004 : LAYOUT.nail.y + 0.001;
       case 'core':
         return originY + this.flower.coneHeight * 0.5;
       case 'petals': {
         const l = this.flower.layer;
         return originY + this.flower.coneHeight * l.baseFrac + l.rise * 0.45;
       }
+      case 'carry':
+        // Once the flower is up, the finger aims at the cake surface itself.
+        return this.carrying ? LAYOUT.cakeTop + 0.006 : originY - 0.002;
       default:
         return originY - 0.002;
     }
@@ -264,9 +279,13 @@ export class Game {
     this.bag.setPressing(false);
     this.sfx.setExtrude(0);
     if (this.act === 'petals') {
+      const piped = this.flower.layer;
       if (committed && this.samples.length > 0) {
         this.flower.updatePetal(this.samples, true);
         const { layerCompleted } = this.flower.endPetal();
+        // The turntable presents the next gap, so even a child who keeps
+        // drawing in the same spot ends up with petals all the way round.
+        this.nail.advance(((Math.PI * 2) / piped.target) * this.rng.range(0.86, 1.12));
         this.stats.petals = this.flower.totalPetals;
         if (layerCompleted) {
           this.sfx.layerUp();
@@ -293,10 +312,11 @@ export class Game {
     this.draggingParchment = false;
     if (!committed) return;
     const target = this.nail.worldOrigin(this.tmp).clone();
-    const d = Math.hypot(
-      this.nail.parchment.position.x - target.x,
-      this.nail.parchment.position.z - target.z,
-    );
+    const p = this.nail.parchment.position;
+    let d = Math.hypot(p.x - target.x, p.z - target.z);
+    if (this.projectPointer()) {
+      d = Math.min(d, Math.hypot(this.hitWorld.x - target.x, this.hitWorld.z - target.z));
+    }
     if (d < 0.085) {
       this.nail.spinner.attach(this.nail.parchment);
       this.nail.parchmentPlaced = true;
@@ -307,12 +327,19 @@ export class Game {
     }
   }
 
+  /** Horizontal distance from the cake's axis, for whatever is being carried. */
+  private overCake(p: THREE.Vector3) {
+    return Math.hypot(p.x - LAYOUT.cake.x, p.z - LAYOUT.cake.z);
+  }
+
   private releaseLifter(committed: boolean) {
     if (!committed || !this.carrying) return;
-    const slot = this.cakeSlot(this.flowersPlaced, new THREE.Vector3());
-    this.patisserie.cake.localToWorld(this.tmp.copy(slot));
-    const d = this.lifter.group.position.distanceTo(this.tmp);
-    if (d < 0.075) this.placeFlower(slot);
+    // Anywhere on the cake counts. The flower then walks itself to its slot.
+    let d = this.overCake(this.lifter.group.position);
+    if (this.projectPointer()) d = Math.min(d, this.overCake(this.hitWorld));
+    if (d < LAYOUT.cakeRadius + 0.035) {
+      this.placeFlower(this.cakeSlot(this.flowersPlaced, new THREE.Vector3()));
+    }
   }
 
   private placeFlower(slot: THREE.Vector3) {
@@ -321,6 +348,8 @@ export class Game {
     this.tween(this.flower.group, slot.clone(), new THREE.Quaternion(), 0.4, () => {
       this.flower.nudge(1);
       this.sfx.placed();
+      this.placed.push(this.flower);
+      this.flowerIsPlaced = true;
       this.flowersPlaced++;
       this.stats.flowers = this.flowersPlaced;
       this.firstFlowerDone = true;
@@ -344,6 +373,35 @@ export class Game {
     this.stats.petals = 0;
     // Later rounds skip the parchment step: the child goes straight to piping.
     this.enterAct(this.firstFlowerDone ? 'core' : 'parchment');
+  }
+
+  /**
+   * Screen positions of the things a player aims at, in CSS pixels. Used by the
+   * E2E suite so a stroke can be aimed the way a child aims: at the object.
+   * The returned y is where the *finger* goes, i.e. the tool tip is drawn
+   * `Config.tipLiftPx` above it.
+   */
+  anchors() {
+    const cam = this.renderer.camera;
+    const w = this.renderer.viewport.width;
+    const h = this.renderer.viewport.height;
+    const toScreen = (v: THREE.Vector3) => {
+      const p = v.clone().project(cam);
+      return { x: ((p.x + 1) / 2) * w, y: ((1 - p.y) / 2) * h + Config.tipLiftPx };
+    };
+    const slot = this.cakeSlot(this.flowersPlaced, new THREE.Vector3());
+    this.patisserie.cake.localToWorld(slot);
+    return {
+      /** Where the piping tip actually is, with no lift applied. */
+      tip: (() => {
+        const p = this.bag.group.position.clone().project(cam);
+        return { x: ((p.x + 1) / 2) * w, y: ((1 - p.y) / 2) * h };
+      })(),
+      nail: toScreen(this.nail.worldOrigin(new THREE.Vector3())),
+      cake: toScreen(slot),
+      parchment: toScreen(this.nail.parchment.getWorldPosition(new THREE.Vector3())),
+      lifter: toScreen(this.lifter.group.position.clone()),
+    };
   }
 
   // ------------------------------------------------------------------ tween
@@ -379,6 +437,11 @@ export class Game {
   // ----------------------------------------------------------------- update
 
   update(dt: number) {
+    // Cream flow follows the wall clock, not the render rate: on a slow device
+    // a two second squeeze must still build the same cone.
+    const now = performance.now();
+    const realDt = clamp((now - this.lastRealTime) / 1000, 0, 0.3);
+    this.lastRealTime = now;
     const hasHit = this.projectPointer();
     this.updateTweens(dt);
 
@@ -387,7 +450,7 @@ export class Game {
         this.updateParchment(hasHit);
         break;
       case 'core':
-        this.updateCore(dt, hasHit);
+        this.updateCore(dt, realDt, hasHit);
         break;
       case 'petals':
         this.updatePetals(dt, hasHit);
@@ -401,7 +464,8 @@ export class Game {
     }
 
     this.nail.update(dt);
-    this.flower.update(dt);
+    if (!this.flowerIsPlaced) this.flower.update(dt);
+    for (const f of this.placed) f.update(dt);
     this.bag.update(dt, this.extruding);
     this.ghost.update(dt, this.flower.coneHeight);
     this.sfx.setSpin(this.nail.spinSpeed > 0 ? 1 : 0);
@@ -424,6 +488,7 @@ export class Game {
       const p = this.nail.parchment;
       p.position.x = damp(p.position.x, this.hitWorld.x, 18, 1 / 60);
       p.position.z = damp(p.position.z, this.hitWorld.z, 18, 1 / 60);
+      p.position.y = damp(p.position.y, this.hitWorld.y, 12, 1 / 60);
       const target = this.nail.worldOrigin(this.tmp);
       const d = Math.hypot(p.position.x - target.x, p.position.z - target.z);
       // gentle magnet so a rough drop still lands square on the nail
@@ -431,13 +496,12 @@ export class Game {
         p.position.x = damp(p.position.x, target.x, 6, 1 / 60);
         p.position.z = damp(p.position.z, target.z, 6, 1 / 60);
         p.rotation.y = damp(p.rotation.y, 0, 5, 1 / 60);
-        p.position.y = damp(p.position.y, target.y + 0.004, 6, 1 / 60);
       }
     }
     this.bag.group.visible = false;
   }
 
-  private updateCore(dt: number, hasHit: boolean) {
+  private updateCore(dt: number, realDt: number, hasHit: boolean) {
     this.bag.group.visible = true;
     const origin = this.nail.worldOrigin(this.tmp).clone();
     // the tip stays over the centre: pressing anywhere builds the cone
@@ -452,7 +516,7 @@ export class Game {
       const before = this.flower.coneHeight;
       // growth eases off near the top so over-piping cannot ruin it
       const room = clamp((CONE.maxHeight - before) / (CONE.maxHeight - CONE.targetHeight * 0.5), 0.08, 1);
-      this.flower.growCone(CONE.growthPerSecond * dt * room);
+      this.flower.growCone(CONE.growthPerSecond * realDt * room);
       this.sfx.setExtrude(0.8 + room * 0.2);
       if (!this.coneChimed && this.flower.coneHeight >= CONE.targetHeight) {
         this.coneChimed = true;
@@ -521,14 +585,24 @@ export class Game {
     this.bag.group.visible = false;
     if (hasHit && this.pointer.down) {
       this.tmp.copy(this.hitWorld);
-      this.tmp.y = this.nail.worldOrigin(new THREE.Vector3()).y - 0.003;
+      this.tmp.y = this.carrying
+        ? Math.max(this.nail.worldOrigin(new THREE.Vector3()).y, LAYOUT.cakeTop + 0.006)
+        : this.nail.worldOrigin(new THREE.Vector3()).y - 0.003;
       this.lifter.group.position.lerp(this.tmp, 1 - Math.exp(-16 * dt));
     }
 
     if (!this.carrying) {
       const origin = this.nail.worldOrigin(this.tmp).clone();
-      const d = this.lifter.group.position.distanceTo(origin);
-      if (d < 0.028) {
+      let d = this.lifter.group.position.distanceTo(origin);
+      if (hasHit && this.pointer.down) {
+        d = Math.min(d, Math.hypot(this.hitWorld.x - origin.x, this.hitWorld.z - origin.z));
+      }
+      // the blade slides itself under the flower once it is close
+      if (d < 0.06 && this.pointer.down) {
+        this.lifter.group.position.x = damp(this.lifter.group.position.x, origin.x, 5, dt);
+        this.lifter.group.position.z = damp(this.lifter.group.position.z, origin.z, 5, dt);
+      }
+      if (d < 0.045) {
         this.carrying = true;
         this.sfx.pickup();
         this.lifter.cradle.attach(this.flower.group);
@@ -539,17 +613,17 @@ export class Game {
     } else {
       const slot = this.cakeSlot(this.flowersPlaced, new THREE.Vector3());
       this.patisserie.cake.localToWorld(slot);
-      const d = this.lifter.group.position.distanceTo(slot);
-      const near = clamp(1 - d / 0.09, 0, 1);
+      const d = this.overCake(this.lifter.group.position);
+      const near = clamp(1 - d / (LAYOUT.cakeRadius + 0.05), 0, 1);
       (this.cakeTarget.material as THREE.MeshBasicMaterial).opacity = 0.15 + near * 0.5;
       this.cakeTarget.position.copy(this.cakeSlot(this.flowersPlaced, new THREE.Vector3()));
       this.cakeTarget.position.y += 0.0015;
       // magnetic seat: the flower settles onto the cake without precision
-      if (near > 0.55 && this.pointer.down) {
-        this.lifter.group.position.lerp(slot, 1 - Math.exp(-6 * dt));
+      if (near > 0.4 && this.pointer.down) {
+        this.lifter.group.position.lerp(slot, 1 - Math.exp(-9 * near * dt));
       }
       this.director.follow.copy(this.lifter.group.position);
-      this.director.followWeight = 0.35;
+      this.director.followWeight = 0.15;
     }
   }
 }

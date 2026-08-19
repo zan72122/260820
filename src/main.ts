@@ -19,10 +19,11 @@ let fpsAcc = 0;
 let fps = 60;
 
 function frame(now: number) {
-  const dt = Math.min(0.05, (now - last) / 1000);
+  const real = (now - last) / 1000;
+  const dt = Math.min(0.1, real);
   last = now;
   frames++;
-  fpsAcc += dt;
+  fpsAcc += real;
   if (fpsAcc > 0.5) {
     fps = frames / fpsAcc;
     frames = 0;
@@ -49,7 +50,12 @@ Object.defineProperty(window, '__game', {
       return game.act;
     },
     get stats() {
-      return { ...game.stats, fps, pixelRatio: renderer.pixelRatio };
+      return {
+        ...game.stats,
+        fps,
+        pixelRatio: renderer.pixelRatio,
+        webgl2: renderer.gl.capabilities.isWebGL2,
+      };
     },
     get errors() {
       return errors.slice();
@@ -73,6 +79,9 @@ Object.defineProperty(window, '__game', {
         }
       });
       return { hash: Math.round(acc), samples: n };
+    },
+    anchors() {
+      return game.anchors();
     },
     pointer(kind: 'down' | 'move' | 'up', x: number, y: number) {
       pointer.simulate(kind, x, y);

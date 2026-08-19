@@ -146,8 +146,8 @@ export class PetalShaper {
     let meanSpeed = 0;
     for (let i = 0; i < nu; i++) meanSpeed += rv[i];
     meanSpeed /= nu;
-    const pressBoost = clamp(0.82 + durationMs / 1400, 0.82, 1.22);
-    const lengthBoost = clamp(0.9 + span * 0.16, 0.9, 1.25);
+    const pressBoost = clamp(0.86 + durationMs / 2000, 0.86, 1.16);
+    const lengthBoost = clamp(0.92 + span * 0.1, 0.92, 1.16);
     const openBoost = 1 + indexInLayer * 0.035;
     const wobble = rng.range(-0.06, 0.06);
     const ceiling = coneHeight + 0.007;
@@ -180,6 +180,8 @@ export class PetalShaper {
       thick: this.thick,
       curl: this.curl,
       lean: this.lean,
+      cup: ringR * 0.3,
+      embed: layer.radiusOffset * 0.55 + 0.0008,
       waviness: 0.1,
       seed: seed % 1000,
       finished,

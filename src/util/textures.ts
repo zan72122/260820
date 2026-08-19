@@ -50,7 +50,7 @@ function normalFromHeight(height: Float32Array, size: number, strength: number):
 export function creamStreakNormal(size = 128): THREE.DataTexture {
   const h = new Float32Array(size * size);
   const rng = new Rng(20260819);
-  const lanes = 26;
+  const lanes = 15;
   const offs = Array.from({ length: lanes }, () => rng.range(0, 1));
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
@@ -59,7 +59,7 @@ export function creamStreakNormal(size = 128): THREE.DataTexture {
       for (let l = 0; l < lanes; l++) {
         const c = (offs[l] + Math.sin((x / size) * 6.283 + l) * 0.01) % 1;
         const d = Math.abs(v - c);
-        acc += Math.exp(-(d * d) / 0.00035) * 0.5;
+        acc += Math.exp(-(d * d) / 0.0006) * 0.42;
       }
       acc += (rng.next() - 0.5) * 0.12;
       h[y * size + x] = acc;
@@ -89,10 +89,10 @@ export function steelScratchNormal(size = 256): THREE.DataTexture {
 export function steelRoughness(size = 256): THREE.CanvasTexture {
   const [c, ctx] = canvas(size);
   const rng = new Rng(77);
-  ctx.fillStyle = '#3d3d3d';
+  ctx.fillStyle = '#4a4a4a';
   ctx.fillRect(0, 0, size, size);
   for (let i = 0; i < 900; i++) {
-    const g = Math.floor(rng.range(40, 120));
+    const g = Math.floor(rng.range(56, 88));
     ctx.strokeStyle = `rgba(${g},${g},${g},0.5)`;
     ctx.lineWidth = rng.range(0.4, 1.6);
     const y = rng.next() * size;
@@ -107,8 +107,8 @@ export function steelRoughness(size = 256): THREE.CanvasTexture {
     const y = rng.next() * size;
     const r = rng.range(12, 34);
     const g = ctx.createRadialGradient(x, y, 0, x, y, r);
-    g.addColorStop(0, 'rgba(150,150,150,0.28)');
-    g.addColorStop(1, 'rgba(150,150,150,0)');
+    g.addColorStop(0, 'rgba(120,120,120,0.16)');
+    g.addColorStop(1, 'rgba(120,120,120,0)');
     ctx.fillStyle = g;
     ctx.fillRect(x - r, y - r, r * 2, r * 2);
   }
@@ -204,9 +204,9 @@ export function woodMap(size = 512): { color: THREE.CanvasTexture; rough: THREE.
   rctx.fillRect(0, 0, size, size);
   const h = new Float32Array(size * size);
   for (let y = 0; y < size; y++) {
-    const band = Math.sin(y * 0.08 + Math.sin(y * 0.013) * 3) * 0.5 + 0.5;
+    const band = Math.sin(y * 0.19 + Math.sin(y * 0.021) * 3.4) * 0.5 + 0.5;
     const grain = band * 0.35 + rng.next() * 0.1;
-    ctx.fillStyle = `rgba(56,34,20,${grain * 0.45})`;
+    ctx.fillStyle = `rgba(64,44,30,${grain * 0.28})`;
     ctx.fillRect(0, y, size, 1);
     rctx.fillStyle = `rgba(255,255,255,${grain * 0.25})`;
     rctx.fillRect(0, y, size, 1);
@@ -214,7 +214,7 @@ export function woodMap(size = 512): { color: THREE.CanvasTexture; rough: THREE.
   }
   for (let i = 0; i < 260; i++) {
     const y = rng.next() * size;
-    ctx.strokeStyle = `rgba(48,28,16,${rng.range(0.05, 0.28)})`;
+    ctx.strokeStyle = `rgba(58,40,26,${rng.range(0.04, 0.16)})`;
     ctx.lineWidth = rng.range(0.5, 2.2);
     ctx.beginPath();
     ctx.moveTo(0, y);
@@ -228,9 +228,10 @@ export function woodMap(size = 512): { color: THREE.CanvasTexture; rough: THREE.
 export function contactShadowTexture(size = 128): THREE.CanvasTexture {
   const [c, ctx] = canvas(size);
   const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-  g.addColorStop(0, 'rgba(0,0,0,0.62)');
-  g.addColorStop(0.45, 'rgba(0,0,0,0.34)');
-  g.addColorStop(1, 'rgba(0,0,0,0)');
+  g.addColorStop(0, 'rgba(24,15,8,0.5)');
+  g.addColorStop(0.32, 'rgba(24,15,8,0.24)');
+  g.addColorStop(0.62, 'rgba(24,15,8,0.07)');
+  g.addColorStop(1, 'rgba(24,15,8,0)');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, size, size);
   const t = new THREE.CanvasTexture(c);

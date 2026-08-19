@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { Config } from '../engine/config';
 import {
   creamStreakNormal,
   parchmentMap,
@@ -23,9 +24,9 @@ export function makeCreamMaterial(color: THREE.ColorRepresentation, opts: { stre
     color,
     roughness: 0.44,
     metalness: 0.0,
-    clearcoat: 0.22,
+    clearcoat: Config.fast ? 0 : 0.22,
     clearcoatRoughness: 0.58,
-    sheen: 0.45,
+    sheen: Config.fast ? 0 : 0.45,
     sheenRoughness: 0.75,
     sheenColor: new THREE.Color(0xfff1e0),
     ior: 1.45,
@@ -35,7 +36,7 @@ export function makeCreamMaterial(color: THREE.ColorRepresentation, opts: { stre
   });
   if (opts.streak) {
     mat.normalMap = opts.streak;
-    mat.normalScale = new THREE.Vector2(0.35, 0.35);
+    mat.normalScale = new THREE.Vector2(0.16, 0.16);
   }
   mat.userData.sss = {
     uSssColor: { value: new THREE.Color(color).lerp(new THREE.Color(0xffd9b0), 0.5) },
@@ -94,26 +95,27 @@ export class MaterialLibrary {
   readonly steelDark: THREE.MeshStandardMaterial;
   readonly parchmentMat: THREE.MeshStandardMaterial;
   readonly spongeMat: THREE.MeshStandardMaterial;
-  readonly woodMat: THREE.MeshStandardMaterial;
+  readonly woodMat: THREE.MeshPhysicalMaterial;
   readonly wallMat: THREE.MeshStandardMaterial;
   readonly bagMat: THREE.MeshPhysicalMaterial;
   readonly skinMat: THREE.MeshPhysicalMaterial;
 
   constructor() {
-    this.steelNormal.repeat.set(3, 3);
-    this.steelRough.repeat.set(3, 3);
+    this.steelNormal.repeat.set(5, 5);
+    this.steelRough.repeat.set(5, 5);
     this.steel = new THREE.MeshStandardMaterial({
       color: 0xd8dade,
-      metalness: 1.0,
-      roughness: 0.22,
+      metalness: Config.fast ? 0.45 : 1.0,
+      roughness: Config.fast ? 0.3 : 0.19,
       normalMap: this.steelNormal,
-      normalScale: new THREE.Vector2(0.5, 0.5),
+      normalScale: new THREE.Vector2(0.14, 0.14),
       roughnessMap: this.steelRough,
-      envMapIntensity: 1.15,
+      envMapIntensity: 1.2,
     });
     this.steelDark = this.steel.clone();
-    this.steelDark.color = new THREE.Color(0x9aa0a6);
-    this.steelDark.roughness = 0.4;
+    this.steelDark.color = new THREE.Color(0x8d939a);
+    this.steelDark.roughness = Config.fast ? 0.4 : 0.34;
+    this.steelDark.normalScale = new THREE.Vector2(0.1, 0.1);
 
     this.parchmentMat = new THREE.MeshStandardMaterial({
       map: this.parchment.color,
@@ -135,21 +137,26 @@ export class MaterialLibrary {
     this.sponge.rough.repeat.set(3, 1);
     this.sponge.normal.repeat.set(3, 1);
 
-    this.wood.color.repeat.set(2, 2);
-    this.wood.rough.repeat.set(2, 2);
-    this.wood.normal.repeat.set(2, 2);
-    this.woodMat = new THREE.MeshStandardMaterial({
+    this.wood.color.repeat.set(7, 4);
+    this.wood.rough.repeat.set(7, 4);
+    this.wood.normal.repeat.set(7, 4);
+    this.woodMat = new THREE.MeshPhysicalMaterial({
       map: this.wood.color,
       roughnessMap: this.wood.rough,
       normalMap: this.wood.normal,
-      normalScale: new THREE.Vector2(0.6, 0.6),
-      roughness: 0.72,
+      normalScale: new THREE.Vector2(0.45, 0.45),
+      roughness: 0.86,
       metalness: 0,
-      envMapIntensity: 0.4,
+      color: 0x9d8b74,
+      // an oiled bench is not a mirror at grazing angles
+      specularIntensity: 0.22,
+      envMapIntensity: 0.22,
     });
 
+    this.wall.repeat.set(3, 2);
     this.wallMat = new THREE.MeshStandardMaterial({
       map: this.wall,
+      color: 0x5d554b,
       roughness: 0.98,
       metalness: 0,
       envMapIntensity: 0.25,
@@ -168,13 +175,13 @@ export class MaterialLibrary {
     });
 
     this.skinMat = new THREE.MeshPhysicalMaterial({
-      color: 0xe7b394,
-      roughness: 0.68,
+      color: 0xcf9d80,
+      roughness: 0.74,
       metalness: 0,
-      clearcoat: 0.12,
-      clearcoatRoughness: 0.8,
-      sheen: 0.5,
-      sheenColor: new THREE.Color(0xffcdb5),
+      clearcoat: 0.08,
+      clearcoatRoughness: 0.85,
+      sheen: 0.3,
+      sheenColor: new THREE.Color(0xe8b79c),
     });
   }
 }

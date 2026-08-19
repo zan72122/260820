@@ -14,15 +14,20 @@ export const LAYOUT = {
   cakeRadius: 0.055,
 };
 
-function jitterVertices(geo: THREE.BufferGeometry, amount: number, seed: number) {
+/** Breaks the primitive look. Vertices near the axis are left alone so lathe
+ *  caps do not fan out into a visible star. */
+function jitterVertices(geo: THREE.BufferGeometry, amount: number, seed: number, minRadius = 0) {
   const rng = new Rng(seed);
   const p = geo.getAttribute('position') as THREE.BufferAttribute;
   for (let i = 0; i < p.count; i++) {
+    const r = Math.hypot(p.getX(i), p.getZ(i));
+    const k = minRadius > 0 ? Math.min(1, Math.max(0, (r - minRadius) / minRadius)) : 1;
+    if (k <= 0) continue;
     p.setXYZ(
       i,
-      p.getX(i) + rng.sym(amount),
-      p.getY(i) + rng.sym(amount * 0.5),
-      p.getZ(i) + rng.sym(amount),
+      p.getX(i) + rng.sym(amount * k),
+      p.getY(i) + rng.sym(amount * 0.5 * k),
+      p.getZ(i) + rng.sym(amount * k),
     );
   }
   geo.computeVertexNormals();
@@ -106,12 +111,14 @@ export class Patisserie {
     // ---- background bowls and tools (real geometry for occlusion, merged) ----
     const steelBits: THREE.BufferGeometry[] = [];
     const bowl = (x: number, z: number, r: number) => {
+      // lower half of a sphere, lifted so the bowl rests on the bench
       const g = new THREE.SphereGeometry(r, 26, 14, 0, Math.PI * 2, Math.PI * 0.52, Math.PI * 0.48);
-      g.translate(x, r * 0.02, z);
+      g.translate(x, r, z);
       steelBits.push(g);
+      const rimY = r - r * Math.cos(Math.PI * 0.52) * -1;
       const rim = new THREE.TorusGeometry(r * 0.999, 0.0016, 6, 30);
       rim.rotateX(Math.PI / 2);
-      rim.translate(x, r * 0.02 + 0.0005, z);
+      rim.translate(x, rimY, z);
       steelBits.push(rim);
     };
     bowl(-0.34, -0.3, 0.075);
@@ -166,7 +173,7 @@ export class Patisserie {
     }
     profile.push(new THREE.Vector2(R * 0.6, bodyH + 0.008));
     profile.push(new THREE.Vector2(0.0001, bodyH + 0.0105));
-    const cakeGeo = jitterVertices(new THREE.LatheGeometry(profile, Config.fast ? 30 : 54), 0.00035, 44);
+    const cakeGeo = jitterVertices(new THREE.LatheGeometry(profile, Config.fast ? 30 : 54), 0.00035, 44, R * 0.45);
     const cakeMesh = new THREE.Mesh(cakeGeo, mats.spongeMat);
     cakeMesh.position.y = 0.013;
     cakeMesh.castShadow = !Config.fast;
@@ -175,7 +182,7 @@ export class Patisserie {
 
     // buttercream coat on top so the flower lands on cream, not sponge
     const coat = new THREE.Mesh(
-      jitterVertices(new THREE.CylinderGeometry(R * 0.995, R * 1.0, 0.006, Config.fast ? 30 : 54, 1), 0.0003, 91),
+      jitterVertices(new THREE.CylinderGeometry(R * 0.995, R * 1.0, 0.006, Config.fast ? 30 : 54, 1), 0.00025, 91, R * 0.6),
       new THREE.MeshPhysicalMaterial({
         color: 0xf5e7cf,
         roughness: 0.5,
@@ -192,12 +199,12 @@ export class Patisserie {
     this.cakeSurface = coat;
     LAYOUT.cakeTop = LAYOUT.cake.y + 0.013 + bodyH + 0.011;
 
-    const cakeShadow = contactShadow(0.11, 0.75);
+    const cakeShadow = contactShadow(0.115, 0.85);
     cakeShadow.position.set(0, 0.0012, 0);
     this.cake.add(cakeShadow);
 
     // ---- light: one soft window key that casts, plus non-casting shaping ----
-    this.keyLight = new THREE.DirectionalLight(0xfff2e0, 2.6);
+    this.keyLight = new THREE.DirectionalLight(0xfff2e0, 2.2);
     this.keyLight.position.set(-0.45, 0.62, 0.34);
     this.keyLight.target.position.set(0.02, 0.04, -0.05);
     this.keyLight.castShadow = !Config.fast;
@@ -215,15 +222,15 @@ export class Patisserie {
     scene.add(this.keyLight);
     scene.add(this.keyLight.target);
 
-    const softbox = new THREE.DirectionalLight(0xffe9d2, 0.9);
+    const softbox = new THREE.DirectionalLight(0xffe9d2, 0.7);
     softbox.position.set(0.6, 0.75, 0.15);
     scene.add(softbox);
 
-    const rim = new THREE.DirectionalLight(0xbdd6ff, 1.5);
+    const rim = new THREE.DirectionalLight(0xbdd6ff, 0.75);
     rim.position.set(0.15, 0.3, -0.75);
     scene.add(rim);
 
-    const bounce = new THREE.HemisphereLight(0xcfe0ff, 0x5b4433, 0.5);
+    const bounce = new THREE.HemisphereLight(0xbcd0ef, 0x5b4433, 0.42);
     scene.add(bounce);
   }
 }

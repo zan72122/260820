@@ -31,21 +31,24 @@ export class Renderer {
     });
     this.gl.outputColorSpace = THREE.SRGBColorSpace;
     this.gl.toneMapping = THREE.ACESFilmicToneMapping;
-    this.gl.toneMappingExposure = 1.05;
+    this.gl.toneMappingExposure = 0.98;
     this.gl.shadowMap.enabled = !Config.fast;
     this.gl.shadowMap.type = THREE.PCFSoftShadowMap;
-    this.ratio = clamp(window.devicePixelRatio || 1, 1, maxPixelRatio());
+    this.ratio = Config.fast || Config.lowres ? 0.5 : clamp(window.devicePixelRatio || 1, 1, maxPixelRatio());
     this.gl.setPixelRatio(this.ratio);
 
     this.camera = new THREE.PerspectiveCamera(32, 1, 0.012, 24);
     this.scene.background = new THREE.Color(0x2b2621);
 
     // One generated indoor environment gives the stainless something to reflect
-    // without shipping an HDR file.
+    // without shipping an HDR file. Image based lighting is the most expensive
+    // thing in the shader, so the software-rendered test profile drops it.
     this.pmrem = new THREE.PMREMGenerator(this.gl);
-    const env = this.pmrem.fromScene(new RoomEnvironment(), 0.06);
-    this.scene.environment = env.texture;
-    this.scene.environmentIntensity = 0.55;
+    if (!Config.fast) {
+      const env = this.pmrem.fromScene(new RoomEnvironment(), 0.06);
+      this.scene.environment = env.texture;
+      this.scene.environmentIntensity = 0.6;
+    }
 
     this.resize();
   }
@@ -64,7 +67,7 @@ export class Renderer {
 
   /** Keeps the frame budget by trimming resolution rather than dropping features. */
   adapt(dt: number, now: number) {
-    if (Config.fast) return;
+    if (Config.fast || Config.lowres) return;
     this.frameTimes.push(dt);
     if (this.frameTimes.length > 60) this.frameTimes.shift();
     if (now - this.lastAdapt < 2000 || this.frameTimes.length < 45) return;

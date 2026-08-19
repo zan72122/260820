@@ -65,7 +65,11 @@ export class PointerInput {
     if (this.activeId !== null) return;
     e.preventDefault();
     this.activeId = e.pointerId;
-    this.el.setPointerCapture?.(e.pointerId);
+    try {
+      this.el.setPointerCapture?.(e.pointerId);
+    } catch {
+      /* synthetic pointers (tests) have no capture target */
+    }
     this.history.length = 0;
     this.setFrom(e);
     this.down = true;

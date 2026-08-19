@@ -60,20 +60,20 @@ export class PipingBag {
     const profile: THREE.Vector2[] = [];
     for (let i = 0; i <= 16; i++) {
       const t = i / 16;
-      const y = 0.021 + t * 0.15;
-      let r = 0.011 + Math.pow(t, 0.85) * 0.037;
+      const y = 0.021 + t * 0.105;
+      let r = 0.011 + Math.pow(t, 0.85) * 0.029;
       if (t > 0.78) r *= 1 - (t - 0.78) / 0.22 * 0.82;
       r *= 1 + 0.05 * Math.sin(t * 9);
       profile.push(new THREE.Vector2(Math.max(0.0006, r), y));
     }
-    profile.push(new THREE.Vector2(0.006, 0.183));
-    profile.push(new THREE.Vector2(0.0035, 0.196));
+    profile.push(new THREE.Vector2(0.005, 0.132));
+    profile.push(new THREE.Vector2(0.003, 0.142));
     const bagGeo = new THREE.LatheGeometry(profile, Config.fast ? 20 : 34);
     // twist the top so it reads as a bag wrung shut
     const bp = bagGeo.getAttribute('position') as THREE.BufferAttribute;
     for (let i = 0; i < bp.count; i++) {
       const y = bp.getY(i);
-      const tw = clamp((y - 0.12) / 0.08, 0, 1) * 1.5;
+      const tw = clamp((y - 0.086) / 0.05, 0, 1) * 1.5;
       const c = Math.cos(tw);
       const s = Math.sin(tw);
       const x = bp.getX(i);
@@ -102,33 +102,36 @@ export class PipingBag {
 
     this.group.add(this.buildHand(mats));
 
-    // hold angle: bag leans back and to the right, tip pointing down at the work
-    this.group.rotation.set(-0.34, 0.5, 0.42, 'YXZ');
+    // Hold angle: the bag comes in over the child's shoulder from the upper
+    // right, so the tip and the new petal are never behind the hand.
+    this.group.rotation.set(-0.42, -0.8, -0.62, 'YXZ');
+    this.group.scale.setScalar(0.68);
   }
 
+  /**
+   * Only what a camera at this distance would actually see of the chef: the
+   * fingers wrapped round the bag and the edge of the palm behind it. A full
+   * arm at this scale reads as a cartoon, so it is deliberately cropped away.
+   */
   private buildHand(mats: MaterialLibrary): THREE.Mesh {
     const parts: THREE.BufferGeometry[] = [];
-    const palm = new THREE.SphereGeometry(0.042, 18, 14);
-    palm.scale(1.05, 0.72, 0.85);
-    palm.translate(0.024, 0.115, 0.006);
+    const palm = new THREE.SphereGeometry(0.027, 16, 12);
+    palm.scale(1.0, 0.95, 0.62);
+    palm.translate(0.02, 0.094, -0.004);
     parts.push(palm);
     for (let i = 0; i < 4; i++) {
-      const len = 0.062 - i * 0.006;
-      const f = new THREE.CapsuleGeometry(0.0092 - i * 0.0004, len, 4, 10);
+      const len = 0.03 - i * 0.003;
+      const f = new THREE.CapsuleGeometry(0.0062 - i * 0.0003, len, 4, 8);
       f.rotateZ(Math.PI / 2);
-      f.rotateY(-0.25 + i * 0.06);
-      f.translate(-0.006, 0.148 - i * 0.021, 0.012 + i * 0.002);
+      f.rotateY(-0.42 + i * 0.1);
+      f.translate(0.004, 0.107 - i * 0.0145, 0.011 - i * 0.0015);
       parts.push(f);
     }
-    const thumb = new THREE.CapsuleGeometry(0.011, 0.05, 4, 10);
-    thumb.rotateZ(0.9);
-    thumb.rotateX(-0.5);
-    thumb.translate(0.03, 0.106, -0.03);
-    parts.push(thumb);
-    const wrist = new THREE.CapsuleGeometry(0.032, 0.09, 4, 12);
-    wrist.rotateZ(0.35);
-    wrist.translate(0.062, 0.175, 0.01);
-    parts.push(wrist);
+    const knuckles = new THREE.CapsuleGeometry(0.0085, 0.042, 4, 10);
+    knuckles.rotateX(Math.PI / 2);
+    knuckles.rotateZ(0.2);
+    knuckles.translate(0.026, 0.076, 0.004);
+    parts.push(knuckles);
     const mesh = new THREE.Mesh(mergeGeometries(parts, false)!, mats.skinMat);
     mesh.castShadow = !Config.fast;
     return mesh;
@@ -164,14 +167,14 @@ export class Lifter {
     scene.add(this.group);
 
     const shape = new THREE.Shape();
-    shape.moveTo(-0.02, 0);
-    shape.quadraticCurveTo(-0.026, 0.03, 0, 0.036);
-    shape.quadraticCurveTo(0.026, 0.03, 0.02, 0);
-    shape.quadraticCurveTo(0.012, -0.006, 0, -0.006);
-    shape.quadraticCurveTo(-0.012, -0.006, -0.02, 0);
+    shape.moveTo(-0.028, 0);
+    shape.quadraticCurveTo(-0.036, 0.04, 0, 0.048);
+    shape.quadraticCurveTo(0.036, 0.04, 0.028, 0);
+    shape.quadraticCurveTo(0.017, -0.008, 0, -0.008);
+    shape.quadraticCurveTo(-0.017, -0.008, -0.028, 0);
     const blade = new THREE.ExtrudeGeometry(shape, { depth: 0.0008, bevelEnabled: false });
     blade.rotateX(-Math.PI / 2);
-    blade.translate(0, 0, 0.006);
+    blade.translate(0, 0, 0.004);
     const bladeMesh = new THREE.Mesh(blade, mats.steel);
     bladeMesh.castShadow = !Config.fast;
     bladeMesh.receiveShadow = true;
@@ -187,7 +190,7 @@ export class Lifter {
     handle.castShadow = !Config.fast;
     this.group.add(handle);
 
-    this.cradle.position.set(0, 0.0012, 0.006);
+    this.cradle.position.set(0, 0.0012, 0.008);
     this.group.add(this.cradle);
     this.group.visible = false;
   }
