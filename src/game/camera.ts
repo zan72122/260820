@@ -42,6 +42,12 @@ interface Placement {
   lookU: number
   lookF: number
   lambda: number
+  /**
+   * When set, the camera stands back far enough to fit this many metres
+   * either side of the look target — the sign of `r` picks the side.  Used
+   * where the subject has to be whole in frame whichever way the phone is held.
+   */
+  fitHalfWidth?: number
 }
 
 const SHOTS: Record<ShotName, (c: ShotCtx) => Placement> = {
@@ -68,8 +74,8 @@ const SHOTS: Record<ShotName, (c: ShotCtx) => Placement> = {
     lookF: 5.0,
     lambda: 2.4,
   }),
-  header: (c) => ({ r: c.cutSide * 5.4, u: 2.5, f: -0.4, lookR: c.cutSide * 0.3, lookU: 0.75, lookF: 3.0, lambda: 2.3 }),
-  cutaway: (c) => ({ r: c.cutSide * 6.8, u: 2.5, f: -0.35, lookR: 0, lookU: 1.45, lookF: 0.15, lambda: 3.2 }),
+  header: (c) => ({ r: c.cutSide, u: 1.75, f: 0.7, lookR: 0, lookU: 0.6, lookF: 2.6, lambda: 2.3, fitHalfWidth: 2.6 }),
+  cutaway: (c) => ({ r: c.cutSide, u: 1.75, f: -0.25, lookR: 0, lookU: 1.2, lookF: 0.1, lambda: 3.2, fitHalfWidth: 3.2 }),
   tank: (c) => ({ r: c.cutSide * 5.0, u: 5.0, f: -5.6, lookR: 0, lookU: 2.2, lookF: -0.3, lambda: 2.4 }),
   // auger arc, receiver and falling grain all inside one frame
   unload: (c) => ({
@@ -104,6 +110,8 @@ export class CameraDirector {
   private right = new THREE.Vector3()
   private fwd = new THREE.Vector3()
   private distScale = 1
+  /** tan(horizontal fov / 2), kept in step with resize */
+  private hTan = 0.5
   private shake = 0
 
   constructor() {
@@ -126,6 +134,7 @@ export class CameraDirector {
       this.distScale = 1.0
     }
     this.camera.updateProjectionMatrix()
+    this.hTan = Math.tan((this.camera.fov * Math.PI) / 360) * a
   }
 
   setShot(name: ShotName, hardCut = false) {
@@ -149,6 +158,18 @@ export class CameraDirector {
     if (this.shot === 'finish') {
       this.wantPos.set(p.r, p.u, p.f)
       this.wantLook.set(0, p.lookU, 0)
+    } else if (p.fitHalfWidth) {
+      const d = Math.max(4.5, p.fitHalfWidth / this.hTan)
+      this.wantPos
+        .copy(c.pos)
+        .addScaledVector(this.right, Math.sign(p.r) * d)
+        .addScaledVector(this.fwd, p.f)
+      this.wantPos.y = c.pos.y + p.u
+      this.wantLook
+        .copy(c.pos)
+        .addScaledVector(this.right, p.lookR)
+        .addScaledVector(this.fwd, p.lookF)
+      this.wantLook.y = c.pos.y + p.lookU
     } else {
       this.wantPos
         .copy(c.pos)

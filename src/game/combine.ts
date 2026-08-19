@@ -62,6 +62,7 @@ export class Combine {
   private flowBits!: THREE.InstancedMesh
   private flowSeed: Float32Array
 
+  private intake!: THREE.InstancedMesh
   private treads!: THREE.InstancedMesh
   private treadCount = 0
   private trackPhase = 0
@@ -224,20 +225,20 @@ export class Combine {
     for (const sx of [-1, 1]) {
       put(shell, box(0.34, 0.34, 3.0), P, [sx * 0.86, 1.79, -0.28], [0, 0, (sx * Math.PI) / 4])
       // hinged service panels with latches, one each side
-      put(hard, box(0.03, 0.62, 1.15), PD, [sx * 0.95, 1.42, -0.55])
+      put(shell, box(0.03, 0.62, 1.15), PD, [sx * 0.95, 1.42, -0.55])
       for (const dz of [-1.05, -0.05]) {
-        put(hard, box(0.05, 0.1, 0.06), COLORS.steel, [sx * 0.98, 1.42, -0.55 + dz * 0.5])
+        put(shell, box(0.05, 0.1, 0.06), COLORS.steel, [sx * 0.98, 1.42, -0.55 + dz * 0.5])
       }
     }
     // lower front fairing over the feeder throat
-    put(hard, box(1.86, 0.42, 0.22), PD, [0, 0.86, 1.2], [-0.5, 0, 0])
+    put(shell, box(1.86, 0.42, 0.22), PD, [0, 0.86, 1.2], [-0.5, 0, 0])
     // mud flaps behind the crawlers
     for (const sx of [-1, 1]) put(hard, box(0.5, 0.34, 0.03), 0x24282b, [sx * 0.76, 0.36, -1.62])
     // rear lamp bar
     put(hard, box(1.2, 0.09, 0.07), COLORS.chassisDark, [0, 1.02, -2.16])
     for (const sx of [-1, 1]) put(hard, box(0.16, 0.11, 0.06), 0xc2331f, [sx * 0.46, 1.02, -2.19])
     // tool box on the flank
-    put(hard, box(0.42, 0.26, 0.5), PD, [-1.02, 1.3, 0.55])
+    put(shell, box(0.42, 0.26, 0.5), PD, [-1.02, 1.3, 0.55])
     // rear straw hood, sloping down and back
     put(shell, box(1.7, 0.9, 0.7), P, [0, 1.35, -1.95], [0.35, 0, 0])
     put(hard, box(1.55, 0.06, 0.62), PD, [0, 0.95, -2.12], [0.5, 0, 0])
@@ -310,6 +311,9 @@ export class Combine {
     put(frame, box(w - 0.05, 0.06, d - 0.05), 0x4a4032, [cx, y0 + 0.02, cz])
     // grab rail across the top
     for (let i = 0; i < 5; i++) put(frame, box(0.035, 0.035, d), S, [cx - 0.6 + i * 0.3, y1 + 0.02, cz])
+    // cradle the stowed unloading auger rests in
+    put(frame, cyl(0.05, 0.05, 0.42, 8), S, [-0.86, y1 + 0.2, cz + 0.72])
+    put(frame, box(0.34, 0.06, 0.1), COLORS.chassisDark, [-0.9, y1 + 0.4, cz + 0.72], [0, 0, 0.35])
     this.addMesh(frame, this.mkPaint(), this.root)
 
     // sight panels
@@ -505,6 +509,32 @@ export class Combine {
     this.addMesh(rb, this.mkPaint(), this.reel)
     this.headerPivot.add(this.reel)
 
+    // wads of cut crop sweeping across the pan and into the throat: the
+    // "the machine is eating it" beat, visible from outside the machine
+    const wb = new MeshBuilder()
+    const wadA = new THREE.Color(0xcdb257)
+    const wadB = new THREE.Color(0xa8a659)
+    for (let i = 0; i < 5; i++) {
+      const a = (i / 5) * Math.PI + 0.4
+      put(
+        wb,
+        box(0.05, 0.05, 0.34),
+        i % 2 ? wadA : wadB,
+        [Math.cos(a) * 0.05, Math.sin(a) * 0.03, 0],
+        [0, 0.3 + i * 0.12, 0],
+      )
+    }
+    const im = new THREE.InstancedMesh(
+      wb.build(),
+      new THREE.MeshLambertMaterial({ vertexColors: true }),
+      10,
+    )
+    im.frustumCulled = false
+    im.castShadow = false
+    im.count = 0
+    this.intake = im
+    this.headerPivot.add(im)
+
     // a thin sliver that flickers with the knife stroke
     const kb = new MeshBuilder()
     put(kb, box(hw * 1.9, 0.02, 0.03), 0xdfe6ea, [0, 0, 0])
@@ -521,7 +551,7 @@ export class Combine {
     this.augerYaw.add(this.augerPitch)
 
     const b = new MeshBuilder()
-    const L = 3.15
+    const L = 2.85
     // pivot knuckle
     put(b, cyl(0.17, 0.17, 0.26, 12), COLORS.paintDark, [0, 0, 0])
     // tube runs out along +Z of the pitch group
@@ -552,7 +582,14 @@ export class Combine {
    */
   private buildInterior() {
     this.interior.visible = false
-    const steel = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.5 })
+    // a little emissive so the innards stay legible inside a shadowed body
+    const steel = new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      roughness: 0.55,
+      metalness: 0.45,
+      emissive: 0x3a4046,
+      emissiveIntensity: 0.8,
+    })
 
     const DRUM = new THREE.Vector3(0, 1.38, 0.52)
 
@@ -566,7 +603,7 @@ export class Combine {
 
     // --- threshing cylinder ----------------------------------------
     const db = new MeshBuilder()
-    put(db, cyl(0.27, 0.27, 1.4, 14), 0x6f777d, [0, 0, 0], [0, 0, Math.PI / 2])
+    put(db, cyl(0.3, 0.3, 1.42, 14), 0x99a1a7, [0, 0, 0], [0, 0, Math.PI / 2])
     for (let i = 0; i < 8; i++) {
       const a = (i / 8) * Math.PI * 2
       put(db, box(1.44, 0.06, 0.07), 0xc2c9cd, [0, Math.cos(a) * 0.3, Math.sin(a) * 0.3], [-a, 0, 0])
@@ -593,13 +630,12 @@ export class Combine {
     // beater behind the cylinder, then the stepped straw walkers
     put(st, cyl(0.16, 0.16, 1.3, 10), 0x7f878d, [0, 1.32, -0.22], [0, 0, Math.PI / 2])
     for (let i = 0; i < 6; i++) {
-      put(st, box(1.4, 0.035, 0.28), 0x848c92, [0, 1.2 - i * 0.045, -0.5 - i * 0.2])
-      put(st, box(1.4, 0.07, 0.03), 0x9aa2a8, [0, 1.24 - i * 0.045, -0.62 - i * 0.2])
+      put(st, box(1.4, 0.035, 0.28), 0xa9a583, [0, 1.3 - i * 0.05, -0.5 - i * 0.2])
+      put(st, box(1.4, 0.09, 0.03), 0xc3bd96, [0, 1.35 - i * 0.05, -0.62 - i * 0.2])
     }
-    // grain pan under the concave, feeding the shoe
-    put(st, box(1.4, 0.03, 1.0), 0x8b9298, [0, 0.99, 0.28], [0.13, 0, 0])
-    // elevator casing running up the left flank into the tank floor
-    put(st, box(0.2, 1.3, 0.24), 0x666e74, [-0.72, 1.38, -0.06], [-0.3, 0, 0])
+    // everything on the grain's road is warm; everything on the straw's is pale
+    put(st, box(1.34, 0.03, 1.0), 0xc79733, [0, 1.03, 0.3], [0.15, 0, 0])
+    put(st, box(0.2, 1.3, 0.24), 0x9c7d3c, [-0.72, 1.38, -0.06], [-0.3, 0, 0])
     this.addMesh(st, steel, this.interior, false)
 
     // --- cleaning fan ----------------------------------------------
@@ -615,11 +651,11 @@ export class Combine {
 
     // --- oscillating cleaning shoe ---------------------------------
     const sb = new MeshBuilder()
-    put(sb, box(1.32, 0.025, 1.0), 0xa4acb1, [0, 0, 0], [0.09, 0, 0])
-    for (let i = 0; i < 9; i++) put(sb, box(1.3, 0.04, 0.025), 0xbcc3c7, [0, 0.025, -0.45 + i * 0.11])
-    put(sb, box(1.26, 0.025, 0.9), 0x8b9298, [0, -0.11, 0.03], [0.09, 0, 0])
+    put(sb, box(1.14, 0.025, 0.95), 0x8e9599, [0, 0, 0], [0.09, 0, 0])
+    for (let i = 0; i < 9; i++) put(sb, box(1.12, 0.045, 0.025), 0xb9a35e, [0, 0.03, -0.42 + i * 0.105])
+    put(sb, box(1.08, 0.025, 0.85), 0x6f767b, [0, -0.11, 0.03], [0.09, 0, 0])
     this.addMesh(sb, steel, this.sieve, false)
-    this.sieve.position.set(0, 0.88, 0.02)
+    this.sieve.position.set(0, 0.83, 0.02)
     this.interior.add(this.sieve)
 
     const eb = new MeshBuilder()
@@ -630,7 +666,7 @@ export class Combine {
 
     // --- what is actually moving through ---------------------------
     const bits = new MeshBuilder()
-    put(bits, box(0.06, 0.04, 0.06), 0xffffff, [0, 0, 0])
+    put(bits, box(0.095, 0.062, 0.095), 0xffffff, [0, 0, 0])
     const bm = new THREE.InstancedMesh(bits.build(), new THREE.MeshLambertMaterial({ vertexColors: true }), 110)
     bm.frustumCulled = false
     bm.instanceMatrix.setUsage(THREE.DynamicDrawUsage)
@@ -649,7 +685,7 @@ export class Combine {
     for (const m of this.shellMats) {
       const mm = m as THREE.MeshStandardMaterial
       const base = (mm.userData.baseOpacity as number) ?? 1
-      mm.opacity = lerp(base, base * 0.3, v)
+      mm.opacity = lerp(base, base * 0.2, v)
       mm.depthWrite = v < 0.05
     }
   }
@@ -672,6 +708,26 @@ export class Combine {
     this.headerAuger.rotation.x += dt * 7.5 * spin
     this.knife.position.x = Math.sin(now * 62) * 0.018 * this.running
     this.knife.visible = this.headerDown > 0.5
+
+    // wads slide in from the full width of the pan and disappear up the throat
+    const feeding = this.headerDown > 0.6 && this.speedFrac > 0.15
+    this.intake.count = feeding ? 10 : 0
+    if (feeding) {
+      for (let i = 0; i < 10; i++) {
+        const t = (now * 1.05 + i * 0.1) % 1
+        const lane = ((i * 0.37) % 1) - 0.5
+        this.tmpV.set(
+          lane * 2.1 * (1 - t) ,
+          -0.16 + t * 0.34 + Math.sin(t * Math.PI) * 0.06,
+          0.78 - t * 0.86,
+        )
+        this.tmpQ.setFromEuler(this.tmpE.set(0, lane * 1.1 * (1 - t) + t * 0.4, t * 0.5))
+        this.tmpM.compose(this.tmpV, this.tmpQ, this.tmpS.setScalar(0.75 + t * 0.6))
+        this.intake.setMatrixAt(i, this.tmpM)
+      }
+      this.tmpS.setScalar(1)
+      this.intake.instanceMatrix.needsUpdate = true
+    }
 
     // crawler belts
     this.trackPhase += dt * this.speedFrac * COMBINE.speed
@@ -697,7 +753,7 @@ export class Combine {
     // real one rests.  Extended, it points out along local ±X.  Both ends
     // are signed so the swing never sweeps across the header.
     const side = this.augerSide
-    this.augerYaw.rotation.y = lerp(side * 0.3, side * (Math.PI / 2 - 0.08), swing)
+    this.augerYaw.rotation.y = lerp(side * 0.52, side * (Math.PI / 2 - 0.08), swing)
     this.augerPitch.rotation.x = lerp(0.12, -0.2, lift)
 
     // grain level in the tank
@@ -724,7 +780,7 @@ export class Combine {
     this.drum.rotation.x -= dt * 9 * spin
     this.fan.rotation.x += dt * 14 * spin
     this.sieve.position.z = 0.02 + Math.sin(now * 11) * 0.045
-    this.sieve.position.y = 0.88 + Math.cos(now * 11) * 0.01
+    this.sieve.position.y = 0.83 + Math.cos(now * 11) * 0.01
 
     const slats = this.feedSlats.children
     for (let i = 0; i < slats.length; i++) {

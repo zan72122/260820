@@ -357,7 +357,7 @@ export class Game {
     const rz = -Math.sin(this.mh)
     const fx = Math.sin(this.mh)
     const fz = Math.cos(this.mh)
-    out.set(this.mx + rx * side * 3.55 - fx * 0.9, this.mz + rz * side * 3.55 - fz * 0.9)
+    out.set(this.mx + rx * side * 3.3 - fx * 0.85, this.mz + rz * side * 3.3 - fz * 0.85)
   }
 
   private tv = new THREE.Vector2()
