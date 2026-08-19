@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#0a0608" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="color-scheme" content="dark" />
+    <meta
+      name="description"
+      content="舞台袖でまつ。まくのむこうをのぞく。せんせいのあいずで、あかるいぶたいへ。"
+    />
+    <title>ぶたいそで</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23120a0c'/%3E%3Crect x='2' y='2' width='11' height='28' rx='2' fill='%238e1620'/%3E%3Crect x='19' y='2' width='11' height='28' rx='2' fill='%238e1620'/%3E%3Crect x='13' y='2' width='6' height='28' fill='%23ffd27a'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="stage-canvas"></canvas>
+      <div id="vignette" aria-hidden="true"></div>
+      <div id="overlay" aria-hidden="true"></div>
+      <noscript>
+        <p style="color: #fff; padding: 2rem; font-family: sans-serif">
+          このゲームを あそぶには JavaScript を ゆるして ください。
+        </p>
+      </noscript>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,1 +1,9 @@
 .DS_Store
+node_modules
+dist
+*.local
+.vite
+test-results
+
+# development screenshots from tools/shoot.mjs
+shots

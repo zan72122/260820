@@ -1,0 +1,22 @@
+{
+  "name": "butai-sode",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Butai-Sode - a 3D web game about the moment a 4-year-old steps from the dark stage wing into the light.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --port 4173",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.180.0",
+    "playwright": "^1.62.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.6"
+  }
+}
