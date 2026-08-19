@@ -82,8 +82,8 @@ function frondRibbon(out, azimuth, height, spread, width, roll, tint, texIndex) 
 
   const curveAt = (t, target) => {
     // cubic-ish arc: shoots up, then leans outward and nods over at the tip
-    const y = height * (1.06 * t - 0.06 * t * t * t) * (1 - 0.10 * t * t);
-    const rad = spread * (t * t * (0.55 + 0.45 * t)) + 0.010;
+    const y = -0.016 + height * (1.06 * t - 0.06 * t * t * t) * (1 - 0.10 * t * t);
+    const rad = spread * (t * t * (0.55 + 0.45 * t)) + 0.008;
     target.set(dirX * rad, y, dirZ * rad);
     return target;
   };

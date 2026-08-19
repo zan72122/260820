@@ -86,9 +86,9 @@ export function soilTexture(size = 512) {
       const clod = Math.abs(tileNoise(u * 3.1, v * 3.1, per * 3.1));
       const t = clamp01(n * 0.8 + 0.5);
       // damp earth: deep umber -> slightly warmer highlights on clod tops
-      let r = lerp(66, 152, t) + clod * 26;
-      let g = lerp(48, 112, t) + clod * 19;
-      let b = lerp(35, 80, t) + clod * 13;
+      let r = lerp(74, 164, t) + clod * 28;
+      let g = lerp(55, 122, t) + clod * 21;
+      let b = lerp(41, 88, t) + clod * 14;
       const i = (y * size + x) * 4;
       d[i] = r; d[i + 1] = g; d[i + 2] = b; d[i + 3] = 255;
     }
@@ -410,12 +410,12 @@ export function skyTexture(w = 512, h = 512) {
   const c = canvas(w, h);
   const ctx = c.getContext('2d');
   const g = ctx.createLinearGradient(0, 0, 0, h);
-  g.addColorStop(0.00, '#3f7fc4');   // zenith
-  g.addColorStop(0.28, '#78a9dc');
-  g.addColorStop(0.52, '#b9d3ec');
-  g.addColorStop(0.70, '#e2ecf5');
-  g.addColorStop(0.84, '#f4f2ee');   // pale haze at horizon
-  g.addColorStop(1.00, '#eceae4');
+  g.addColorStop(0.00, '#2a6cbd');   // zenith
+  g.addColorStop(0.28, '#5f9bd9');
+  g.addColorStop(0.52, '#9cc4e9');
+  g.addColorStop(0.70, '#c9dcee');
+  g.addColorStop(0.84, '#e4e8ea');   // pale haze at horizon
+  g.addColorStop(1.00, '#dfe2e2');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, w, h);
   // stratus bands

@@ -116,15 +116,21 @@ const result = await page.evaluate(async (TARGET) => {
 
 await page.evaluate(() => window.__render());
 await page.screenshot({ path: join(OUT, 'loop-final.png') });
-const info = await page.evaluate(() => ({
+const info = await page.evaluate(() => {
+  let objects = 0;
+  window.__game.scene.traverse(() => objects++);
+  return {
+  objects,
   crate: window.__game.crateCount,
+  earlyPulls: window.__game.shortcuts,
   pile: window.__game.cratePile.children.length,
   tris: window.__renderer.info.render.triangles,
   calls: window.__renderer.info.render.calls,
   programs: window.__renderer.info.programs.length,
   geometries: window.__renderer.info.memory.geometries,
   textures: window.__renderer.info.memory.textures,
-}));
+  };
+});
 console.log('trace:', (result.trace || []).slice(0, 30).join(' -> '));
 console.log('harvested:', result.boxed, 'of', TARGET, result.fail ? ('FAIL: ' + result.fail) : '');
 console.log('leaf protrusion after round rollover (mm):',

@@ -101,6 +101,9 @@ export class Game {
     this.active = null;
     this.pullPx = 0;
     this.pullProgress = 0;
+    this.digUp = 0;
+    this.digSide = 0;
+    this.shortcuts = 0;
     this.carried = false;
     this.audioStarted = false;
 
@@ -241,10 +244,12 @@ export class Game {
   setState(st) { this.state = st; this.stateT = 0; }
 
   enterIntro() {
+    // establishing shot: start wide and high, off to the side so the shed,
+    // the fence line and the long rows all read before we settle on the bed
     const p = this.overviewPose();
     this.rig.set(
-      new THREE.Vector3(p.pos.x - p.pos.z * 0.34, p.pos.y * 1.5, p.pos.z * 1.45),
-      new THREE.Vector3(0, 0.3, -1.4),
+      new THREE.Vector3(p.pos.x + 2.6, p.pos.y * 1.75 + 0.5, p.pos.z * 1.55),
+      new THREE.Vector3(-2.2, 0.5, -3.4),
       this.camera.fov
     );
     this.rig.goTo(p.pos, p.look, 5.5, easeInOutCubic);
@@ -320,7 +325,7 @@ export class Game {
 
     s.hole.visible = true;
     s.plant.userData.setStretch(0);
-    s.plant.userData.setDirt(0.44);
+    s.plant.userData.setDirt(0.54);
     s.cap.visible = false;
 
     this.popFrom = s.rise;
@@ -432,6 +437,8 @@ export class Game {
     this.pointer.x = this.pointer.px = x;
     this.pointer.y = this.pointer.py = y;
     this.pointer.moved = 0;
+    this.digUp = 0;
+    this.digSide = 0;
     this.hasLastWorld = false;
     this.idleT = 0;
 
@@ -474,6 +481,16 @@ export class Game {
 
     if (this.state === S.DIG) {
       this.sweep(x, y);
+      // Once any green is showing, a decisive upward tug counts as "I want
+      // that one" - the last of the snow and soil comes away with the pull
+      // rather than making the child keep sweeping.
+      if (dy < 0) this.digUp += -dy;
+      this.digSide += Math.abs(dx);
+      if (this.active && this.active.revealed &&
+          this.digUp > this.pullNeed() * 0.42 && this.digUp > this.digSide * 0.9) {
+        this.shortcuts++;
+        this.forceUncover();
+      }
     } else if (this.state === S.PULL) {
       // only upward travel counts, and nothing ever takes progress away
       if (dy < 0) this.pullPx += -dy;
@@ -564,6 +581,26 @@ export class Game {
    * facing the camera: a swipe toward the crate always closes the distance to
    * the crate, however the shot happens to be angled.
    */
+  /** Whisk away the remaining snow and soil, then go straight into the pull. */
+  forceUncover() {
+    const s = this.active;
+    for (let i = 0; i < 24; i++) {
+      const a = (i / 24) * Math.PI * 2;
+      for (let r = 0; r <= 6; r++) {
+        this.field.brush(s.x + Math.cos(a) * r * 0.026, s.z + Math.sin(a) * r * 0.026, 0.105, 0.8);
+      }
+    }
+    this.field.scrub(s.x, s.z, 0.15, 0.5);
+    s.capAmount = 0;
+    this.fx.puffSnow(s.x, this.surfaceHeight(s.x, s.z), s.z, 0, 0, 0.07);
+    this.fx.puffSoil(s.x, s.y + 0.012, s.z, 0.09, 0.8);
+    A.playBrush(1, 0.35);
+    const carried = this.digUp;
+    this.enterGrab();
+    this.enterPull();
+    this.pullPx = carried;
+  }
+
   dragCarrot(sx, sy) {
     this.setRayFromScreen(sx, sy);
     this.plane.set(this._up, -this.carryPos.y);
@@ -656,7 +693,8 @@ export class Game {
     if (!list.length) { this.enterRefill(); return; }
     // point at the nearest untouched spot so a tap is always suggested
     const s = list[0];
-    const p = this.toScreen(this.tmpV.set(s.x, s.y + 0.12, s.z));
+    // anchor the pointing hand on the snow surface, where the marker ring sits
+    const p = this.toScreen(this.tmpV.set(s.x, this.field.surfaceY(s.x, s.z) + 0.02, s.z));
     this.hint.set('tap', p);
     this.hint.setAnchor(p.x, p.y);
     // never let a child get stuck staring at the field
@@ -687,7 +725,7 @@ export class Game {
     }
 
     // hand hint follows the spot until the player takes over
-    const scr = this.toScreen(this.tmpV.set(s.x, s.y + 0.08, s.z));
+    const scr = this.toScreen(this.tmpV.set(s.x, s.y + snowLeft + 0.015, s.z));
     this.hint.setAnchor(scr.x, scr.y);
     this.hint.set(this.pointer.moved > 40 && this.idleT < 2.2 ? 'none' : 'sweep');
 

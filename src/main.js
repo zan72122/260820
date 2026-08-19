@@ -62,7 +62,7 @@ function main() {
   renderer.setPixelRatio(dpr);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 0.96;
+  renderer.toneMappingExposure = 0.90;
   renderer.shadowMap.enabled = quality.shadows;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.domElement.id = 'view';

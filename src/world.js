@@ -4,6 +4,7 @@
 // crate the carrots go into, and the falling snow.
 // ---------------------------------------------------------------------------
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { makeRng, lerp, clamp01, fbm, smoothstep } from './util.js';
 import {
   skyTexture, snowGrainTexture, woodTexture, snowflakeSprite, barkTexture,
@@ -156,6 +157,30 @@ function rowStripeTexture(size = 256) {
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
+}
+
+/**
+ * Collapse a pile of small parts into one mesh per material. Fences, crates
+ * and tree bases are made of dozens of little boxes and cylinders; merged,
+ * they cost one draw call each instead of sixty.
+ */
+function mergeParts(parts) {
+  const byMaterial = new Map();
+  for (const { geometry, matrix, material } of parts) {
+    const g = geometry.clone();
+    g.applyMatrix4(matrix);
+    if (!byMaterial.has(material)) byMaterial.set(material, []);
+    byMaterial.get(material).push(g);
+  }
+  const out = new THREE.Group();
+  for (const [material, geos] of byMaterial) {
+    const merged = mergeGeometries(geos, false);
+    geos.forEach((g) => g.dispose());
+    if (!merged) continue;
+    const mesh = new THREE.Mesh(merged, material);
+    out.add(mesh);
+  }
+  return out;
 }
 
 function snowMaterial(grain, repeat = 2.4) {
@@ -312,13 +337,11 @@ export function buildCrate(wood, grain) {
     map: (() => { const t = wood.clone(); t.repeat.set(0.8, 0.6); t.needsUpdate = true; return t; })(),
     color: 0xb99b76, roughness: 0.88, metalness: 0,
   });
-  const add = (geo, x, y, z, m = mat) => {
-    const mesh = new THREE.Mesh(geo, m);
-    mesh.position.set(x, y, z);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    g.add(mesh);
-    return mesh;
+  const parts = [];
+  const snowParts = [];
+  const add = (geo, x, y, z, m = mat, snowy = false) => {
+    const matrix = new THREE.Matrix4().makeTranslation(x, y, z);
+    (snowy ? snowParts : parts).push({ geometry: geo, matrix, material: m });
   };
   // slatted long sides (two slats with a gap, like a real produce crate)
   const slatH = 0.085;
@@ -347,13 +370,17 @@ export function buildCrate(wood, grain) {
     bumpScale: 0.5,
   });
   for (const sz of [-1, 1]) {
-    const cap = add(new THREE.BoxGeometry(W + 0.01, 0.018, T + 0.012), 0, 0.196, sz * (D / 2 - T / 2), snowMat);
-    cap.castShadow = false;
+    add(new THREE.BoxGeometry(W + 0.01, 0.018, T + 0.012), 0, 0.196, sz * (D / 2 - T / 2), snowMat, true);
   }
   for (const sx of [-1, 1]) {
-    const cap = add(new THREE.BoxGeometry(T + 0.012, 0.018, D - T), sx * (W / 2 - T / 2), 0.196, 0, snowMat);
-    cap.castShadow = false;
+    add(new THREE.BoxGeometry(T + 0.012, 0.018, D - T), sx * (W / 2 - T / 2), 0.196, 0, snowMat, true);
   }
+  const solid = mergeParts(parts);
+  solid.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  g.add(solid);
+  const capped = mergeParts(snowParts);
+  capped.traverse((o) => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = true; } });
+  g.add(capped);
   g.userData.inner = { w: W - 0.06, d: D - 0.06, floor: 0.02 };
   return g;
 }
@@ -488,7 +515,7 @@ export function buildWorld(scene, renderer, quality) {
   const wood = woodTexture(quality.texBig, { planks: 5 });
   wood.anisotropy = aniso;
 
-  scene.fog = new THREE.FogExp2(0xdfe8f2, 0.0165);
+  scene.fog = new THREE.FogExp2(0xd3e0ee, 0.0165);
   scene.background = null;
 
   // --- sky ---------------------------------------------------------------
@@ -500,10 +527,10 @@ export function buildWorld(scene, renderer, quality) {
   scene.add(sky);
 
   // --- lights ------------------------------------------------------------
-  const hemi = new THREE.HemisphereLight(0xbcd6f5, 0xa2b2c4, 0.74);
+  const hemi = new THREE.HemisphereLight(0x9dc3f2, 0x93a6bd, 0.70);
   scene.add(hemi);
 
-  const sun = new THREE.DirectionalLight(0xfff1d6, 2.9);
+  const sun = new THREE.DirectionalLight(0xfff0cd, 3.15);
   sun.position.set(-5.6, 2.5, 4.6);    // low winter sun, raking across the rows
   sun.target.position.set(0, 0, 0);
   scene.add(sun.target);
@@ -542,16 +569,18 @@ export function buildWorld(scene, renderer, quality) {
 
   // --- distant hills -----------------------------------------------------
   const hills = new THREE.Group();
-  for (const [radius, height, tint, seed] of [[150, 26, 0xb9cbe0, 5], [230, 44, 0xc9d7e6, 17]]) {
-    const seg = 96;
+  for (const [radius, height, tint, seed] of [[135, 20, 0xc4d3e4, 5], [215, 36, 0xd0dce9, 17]]) {
+    const seg = 220;
     const pos = [], idx = [], col = [];
-    const rng = makeRng(seed);
+    const base = new THREE.Color(0xdae4ef);
     for (let i = 0; i <= seg; i++) {
       const a = (i / seg) * Math.PI * 2;
-      const h = height * (0.35 + Math.pow(Math.abs(fbm(Math.cos(a) * 2.2 + seed, Math.sin(a) * 2.2, 4)), 0.8) * 1.9)
-              * (0.7 + 0.5 * Math.abs(Math.sin(a * 3.1 + seed)));
-      pos.push(Math.cos(a) * radius, -2, Math.sin(a) * radius);
-      col.push(0.86, 0.90, 0.96);
+      // rounded, weathered ridges rather than paper-cutout spikes
+      const n = fbm(Math.cos(a) * 1.7 + seed, Math.sin(a) * 1.7, 3) * 0.5 + 0.5;
+      const n2 = fbm(Math.cos(a) * 4.6 + seed * 2, Math.sin(a) * 4.6, 2) * 0.5 + 0.5;
+      const h = height * (0.30 + n * 0.80 + n2 * 0.22);
+      pos.push(Math.cos(a) * radius, -3, Math.sin(a) * radius);
+      col.push(base.r, base.g, base.b);
       pos.push(Math.cos(a) * radius, h, Math.sin(a) * radius);
       const c = new THREE.Color(tint);
       col.push(c.r, c.g, c.b);
@@ -581,22 +610,24 @@ export function buildWorld(scene, renderer, quality) {
     [-12.5, -15.5], [-16.0, -19.0], [10.5, -17.5], [15.0, -13.0],
     [-20.0, -8.0], [19.5, -21.0], [-9.0, -24.0], [24.0, -6.0], [3.0, -26.0],
   ];
+  const footGeo = new THREE.SphereGeometry(0.6, 10, 6, 0, Math.PI * 2, 0, Math.PI * 0.5);
+  const footMat = new THREE.MeshStandardMaterial({ color: 0xf2f6fc, roughness: 0.8 });
+  const footParts = [];
+  const fm = new THREE.Matrix4();
   for (const [tx, tz] of treeSpots) {
     const t = new THREE.Mesh(treeVariants[(rng() * 3) | 0], treeMat);
-    const s = 0.9 + rng() * 0.7;
-    t.scale.setScalar(s);
+    const sc = 0.9 + rng() * 0.7;
+    t.scale.setScalar(sc);
     t.position.set(tx, groundHeight(tx, tz) - 0.1, tz);
     t.rotation.y = rng() * 6.28;
     trees.add(t);
     // snow piled at the foot
-    const foot = new THREE.Mesh(
-      new THREE.SphereGeometry(0.6 * s, 10, 6, 0, Math.PI * 2, 0, Math.PI * 0.5),
-      new THREE.MeshStandardMaterial({ color: 0xf2f6fc, roughness: 0.8 })
-    );
-    foot.scale.y = 0.35;
-    foot.position.set(tx, groundHeight(tx, tz) - 0.12, tz);
-    trees.add(foot);
+    fm.compose(new THREE.Vector3(tx, groundHeight(tx, tz) - 0.12, tz),
+      new THREE.Quaternion(), new THREE.Vector3(sc, sc * 0.35, sc));
+    footParts.push({ geometry: footGeo, matrix: fm.clone(), material: footMat });
   }
+  trees.add(mergeParts(footParts));
+  footGeo.dispose();
   scene.add(trees);
 
   // --- shed --------------------------------------------------------------
@@ -606,39 +637,49 @@ export function buildWorld(scene, renderer, quality) {
   scene.add(shed);
 
   // --- fence -------------------------------------------------------------
-  const fence = new THREE.Group();
   const postMat = new THREE.MeshStandardMaterial({
     map: (() => { const t = barkTexture(128); t.repeat.set(1, 2); return t; })(),
     color: 0x8a7a66, roughness: 0.95,
   });
   const wireMat = new THREE.MeshStandardMaterial({ color: 0x6a6f77, roughness: 0.6, metalness: 0.3 });
-  for (let i = 0; i < 16; i++) {
-    const px = -3.4 - i * 0.06;
-    const pz = -2.6 - i * 1.85;
-    const h = 1.05;
-    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.055, h, 6), postMat);
-    post.position.set(px, groundHeight(px, pz) + h / 2 - 0.14, pz);
-    post.rotation.z = (Math.sin(i * 2.1) * 0.05);
-    fence.add(post);
-    // snow cap on the post top
-    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.055, 7, 5), new THREE.MeshStandardMaterial({ color: 0xf6f9ff, roughness: 0.7 }));
-    cap.scale.y = 0.6;
-    cap.position.set(px, groundHeight(px, pz) + h - 0.14, pz);
-    fence.add(cap);
-    if (i > 0) {
-      const ppx = -3.4 - (i - 1) * 0.06, ppz = -2.6 - (i - 1) * 1.85;
-      for (const wy of [0.42, 0.78]) {
-        const a = new THREE.Vector3(ppx, groundHeight(ppx, ppz) + wy - 0.14, ppz);
-        const b = new THREE.Vector3(px, groundHeight(px, pz) + wy - 0.14, pz);
-        const len = a.distanceTo(b);
-        const wire = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, len, 4), wireMat);
-        wire.position.copy(a).lerp(b, 0.5);
-        wire.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
-        fence.add(wire);
+  const capMat = new THREE.MeshStandardMaterial({ color: 0xf6f9ff, roughness: 0.7 });
+  {
+    const postGeo = new THREE.CylinderGeometry(0.045, 0.055, 1.05, 6);
+    const capGeo = new THREE.SphereGeometry(0.055, 7, 5);
+    const wireGeo = new THREE.CylinderGeometry(0.008, 0.008, 1, 4);
+    const parts = [];
+    const m = new THREE.Matrix4();
+    const q = new THREE.Quaternion();
+    const up = new THREE.Vector3(0, 1, 0);
+    const posAt = (i) => {
+      const px = -3.4 - i * 0.06, pz = -2.6 - i * 1.85;
+      return new THREE.Vector3(px, groundHeight(px, pz) - 0.14, pz);
+    };
+    for (let i = 0; i < 16; i++) {
+      const p = posAt(i);
+      m.compose(new THREE.Vector3(p.x, p.y + 0.525, p.z),
+        q.setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.sin(i * 2.1) * 0.05),
+        new THREE.Vector3(1, 1, 1));
+      parts.push({ geometry: postGeo, matrix: m.clone(), material: postMat });
+      m.compose(new THREE.Vector3(p.x, p.y + 1.05, p.z), q.identity(), new THREE.Vector3(1, 0.6, 1));
+      parts.push({ geometry: capGeo, matrix: m.clone(), material: capMat });
+      if (i > 0) {
+        const pp = posAt(i - 1);
+        for (const wy of [0.42, 0.78]) {
+          const a = new THREE.Vector3(pp.x, pp.y + wy, pp.z);
+          const b = new THREE.Vector3(p.x, p.y + wy, p.z);
+          const len = a.distanceTo(b);
+          m.compose(a.clone().lerp(b, 0.5),
+            q.setFromUnitVectors(up, b.clone().sub(a).normalize()),
+            new THREE.Vector3(1, len, 1));
+          parts.push({ geometry: wireGeo, matrix: m.clone(), material: wireMat });
+        }
       }
     }
+    const fence = mergeParts(parts);
+    postGeo.dispose(); capGeo.dispose(); wireGeo.dispose();
+    scene.add(fence);
   }
-  scene.add(fence);
 
   // --- crate + tools -----------------------------------------------------
   const crate = buildCrate(wood, grain);
