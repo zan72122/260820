@@ -63,18 +63,11 @@ export const COLORS = {
   steel: 0x9aa3a8,
   steelDark: 0x5d6469,
   glass: 0x9fc8d8,
-  grain: 0xdcb457,
-  grainLight: 0xf2dda1,
-  straw: 0xd9c489,
-  strawDark: 0xb59a5c,
   riceGold: 0xd8a733,
   riceTip: 0xf0d180,
   riceGreen: 0xa39c4a,
   riceStem: 0x8a9c4e,
-  leveeGrass: 0x6d7d3b,
   fog: 0xc8d2c6,
-  sky: 0x8fb6d8,
-  sun: 0xfff0d0,
 }
 
 export const SUN_DIR = { azimuth: -0.92, elevation: 0.47 }

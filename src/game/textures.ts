@@ -62,7 +62,6 @@ export interface SoilSet {
   dry: THREE.CanvasTexture
   wet: THREE.CanvasTexture
   rough: THREE.CanvasTexture
-  normalish: THREE.CanvasTexture
 }
 
 /**
@@ -167,7 +166,6 @@ export function makeSoil(size = 256): SoilSet {
     dry: finish(cd, true, 1),
     wet: finish(cw, true, 1),
     rough: finish(cr, false, 1),
-    normalish: finish(cr, false, 1),
   }
 }
 
@@ -341,8 +339,4 @@ export function makeRubber(size = 128): THREE.CanvasTexture {
   }
   ctx.putImageData(img, 0, 0)
   return finish(c, false, 1)
-}
-
-export function disposeTexture(t: THREE.Texture | null | undefined) {
-  if (t) t.dispose()
 }

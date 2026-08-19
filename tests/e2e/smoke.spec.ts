@@ -147,6 +147,19 @@ test.describe('稲コンバイン', () => {
     expect(end.state).toBe('finished')
   })
 
+  test('finishes even with a finger held hard over to one side', async ({ page }) => {
+    await boot(page)
+    await advance(page, 1)
+    await pressAction(page)
+    // a four-year-old will absolutely do this for the entire game
+    await holdFinger(page, 0.95)
+
+    const end = await playUntil(page, (s) => s.state === 'finished')
+    expect(end.state).toBe('finished')
+    expect(end.progress).toBeGreaterThan(0.99)
+    await releaseFinger(page)
+  })
+
   test('stays inside a sane draw budget', async ({ page }) => {
     await boot(page, '')
     await advance(page, 1)

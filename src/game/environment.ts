@@ -68,7 +68,6 @@ function skyDome(sunDir: THREE.Vector3): THREE.Mesh {
 function ridgeLayer(radius: number, height: number, base: number, color: number, seed: number): THREE.Mesh {
   const rng = new Rng(seed)
   const n = 120
-  const b = new MeshBuilder()
   const c = new THREE.Color(color)
   const cTop = c.clone().lerp(new THREE.Color(0xffffff), 0.14)
   const pos: number[] = []
@@ -103,7 +102,6 @@ function ridgeLayer(radius: number, height: number, base: number, color: number,
     new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.DoubleSide, fog: true }),
   )
   m.frustumCulled = false
-  void b
   return m
 }
 

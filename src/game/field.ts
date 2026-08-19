@@ -191,6 +191,8 @@ export class Field {
   readonly cutHeading: Float32Array
   readonly laneOf: Int32Array
   readonly laneRemaining: Int32Array
+  /** lanes the machine has given up on, so it never circles one for ever */
+  readonly laneBlocked: Uint8Array
   standing: number
   laneThreshold = 4
 
@@ -242,6 +244,7 @@ export class Field {
     this.cutHeading = new Float32Array(this.count)
     this.laneOf = new Int32Array(this.count)
     this.laneRemaining = new Int32Array(LANE_COUNT)
+    this.laneBlocked = new Uint8Array(LANE_COUNT)
     this.nearSlot = new Int32Array(this.count).fill(-1)
     this.farSlot = new Int32Array(this.count).fill(-1)
     this.nearList = new Int32Array(Math.min(QUALITY.nearCap, this.count))
@@ -719,7 +722,7 @@ export class Field {
     let best = -1
     let bestD = Infinity
     for (let i = 0; i < LANE_COUNT; i++) {
-      if (i === exclude) continue
+      if (i === exclude || this.laneBlocked[i]) continue
       if (this.laneRemaining[i] <= this.laneThreshold) continue
       const d = Math.abs(laneX(i) - fromX)
       if (d < bestD) {

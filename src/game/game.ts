@@ -399,12 +399,16 @@ export class Game {
   }
 
   private driveAlongLane(dt: number, allowPlayer: boolean) {
-    const target = laneX(this.lane) + this.steerOffset
-    if (allowPlayer && this.controls.active) {
-      this.steerOffset = clamp(this.steerOffset + this.controls.steer * 1.15 * dt, -0.62, 0.62)
+    // How far the player may wander shrinks with each repeat pass, so a
+    // finger held to one side can never leave a strip the machine will not
+    // reach on the next run down the row.
+    const room = [0.62, 0.3, 0][Math.min(2, this.lanePass[this.lane])]
+    if (allowPlayer && this.controls.active && room > 0) {
+      this.steerOffset = clamp(this.steerOffset + this.controls.steer * 1.15 * dt, -room, room)
     } else {
-      this.steerOffset = damp(this.steerOffset, 0, 1.1, dt)
+      this.steerOffset = damp(this.steerOffset, 0, room > 0 ? 1.1 : 2.4, dt)
     }
+    const target = laneX(this.lane) + this.steerOffset
     // cross-track controller: aim the nose back at the row
     const err = clamp((target - this.mx) * 0.55, -0.55, 0.55)
     const want = this.laneBaseHeading() + (this.laneDir > 0 ? err : -err)
@@ -494,6 +498,8 @@ export class Game {
     let target = this.lane
     this.lanePass[this.lane]++
     if (remaining <= this.field.laneThreshold || this.lanePass[this.lane] >= 3) {
+      // four runs and still standing means something is wrong; leave it
+      if (this.lanePass[this.lane] >= 4) this.field.laneBlocked[this.lane] = 1
       const nl = this.field.nextLane(this.mx, this.lane)
       if (nl < 0) {
         // the paddy is done — empty the tank, then celebrate
@@ -765,7 +771,7 @@ export class Game {
     const fill = this.tankUnits / TANK.capacity
     this.combine.tankFill = fill
     this.hud.setTank(fill)
-    this.hud.setProgress(Math.min(1, this.field.progress * 1.03))
+    this.hud.setProgress(this.state === 'finished' ? 1 : Math.min(1, this.field.progress * 1.03))
 
     if (
       this.tankUnits >= TANK.capacity &&

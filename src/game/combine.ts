@@ -34,10 +34,6 @@ function trackPose(s: number): { y: number; z: number; ang: number } {
   return { z: -TRK_C - TRK_R * Math.sin(a), y: 2 * TRK_R - (TRK_R - TRK_R * Math.cos(a)), ang: Math.PI + a }
 }
 
-export interface CombineParts {
-  root: THREE.Group
-}
-
 export class Combine {
   readonly root = new THREE.Group()
 
