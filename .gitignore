@@ -1,1 +1,7 @@
 .DS_Store
+260820
+node_modules
+dist
+test-results
+playwright-report
+.vite
