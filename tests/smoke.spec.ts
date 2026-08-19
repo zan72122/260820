@@ -15,6 +15,7 @@ interface DebugState {
   wrap: number;
   chamberRadius: number;
   fieldBales: number;
+  pos: { x: number; y: number; z: number };
 }
 
 declare global {
@@ -183,5 +184,54 @@ test('the wrap and tailgate advance on their own if nobody presses', async ({ pa
   }
   expect([...seen]).toEqual(expect.arrayContaining(['wrap', 'gate', 'eject']));
   expect((await state(page)).bales).toBeGreaterThanOrEqual(1);
+  expect(errors, errors.join('\n')).toHaveLength(0);
+});
+
+test('plays a whole cycle through real touches: hold, drag, tap, swipe up', async ({ page }) => {
+  const errors = await boot(page);
+  const box = (await page.locator('#scene').boundingBox())!;
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height * 0.75;
+
+  await page.locator('#start').dispatchEvent('pointerdown');
+  await page.waitForFunction(() => window.__game.debugState().state === 'drive');
+
+  // a finger goes down and stays down: the machine must pull away
+  await page.mouse.move(cx, cy);
+  await page.mouse.down();
+  await step(page, 1.5);
+  expect((await state(page)).speed, 'holding drives the machine').toBeGreaterThan(1);
+
+  // sliding sideways must move it onto another row
+  const x0 = (await state(page)).pos.x;
+  await page.mouse.move(cx + box.width * 0.3, cy, { steps: 4 });
+  await step(page, 2.5);
+  expect(Math.abs((await state(page)).pos.x - x0), 'dragging steers').toBeGreaterThan(0.6);
+  await page.mouse.move(cx, cy, { steps: 4 });
+
+  for (let i = 0; i < 90 && (await state(page)).state !== 'full'; i++) await step(page, 0.5);
+  expect((await state(page)).state).toBe('full');
+  await page.mouse.up();
+
+  // the big button appears a beat after the camera settles
+  await step(page, 1.0);
+  await expect(page.locator('#action')).toHaveClass(/show/);
+  await page.locator('#action').dispatchEvent('pointerdown');
+  await step(page, 0.2);
+  expect((await state(page)).state).toBe('wrap');
+  for (let i = 0; i < 40 && (await state(page)).state !== 'gate'; i++) await step(page, 0.5);
+  expect((await state(page)).state).toBe('gate');
+
+  // an upward flick opens the back
+  await page.mouse.move(cx, box.y + box.height * 0.8);
+  await page.mouse.down();
+  await page.mouse.move(cx, box.y + box.height * 0.4, { steps: 6 });
+  await page.mouse.up();
+  await step(page, 0.2);
+  expect((await state(page)).state, 'a swipe up opens the tailgate').toBe('eject');
+
+  for (let i = 0; i < 60 && (await state(page)).bales < 1; i++) await step(page, 0.5);
+  expect((await state(page)).bales).toBeGreaterThanOrEqual(1);
+  expect((await state(page)).gate, 'the tailgate actually swung open').toBeGreaterThan(0.8);
   expect(errors, errors.join('\n')).toHaveLength(0);
 });

@@ -68,7 +68,10 @@ smoke suite runs with.
 only, one worker, iPhone viewport) and covers booting, a full harvest → wrap
 → eject cycle, two bales back to back, landscape, the roll growing
 monotonically and resetting, clearing and replanting a whole paddy, and the
-hands-off case where nobody presses anything.
+hands-off case where nobody presses anything.  One test drives the whole
+cycle through real touch events — hold, drag sideways, press the button,
+flick upward — so the actual control path is covered and not just the
+debug hooks.
 
 Frame rate and final visual quality are **not** assessed under the software
 rasteriser used in CI — those need a real GPU.
