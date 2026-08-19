@@ -16,7 +16,7 @@ export class UI {
 
     this.holding = false;
     this.hold = 0;
-    this.holdNeeded = 0.55;
+    this.holdNeeded = 0.45;
     this.onHoldComplete = null;
     this._lastFill = -1;
 

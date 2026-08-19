@@ -79,6 +79,12 @@ export class Input {
 
   up(e) {
     if (e.pointerId !== this.id) return;
+    // a plain tap should still make the machine go - a four year old who
+    // pokes the screen must never be met with nothing happening
+    if (this.downTime < 0.32 && this.moved < 26) {
+      this.throttle = Math.max(this.throttle, 0.62);
+      this.didSwipeUp = true;
+    }
     this.id = null;
     this.isDown = false;
   }

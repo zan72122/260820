@@ -35,7 +35,7 @@ class Game {
     this.renderer.toneMappingExposure = 1.06;
 
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(50, 1, 0.5, 900);
+    this.camera = new THREE.PerspectiveCamera(50, 1, 0.5, 1600);
     this.scene.add(this.camera);
 
     this.world = new World(this.scene, this.renderer);
@@ -80,6 +80,8 @@ class Game {
     this.tiltTarget = 0;
     this.dumpSpill = 0;
     this.smokeAcc = 0;
+    this.returning = 0;
+    this.chuteIdle = 0;
     this.dustAcc = 0;
     this.frames = 0;
     this.fpsAcc = 0;
@@ -99,6 +101,10 @@ class Game {
     this.resize();
 
     this.input.onFirstTouch = () => Audio.start();
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) Audio.suspend(); else Audio.start();
+    });
 
     // prime the scene so the first frame is not a stutter
     this.update(0.016);
@@ -244,6 +250,18 @@ class Game {
       const d = this.input.takeChute();
       if (d !== 0) {
         this.plow.chuteAngle = THREE.MathUtils.clamp(this.plow.chuteAngle + d, -2.6, -0.30);
+        this.chuteIdle = 0;
+      } else {
+        this.chuteIdle = (this.chuteIdle || 0) + dt;
+      }
+      // if a child parks the chute somewhere useless it creeps back on its
+      // own, so the truck always eventually fills and the loop never stalls
+      if (this.chuteIdle > 4 && this.idealChute !== undefined) {
+        const want = THREE.MathUtils.clamp(this.idealChute, -2.6, -0.30);
+        const diff = want - this.plow.chuteAngle;
+        if (Math.abs(diff) > 0.03) {
+          this.plow.chuteAngle += Math.sign(diff) * Math.min(Math.abs(diff), dt * 0.3);
+        }
       }
     } else {
       this.input.takeChute();
@@ -307,7 +325,8 @@ class Game {
       trot = 0;
     }
     const prev = this.tmp.copy(t.position);
-    const k = Math.min(1, dt * (this.state === 'toDump' ? 1.5 : 3.0));
+    if (this.returning > 0) this.returning -= dt;
+    const k = Math.min(1, dt * (this.state === 'toDump' ? 1.5 : (this.returning > 0 ? 1.1 : 3.0)));
     // match the plow's pace first, then correct - otherwise the truck
     // trails behind and the chute has to lead it awkwardly
     if (this.state === 'plow' || this.state === 'intro') t.position.z += this.speed * dt;
@@ -357,10 +376,11 @@ class Game {
       // how far off the truck is the chute pointing?
       const dx = this.aim.x - this.muzzle.x, dz = this.aim.z - this.muzzle.z;
       const aimAng = Math.atan2(dx, dz);
+      this.idealChute = aimAng;
       const chuteAng = Math.atan2(this.mdir.x, this.mdir.z);
       let err = Math.abs(((aimAng - chuteAng + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
       // very forgiving: near-perfect capture inside ~35 deg, still decent to ~80
-      const assist = THREE.MathUtils.clamp(1.0 - (err - 0.35) / 1.1, 0.06, 1.0);
+      const assist = THREE.MathUtils.clamp(1.0 - (err - 0.35) / 1.1, 0.22, 1.0);
 
       // ballistic solution that actually lands in the bed
       const dist = Math.hypot(dx, dz);
@@ -567,6 +587,7 @@ class Game {
     this.wall.refill(z + 10);
     this.setState('plow');
     this.dir.set('work');
+    this.returning = 2.4;
     this._biteShown = false;
     this.ui.showHint('go');
     Audio.horn();

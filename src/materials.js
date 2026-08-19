@@ -46,7 +46,7 @@ export function materials() {
   });
 
   const orangePaint = T.stdMaterial({
-    mapCanvas: T.paintTexture(0xff7a18, { rust: 1.0, dirt: 0.9 }),
+    mapCanvas: T.paintTexture(0xff8f22, { rust: 1.0, dirt: 0.9 }),
     color: 0xffffff, roughness: 0.52, metalness: 0.45,
   });
   const yellowPaint = T.stdMaterial({
@@ -76,10 +76,10 @@ export function materials() {
   });
 
   const bareSteel = new THREE.MeshStandardMaterial({
-    color: 0x9aa3ac, roughness: 0.42, metalness: 0.85,
+    color: 0x9aa3ac, roughness: 0.42, metalness: 0.85, envMapIntensity: 0.9,
   });
   const chrome = new THREE.MeshStandardMaterial({
-    color: 0xd6dee6, roughness: 0.2, metalness: 1.0,
+    color: 0xd6dee6, roughness: 0.2, metalness: 1.0, envMapIntensity: 1.0,
   });
   const rubber = new THREE.MeshStandardMaterial({
     color: 0x14171b, roughness: 0.95, metalness: 0.0,
@@ -87,10 +87,9 @@ export function materials() {
   const rubberDirty = new THREE.MeshStandardMaterial({
     color: 0x21262c, roughness: 0.98, metalness: 0.0,
   });
-  const glass = new THREE.MeshPhysicalMaterial({
-    color: 0x9fd4ea, roughness: 0.08, metalness: 0.0,
-    transmission: 0.0, transparent: true, opacity: 0.42,
-    envMapIntensity: 1.0, clearcoat: 1.0, clearcoatRoughness: 0.06,
+  const glass = new THREE.MeshStandardMaterial({
+    color: 0x8ec6e2, roughness: 0.05, metalness: 0.2,
+    transparent: true, opacity: 0.5, envMapIntensity: 1.6,
   });
   const lampWhite = new THREE.MeshStandardMaterial({
     color: 0xfff6d8, emissive: 0xfff0c0, emissiveIntensity: 2.2, roughness: 0.3,
@@ -102,6 +101,9 @@ export function materials() {
   const lampRed = new THREE.MeshStandardMaterial({
     color: 0xff3b30, emissive: 0xff1a10, emissiveIntensity: 1.8, roughness: 0.4,
   });
+
+  for (const m of [road, packedSnow, snowGround, snowPile, snowChunk]) m.envMapIntensity = 0.35;
+  for (const m of [orangePaint, yellowPaint, chutePaint, bluePaint, greyPaint, darkPaint]) m.envMapIntensity = 0.55;
 
   lib = {
     road, sidewalk, packedSnow, snowGround, snowPile, snowChunk,

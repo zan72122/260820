@@ -36,6 +36,11 @@ function makeNoiseSource(loopBuf) {
 
 export function isReady() { return ready; }
 
+/** Called when the page is backgrounded - no sound from a hidden tab. */
+export function suspend() {
+  if (ctx && ctx.state === 'running') ctx.suspend();
+}
+
 export function start() {
   if (ctx) {
     if (ctx.state === 'suspended') ctx.resume();

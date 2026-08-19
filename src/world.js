@@ -54,7 +54,7 @@ export class World {
     const M = this.M;
 
     /* ---------------- sky ---------------- */
-    const skyGeo = new THREE.SphereGeometry(900, 32, 20);
+    const skyGeo = new THREE.SphereGeometry(760, 32, 20);
     const skyMat = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, fog: false,
       uniforms: {
@@ -87,19 +87,25 @@ export class World {
     this.sky.frustumCulled = false;
     scene.add(this.sky);
 
+    // light the metal and glass from the sky itself
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const envRT = pmrem.fromScene(scene, 0, 1, 1200);
+    scene.environment = envRT.texture;
+    pmrem.dispose();
+
     scene.fog = new THREE.Fog(0xc7d5e2, 70, 380);
 
     /* ---------------- lights ---------------- */
-    const hemi = new THREE.HemisphereLight(0xbcd6f0, 0xdfe7ee, 1.15);
+    const hemi = new THREE.HemisphereLight(0xbcd6f0, 0xdfe7ee, 0.7);
     scene.add(hemi);
 
     const sun = new THREE.DirectionalLight(0xffdcae, 2.5);
     sun.position.set(-26, 12, 34);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(1024, 1024);
+    sun.shadow.mapSize.set(1536, 1536);
     const cam = sun.shadow.camera;
-    cam.left = -26; cam.right = 26; cam.top = 26; cam.bottom = -26;
-    cam.near = 1; cam.far = 110;
+    cam.left = -34; cam.right = 34; cam.top = 32; cam.bottom = -32;
+    cam.near = 1; cam.far = 120;
     sun.shadow.bias = -0.0012;
     sun.shadow.normalBias = 0.035;
     scene.add(sun);
@@ -445,6 +451,8 @@ export class World {
     site.visible = false;
     this.scene.add(site);
     this.site = site;
+    // everything static in the yard is merged into a handful of draw calls
+    const deco = new THREE.Group();
 
     // cleared lot
     const lotMat = M.snowGround.clone();
@@ -470,13 +478,13 @@ export class World {
       b.position.set(-13.5 + Math.cos(a) * r, 0.4, 1.5 + Math.sin(a) * r * 0.8);
       b.scale.y = 0.6;
       b.castShadow = true; b.receiveShadow = true;
-      site.add(b);
+      deco.add(b);
     }
 
     // entrance gate + pictogram board (no text - a snow mountain icon)
     const postMat = new THREE.MeshStandardMaterial({ color: 0xb9c0c8, roughness: 0.6, metalness: 0.4 });
     for (const sz of [-19.0, -14.0]) {
-      mesh(new THREE.CylinderGeometry(0.12, 0.12, 4.2, 8), postMat, site, [-8.4, 2.1, sz]);
+      mesh(new THREE.CylinderGeometry(0.12, 0.12, 4.2, 8), postMat, deco, [-8.4, 2.1, sz]);
     }
     const boardCanvas = document.createElement('canvas');
     boardCanvas.width = boardCanvas.height = 256;
@@ -502,7 +510,7 @@ export class World {
     board.position.set(-8.4, 3.1, -16.5);
     board.rotation.y = Math.PI / 2;
     board.castShadow = true;
-    site.add(board);
+    deco.add(board);
 
     // traffic cones marking the tipping spot
     const coneMat = new THREE.MeshStandardMaterial({ color: 0xf05a1e, roughness: 0.7 });
@@ -513,14 +521,14 @@ export class World {
       mesh(new THREE.CylinderGeometry(0.19, 0.21, 0.12, 10), coneWhite, g, [0, 0.42, 0]);
       mesh(new THREE.BoxGeometry(0.5, 0.05, 0.5), coneMat, g, [0, 0.03, 0]);
       g.position.set(-6.6 - (i % 3) * 0.25, 0.06, -9.5 + i * 1.6);
-      site.add(g);
+      deco.add(g);
     }
 
     // a parked loader silhouette for scale
     const loader = new THREE.Group();
     loader.position.set(-21, 0, -10);
     loader.rotation.y = 1.15;
-    site.add(loader);
+    deco.add(loader);
     mesh(roundedBox(2.2, 1.2, 4.2, 0.12), M.yellowPaint, loader, [0, 1.4, 0]);
     mesh(roundedBox(1.6, 1.2, 1.5, 0.1), M.darkPaint, loader, [0, 2.5, -0.6]);
     mesh(roundedBox(2.6, 0.9, 1.0, 0.08), M.bareSteel, loader, [0, 0.6, 2.6], [0.3, 0, 0]);
@@ -531,6 +539,8 @@ export class World {
       w.castShadow = true;
       loader.add(w);
     }
+
+    site.add(mergeGroup(deco));
 
     this.pileCenter = new THREE.Vector3(-13.5, 0, 1.5);
     this.pileRadX = 6.2; this.pileRadZ = 7.4; this.pileH = 9.0;
