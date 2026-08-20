@@ -21,7 +21,8 @@ type DragMode = 'none' | 'gate' | 'dig' | 'mud';
 /** The dug point sits above the fingertip so the groove is never hidden. */
 const FINGER_LIFT_PX = 46;
 const GATE_DRAG_PX = 150;
-const LONG_PRESS_MS = 520;
+/** How long the finger must sit still before a stroke becomes a hole. */
+const HOLD_MS = 130;
 
 export class Game {
   private tex!: TextureSet;
@@ -51,7 +52,7 @@ export class Game {
   private lastGateOpen = 0;
   private tool: Tool = 'dig';
   private mudHeld = 0;
-  private longPressArmed = false;
+  private lastMoveAt = 0;
   private mudPoint = new THREE.Vector3();
   private mudActive = false;
 
@@ -285,7 +286,7 @@ export class Game {
       }
       if (this.toolsShown) {
         this.drag = this.tool === 'mud' ? 'mud' : 'dig';
-        this.longPressArmed = this.tool === 'dig';
+        this.lastMoveAt = performance.now();
         this.mudHeld = 0;
         this.hasLastDig = false;
         this.mudPoint.copy(hit);
@@ -302,7 +303,7 @@ export class Game {
         return;
       }
       if (this.drag === 'dig' || this.drag === 'mud') {
-        if (p.moved > 16) this.longPressArmed = false;
+        this.lastMoveAt = performance.now();
         const hit = this.pickTerrain(p.x, p.y - FINGER_LIFT_PX);
         if (!hit) return;
         if (this.drag === 'mud') {
@@ -317,7 +318,6 @@ export class Game {
         if (this.gate.open <= 0.001 || this.gate.open >= 0.999) this.audio.knock();
       }
       this.drag = 'none';
-      this.longPressArmed = false;
       this.mudActive = false;
       this.hasLastDig = false;
       this.digSpeed = 0;
@@ -340,8 +340,11 @@ export class Game {
     if (this.projV.z < 1) {
       const hx = (this.projV.x * 0.5 + 0.5) * window.innerWidth;
       const hy = (-this.projV.y * 0.5 + 0.5) * window.innerHeight;
-      const near = Math.min(window.innerWidth, window.innerHeight) * 0.17;
-      if (Math.hypot(x - hx, y - hy) < Math.max(56, near)) return true;
+      // Wide while the gate is still the whole puzzle, tighter afterwards so
+      // it stops stealing strokes meant for the sand beside it.
+      const near =
+        this.phase === 'mystery' ? Math.max(60, Math.min(window.innerWidth, window.innerHeight) * 0.17) : 46;
+      if (Math.hypot(x - hx, y - hy) < near) return true;
     }
     this.ray.setFromCamera(this.toNdc(x, y), this.engine.camera);
     return this.ray.intersectObject(this.gate.group, true).length > 0;
@@ -420,6 +423,24 @@ export class Game {
   }
 
   /** Pressing longer piles more mud, and it spreads as it is worked. */
+  private holdDig(dt: number) {
+    const p = this.lastDig;
+    const moved = this.terrain.dig(p.x, p.z, 0.155, 0.085 * dt);
+    if (moved <= 0) return;
+    this.digSpeed = 0.35;
+    const gx = clamp(Math.round((p.x / WORLD_W + 0.5) * (NX - 1)), 0, NX - 1);
+    const gz = clamp(Math.round((p.z / WORLD_D + 0.5) * (NZ - 1)), 0, NZ - 1);
+    const wet = this.terrain.wet[gz * NX + gx];
+    this.audio.setDigging(0.32, wet);
+    this.holdBeat -= dt;
+    if (this.holdBeat <= 0) {
+      this.holdBeat = 0.2;
+      this.particles.sand(p.x, this.terrain.heightAt(p.x, p.z), p.z, 0.35 * (1 - wet * 0.6));
+    }
+  }
+
+  private holdBeat = 0;
+
   private pressMud(dt: number) {
     const t = clamp(this.mudHeld, 0, 1.4);
     const rate = 0.055 * (1 - t / 2.2);
@@ -543,17 +564,12 @@ export class Game {
     }
     if (this.drag === 'mud' && this.mudActive) this.pressMud(dt);
     if (this.drag === 'dig') {
-      this.digSpeed = damp(this.digSpeed, 0, 0.12, dt);
-      this.audio.setDigging(this.digSpeed, 0.2);
-      // holding still with the digging hand packs mud instead of carving
-      if (this.longPressArmed && this.heldMs > LONG_PRESS_MS) {
-        this.drag = 'mud';
-        this.mudActive = true;
-        this.mudHeld = 0;
-        this.digSpeed = 0;
-        this.audio.setDigging(0, 0);
-        this.haptic(14);
-        this.revealMud();
+      // A finger held still keeps scooping in one spot and sinks a hole.
+      if (this.hasLastDig && performance.now() - this.lastMoveAt > HOLD_MS) {
+        this.holdDig(dt);
+      } else {
+        this.digSpeed = damp(this.digSpeed, 0, 0.12, dt);
+        this.audio.setDigging(this.digSpeed, 0.2);
       }
     } else if (this.drag !== 'mud') {
       this.audio.setDigging(0, 0);
@@ -586,8 +602,6 @@ export class Game {
     if (this.ghostOn) this.setGhost(true);
     if (this.obs.enabled) this.updateDebug();
   }
-
-  heldMs = 0;
 
   private updateFlowFront(dt: number) {
     this.frontTimer -= dt;

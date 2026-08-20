@@ -142,7 +142,8 @@ export class Terrain {
 
     this.mesh = new THREE.Mesh(this.geo, this.material);
     this.mesh.receiveShadow = true;
-    this.mesh.castShadow = false;
+    // banks and berms should shade their own downstream side
+    this.mesh.castShadow = true;
     this.mesh.matrixAutoUpdate = false;
     this.mesh.updateMatrix();
   }
@@ -279,7 +280,7 @@ export class Terrain {
         const bulge = smoothstep(1.5, 0.95, d) * smoothstep(0.62, 1.0, d);
         const add = amount * (core * 0.85 + bulge * 0.5);
         this.height[i] += add;
-        this.mud[i] = clamp(this.mud[i] + (core * 0.9 + bulge * 0.35) * 1.5, 0, 1);
+        this.mud[i] = clamp(this.mud[i] + (core * 0.9 + bulge * 0.35) * amount * 90, 0, 1);
         this.wet[i] = Math.max(this.wet[i], (core * 0.6 + bulge * 0.2) * 0.85);
       }
     }

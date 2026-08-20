@@ -76,7 +76,6 @@ ui.onHaptics = (on) => game.setHaptics(on);
 engine.onFixed = (dt) => game.fixed(dt);
 engine.onFrame = (dt, elapsed) => {
   input.tick();
-  game.heldMs = input.heldMs;
   game.frame(dt, elapsed);
 };
 engine.onResize = (_w, _h, portrait) => game.onResize(portrait);

@@ -153,7 +153,7 @@ float wFoam;`,
           vec3 nA = texture2D( normalMap, uvA ).xyz * 2.0 - 1.0;
           vec3 nB = texture2D( normalMap, uvB ).xyz * 2.0 - 1.0;
           vec3 mapN = normalize( vec3( nA.xy + nB.xy, nA.z * nB.z ) );
-          mapN.xy *= normalScale * ( 0.22 + sp * 1.05 );
+          mapN.xy *= normalScale * ( 0.45 + sp * 0.95 );
           normal = normalize( vTanX * mapN.x + vTanZ * mapN.y + normal * mapN.z );
           `,
         );
