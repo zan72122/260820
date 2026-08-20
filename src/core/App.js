@@ -165,15 +165,14 @@ export class App {
     // allowed to teleport the poi across the tub.
     const dt = Math.min(Math.max(raw, 1 / 240), 1 / 15);
 
-    const t0 = performance.now();
     this.step(dt);
     this.render();
-    const t1 = performance.now();
-    this._frameMs = this._frameMs * 0.9 + (t1 - t0 + Math.max(0, raw * 1000 - 16.7) * 0.35) * 0.1;
 
-    if (this.adaptive.update(this._frameMs, dt) && this.adaptive.changed) {
-      this._applyResolution();
-    }
+    // The wall-clock interval is the honest signal: with RAF paced by
+    // presentation it captures GPU cost, which nothing else here can see.
+    this._frameMs = this._frameMs * 0.85 + raw * 1000 * 0.15;
+    this.adaptive.update(raw * 1000, dt);
+    if (this.adaptive.changed) this._applyResolution();
   }
 
   /** One simulation step. Split out so tests can drive it without a clock. */

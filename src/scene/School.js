@@ -282,9 +282,11 @@ export class School {
     const drop = clamp((f.pos.y - this.floorY) / 0.2, 0, 1.6);
     s.position.set(f.pos.x + drop * 0.03, this.floorY + 0.002, f.pos.z + drop * 0.02);
     s.rotation.z = -f.heading;
-    const spread = 1 + drop * 0.85;
+    // A fish shrinking out at the bowl must not leave its shadow behind.
+    const fade = f.group.scale.x;
+    const spread = (1 + drop * 0.85) * fade;
     s.scale.set(spread, spread, 1);
-    s.material.opacity = 0.55 / (1 + drop * 1.5);
+    s.material.opacity = (0.55 / (1 + drop * 1.5)) * fade;
   }
 
   // ------------------------------------------------------------------ swim

@@ -116,9 +116,18 @@ export const TIER_SETTINGS = {
 };
 
 /**
- * Moves the internal render scale to hold a frame-time target.
- * Slow to brighten, quick to back off — a child holding a warm phone should
- * never see the frame rate collapse, and should never see resolution flicker.
+ * Moves the internal render scale to keep the frame rate at the display's
+ * refresh rate.
+ *
+ * Measuring against a fixed millisecond target is wrong on a phone: a 120Hz
+ * iPad and a 60Hz iPhone have completely different budgets, and a device that
+ * is vsync-limited at 60Hz sits at exactly 16.7ms whether it has 20% headroom
+ * or none. So the target is learned — the fastest frames we have seen stand in
+ * for the display interval, and the scale moves on how far the typical frame
+ * has drifted from it.
+ *
+ * Slow to brighten, quick to back off: a child holding a warm phone should
+ * never watch the frame rate collapse, and never see the resolution flicker.
  */
 export class AdaptiveResolution {
   constructor(tier) {
@@ -128,28 +137,39 @@ export class AdaptiveResolution {
     this.scale = s.startScale;
     this.samples = [];
     this.cooldown = 1.2;
-    this.targetMs = 17.5;
-    this.relaxMs = 12.5;
+    /** learned display interval, ms; starts at 60Hz and adapts down */
+    this.interval = 16.7;
     this.changed = false;
   }
 
-  /** @param {number} frameMs @param {number} dt seconds */
+  /** @param {number} frameMs wall-clock time since the previous frame @param {number} dt seconds */
   update(frameMs, dt) {
     this.changed = false;
-    if (frameMs > 0 && frameMs < 500) this.samples.push(frameMs);
-    if (this.samples.length > 40) this.samples.shift();
+    if (frameMs > 1 && frameMs < 500) {
+      this.samples.push(frameMs);
+      // The fastest frames we ever see are the ones that were not doing work,
+      // so they approximate how often the display can actually present.
+      if (frameMs < this.interval) this.interval = Math.max(6.5, frameMs * 0.5 + this.interval * 0.5);
+    }
+    if (this.samples.length > 60) this.samples.shift();
     this.cooldown -= dt;
-    if (this.cooldown > 0 || this.samples.length < 24) return this.scale;
+    if (this.cooldown > 0 || this.samples.length < 30) return this.scale;
 
     const sorted = [...this.samples].sort((a, b) => a - b);
     const med = sorted[sorted.length >> 1];
+    const ratio = med / Math.max(this.interval, 6.5);
     const prev = this.scale;
-    if (med > this.targetMs) {
-      this.scale = clamp(this.scale - (med > this.targetMs * 1.5 ? 0.14 : 0.07), this.min, this.max);
-      this.cooldown = 1.1;
-    } else if (med < this.relaxMs) {
+
+    if (ratio > 1.32) {
+      // Dropping frames. Back off, harder the worse it is.
+      this.scale = clamp(this.scale - (ratio > 1.9 ? 0.14 : 0.07), this.min, this.max);
+      this.cooldown = 1.2;
+    } else if (ratio < 1.08 && this.scale < this.max) {
+      // Comfortably hitting the refresh rate; take a little back.
       this.scale = clamp(this.scale + 0.05, this.min, this.max);
-      this.cooldown = 2.4;
+      this.cooldown = 2.6;
+    } else {
+      this.cooldown = 0.6;
     }
     if (Math.abs(this.scale - prev) > 1e-3) {
       this.changed = true;
