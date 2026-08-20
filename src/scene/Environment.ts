@@ -42,7 +42,7 @@ export class Environment {
     const asph = asphaltTexture(512);
     asph.repeat.set(14, 6);
     const road = new THREE.Mesh(
-      new THREE.PlaneGeometry(56, 10, 1, 1),
+      new THREE.PlaneGeometry(90, 10, 1, 1),
       new THREE.MeshStandardMaterial({ map: asph, roughness: 0.95, metalness: 0 })
     );
     road.rotation.x = -Math.PI / 2;
@@ -54,18 +54,18 @@ export class Environment {
     const vergeMap = soilTexture(512, [100, 104, 78]);
     vergeMap.repeat.set(30, 16);
     const verge = new THREE.Mesh(
-      new THREE.PlaneGeometry(70, 26, 1, 1),
+      new THREE.PlaneGeometry(90, 30, 1, 1),
       new THREE.MeshStandardMaterial({ map: vergeMap, color: 0x9aa07c, roughness: 1, metalness: 0 })
     );
     verge.rotation.x = -Math.PI / 2;
-    verge.position.set(0, 0.008, LOT_Z + 22);
+    verge.position.set(0, 0.008, LOT_Z + 24);
     verge.receiveShadow = true;
     this.group.add(verge);
 
     const conc = concreteTexture(256);
     conc.repeat.set(44, 1);
     const kerb = new THREE.Mesh(
-      new THREE.BoxGeometry(56, 0.14, 0.3),
+      new THREE.BoxGeometry(90, 0.14, 0.3),
       new THREE.MeshStandardMaterial({ map: conc, color: 0xb2ada2, roughness: 0.95, metalness: 0 })
     );
     kerb.position.set(0, 0.07, LOT_Z + 0.15);
@@ -74,7 +74,7 @@ export class Environment {
     this.group.add(kerb);
 
     const line = new THREE.Mesh(
-      new THREE.PlaneGeometry(56, 0.15),
+      new THREE.PlaneGeometry(90, 0.15),
       new THREE.MeshBasicMaterial({
         map: markingTexture('#cdc7ab', true, 256),
         transparent: true,
@@ -282,7 +282,7 @@ export class Environment {
     const q = new THREE.Quaternion();
     spots.forEach(([x, z, s], i) => {
       q.setFromEuler(new THREE.Euler(0, rng.range(0, 6.28), 0));
-      m.compose(new THREE.Vector3(x, -s * 0.72, z), q, new THREE.Vector3(s * 2.2, s, s * 1.75));
+      m.compose(new THREE.Vector3(x, -s * 0.42, z), q, new THREE.Vector3(s * 2.3, s * 0.95, s * 1.8));
       im.setMatrixAt(i, m);
     });
     im.instanceMatrix.needsUpdate = true;
@@ -454,9 +454,9 @@ export class Environment {
  * and the patches share one texel density.
  */
 function buildLotGeometry(holes: GroundHole[]): THREE.BufferGeometry {
-  const minX = -28;
-  const maxX = 28;
-  const minZ = LOT_Z - 34;
+  const minX = -45;
+  const maxX = 45;
+  const minZ = LOT_Z - 40;
   const maxZ = LOT_Z;
   const pos: number[] = [];
   const uv: number[] = [];

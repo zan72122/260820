@@ -106,7 +106,7 @@ export class Game {
     this.audio = audio;
     this.hud = hud;
 
-    this.scene.fog = new THREE.Fog(0xc4d2df, 13, 52);
+    this.scene.fog = new THREE.Fog(0xc4d2df, 17, 44);
     this.scene.add(buildSky());
 
     this.env = new Environment(
@@ -171,7 +171,7 @@ export class Game {
       this.scene.add(cross.mesh);
 
       for (const m of cfg.markings) {
-        const d = new GroundDecal(markingTexture(m.color, m.dashed, 256), m.length, 0.13, 0.34);
+        const d = new GroundDecal(markingTexture(m.color, m.dashed, 256), m.length, 0.17, 0.44);
         d.place(cfg.origin.x + m.x, 0.014, cfg.origin.z + m.z, m.rot);
         d.show(true);
         this.markDecals.push(d);
@@ -220,7 +220,7 @@ export class Game {
       this.truck.boomTipWorld(this.tmp2).clone(),
       this.nozzle.inletWorld(this.tmp3).clone()
     );
-    this.director.setShot(SHOTS.establish(), new THREE.Vector3(1.9, 0, 1.4), true);
+    this.director.setShot(SHOTS.establish(), new THREE.Vector3(1.3, 0, 0.2), true);
   }
 
   // ------------------------------------------------------------------ setup
@@ -484,7 +484,7 @@ export class Game {
   private workerStand(): THREE.Vector3 {
     const off = SITES[this.siteIndex].workerOffset;
     // standing tools put the hands further out, so the operator steps back
-    const reach = this.tool === 'detector' ? 0.78 : this.tool === 'rod' ? 0.9 : 1.0;
+    const reach = this.tool === 'detector' ? 0.78 : this.tool === 'rod' ? 0.7 : 1.0;
     return this.tmp2.set(this.workPoint.x + off.x * reach, 0, this.workPoint.z + off.y * reach);
   }
 
@@ -523,10 +523,10 @@ export class Game {
         vibrate([14, 40, 22]);
         break;
       case 'depth': {
-        // drop the rod right where the pipe is bared, so the reading is honest
-        dig.firstCutPoint(this.tmp);
+        // drop the rod into the middle of the bared run, so the reading is honest
+        dig.cutCentroid(this.tmp);
         this.workPoint.set(this.tmp.x, 0, this.tmp.z);
-        this.rodTipY = 0.62;
+        this.rodTipY = 0.3;
         this.rodHold = 0;
         this.director.setShot(SHOTS.depth(), this.workPoint);
         break;
@@ -545,7 +545,7 @@ export class Game {
         break;
       }
       case 'finale':
-        this.director.setShot(SHOTS.establish(), this.tmp.set(1.4, 0, 0.9));
+        this.director.setShot(SHOTS.finale(), this.tmp.set(0.5, 0, -0.6));
         break;
     }
   }
@@ -555,7 +555,7 @@ export class Game {
   private updateIntro() {
     this.workPoint.copy(SITES[0].origin);
     // frame the lot and the truck together, not just the first patch
-    this.director.setSubject(this.tmp.set(1.9, 0, 1.4));
+    this.director.setSubject(this.tmp.set(1.3, 0, 0.2));
     if (this.phaseTime > 0.8) {
       this.beginSwap('detect', 'detector', 1.3);
     }
@@ -749,7 +749,7 @@ export class Game {
     if (this.input.active) {
       this.rodTipY -= this.input.dy * 0.0022;
     }
-    this.rodTipY = clamp(this.rodTipY, stop, 0.75);
+    this.rodTipY = clamp(this.rodTipY, stop, 0.42);
     this.toolPoint.set(px, this.rodTipY, pz);
     const grade = SITES[this.siteIndex].origin.y + PATCH_LIFT;
     this.rod.setGroundLine(grade - this.rodTipY);
@@ -816,7 +816,7 @@ export class Game {
   private updateFinale() {
     this.toolPoint.copy(SITES[0].origin);
     this.toolPoint.y = 0.3;
-    this.director.setSubject(this.tmp.set(1.4, 0, 0.9));
+    this.director.setSubject(this.tmp.set(0.5, 0, -0.6));
     if (this.phaseTime > 2.5 && this.input.justPressed) this.restart();
   }
 
@@ -854,7 +854,7 @@ export class Game {
         : this.phase === 'mark'
           ? 0.72
           : this.phase === 'depth'
-            ? 0.3
+            ? 0.12
             : 0.6;
     this.worker.place(this.workerStand(), this.toolPoint, crouch);
 

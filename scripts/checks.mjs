@@ -91,9 +91,15 @@ for (let i = 2; i < samples.length; i++) {
   const b = samples[i][1] - samples[i - 1][1];
   if (Math.abs(a) > 0.03 && Math.abs(b) > 0.03 && Math.sign(a) !== Math.sign(b)) turns++;
 }
+// return to the strongest spot and let the wand settle before re-reading
 await page.mouse.move(peakX, y0);
-await page.waitForTimeout(700);
-const repeat = (await state()).signal;
+// the wand is damped, so give it real time to travel back before re-reading
+let repeat = 0;
+for (let i = 0; i < 45; i++) {
+  await page.waitForTimeout(400);
+  repeat = Math.max(repeat, (await state()).signal);
+  if (repeat > peak - 0.08) break;
+}
 check(
   'locator response tracks position with one clear peak',
   peak > 0.85 && low < 0.4 && turns <= 2 && Math.abs(repeat - peak) < 0.15,

@@ -138,12 +138,12 @@ export const SHOTS = {
   /** Opening: whole work area, truck reading as mid-ground, road beyond. */
   establish: (): Shot => ({
     dir: new THREE.Vector3(-0.34, 0.42, -1).normalize(),
-    distance: 13.0,
+    distance: 16.5,
     fov: 40,
     ndcY: 0.05,
-    raise: 1.0,
-    portraitDistance: 1.4,
-    portraitFov: 48,
+    raise: 1.2,
+    portraitDistance: 1.45,
+    portraitFov: 50,
     speed: 1.5,
   }),
   /** Locating: shallow overhead so the sensor shadow and the ground read together. */
@@ -222,6 +222,17 @@ export const SHOTS = {
     portraitDistance: 1.3,
     portraitFov: 52,
     speed: 1.5,
+  }),
+  /** Closing wide: the three finished work points and the truck together. */
+  finale: (): Shot => ({
+    dir: new THREE.Vector3(-0.3, 0.46, -1).normalize(),
+    distance: 11.5,
+    fov: 42,
+    ndcY: 0.05,
+    raise: 0.8,
+    portraitDistance: 1.42,
+    portraitFov: 52,
+    speed: 2.8,
   }),
   /** Short underground cutaway, only unlocked after the first find. */
   cutaway: (): Shot => ({

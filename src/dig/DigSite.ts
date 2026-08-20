@@ -632,6 +632,27 @@ export class DigSite {
     return out.set(x, this.origin.y - this.depth[bi], z);
   }
 
+  /** Centre of the bared area, so the depth rod goes down beside the pipe. */
+  cutCentroid(out: THREE.Vector3): THREE.Vector3 {
+    let sx = 0;
+    let sz = 0;
+    let sd = 0;
+    let w = 0;
+    const half = this.size / 2;
+    for (let i = 0; i < this.cut.length; i++) {
+      const c = this.cut[i];
+      if (c < 0.5) continue;
+      const x = -half + (i % this.n) * this.cell;
+      const z = -half + Math.floor(i / this.n) * this.cell;
+      sx += x * c;
+      sz += z * c;
+      sd += this.depth[i] * c;
+      w += c;
+    }
+    if (w === 0) return this.firstCutPoint(out);
+    return out.set(this.origin.x + sx / w, this.origin.y - sd / w, this.origin.z + sz / w);
+  }
+
   dispose() {
     this.geo.dispose();
     (this.mesh.material as THREE.Material).dispose();
