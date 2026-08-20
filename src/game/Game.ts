@@ -1129,6 +1129,16 @@ export class Game {
 
   /* ---------------------------------------------------------------- parade */
 
+  /**
+   * How much of the nebuta's length may run off the sides. A phone held upright has barely
+   * 24 degrees of horizontal view, so a 2 m long fish either gets cropped or ends up tiny;
+   * a tablet has room to spare and needs almost no crop at all.
+   */
+  private crop(min: number): number {
+    const a = this.viewport.aspect;
+    return clamp(min + ((a - 0.462) * (1 - min)) / 0.35, min, 1);
+  }
+
   /** A generous ring around the switch: small fingers do not land where they aim. */
   private switchReach(): number {
     return Math.max(96, Math.min(this.viewport.width, this.viewport.height) * 0.16);
@@ -1332,7 +1342,7 @@ export class Game {
       radius: this.boundsRadius * 1.5,
       points: this.nebutaPoints(),
       padding: 1.18,
-      horizontalFit: this.viewport.portrait ? 0.85 : 1,
+      horizontalFit: this.crop(0.85),
       yaw: 0.5,
       pitch: 0.18,
       dir: new Vector3(0.82, 0.2, 0.54),
@@ -1356,7 +1366,7 @@ export class Game {
           radius: this.boundsRadius,
           points: this.nebutaPoints(),
           padding: push,
-          horizontalFit: this.viewport.portrait ? 0.9 : 1,
+          horizontalFit: this.crop(0.9),
           yaw: a,
           pitch: 0.2,
           dir: new Vector3(Math.cos(a), 0.24, Math.sin(a) * 1.1),
@@ -1391,7 +1401,7 @@ export class Game {
             radius: this.boundsRadius,
             points: this.nebutaPoints(),
             padding: 1.1,
-            horizontalFit: this.viewport.portrait ? 0.82 : 1,
+            horizontalFit: this.crop(0.82),
             yaw: 0.42,
             pitch: 0.22,
             dir: dir.normalize(),
@@ -1417,7 +1427,7 @@ export class Game {
           radius: Math.max(0.35, panel.radius * 1.6),
           points: close ? this.panelPoints(panel) : this.nebutaPoints(),
           padding: close ? (this.stage === 'dye' ? 1.62 : 1.92) : 1.12,
-          horizontalFit: !close && this.viewport.portrait ? 0.86 : 1,
+          horizontalFit: close ? 1 : this.crop(0.86),
           yaw: 0,
           pitch: 0,
           dir,
@@ -1444,7 +1454,7 @@ export class Game {
           radius: this.boundsRadius * 1.75,
           points: this.nebutaPoints(),
           padding: 1.16,
-          horizontalFit: this.viewport.portrait ? 0.8 : 1,
+          horizontalFit: this.crop(0.8),
           yaw: 0.5,
           pitch: 0.24,
           dir: new Vector3(0.8, 0.34, 0.5),
@@ -1474,7 +1484,7 @@ export class Game {
           points: this.nebutaPoints(),
           anchorPoints: this.lamps.on ? undefined : [this.lamps.switchGroup.getWorldPosition(new Vector3())],
           padding: this.lamps.on ? 1.0 : 1.14,
-          horizontalFit: this.viewport.portrait ? (this.lamps.on ? 0.5 : 0.66) : 1,
+          horizontalFit: this.crop(this.lamps.on ? 0.5 : 0.66),
           yaw: 0,
           pitch: 0,
           dir,
@@ -1495,7 +1505,7 @@ export class Game {
           radius: this.boundsRadius * 1.34,
           points: this.nebutaPoints(),
           padding: 1.12,
-          horizontalFit: this.viewport.portrait ? 0.82 : 1,
+          horizontalFit: this.crop(0.82),
           yaw: a,
           pitch: 0.2,
           dir: new Vector3(Math.cos(a), 0.26, Math.sin(a)),
@@ -1536,7 +1546,7 @@ export class Game {
         radius: this.boundsRadius,
         points: this.nebutaPoints(),
         padding: portrait ? 1.0 : 1.26,
-        horizontalFit: portrait ? 0.62 : 1,
+        horizontalFit: this.crop(0.62),
         yaw: 0,
         pitch: 0,
         dir,
@@ -1556,7 +1566,7 @@ export class Game {
         radius: this.boundsRadius,
         points: this.nebutaPoints(),
         padding: portrait ? 1.06 : 1.36,
-        horizontalFit: portrait ? 0.66 : 1,
+        horizontalFit: this.crop(0.66),
         yaw: 0,
         pitch: 0,
         dir,
@@ -1572,7 +1582,7 @@ export class Game {
       points: this.nebutaPoints(),
       padding: portrait ? 1.0 : 1.3,
       // portrait crops the tail so the nebuta stands tall in the frame
-      horizontalFit: portrait ? 0.56 : 1,
+      horizontalFit: this.crop(0.56),
       yaw: 0,
       pitch: 0,
       dir,
