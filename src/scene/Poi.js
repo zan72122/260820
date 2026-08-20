@@ -176,7 +176,7 @@ const PAPER_FRAG = /* glsl */ `
     lit += (uKeyColor * 0.6 + uLampColor * 0.55) * (sheen + fres * wet * 0.6);
     // lantern light skimming across the wet film
     vec3 hl = normalize(normalize(uLampA.xyz - vWorld) + v);
-    lit += uLampColor * pow(max(dot(n, hl), 0.0), gloss) * wet * 1.1;
+    lit += uLampColor * pow(max(dot(n, hl), 0.0), gloss) * wet * 0.6;
 
     // --- under the surface ----------------------------------------------
     lit = mix(lit, lit * uWaterTint, clamp(uSubmerge, 0.0, 1.0) * 0.62);

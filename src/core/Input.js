@@ -54,6 +54,15 @@ export class Input {
     this._pendingRelease = false;
     this._scripted = null;
 
+    /**
+     * Fired synchronously inside the pointerdown handler. iOS Safari will only
+     * start an AudioContext from inside the gesture's own call stack, so this
+     * cannot wait for the next frame.
+     * @type {null | (() => void)}
+     */
+    this.onFirstTouch = null;
+    this._touched = false;
+
     this._onDown = this._onDown.bind(this);
     this._onMove = this._onMove.bind(this);
     this._onUp = this._onUp.bind(this);
@@ -101,6 +110,7 @@ export class Input {
     this.holdTime = 0;
     this._pendingPress = true;
     this.everTouched = true;
+    this._fireFirstTouch();
     if (this.el.setPointerCapture) {
       try {
         this.el.setPointerCapture(e.pointerId);
@@ -108,6 +118,12 @@ export class Input {
         /* Safari occasionally refuses capture on a released pointer */
       }
     }
+  }
+
+  _fireFirstTouch() {
+    if (this._touched) return;
+    this._touched = true;
+    if (this.onFirstTouch) this.onFirstTouch();
   }
 
   _onMove(e) {
@@ -145,6 +161,7 @@ export class Input {
         this.y = this.prevY = cmd.y;
         this._pendingPress = true;
         this.everTouched = true;
+        this._fireFirstTouch();
       } else if (!cmd.down && this.active) {
         this.active = false;
         this.pointerId = null;

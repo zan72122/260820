@@ -123,7 +123,6 @@ test('a first fish can be scooped and lands in the bowl', async ({ page }) => {
   const result = await page.evaluate((play) => {
     const K = window.__KINGYO__;
     K.advance(2);
-    // eslint-disable-next-line no-eval
     const caught = eval(play)(12);
     const snap = K.snapshot();
     return {
@@ -144,6 +143,46 @@ test('a first fish can be scooped and lands in the bowl', async ({ page }) => {
   // The first fish is meant to come out early. If this creeps up, the opening
   // has stopped teaching.
   expect(result.seconds).toBeLessThan(75);
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
+/**
+ * The design promise is "no perfect aim required": a four-year-old points
+ * roughly at a fish and the soft attraction closes the gap. This drives the
+ * poi to a point several centimetres off the fish, on purpose, and expects a
+ * catch anyway.
+ */
+test('a sloppy aim still catches a fish', async ({ page }) => {
+  const errors = watchErrors(page);
+  await boot(page);
+
+  const result = await page.evaluate(() => {
+    const K = window.__KINGYO__;
+    K.advance(2);
+    let attempts = 0;
+    for (; attempts < 8; attempts++) {
+      for (let i = 0; i < 150; i++) {
+        const snap = K.snapshot();
+        const f = snap.fish.find((x) => x.mode === 'swim');
+        if (!f) break;
+        // Aim a good 5cm behind and to the side of where the fish actually is.
+        const p = K.aim(f.x - 0.05, f.z - 0.045);
+        K.drive({ x: p.x, y: p.y, down: true });
+        K.advance(1 / 60);
+        if (K.snapshot().carrying) break;
+      }
+      K.drive({ x: 0, y: 0, down: false });
+      for (let i = 0; i < 170; i++) {
+        K.advance(1 / 60);
+        if (K.snapshot().bowlCount > 0) break;
+      }
+      if (K.snapshot().bowlCount > 0) break;
+    }
+    return { attempts, bowlCount: K.snapshot().bowlCount };
+  });
+
+  expect(result.bowlCount).toBeGreaterThanOrEqual(1);
+  expect(result.attempts).toBeLessThanOrEqual(4);
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
@@ -191,7 +230,6 @@ test('a wrecked poi is replaced and play carries on — there is no game over', 
   const result = await page.evaluate((play) => {
     const K = window.__KINGYO__;
     K.advance(2);
-    // eslint-disable-next-line no-eval
     const caught = eval(play)(12);
 
     // Now the sheet is real. Thrash it to pieces.

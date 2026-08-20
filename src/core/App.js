@@ -82,6 +82,9 @@ export class App {
 
     this.input = new Input(canvas);
     this.audio = new Audio();
+    // Must happen inside the gesture, not on the next frame, or iOS Safari
+    // hands back a permanently suspended AudioContext.
+    this.input.onFirstTouch = () => this.audio.unlock();
     this.game = new Game({
       scene: this.scene,
       camera: this.camera,

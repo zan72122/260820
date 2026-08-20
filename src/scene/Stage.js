@@ -707,14 +707,21 @@ export class Stage {
    * @param {number} t   0 = off screen, 1 = fully extended over the tub
    * @param {THREE.Vector3} to  where the poi should be handed over
    */
-  setHand(t, to) {
+  setHand(t, to, gripOffset = 0.22) {
     const k = clamp(t, 0, 1);
     this.hand.visible = k > 0.001;
     if (!this.hand.visible) return;
     const ease = k * k * (3 - 2 * k);
-    const startX = to.x + 1.15;
-    this.hand.position.set(lerp(startX, to.x + 0.2, ease), lerp(to.y + 0.16, to.y + 0.05, ease), lerp(to.z - 0.45, to.z, ease));
-    this.hand.rotation.set(0, lerp(-0.5, -0.12, ease), lerp(0.35, 0.05, ease));
+    // The palm sits at the far end of the handle, not over the paper: a stall
+    // keeper holds a poi by its grip, and a hand across the sheet would hide
+    // exactly the thing the child is being shown.
+    const gripX = to.x + gripOffset + 0.12;
+    this.hand.position.set(
+      lerp(gripX + 0.95, gripX, ease),
+      lerp(to.y + 0.14, to.y + 0.015, ease),
+      lerp(to.z - 0.4, to.z + 0.05, ease)
+    );
+    this.hand.rotation.set(0, lerp(-0.45, -0.1, ease), lerp(0.3, 0.02, ease));
   }
 
   // ---------------------------------------------------------------- update

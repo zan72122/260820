@@ -23,7 +23,7 @@ import { School, FISH_MODE } from '../scene/School.js';
 import { Droplets } from '../scene/Droplets.js';
 import { Stage, TUB } from '../scene/Stage.js';
 import { CameraRig } from '../scene/CameraRig.js';
-import { washiTextures, waterNormalTexture } from '../scene/textures.js';
+import { washiTextures, waterNormalTexture, setTextureAnisotropy } from '../scene/textures.js';
 import { updatePaper, integrity } from './paper.js';
 import { clamp, damp, lerp, smoothstep, Rng } from '../core/Rng.js';
 
@@ -41,6 +41,12 @@ export const STATE = {
 
 /** How far the opening sheet is allowed to wear. Two holes, never the third. */
 const FIRST_PAPER_DAMAGE_CAP = 0.58;
+
+/** How many of your catch stay on show in the bowl before the keeper bags them. */
+const BOWL_CAPACITY = 3;
+
+/** The tub is restocked to keep at least this many fish worth chasing. */
+const MIN_SWIMMING = 5;
 
 const FIRST_FISH = {
   cruise: 0.048,
@@ -76,6 +82,7 @@ export class Game {
     this.poiTotal = 1;
 
     this.rig = new CameraRig(camera);
+    setTextureAnisotropy(settings.anisotropy);
 
     const washi = washiTextures(512);
     this.water = new Water({ settings, normalMap: waterNormalTexture(256) });
@@ -166,7 +173,8 @@ export class Game {
     this.input.update(dt);
 
     if (this.input.justPressed) {
-      this.audio.unlock();
+      // Audio is unlocked from inside the gesture itself (see App), not here.
+      this.audio.resume();
       if (this.state === STATE.ATTRACT) this._beginPlay();
     }
 
@@ -222,10 +230,11 @@ export class Game {
     }
     this._nudge = Math.max(0, this._nudge - dt * 1.7);
 
-    // A few millimetres. Any more and it becomes a cartoon.
+    // The handle end lifts about four millimetres and settles. That is the
+    // entire invitation: no arrow, no glow, no text — just a tool that moved.
     const bob = Math.sin(this._nudge * Math.PI) * (1 - Math.pow(1 - this._nudge, 2));
-    this.poi.group.position.set(r.x, r.y + bob * 0.006, r.z);
-    this.poi.group.rotation.set(0.055 - bob * 0.055, -0.35, bob * 0.02, 'YXZ');
+    this.poi.group.position.set(r.x, r.y + bob * 0.0012, r.z);
+    this.poi.group.rotation.set(0.055, -0.35, -bob * 0.02, 'YXZ');
     this.poi.group.updateMatrixWorld(true);
 
     this.school.update(dt, {
@@ -473,7 +482,7 @@ export class Game {
             this.state = STATE.FREE;
             this.rig.punchIn(0.5, 0.9);
           }
-          this._recycleBowl();
+          this._restock();
           break;
         }
         default:
@@ -484,14 +493,20 @@ export class Game {
 
   /**
    * The bowl fills, the keeper bags the earlier catch, and fresh fish arrive
-   * in the tub. Nothing ever runs out, and nothing is ever taken from the
-   * child while they are looking at it.
+   * in the tub. Two rules: the bowl shows the last few you caught, and the
+   * tub never runs low enough to stop being worth fishing. Nothing is ever
+   * taken away while the child is looking straight at it — a retiring fish
+   * shrinks out at the bowl and swims back in from the far side as new stock.
    */
-  _recycleBowl() {
-    const inBowl = this.school.fish.filter((f) => f.mode === FISH_MODE.IN_BOWL);
-    if (inBowl.length <= 5) return;
-    const oldest = inBowl[0];
-    oldest._retiring = 0.001;
+  _restock() {
+    const inBowl = this.school.fish.filter(
+      (f) => f.mode === FISH_MODE.IN_BOWL && f._retiring === undefined
+    );
+    const swimming = this.school.fish.filter((f) => f.mode === FISH_MODE.SWIM).length;
+    const over = inBowl.length - BOWL_CAPACITY;
+    const short = MIN_SWIMMING - swimming;
+    const take = Math.min(inBowl.length, Math.max(over, short));
+    for (let i = 0; i < take; i++) inBowl[i]._retiring = 0.001;
   }
 
   _updateBowl(dt) {
@@ -554,6 +569,7 @@ export class Game {
         vy: -0.02,
         spin: this.rng.sym(0.9),
         t: 0,
+        floatT: 0,
         landed: false,
       };
     }
@@ -588,7 +604,7 @@ export class Game {
     }
     if (pc.phase === 'offer') {
       this._handT = Math.min(1, this._handT + dt / 0.55);
-      this.stage.setHand(this._handT, this.poi.pos);
+      this.stage.setHand(this._handT, this.poi.pos, this.poi.radius + 0.13);
       if (this._handT >= 1 && !pc.fitted) {
         pc.fitted = true;
         this.poi.refresh();
@@ -601,7 +617,7 @@ export class Game {
     }
     if (pc.phase === 'withdraw') {
       this._handT = Math.max(0, this._handT - dt / 0.45);
-      this.stage.setHand(this._handT, this.poi.pos);
+      this.stage.setHand(this._handT, this.poi.pos, this.poi.radius + 0.13);
       if (this._handT <= 0) {
         this._paperChange = null;
         // If the child is already holding the screen, play resumes instantly.
@@ -630,13 +646,20 @@ export class Game {
         this.droplets.splash(m.position.x, waterY, m.position.z, 6, 0.5);
       }
     } else {
-      // Floats, soaks through, and settles out of sight.
-      m.position.y = damp(m.position.y, waterY - 0.055, 0.7, dt);
-      m.rotation.x = damp(m.rotation.x, 0.1, 1.2, dt);
-      m.rotation.z = damp(m.rotation.z, 0, 1.2, dt);
+      // Floats, turns over in the water, soaks through, and settles out of
+      // sight. It has to stay visible long enough for the child to see what
+      // just happened to their paper.
+      f.floatT = (f.floatT || 0) + dt;
+      m.position.y = damp(m.position.y, waterY - 0.05, 0.55, dt);
+      m.position.x += Math.sin(f.floatT * 1.1 + f.spin) * 0.012 * dt;
+      m.position.z += Math.cos(f.floatT * 0.9) * 0.012 * dt;
+      m.rotation.x = damp(m.rotation.x, 0.12 + Math.sin(f.floatT * 1.3) * 0.1, 1.1, dt);
+      m.rotation.z = damp(m.rotation.z, Math.sin(f.floatT * 0.8) * 0.14, 1.1, dt);
       f.uniforms.uWetness.value = 1;
-      f.uniforms.uOpacity.value = damp(f.uniforms.uOpacity.value, 0, 0.55, dt);
-      if (f.uniforms.uOpacity.value < 0.02) {
+      if (f.floatT > 1.6) {
+        f.uniforms.uOpacity.value = damp(f.uniforms.uOpacity.value, 0, 0.7, dt);
+      }
+      if (f.uniforms.uOpacity.value < 0.03) {
         this.scene.remove(m);
         m.material.dispose();
         this._fallen = null;

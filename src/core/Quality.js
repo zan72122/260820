@@ -38,6 +38,15 @@ export function isFastMode() {
  */
 export function pickTier(gl) {
   const { isIOS, isMobile } = detectPlatform();
+  // A query override so a specific tier can be exercised on any machine.
+  if (typeof window !== 'undefined') {
+    try {
+      const forced = new URLSearchParams(window.location.search).get('tier');
+      if (forced && TIER_SETTINGS[forced]) return forced;
+    } catch {
+      /* opaque location, fall through to detection */
+    }
+  }
   if (isFastMode()) return 'low';
 
   const cores = (typeof navigator !== 'undefined' && navigator.hardwareConcurrency) || 4;
@@ -67,11 +76,10 @@ export const TIER_SETTINGS = {
     rippleCount: 5,
     shadows: true,
     shadowMapSize: 512,
-    refraction: false,
     caustics: true,
     dropletBudget: 40,
     crowd: 14,
-    fishCount: 6,
+    fishCount: 8,
     anisotropy: 2,
     softShadow: false,
   },
@@ -83,11 +91,10 @@ export const TIER_SETTINGS = {
     rippleCount: 6,
     shadows: true,
     shadowMapSize: 1024,
-    refraction: true,
     caustics: true,
     dropletBudget: 72,
     crowd: 20,
-    fishCount: 7,
+    fishCount: 9,
     anisotropy: 4,
     softShadow: true,
   },
@@ -99,11 +106,10 @@ export const TIER_SETTINGS = {
     rippleCount: 8,
     shadows: true,
     shadowMapSize: 1536,
-    refraction: true,
     caustics: true,
     dropletBudget: 120,
     crowd: 30,
-    fishCount: 8,
+    fishCount: 10,
     anisotropy: 8,
     softShadow: true,
   },

@@ -14,7 +14,13 @@ function canvas(w, h) {
   return { c, g: c.getContext('2d') };
 }
 
-function tex(c, { repeat = 1, srgb = true, aniso = 4 } = {}) {
+/** Set once at start-up from the device tier; textures pick it up. */
+let ANISOTROPY = 4;
+export function setTextureAnisotropy(n) {
+  ANISOTROPY = Math.max(1, n | 0);
+}
+
+function tex(c, { repeat = 1, srgb = true, aniso = ANISOTROPY } = {}) {
   const t = new THREE.CanvasTexture(c);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
   t.repeat.set(repeat, repeat);

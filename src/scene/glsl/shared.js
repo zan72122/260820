@@ -95,17 +95,6 @@ float sagProfile(float r, float sag, float load, float loadR) {
 }
 `;
 
-/**
- * Tone mapping is off globally so that the refraction copy of the frame and
- * the frame itself stay in the same numeric space. Hero shaders instead apply
- * this small filmic knee to keep lantern highlights from clipping flat.
- */
-export const FILMIC_GLSL = /* glsl */ `
-vec3 filmicKnee(vec3 c) {
-  return c / (1.0 + max(vec3(0.0), c - 0.72) * 0.85);
-}
-`;
-
 /** Cheap hash / value noise available to every custom material. */
 export const NOISE_GLSL = /* glsl */ `
 float hash12(vec2 p) {
