@@ -62,7 +62,7 @@ export const CAMERA_ZONES: [number, number, number][] = [
   [1.6, 253, 22], [0.5, 244, 22],
   [124, 214, 16], [125.5, 199, 16],
   [112.6, 187, 13], [113.9, 183, 13],
-  [186, 216, 20], [238, 256, 20],
+  [168, 206, 18], [214, 240, 18],
 ]
 
 export function inCameraZone(x: number, z: number, extra = 0) {

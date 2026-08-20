@@ -36,8 +36,8 @@ const SHOTS = {
   leverA: pose(111.6, 5.2, 185.6, 114.9, 3.85, 178.5, 44),
   leverB: pose(113.3, 4.05, 181.0, 114.9, 3.7, 178.4, 40),
 
-  finaleA: pose(186, 15.5, 216, 6, 13, 28, 46),
-  finaleB: pose(238, 32, 256, -14, 17, 4, 46),
+  finaleA: pose(168, 12.5, 206, 40, 12, 60, 46),
+  finaleB: pose(214, 24, 240, -6, 16, 26, 46),
 }
 
 type Phase = 'idle' | 'intro' | 'gate' | 'gateDone' | 'lights' | 'lightsDone' | 'lever' | 'night' | 'finale'
