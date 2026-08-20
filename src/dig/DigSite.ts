@@ -40,8 +40,8 @@ const SOILS: Record<SoilType, SoilProfile> = {
       [0.28, 1.26, 0.85, 0.56],
       [0.5, 0.9, 0.88, 0.86],
     ],
-    looseness: 0.72,
-    soak: 0.72,
+    looseness: 0.85,
+    soak: 0.85,
     base: [104, 90, 68],
   },
   gravel: {
@@ -51,8 +51,8 @@ const SOILS: Record<SoilType, SoilProfile> = {
       [0.28, 0.92, 0.91, 0.9],
       [0.48, 1.02, 1.0, 0.97],
     ],
-    looseness: 0.95,
-    soak: 1.0,
+    looseness: 0.98,
+    soak: 1.05,
     base: [104, 90, 68],
   },
 };
@@ -538,6 +538,27 @@ export class DigSite {
       this.applyHeights();
       this.measureExposure();
     }
+  }
+
+  /**
+   * Test aid: bare the whole sampled window at once, as if it had been fully
+   * excavated. Only reachable from the automated play-through hooks.
+   */
+  forceExpose() {
+    for (const s of this.samples) {
+      const i = this.nearestIndex(s.x, s.z);
+      this.cut[i] = 1;
+      this.depth[i] = this.cap[i];
+      for (let k = 0; k < 4; k++) {
+        const c = (i % this.n) + (k === 0 ? 1 : k === 1 ? -1 : 0);
+        const r = Math.floor(i / this.n) + (k === 2 ? 1 : k === 3 ? -1 : 0);
+        if (c < 0 || r < 0 || c >= this.n || r >= this.n) continue;
+        const j = this.idx(c, r);
+        this.cut[j] = 1;
+        this.depth[j] = this.cap[j];
+      }
+    }
+    this.dirty = true;
   }
 
   /** Highest wetness anywhere on the patch; used by the automated checks. */

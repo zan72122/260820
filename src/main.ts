@@ -120,6 +120,7 @@ declare global {
       finger: () => { x: number; y: number };
       route: () => Array<{ x: number; y: number }>;
       wet: () => number;
+      forceExpose: () => void;
     };
   }
 }
@@ -134,4 +135,5 @@ window.__dig = {
   finger: () => game.fingerTargetScreen(window.innerWidth, window.innerHeight, input.lift),
   route: () => game.routeScreen(window.innerWidth, window.innerHeight, input.lift),
   wet: () => game.activeSite.peakWet(),
+  forceExpose: () => game.activeSite.forceExpose(),
 };

@@ -14,6 +14,8 @@ const PROFILES = {
 const name = process.argv[2] || 'iphone-portrait';
 const outDir = process.argv[3] || 'shots';
 const stopAfter = Number(process.argv[4] || 0);
+// optional: bare later sites instantly so the tail of the loop can be checked
+const fastFrom = Number(process.env.FAST_FROM ?? 99);
 const profile = PROFILES[name];
 if (!profile) throw new Error('unknown profile ' + name);
 fs.mkdirSync(outDir, { recursive: true });
@@ -117,6 +119,9 @@ while (Date.now() < deadline && guard++ < 4000) {
       }
     }
     await release();
+  } else if (s.phase === 'vacuum' && s.site >= fastFrom) {
+    await page.evaluate(() => window.__dig.forceExpose());
+    await page.waitForTimeout(500);
   } else if (s.phase === 'vacuum') {
     // sweep back and forth along the buried run, the way the pipe is bared
     await press(s.finger.x, s.finger.y);
