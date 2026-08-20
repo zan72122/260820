@@ -86,16 +86,6 @@ export class Viewport {
     return changed;
   }
 
-  /** CSS-pixel rectangle that excludes the notch / home indicator. */
-  safeRect(): { x: number; y: number; w: number; h: number } {
-    return {
-      x: this.safe.left,
-      y: this.safe.top,
-      w: Math.max(1, this.width - this.safe.left - this.safe.right),
-      h: Math.max(1, this.height - this.safe.top - this.safe.bottom),
-    };
-  }
-
   dispose(): void {
     this.probe.remove();
     this.listeners.length = 0;

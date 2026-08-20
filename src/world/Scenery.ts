@@ -280,7 +280,7 @@ export class Scenery {
     this.plants.castShadow = quality.tier !== 'low';
     for (let i = 0; i < quality.plantCount; i++) {
       const a = rng() * Math.PI * 2;
-      const r = 9 + rng() * 7;
+      const r = 10 + rng() * 8;
       s.setScalar(0.7 + rng() * 0.9);
       q.setFromAxisAngle(new Vector3(0, 1, 0), rng() * 6.28);
       m4.compose(new Vector3(Math.cos(a) * r, 0, Math.sin(a) * r - 2), q, s);
@@ -298,7 +298,7 @@ export class Scenery {
     const palette = ['#d94f4f', '#3f76b8', '#e2a53c', '#5aa06a', '#c76ba6', '#e8e2d4'];
     for (let i = 0; i < quality.crowdCount; i++) {
       const a = -0.6 + rng() * 3.2;
-      const r = 5.2 + rng() * 4.5;
+      const r = 7 + rng() * 5;
       const x = Math.cos(a) * r;
       const z = Math.sin(a) * r + 1;
       const scale = 0.72 + rng() * 0.5;
@@ -321,9 +321,9 @@ export class Scenery {
 
     /* ------------------------------------------------ light pool */
     this.lightPool = new Mesh(
-      new CircleGeometry(2.4, 32),
+      new CircleGeometry(3.1, 40),
       new MeshBasicMaterial({
-        map: radialSprite(128, 1.9),
+        map: radialSprite(128, 2.9),
         color: new Color('#ff9c46'),
         transparent: true,
         blending: AdditiveBlending,
@@ -559,8 +559,8 @@ export class Scenery {
     const profile: Vector2[] = [];
     for (let i = 0; i <= 12; i++) {
       const t = i / 12;
-      const r = 0.1 * Math.sin(Math.PI * Math.min(1, Math.max(0, t))) + 0.03;
-      profile.push(new Vector2(r, t * 0.3 - 0.15));
+      const r = 0.16 * Math.sin(Math.PI * Math.min(1, Math.max(0, t))) + 0.04;
+      profile.push(new Vector2(r, t * 0.46 - 0.23));
     }
     return new LatheGeometry(profile, 10);
   }
@@ -777,7 +777,7 @@ export class Scenery {
 
   update(dt: number, time: number, cart: Vector3, lampLevel: number, energy: number): void {
     const pool = this.lightPool.material as MeshBasicMaterial;
-    pool.opacity = lampLevel * 0.3;
+    pool.opacity = lampLevel * 0.26;
     this.lightPool.position.x = cart.x;
     this.lightPool.position.z = cart.z;
     this.lightPool.scale.setScalar(1 + Math.sin(time * 2.1) * 0.02 + energy * 0.08);

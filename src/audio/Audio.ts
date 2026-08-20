@@ -374,8 +374,15 @@ export class AudioEngine {
     return voice;
   }
 
+  private brushLevel = -1;
+  private brushKind = '';
+
   /** `kind` changes the character: paste is wet and low, sumi is papery, dye is broad. */
   setBrush(level: number, kind: 'glue' | 'ink' | 'dye' | 'finger'): void {
+    // silence is idempotent: repeated calls must never stack another voice or another ramp
+    if (level <= 0.0005 && this.brushLevel <= 0.0005 && this.brushKind === kind) return;
+    this.brushLevel = level;
+    this.brushKind = kind;
     const v = this.ensureLoop('brush', 'bandpass', 1400, 1);
     if (!v || !this.ctx) return;
     const cfg = {

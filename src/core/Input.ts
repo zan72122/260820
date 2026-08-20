@@ -5,9 +5,6 @@
  */
 
 import { Vector2 } from 'three';
-import { clamp } from '../util/math';
-
-const _vel = new Vector2();
 
 export interface PointerSample {
   x: number;
@@ -21,8 +18,6 @@ export class InputController {
   readonly ndcDelta = new Vector2();
   readonly css = new Vector2(); // CSS pixels, y down
   readonly cssDelta = new Vector2();
-  readonly cssVelocity = new Vector2(); // CSS px / second, smoothed
-  readonly pressCss = new Vector2();
 
   down = false;
   justPressed = false;
@@ -41,7 +36,6 @@ export class InputController {
   private pendingUp = false;
   private rawX = 0;
   private rawY = 0;
-  private lastMoveT = 0;
   private enabled = true;
   private readonly detach: (() => void)[] = [];
 
@@ -53,7 +47,6 @@ export class InputController {
       this.el.setPointerCapture?.(e.pointerId);
       this.updateRaw(e);
       this.pendingDown = true;
-      this.lastMoveT = performance.now();
       e.preventDefault();
     };
     const onMove = (e: PointerEvent) => {
@@ -117,16 +110,13 @@ export class InputController {
       this.holdTime = 0;
       this.travel = 0;
       this.css.set(this.rawX, this.rawY);
-      this.pressCss.copy(this.css);
       this.cssDelta.set(0, 0);
-      this.cssVelocity.set(0, 0);
       this.speed = 0;
       this.history.length = 0;
       this.history.push({ x: this.css.x, y: this.css.y, t: now });
       this.prevNdc.set((this.css.x / w) * 2 - 1, -(this.css.y / h) * 2 + 1);
       this.ndc.copy(this.prevNdc);
       this.ndcDelta.set(0, 0);
-      this.lastMoveT = now;
       return;
     }
 
@@ -138,11 +128,8 @@ export class InputController {
       this.travel += this.cssDelta.length();
       this.holdTime += dt;
 
-      const step = Math.max(dt, 1 / 240);
-      const inst = this.cssDelta.length() / step;
+      const inst = this.cssDelta.length() / Math.max(dt, 1 / 240);
       const k = 1 - Math.exp(-16 * dt);
-      _vel.set(this.cssDelta.x / step, this.cssDelta.y / step);
-      this.cssVelocity.lerp(_vel, k);
       this.speed += (inst - this.speed) * k;
 
       this.prevNdc.copy(this.ndc);
@@ -151,12 +138,10 @@ export class InputController {
 
       this.history.push({ x: this.css.x, y: this.css.y, t: now });
       if (this.history.length > 90) this.history.shift();
-      this.lastMoveT = now;
     } else {
       this.cssDelta.set(0, 0);
       this.ndcDelta.set(0, 0);
       this.speed *= Math.exp(-6 * dt);
-      this.cssVelocity.multiplyScalar(Math.exp(-6 * dt));
     }
 
     if (this.pendingUp) {
@@ -184,11 +169,6 @@ export class InputController {
     return out.set(last.x - first.x, last.y - first.y);
   }
 
-  setEnabled(v: boolean): void {
-    this.enabled = v;
-    if (!v) this.forceRelease();
-  }
-
   forceRelease(): void {
     if (this.pointerId !== null) {
       try {
@@ -200,16 +180,6 @@ export class InputController {
     this.pointerId = null;
     this.pendingDown = false;
     if (this.down) this.pendingUp = true;
-  }
-
-  /** Seconds since the pointer last physically moved. */
-  idleTime(): number {
-    return (performance.now() - this.lastMoveT) / 1000;
-  }
-
-  /** Screen-space distance to a CSS point, clamped for use as a magnet weight. */
-  distanceTo(x: number, y: number): number {
-    return clamp(Math.hypot(this.css.x - x, this.css.y - y), 0, 99999);
   }
 
   dispose(): void {

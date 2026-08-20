@@ -54,7 +54,7 @@ import {
   type SurfaceHit,
 } from './Interaction';
 import { clamp, damp, easeInOutCubic, easeOutCubic, lerp, makeRng, smoothstep } from '../util/math';
-import { woodTextures } from '../util/textures';
+import { disposeTextureCache, woodTextures } from '../util/textures';
 
 export type StageName =
   | 'intro'
@@ -131,13 +131,13 @@ export class Game {
   private shotIndex = 0;
   private shotTimer = 0;
   private handWorld = new Vector3(2.2, 0.55, 0);
-  private lastHand = new Vector3();
   private reversalTimer = 0;
   private lastLateral = 0;
   private finaleT = 0;
   private paperOnly = false;
   private waxIndex = 0;
   private waxT = 0;
+  private readonly waxTarget = new Vector3();
   private readonly rng = makeRng(4242);
   private readonly tmp = new Vector3();
   private readonly tmp2 = new Vector3();
@@ -468,6 +468,8 @@ export class Game {
       case 'wax':
         this.paper.setGuideFade(0.25);
         this.teacherHand.visible = true;
+        this.teacherHand.position.copy(this.nebutaWorldCentre(new Vector3()));
+        this.waxTarget.copy(this.teacherHand.position);
         this.waxIndex = 0;
         this.waxT = 0;
         this.ui.setHint('🕯️', 'せんせいが ろうで もようを かくよ');
@@ -948,7 +950,7 @@ export class Game {
   /* ---------------------------------------------------------------- wax resist */
 
   private stageWax(dt: number): void {
-    const total = 5.6;
+    const total = 6.4;
     this.waxT += dt;
     const t = clamp(this.waxT / total, 0, 1);
     const target = Math.floor(easeInOutCubic(t) * WAX.length);
@@ -963,21 +965,21 @@ export class Game {
           tile: spec.tile,
           a: localToTile(ga),
           b: localToTile(gb),
-          radius: 0.011 * stroke.width + 0.004,
+          radius: 0.0082 * stroke.width + 0.0028,
           aspect: 1,
           angle: 0,
-          strength: 0.95,
+          strength: 0.9,
           extra: 0,
           seed: 0,
         });
       }
       // the teacher's hand rides the stroke being drawn
       const [ha, hb] = stroke.pts[Math.floor(stroke.pts.length / 2)];
-      spec.point(clamp(ha, 0, 1), clamp(hb, 0, 1), this.tmp);
-      this.tmp.applyMatrix4(this.mount.matrixWorld);
-      this.teacherHand.position.lerp(this.tmp, 0.5);
-      this.teacherHand.lookAt(this.director.camera.position);
+      spec.point(clamp(ha, 0, 1), clamp(hb, 0, 1), this.waxTarget);
+      this.waxTarget.applyMatrix4(this.mount.matrixWorld);
     }
+    this.teacherHand.position.lerp(this.waxTarget, clamp(dt * 4.5, 0, 1));
+    this.teacherHand.lookAt(this.director.camera.position);
 
     if (t >= 1) {
       this.teacherHand.visible = false;
@@ -1071,6 +1073,7 @@ export class Game {
 
     if (t > 1.1 && this.scenery.yard.visible === false) {
       this.scenery.setPlace('yard');
+      this.lamps.armShadow();
       this.cart.group.position.set(0, 0, 1.2);
       this.cart.group.rotation.y = -0.35;
       this.carrier.position.set(0, 0, 0);
@@ -1099,18 +1102,23 @@ export class Game {
     this.scenery.setEvening(1);
     this.lamps.switchGroup.visible = true;
 
-    if (!this.lamps.on) {
-      const sw = this.lamps.switchGroup.getWorldPosition(this.tmp);
-      const s = this.screenOf(sw);
-      const reach = Math.max(96, Math.min(this.viewport.width, this.viewport.height) * 0.16);
-      if (this.input.tapped && Math.hypot(s.x - this.input.css.x, s.y - this.input.css.y) < reach) {
-        this.lamps.toggle();
-        this.audio.click(true);
-        this.lightHold = 0;
+    const sw = this.lamps.switchGroup.getWorldPosition(this.tmp);
+    const s = this.screenOf(sw);
+    if (this.input.tapped && Math.hypot(s.x - this.input.css.x, s.y - this.input.css.y) < this.switchReach()) {
+      const on = this.lamps.toggle();
+      this.audio.click(on);
+      this.lightHold = 0;
+      if (on) {
         // the moment itself: no bubbles, no confetti, no buttons
         this.ui.clearAll();
+      } else {
+        // pressed again: back to the dark, and the child can light it a second time
+        this.ui.restore();
+        this.ui.setHint('💡', 'もういちど おそう');
       }
-    } else {
+    }
+
+    if (this.lamps.on) {
       this.lightHold += dt;
       if (this.lightHold > 3.2) {
         this.ui.restore();
@@ -1120,6 +1128,11 @@ export class Game {
   }
 
   /* ---------------------------------------------------------------- parade */
+
+  /** A generous ring around the switch: small fingers do not land where they aim. */
+  private switchReach(): number {
+    return Math.max(96, Math.min(this.viewport.width, this.viewport.height) * 0.16);
+  }
 
   private stageParade(dt: number): void {
     this.rope.mesh.visible = true;
@@ -1134,7 +1147,6 @@ export class Game {
       this.planeRay.setFromCamera(ndc, this.director.camera);
       const p = this.planeRay.ray.intersectPlane(this.groundPlane, this.tmp);
       if (p) {
-        this.lastHand.copy(this.handWorld);
         this.handWorld.lerp(p, clamp(dt * 18, 0, 1));
         const away = this.handWorld.clone().sub(anchor);
         if (away.length() > 2.6) {
@@ -1145,9 +1157,9 @@ export class Game {
       this.paradeIdle = 0;
     } else {
       this.paradeIdle += dt;
-      // the rope drifts back in front of the cart when nobody is holding it
-      this.cart.group.getWorldDirection(this.tmp);
-      const rest = anchor.clone().addScaledVector(this.forward(this.tmp), 1.05);
+      // the rope goes slack in front of the cart when nobody is holding it, so letting go
+      // lets the nebuta coast to a stop instead of creeping away on its own
+      const rest = anchor.clone().addScaledVector(this.forward(this.tmp), 0.66);
       rest.y = 0.55;
       this.handWorld.lerp(rest, clamp(dt * 2.2, 0, 1));
     }
@@ -1208,7 +1220,7 @@ export class Game {
     // the switch stays live, so the lamps can be turned off and on again
     const sw = this.lamps.switchGroup.getWorldPosition(this.tmp);
     const s = this.screenOf(sw);
-    if (this.input.tapped && Math.hypot(s.x - this.input.css.x, s.y - this.input.css.y) < 84) {
+    if (this.input.tapped && Math.hypot(s.x - this.input.css.x, s.y - this.input.css.y) < this.switchReach()) {
       this.audio.click(this.lamps.toggle());
     }
 
@@ -1418,7 +1430,7 @@ export class Game {
         const target = this.teacherHand.visible ? this.teacherHand.position : centre;
         this.director.request({
           look: target,
-          radius: this.boundsRadius * (0.34 + 0.62 * clamp(this.waxT / 5.6, 0, 1)),
+          radius: this.boundsRadius * (0.34 + 0.62 * clamp(this.waxT / 6.4, 0, 1)),
           yaw: 0.4,
           pitch: 0.3,
           dir: new Vector3(0.85, 0.36, 0.4),
@@ -1461,8 +1473,8 @@ export class Game {
           radius: this.boundsRadius,
           points: this.nebutaPoints(),
           anchorPoints: this.lamps.on ? undefined : [this.lamps.switchGroup.getWorldPosition(new Vector3())],
-          padding: this.lamps.on ? 1.04 : 1.16,
-          horizontalFit: this.viewport.portrait ? 0.62 : 1,
+          padding: this.lamps.on ? 1.0 : 1.14,
+          horizontalFit: this.viewport.portrait ? (this.lamps.on ? 0.5 : 0.66) : 1,
           yaw: 0,
           pitch: 0,
           dir,
@@ -1518,13 +1530,13 @@ export class Game {
     const portrait = this.viewport.portrait;
     if (this.shotIndex === 1) {
       // swings round to the front while the child stands still and looks
-      const dir = f.clone().multiplyScalar(1).addScaledVector(new Vector3(0, 1, 0), 0.18);
+      const dir = f.clone().addScaledVector(new Vector3(0, 1, 0), portrait ? 0.12 : 0.18);
       return {
         look: centre,
         radius: this.boundsRadius,
         points: this.nebutaPoints(),
-        padding: portrait ? 1.06 : 1.28,
-        horizontalFit: portrait ? 0.66 : 1,
+        padding: portrait ? 1.0 : 1.26,
+        horizontalFit: portrait ? 0.62 : 1,
         yaw: 0,
         pitch: 0,
         dir,
@@ -1543,30 +1555,29 @@ export class Game {
         look: centre,
         radius: this.boundsRadius,
         points: this.nebutaPoints(),
-        padding: portrait ? 1.14 : 1.38,
-        horizontalFit: portrait ? 0.78 : 1,
+        padding: portrait ? 1.06 : 1.36,
+        horizontalFit: portrait ? 0.66 : 1,
         yaw: 0,
         pitch: 0,
         dir,
         lambda: 1.4,
       };
     }
-    // travelling alongside, at the nebuta's own height
-    const dir = l.clone().multiplyScalar(1).addScaledVector(new Vector3(0, 1, 0), portrait ? 0.16 : 0.1);
+    // travelling alongside, at the nebuta's own height — low in portrait so it towers
+    const dir = l.clone().addScaledVector(new Vector3(0, 1, 0), portrait ? 0.06 : 0.1);
     dir.addScaledVector(f, -0.22);
     return {
       look: centre,
       radius: this.boundsRadius,
       points: this.nebutaPoints(),
-      anchorPoints: [this.handWorld],
-      padding: portrait ? 1.02 : 1.32,
+      padding: portrait ? 1.0 : 1.3,
       // portrait crops the tail so the nebuta stands tall in the frame
-      horizontalFit: portrait ? 0.62 : 1,
+      horizontalFit: portrait ? 0.56 : 1,
       yaw: 0,
       pitch: 0,
       dir,
       lambda: 1.9,
-      headroom: portrait ? 1.15 : 0.8,
+      headroom: portrait ? 1.7 : 0.8,
     };
   }
 
@@ -1641,6 +1652,7 @@ export class Game {
   /** Skips ahead to the yard, used by the paper-only sandbox. */
   private moveToYard(lampsOff: boolean): void {
     this.scenery.setPlace('yard');
+    this.lamps.armShadow();
     this.scenery.setEvening(1);
     this.env.setPhase(2.95, true);
     this.cart.deckPivot.add(this.mount);
@@ -1725,6 +1737,8 @@ export class Game {
       ),
       lampsOn: this.lamps.on,
       lampMaster: Number(this.lamps.master.toFixed(3)),
+      audioReady: this.audio.ready,
+      audioMuted: this.audio.isMuted,
       cart: {
         x: Number(this.cart.group.position.x.toFixed(3)),
         z: Number(this.cart.group.position.z.toFixed(3)),
@@ -1739,6 +1753,12 @@ export class Game {
       programs: this.renderer.info.programs?.length ?? 0,
       geometries: this.renderer.info.memory.geometries,
       textures: this.renderer.info.memory.textures,
+      objects: (() => {
+        let n = 0;
+        this.scene.traverse(() => n++);
+        return n;
+      })(),
+      paperMeshes: this.paper.panels.length,
     };
   }
 
@@ -1787,7 +1807,7 @@ export class Game {
           tile: spec.tile,
           a: localToTile(ga),
           b: localToTile(gb),
-          radius: 0.011 * stroke.width + 0.004,
+          radius: 0.0082 * stroke.width + 0.0028,
           aspect: 1,
           angle: 0,
           strength: 0.95,
@@ -1821,6 +1841,7 @@ export class Game {
               color: col,
             });
           }
+          this.atlas.mark(spec.id, i / 7, j / 7, 2);
         }
       }
       this.atlas.flush();
@@ -1872,6 +1893,7 @@ export class Game {
     this.scenery.dispose();
     this.rope.dispose();
     this.audio.dispose();
+    disposeTextureCache();
     this.renderer.dispose();
   }
 }

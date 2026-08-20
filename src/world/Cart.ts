@@ -78,36 +78,36 @@ export class Cart {
     });
 
     const deckTop = NEBUTA.deckY;
-    const deck = new Mesh(new BoxGeometry(1.94, 0.062, 1.02), paintMat);
+    const deck = new Mesh(new BoxGeometry(1.98, 0.062, 1.18), paintMat);
     deck.position.y = deckTop - 0.031;
     deck.castShadow = true;
     deck.receiveShadow = true;
     this.deckPivot.add(deck);
 
-    for (const z of [0.47, -0.47]) {
-      const rail = new Mesh(new BoxGeometry(1.9, 0.07, 0.05), paintMat);
+    for (const z of [0.55, -0.55]) {
+      const rail = new Mesh(new BoxGeometry(1.94, 0.07, 0.05), paintMat);
       rail.position.set(0, deckTop + 0.032, z);
       rail.castShadow = true;
       rail.receiveShadow = true;
       this.deckPivot.add(rail);
     }
     for (const x of [0.95, -0.95]) {
-      const rail = new Mesh(new BoxGeometry(0.05, 0.07, 0.99), paintMat);
+      const rail = new Mesh(new BoxGeometry(0.05, 0.07, 1.15), paintMat);
       rail.position.set(x, deckTop + 0.032, 0);
       rail.castShadow = true;
       this.deckPivot.add(rail);
     }
     // corner brackets
     for (const x of [0.9, -0.9]) {
-      for (const z of [0.44, -0.44]) {
+      for (const z of [0.52, -0.52]) {
         const br = new Mesh(new BoxGeometry(0.09, 0.09, 0.02), metalMat);
         br.position.set(x, deckTop + 0.02, z + Math.sign(z) * 0.02);
         this.deckPivot.add(br);
       }
     }
     // under-frame
-    for (const z of [0.36, -0.36]) {
-      const beam = new Mesh(new BoxGeometry(1.7, 0.07, 0.07), bareMat);
+    for (const z of [0.42, -0.42]) {
+      const beam = new Mesh(new BoxGeometry(1.74, 0.07, 0.07), bareMat);
       beam.position.set(0, deckTop - 0.098, z);
       beam.castShadow = true;
       this.deckPivot.add(beam);
@@ -119,7 +119,7 @@ export class Cart {
     const hubGeo = new CylinderGeometry(0.055, 0.055, 0.05, 12);
     const spokeGeo = new BoxGeometry(0.012, WHEEL_R * 1.72, 0.022);
     for (const x of [0.66, -0.66]) {
-      const axle = new Mesh(new CylinderGeometry(0.016, 0.016, 0.94, 8), metalMat);
+      const axle = new Mesh(new CylinderGeometry(0.016, 0.016, 1.06, 8), metalMat);
       axle.rotation.x = Math.PI / 2;
       axle.position.set(x, WHEEL_R, 0);
       this.group.add(axle);
@@ -127,7 +127,7 @@ export class Cart {
       steerNode.position.set(x, WHEEL_R, 0);
       this.group.add(steerNode);
       if (x > 0) this.steer.push(steerNode);
-      for (const z of [0.47, -0.47]) {
+      for (const z of [0.55, -0.55]) {
         const wheel = new Mesh(tyreGeo, rubberMat);
         wheel.position.set(0, 0, z);
         wheel.rotation.y = Math.PI / 2;
@@ -207,7 +207,7 @@ export class Rope {
 
   constructor() {
     const cord = cordTextures(128);
-    cord.map.repeat.set(1, 20);
+    cord.map.repeat.set(1, 16);
     this.material = new MeshStandardMaterial({
       map: cord.map,
       normalMap: cord.normalMap,
@@ -247,7 +247,7 @@ export class Rope {
   }
 
   /** `tension` 0 = slack and hanging, 1 = pulled straight. */
-  update(from: Vector3, to: Vector3, tension: number, radius = 0.021): void {
+  update(from: Vector3, to: Vector3, tension: number, radius = 0.032): void {
     const span = from.distanceTo(to);
     const sag = (0.3 * (1 - clamp(tension, 0, 1)) + 0.05) * span * 0.32;
     const ctrl = _v0.copy(from).add(to).multiplyScalar(0.5);

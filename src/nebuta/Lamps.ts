@@ -44,6 +44,9 @@ export class Lamps {
   private readonly switchLed: Mesh;
   private readonly switchLever: Mesh;
   private switchAngle = 0;
+  private readonly canCastShadow: boolean;
+  private readonly ledOn = new Color('#7dff9a');
+  private readonly ledOff = new Color('#ff7a2a');
 
   constructor(quality: QualitySettings) {
     this.group.name = 'lamps';
@@ -103,7 +106,10 @@ export class Lamps {
     this.spot.position.set(0, 0.75, 0);
     this.spotTarget.position.set(0, -1.2, 0);
     this.spot.target = this.spotTarget;
-    this.spot.castShadow = quality.tier !== 'low';
+    // switched on when the cart reaches the yard, so the shadow map is allocated and warm
+    // well before the child presses the switch
+    this.spot.castShadow = false;
+    this.canCastShadow = quality.tier !== 'low';
     this.spot.shadow.mapSize.set(quality.shadowMapSize, quality.shadowMapSize);
     this.spot.shadow.camera.near = 0.25;
     this.spot.shadow.camera.far = 6;
@@ -175,6 +181,11 @@ export class Lamps {
     this.switchGroup.visible = false;
   }
 
+  /** Called once the nebuta is in the yard: prepares the lattice shadow ahead of time. */
+  armShadow(): void {
+    this.spot.castShadow = this.canCastShadow;
+  }
+
   setTarget(v: number): void {
     this.targetMaster = clamp(v, 0, 1);
   }
@@ -208,7 +219,7 @@ export class Lamps {
     this.switchAngle = damp(this.switchAngle, this.on ? 1 : 0, 14, dt);
     this.switchLever.position.z = 0.035 - this.switchAngle * 0.016;
     const led = this.switchLed.material as MeshStandardMaterial;
-    led.emissive.set(this.on ? '#7dff9a' : '#ff7a2a');
+    led.emissive.copy(this.on ? this.ledOn : this.ledOff);
     led.emissiveIntensity = 1.6 + Math.sin(time * 3) * 0.35;
     const attention = this.switchGroup.getObjectByName('switch-attention') as Mesh | undefined;
     if (attention) {

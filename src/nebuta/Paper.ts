@@ -124,8 +124,8 @@ const PAPER_FRAG_COLOR = /* glsl */ `
   float soak = clamp(dyeDensity * 1.15, 0.0, 1.0);
   vec3 dyed = washi * mix(vec3(1.0), dyeCol * (1.25 - 0.3 * soak), soak);
   dyed = mix(dyed, dyed * 0.86, clamp(dyeDensity - 1.0, 0.0, 1.0) * 0.6);
-  // wax repelled the dye, so the sheet stays white there
-  dyed = mix(dyed, washi * 1.03, wax * 0.86);
+  // wax repelled the dye, so the sheet stays white there — and reads as wax, faintly warm
+  dyed = mix(dyed, washi * vec3(1.03, 1.015, 0.975), wax * 0.9);
   // sumi sinks in at the edges and sits darkest in the pools
   vec3 inked = mix(dyed, uInkColor * (1.0 - inkPool * 0.25), clamp(inkMask * 1.05, 0.0, 1.0));
   float guide = texture2D(tGuide, vAtlasUv).r * uGuideFade * (1.0 - inkMask);
@@ -137,7 +137,7 @@ const PAPER_FRAG_ROUGH = /* glsl */ `
   float rough = 0.94 - 0.1 * fibreDensity;
   rough -= glueWet * 0.62;          // wet paste is glossy
   rough -= inkPool * 0.3;           // ink pools keep a faint shine
-  rough -= wax * 0.34;              // wax has its own low sheen
+  rough -= wax * 0.52;              // wax has its own low sheen, visible even on white paper
   rough -= dyeDensity * 0.1 * (1.0 - uDry);
   rough += streak * 0.05;
   roughnessFactor = clamp(rough, 0.08, 1.0);
@@ -184,7 +184,7 @@ const PAPER_FRAG_EMISSIVE = /* glsl */ `
     // even a light wash reads clearly once the lamp is behind it
     vec3 transmitTint = mix(vec3(1.0), dyeCol * dyeCol * 1.35 + dyeCol * 0.45, clamp(dyeDensity * 2.2, 0.0, 1.0));
     float blockedByInk = 1.0 - inkMask * 0.93;
-    float waxLine = 1.0 + wax * 1.35;
+    float waxLine = 1.0 + wax * 1.6;
     float thin = mix(1.25, 0.72, clamp(thickness - 0.62, 0.0, 1.0) / 0.73);
     vec3 glow = uLampColor * inner * frameShade * transmitTint * blockedByInk * waxLine * thin;
     // the fibres themselves stay readable against the light
@@ -497,10 +497,6 @@ export class PaperPanels {
     this.sharedUniforms.uLampMaster.value = master;
   }
 
-  setLampColor(hex: string): void {
-    (this.sharedUniforms.uLampColor.value as Color).set(hex);
-  }
-
   setDaylight(through: number, ambient: Color): void {
     this.sharedUniforms.uDayThrough.value = through;
     (this.sharedUniforms.uBackAmbient.value as Color).copy(ambient);
@@ -513,10 +509,6 @@ export class PaperPanels {
 
   setGuideFade(v: number): void {
     this.sharedUniforms.uGuideFade.value = v;
-  }
-
-  setWrinkleScale(v: number): void {
-    this.sharedUniforms.uWrinkle.value = v;
   }
 
   update(dt: number, time: number): void {

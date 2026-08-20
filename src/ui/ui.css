@@ -101,12 +101,12 @@ body {
 
 .palette {
   position: absolute;
-  bottom: calc(var(--safe-bottom) + 14px);
+  bottom: calc(var(--safe-bottom) + 18px);
   left: 50%;
   transform: translate(-50%, 20px);
   display: flex;
   gap: 10px;
-  padding: 10px 14px;
+  padding: 13px 15px;
   border-radius: 999px;
   background: rgba(26, 20, 24, 0.5);
   backdrop-filter: blur(8px);
@@ -123,55 +123,43 @@ body {
 }
 
 .swatch {
-  width: var(--tap);
-  height: var(--tap);
-  min-width: var(--tap);
+  position: relative;
+  width: clamp(56px, 17vw, 74px);
+  height: clamp(56px, 17vw, 74px);
+  flex: 0 0 auto;
   border-radius: 50%;
   border: 4px solid rgba(255, 255, 255, 0.25);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
   transition:
     transform 0.16s ease,
     border-color 0.16s ease;
-  position: relative;
+}
+
+/* the visible circle can shrink on a narrow phone; the touch target never drops below 72px */
+.swatch::after {
+  content: '';
+  position: absolute;
+  inset: -9px;
+  border-radius: 50%;
 }
 
 .swatch[data-selected='true'] {
   border-color: #fff5df;
-  transform: scale(1.14);
+  /* the lift has to stay inside the tray, or the chosen colour clips off a tall screen */
+  transform: scale(1.08);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.35),
+    0 0 0 3px rgba(255, 236, 200, 0.55);
 }
 
 /* landscape: palette hugs the side so it never covers the nebuta */
-@media (orientation: landscape) and (max-height: 560px) {
-  .hint {
-    top: calc(var(--safe-top) + 26px);
-    max-width: min(60vw, 520px);
-  }
-  /* the swatches take the right edge, so the button moves left and cannot collide */
-  .bigbtn {
-    right: auto;
-    left: calc(var(--safe-left) + 16px);
-    min-width: 148px;
-    font-size: 18px;
-    padding: 12px 22px;
-  }
-  .palette {
-    left: auto;
-    right: calc(var(--safe-right) + 12px);
-    top: 50%;
-    bottom: auto;
-    transform: translate(20px, -50%);
-    flex-direction: column;
-  }
-  .palette.show {
-    transform: translate(0, -50%);
-  }
-  .hint {
-    font-size: clamp(15px, 4vh, 21px);
-    padding: 9px 18px 9px 13px;
-  }
-}
 
 /* ---------------------------------------------------------------- big button */
+
+/* while the dye swatches are out, the button lifts clear of them */
+#ui.palette-open .bigbtn {
+  bottom: calc(var(--safe-bottom) + 24px + clamp(56px, 17vw, 74px) + 26px);
+}
 
 .bigbtn {
   position: absolute;
@@ -300,6 +288,7 @@ body {
 }
 
 .icon-btn {
+  position: relative;
   width: 52px;
   height: 52px;
   border: none;
@@ -318,7 +307,8 @@ body {
 .icon-btn::after {
   content: '';
   position: absolute;
-  inset: -12px;
+  inset: -11px;
+  border-radius: 50%;
 }
 
 .icon-btn:active {
@@ -436,5 +426,52 @@ body {
   .menu,
   .card {
     transition-duration: 0.01ms;
+  }
+}
+
+/* ---------------------------------------------------------------- landscape
+   Short landscape frames rearrange rather than shrink: the swatches take the right edge,
+   the sound button and the big button move to the left, and the hint sits on one line. */
+
+@media (orientation: landscape) and (max-height: 560px) {
+  .hint {
+    top: calc(var(--safe-top) + 26px);
+    max-width: min(58vw, 520px);
+    font-size: clamp(15px, 4vh, 21px);
+    padding: 9px 18px 9px 13px;
+  }
+
+  /* the swatches take the right edge as a column */
+  .palette {
+    left: auto;
+    right: calc(var(--safe-right) + 16px);
+    top: 50%;
+    bottom: auto;
+    transform: translate(20px, -50%);
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+  }
+  .palette.show {
+    transform: translate(0, -50%);
+  }
+  .swatch {
+    width: clamp(56px, 15vh, 66px);
+    height: clamp(56px, 15vh, 66px);
+  }
+
+  /* so the big button and the sound button move to the left, clear of them */
+  .bigbtn,
+  #ui.palette-open .bigbtn {
+    right: auto;
+    left: calc(var(--safe-left) + 16px);
+    bottom: calc(var(--safe-bottom) + 14px);
+    min-width: 148px;
+    font-size: 18px;
+    padding: 12px 22px;
+  }
+  .corner {
+    right: auto;
+    left: calc(var(--safe-left) + 10px);
   }
 }

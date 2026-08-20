@@ -23,6 +23,21 @@ export async function boot(page: Page, query = ''): Promise<void> {
   await page.waitForTimeout(400);
 }
 
+/**
+ * Poll the game's own state instead of guessing at wall-clock waits. `expr` is a JavaScript
+ * expression over `s`, the debug snapshot: e.g. `s.pendingSmooth === null`.
+ */
+export async function waitFor(page: Page, expr: string, timeout = 120_000): Promise<void> {
+  await page.waitForFunction(
+    (src: string) => {
+      const g = (window as never as { __nebuta: { debugState(): Record<string, unknown> } }).__nebuta;
+      return Function('s', `return (${src});`)(g.debugState()) as boolean;
+    },
+    expr,
+    { timeout, polling: 150 },
+  );
+}
+
 export async function stage(page: Page): Promise<string> {
   return page.evaluate(() => (window as never as { __nebuta: { currentStage: string } }).__nebuta.currentStage);
 }

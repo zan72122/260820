@@ -34,9 +34,20 @@ Useful query parameters while developing:
 ```bash
 npm run typecheck        # tsc --noEmit
 npm run test:smoke       # boots the built game in Chromium, asserts a clean console
-npm run test:e2e         # framing across four device sizes, the full craft journey,
-                         # the light-up, the parade and replay
+npm run test:e2e         # the whole suite
 ```
+
+The suite covers:
+
+| Spec | What it holds to account |
+| --- | --- |
+| `smoke` | boots the production bundle, console stays clean |
+| `framing` | the nebuta and the switch stay on screen at 390×844, 844×390, 1024×1366, 1366×1024 |
+| `ui` | swatches fit, are at least a 72 px target, and nothing overlaps at all four sizes |
+| `journey` | the craft, end to end: a sheet dropped in the wrong place, the first sheet and its smoothing, pasting the rest in whatever order, fast and slow sumi, layered dye |
+| `night` | rotate the device, light up, off and on again, pull, swing, leave the tab and return, finish, and the three replay cards |
+| `perf` | drawing never adds objects, meshes or shaders; the parade stays inside the yard |
+| `shots` | skipped unless `SHOT_DIR` is set; writes reference frames per chapter per viewport |
 
 Playwright runs Chromium only, one worker, no video. On a machine without a GPU the game
 falls back to the low tier and runs under a software rasteriser, which is fine for behaviour

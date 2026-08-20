@@ -49,7 +49,6 @@ export const StampKind = {
   Wax: 4,
   Fill: 5,
 } as const;
-export type StampKindValue = (typeof StampKind)[keyof typeof StampKind];
 
 export interface Stamp {
   tile: number;
@@ -290,11 +289,14 @@ export class PaintAtlas {
   /** Wipes every stroke — used by the "make it again" replay path. */
   clear(): void {
     const prev = this.renderer.getRenderTarget();
+    const prevClear = this.renderer.getClearColor(new Color());
+    const prevAlpha = this.renderer.getClearAlpha();
     for (const rt of [this.paperRT, this.inkRT, this.dyeRT, this.dyeScratch]) {
       this.renderer.setRenderTarget(rt);
       this.renderer.setClearColor(0x000000, 0);
       this.renderer.clear(true, false, false);
     }
+    this.renderer.setClearColor(prevClear, prevAlpha);
     this.renderer.setRenderTarget(prev);
     this.coverage.clear();
     this.dyeSwapped = false;

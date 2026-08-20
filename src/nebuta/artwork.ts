@@ -245,16 +245,14 @@ export interface DyeSpec {
   label: string;
   /** Surface colour in daylight. */
   hex: string;
-  /** Colour the lamp light takes when it passes through this dye. */
-  transmitHex: string;
   density: number;
 }
 
+/** Five dyes: enough choice to make it yours, few enough to take in at a glance. */
 export const DYES: DyeSpec[] = [
-  { id: 'beni', label: 'あか', hex: '#d0203a', transmitHex: '#ff3a35', density: 1.0 },
-  { id: 'daidai', label: 'だいだい', hex: '#e8701d', transmitHex: '#ff8a1e', density: 0.92 },
-  { id: 'momo', label: 'もも', hex: '#ef8ba6', transmitHex: '#ff9fb4', density: 0.68 },
-  { id: 'ki', label: 'きいろ', hex: '#efc02c', transmitHex: '#ffd84a', density: 0.72 },
-  { id: 'ao', label: 'あお', hex: '#2f6fb5', transmitHex: '#3f8fe0', density: 0.95 },
-  { id: 'ai', label: 'あい', hex: '#264a7a', transmitHex: '#2a5ea8', density: 1.05 },
+  { id: 'beni', label: 'あか', hex: '#d0203a', density: 1.0 },
+  { id: 'daidai', label: 'だいだい', hex: '#e8701d', density: 0.92 },
+  { id: 'momo', label: 'もも', hex: '#ef8ba6', density: 0.68 },
+  { id: 'ao', label: 'あお', hex: '#2f6fb5', density: 0.95 },
+  { id: 'ai', label: 'あい', hex: '#264a7a', density: 1.05 },
 ];

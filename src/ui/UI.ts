@@ -151,10 +151,16 @@ export class UI {
 
   showPalette(v: boolean): void {
     this.palette.classList.toggle('show', v);
+    this.root.classList.toggle('palette-open', v);
   }
 
+  private bigLabel = '';
+
   showBig(v: boolean, label = 'できた！'): void {
-    this.bigBtn.textContent = label;
+    if (this.bigLabel !== label) {
+      this.bigLabel = label;
+      this.bigBtn.textContent = label;
+    }
     this.bigBtn.classList.toggle('show', v);
   }
 

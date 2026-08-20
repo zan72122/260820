@@ -202,6 +202,9 @@ export class Environment {
 
     this.sun.color.set(s.sunColor);
     this.sun.intensity = s.sunIntensity;
+    // after dusk the sun contributes almost nothing, so its shadow pass is dropped and the
+    // budget goes to the lamp inside the nebuta instead
+    this.sun.castShadow = s.sunIntensity > 0.5;
     this.sun.position.copy(s.sun).multiplyScalar(9);
     this.sun.target.position.set(0, 0.6, 0);
     this.sun.target.updateMatrixWorld();

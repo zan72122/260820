@@ -4,6 +4,7 @@ import type { Page } from '@playwright/test';
 
 type Api = {
   currentStage: string;
+  floodDye(i: number): void;
   debugState(): Record<string, unknown>;
   onScreen(w: 'switch' | 'nebuta' | 'hand'): { x: number; y: number; inside: boolean };
   jumpTo(s: string): void;
@@ -65,19 +66,21 @@ test('rotate, light up, pull, turn, come back and play again', async ({ page }) 
   const uiOpacity = await page.evaluate(() => getComputedStyle(document.getElementById('ui')!).opacity);
   expect(Number(uiOpacity), 'the interface is out of the way').toBeLessThan(0.35);
 
-  await waitForStage(page, 'parade', 90_000);
-  s = await read(page);
-  expect(Number(s.lampMaster), 'the lamps are fully up by the parade').toBeGreaterThan(0.6);
-
   /* --- turn them off and on again ---------------------------------------- */
   const sw2 = await at(page, 'switch');
+  expect(sw2.inside).toBe(true);
   await page.mouse.click(sw2.x, sw2.y);
-  await page.waitForTimeout(1400);
+  await page.waitForTimeout(1600);
   expect((await read(page)).lampsOn, 'the switch turns them off too').toBe(false);
   const sw3 = await at(page, 'switch');
+  expect(sw3.inside).toBe(true);
   await page.mouse.click(sw3.x, sw3.y);
-  await page.waitForTimeout(1400);
+  await page.waitForTimeout(1600);
   expect((await read(page)).lampsOn, 'and back on').toBe(true);
+
+  await waitForStage(page, 'parade', 120_000);
+  s = await read(page);
+  expect(Number(s.lampMaster), 'the lamps are fully up by the parade').toBeGreaterThan(0.6);
 
   /* --- pull the rope ------------------------------------------------------ */
   const size = page.viewportSize()!;
@@ -125,6 +128,34 @@ test('rotate, light up, pull, turn, come back and play again', async ({ page }) 
   await page.mouse.click(sw4.x, sw4.y);
   await page.waitForTimeout(1200);
   expect((await read(page)).lampsOn, 'two taps and it is lit again').toBe(true);
+
+  expect(rec.errors, rec.errors.join('\n')).toEqual([]);
+});
+
+test('the other two replay cards start the right kind of session', async ({ page }) => {
+  test.setTimeout(240_000);
+  const rec = record(page);
+  await boot(page);
+
+  // "make it again in different colours" puts the child back at the first sheet
+  await page.evaluate(() => (window as never as { __nebuta: Api }).__nebuta.jumpTo('finale'));
+  await page.waitForFunction(() => document.querySelector('.menu.show') !== null, null, { timeout: 120_000 });
+  await page.locator('.card').nth(1).click();
+  await page.waitForTimeout(2500);
+  let s = await read(page);
+  expect(s.stage, 'remake goes back to the very first sheet').toBe('firstPaper');
+  expect(s.remaining, 'with a clean frame again').toBe(10);
+  expect(s.inkProgress, 'and no ink on it').toBe(0);
+  expect(s.dyeCoverage, 'and no dye on it').toBe(0);
+
+  // "just paste paper" is the sandbox: same start, but it skips straight to the light after
+  await page.evaluate(() => (window as never as { __nebuta: Api }).__nebuta.jumpTo('finale'));
+  await page.waitForFunction(() => document.querySelector('.menu.show') !== null, null, { timeout: 120_000 });
+  await page.locator('.card').nth(2).click();
+  await page.waitForTimeout(2500);
+  s = await read(page);
+  expect(s.stage, 'the paper sandbox starts with free pasting').toBe('freePaper');
+  expect(s.remaining).toBe(10);
 
   expect(rec.errors, rec.errors.join('\n')).toEqual([]);
 });

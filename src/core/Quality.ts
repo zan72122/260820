@@ -28,9 +28,6 @@ export interface QualitySettings {
   crowdCount: number;
   lanternCount: number;
   plantCount: number;
-  dustMotes: number;
-  contactShadows: boolean;
-  anisotropy: number;
 }
 
 const PRESETS: Record<TierName, Omit<QualitySettings, 'tier'>> = {
@@ -49,9 +46,6 @@ const PRESETS: Record<TierName, Omit<QualitySettings, 'tier'>> = {
     crowdCount: 26,
     lanternCount: 22,
     plantCount: 40,
-    dustMotes: 220,
-    contactShadows: true,
-    anisotropy: 8,
   },
   standard: {
     maxDpr: 1.75,
@@ -68,9 +62,6 @@ const PRESETS: Record<TierName, Omit<QualitySettings, 'tier'>> = {
     crowdCount: 16,
     lanternCount: 14,
     plantCount: 24,
-    dustMotes: 110,
-    contactShadows: true,
-    anisotropy: 4,
   },
   low: {
     maxDpr: 1.4,
@@ -87,9 +78,6 @@ const PRESETS: Record<TierName, Omit<QualitySettings, 'tier'>> = {
     crowdCount: 8,
     lanternCount: 8,
     plantCount: 12,
-    dustMotes: 0,
-    contactShadows: false,
-    anisotropy: 2,
   },
 };
 

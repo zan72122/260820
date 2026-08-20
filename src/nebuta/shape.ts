@@ -190,21 +190,21 @@ export interface WaveSpec {
 /** Two crests flanking the fish: one breaking forward on the right, one trailing left. */
 export const WAVES: WaveSpec[] = [
   {
-    pivot: new Vector3(0.4, 0.68, 0.36),
+    pivot: new Vector3(0.46, 0.62, 0.56),
     theta0: -0.55,
     sweep: 3.05,
-    radius: 0.34,
-    width: 0.36,
-    yaw: -0.5,
+    radius: 0.3,
+    width: 0.32,
+    yaw: -0.55,
     side: 1,
   },
   {
-    pivot: new Vector3(-0.32, 0.66, -0.36),
+    pivot: new Vector3(-0.36, 0.6, -0.56),
     theta0: -0.35,
     sweep: 2.85,
-    radius: 0.32,
-    width: 0.34,
-    yaw: 2.66,
+    radius: 0.28,
+    width: 0.3,
+    yaw: 2.62,
     side: -1,
   },
 ];

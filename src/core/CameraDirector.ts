@@ -69,7 +69,6 @@ export class CameraDirector {
   private readonly wantLook = new Vector3(0, 0.9, 0);
   private wantFov = 46;
   private lambda = 3.2;
-  private shakeAmount = 0;
   private noise = 0;
   private time = 0;
 
@@ -170,10 +169,6 @@ export class CameraDirector {
     this.camera.updateProjectionMatrix();
   }
 
-  shake(v: number): void {
-    this.shakeAmount = Math.min(1, this.shakeAmount + v);
-  }
-
   update(dt: number): void {
     this.time += dt;
     this.pos.x = damp(this.pos.x, this.wantPos.x, this.lambda, dt);
@@ -183,13 +178,11 @@ export class CameraDirector {
     this.look.y = damp(this.look.y, this.wantLook.y, this.lambda * 1.1, dt);
     this.look.z = damp(this.look.z, this.wantLook.z, this.lambda * 1.1, dt);
 
-    this.shakeAmount = Math.max(0, this.shakeAmount - dt * 1.8);
-    const s = this.shakeAmount * this.shakeAmount * 0.035;
     // a hint of handheld drift so the frame never feels locked on rails
     const drift = this.noise * 0.012;
     this.camera.position.set(
-      this.pos.x + Math.sin(this.time * 0.63) * drift + Math.sin(this.time * 21) * s,
-      this.pos.y + Math.sin(this.time * 0.81 + 1.7) * drift + Math.cos(this.time * 25) * s,
+      this.pos.x + Math.sin(this.time * 0.63) * drift,
+      this.pos.y + Math.sin(this.time * 0.81 + 1.7) * drift,
       this.pos.z + Math.sin(this.time * 0.53 + 3.1) * drift,
     );
     this.camera.lookAt(this.look);
