@@ -582,6 +582,17 @@ export class Director implements PlayHooks {
     }
     if (this.touched && this.telemetry.firstGateTouch !== null) {
       this.telemetry.hintStage = 0;
+      // Long after the first question is answered, a stalled child gets the
+      // gentlest nudge only — never the full escalation again.
+      if (this.idle > 26) {
+        this.hintTimer += dt;
+        if (this.hintTimer > 7) {
+          this.hintTimer = 0;
+          this.stand.nudge(0.06);
+          this.nudge = 0.006;
+          this.audio.gateClick(0.4);
+        }
+      }
       return;
     }
     this.hintTimer += dt;

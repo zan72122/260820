@@ -78,8 +78,13 @@ export class Telemetry {
     return false;
   }
 
+  /**
+   * Two different materials have now been down the slide. Deliberately not
+   * "run 1 differs from run 2": a child who repeats the first object a few
+   * times before trying the second has still made the comparison.
+   */
   get comparedFirstTwo(): boolean {
-    return this.runs.length >= 2 && this.runs[0].id !== this.runs[1].id;
+    return this.runs.length >= 2 && this.distinctObjects >= 2;
   }
 
   get distinctObjects(): number {

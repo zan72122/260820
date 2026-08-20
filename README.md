@@ -95,9 +95,23 @@ to change roughness, base colour, metalness, normal detail and clear-coat —
 and it is the *same* array the friction model reads. What you can see is what
 the object feels.
 
-Everything is generated at run time: no textures, models or audio files are
-downloaded. Geometry is built procedurally and textures are baked into
-canvases on first use, so objects the child has not unlocked yet cost nothing.
+### No asset pipeline
+
+Everything is generated at run time. There are no textures, models or audio
+files to download: geometry is built procedurally, textures are baked into
+canvases on first use, the sky and its pre-filtered environment map are
+rendered in-engine, and every sound is synthesised. The whole production build
+is about 160 KB gzipped and makes no network request after it loads.
+
+That is a deliberate departure from the usual GLB + KTX2/Basis + Meshopt
+route: with nothing to fetch there is nothing to compress, and the deferral
+that matters — not paying for what the child has not unlocked — is done by
+baking lazily instead. Objects, surface tools and the landing pad are built
+the first time they appear, which is why the boot cost is 32 textures rather
+than 60.
+
+The renderer is WebGL 2 only. WebGPU is not used for the extra quality tier
+the design allows for; the same WebGL path runs everywhere.
 
 ### Audio
 

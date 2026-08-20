@@ -131,6 +131,25 @@ for (const vp of VIEWPORTS) {
   );
   check(`${label}: the camera returns to the whole slide`, offered.shot === 'overview', offered.shot);
 
+  // Repeating the first object before taking the offer must not deadlock the
+  // progression: what matters is that two materials have been compared.
+  await lab(() => window.__lab.reset());
+  await lab(() => window.__lab.pullGate(1));
+  // Read the result before the unattended second object lets itself in.
+  await step(5.2);
+  const repeated = await state();
+  check(
+    `${label}: the same object can simply be run again`,
+    repeated.phase === 'rest' && repeated.object === 'steel',
+    `x=${repeated.x?.toFixed(2)}`,
+  );
+  check(
+    `${label}: a repeat lands in nearly the same place`,
+    Math.abs(repeated.x - first.x) < 0.35,
+    `${first.x?.toFixed(2)} then ${repeated.x?.toFixed(2)}`,
+  );
+  await step(3.5);
+
   const placed = await lab(() => window.__lab.place('feltbag', 'top'));
   check(`${label}: the second object goes to the same start`, placed === true);
   const held2 = await state();
