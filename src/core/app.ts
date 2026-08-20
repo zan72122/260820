@@ -242,7 +242,7 @@ export class Game {
       wide: {
         target: at(0.3, -0.36, 0.02),
         landscape: f(42, 1.5, 1.38, v(0.64, 0.12, 0.76), 0.08),
-        portrait: f(48, 0.95, 1.45, v(0.7, 0.13, 0.71), 0.14),
+        portrait: f(48, 0.95, 1.75, v(0.7, 0.2, 0.71), 0.14),
       },
       // Closer for the bag, but the whole fruit and the hem stay in frame.
       bag: {
@@ -255,7 +255,7 @@ export class Game {
       sheet: {
         target: at(0.2, -0.44, 0.02),
         landscape: f(46, 1.55, 1.42, v(0.66, 0.05, 0.75), 0.1),
-        portrait: f(52, 0.86, 1.5, v(0.74, 0.03, 0.67), 0.2),
+        portrait: f(52, 0.9, 1.66, v(0.74, 0.12, 0.67), 0.2),
       },
       // The causal frame: sun above, sheet below, fruit between them.
       causal: {
@@ -266,14 +266,14 @@ export class Game {
       // Close enough for the down and the colour gradient, no closer.
       blush: {
         target: at(0, -0.014, 0),
-        landscape: f(20, 0.21, 0.18, v(0.36, -0.05, 0.93)),
-        portrait: f(22, 0.155, 0.23, v(0.36, -0.05, 0.93)),
+        landscape: f(20, 0.25, 0.22, v(0.36, -0.05, 0.93)),
+        portrait: f(22, 0.18, 0.27, v(0.36, -0.05, 0.93)),
       },
       // Free placement: sheet and fruit must both stay readable.
       play: {
         target: at(0.16, -0.38, 0.02),
         landscape: f(44, 1.5, 1.38, v(0.62, 0.09, 0.78), 0.08),
-        portrait: f(50, 0.85, 1.5, v(0.72, 0.06, 0.69), 0.18),
+        portrait: f(50, 0.9, 1.64, v(0.72, 0.14, 0.69), 0.16),
       },
     }
   }
