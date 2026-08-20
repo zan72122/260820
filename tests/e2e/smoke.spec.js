@@ -186,6 +186,55 @@ test('a sloppy aim still catches a fish', async ({ page }) => {
   expect(errors, errors.join('\n')).toEqual([]);
 });
 
+test('a fish swims off a poi that goes back under water', async ({ page }) => {
+  const errors = watchErrors(page);
+  await boot(page);
+
+  const result = await page.evaluate(() => {
+    const K = window.__KINGYO__;
+    K.advance(2);
+    let caughtOnce = false;
+    for (let attempt = 0; attempt < 10 && !caughtOnce; attempt++) {
+      for (let i = 0; i < 150; i++) {
+        const s = K.snapshot();
+        const f = s.fish.find((x) => x.mode === 'swim');
+        if (!f) break;
+        const p = K.aim(f.x, f.z);
+        K.drive({ x: p.x, y: p.y, down: true });
+        K.advance(1 / 60);
+        if (K.snapshot().carrying) {
+          caughtOnce = true;
+          break;
+        }
+      }
+      if (!caughtOnce) {
+        K.drive({ x: 0, y: 0, down: false });
+        for (let i = 0; i < 100; i++) K.advance(1 / 60);
+      }
+    }
+    // Hold the finger still. The poi settles back under, and the fish should
+    // simply swim away rather than being towed around for ever.
+    const held = K.aim(0, 0);
+    let stillCarrying = true;
+    for (let i = 0; i < 300; i++) {
+      K.drive({ x: held.x, y: held.y, down: true });
+      K.advance(1 / 60);
+      if (!K.snapshot().carrying) {
+        stillCarrying = false;
+        break;
+      }
+    }
+    const s = K.snapshot();
+    return { caughtOnce, stillCarrying, bowlCount: s.bowlCount, swimming: s.fish.filter((f) => f.mode === 'swim').length };
+  });
+
+  expect(result.caughtOnce).toBe(true);
+  expect(result.stillCarrying).toBe(false);
+  expect(result.bowlCount).toBe(0);
+  expect(result.swimming).toBeGreaterThanOrEqual(5);
+  expect(errors, errors.join('\n')).toEqual([]);
+});
+
 test('the first sheet is protected until the child has succeeded once', async ({ page }) => {
   const errors = watchErrors(page);
   await boot(page);

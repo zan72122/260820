@@ -474,10 +474,16 @@ export class Game {
         }
         case 'escaped': {
           const wy = this.water.heightAt(f.pos.x, f.pos.z);
-          this.water.addRipple(f.pos.x, f.pos.z, 0.012);
-          this.droplets.splash(f.pos.x, wy, f.pos.z, 7, 0.7);
-          this.audio.waterEnter(0.7);
-          this.audio.tailFlick(0.9);
+          if (e.swamOff) {
+            // It never left the water, so nothing splashes — it just goes.
+            this.water.addRipple(f.pos.x, f.pos.z, 0.005);
+            this.audio.tailFlick(0.5);
+          } else {
+            this.water.addRipple(f.pos.x, f.pos.z, 0.012);
+            this.droplets.splash(f.pos.x, wy, f.pos.z, 7, 0.7);
+            this.audio.waterEnter(0.7);
+            this.audio.tailFlick(0.9);
+          }
           break;
         }
         case 'delivered': {

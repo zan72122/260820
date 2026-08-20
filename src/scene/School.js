@@ -53,6 +53,7 @@ class Fish {
     this._flankSide = 1;
     this.struggle = 0;
     this.airTime = 0;
+    this.submergedRide = 0;
     this.bowlT = 0;
     this.forgiveness = 0;
     this.guide = 0;
@@ -416,6 +417,7 @@ export class School {
     f.paperY = clamp(local.y, -0.7, 0.7);
     f.struggle = 1;
     f.airTime = 0;
+    f.submergedRide = 0;
     f.burst = 1;
     f.assist.set(0, 0);
     f._breakSurface = false;
@@ -457,16 +459,28 @@ export class School {
     else f.airTime = Math.max(0, f.airTime - dt * 2);
     if (!wasAir && f.pos.y > waterY) f.burst = 1;
 
+    // A poi that goes back under is not holding anything: the fish simply
+    // swims off it. Without this a child who keeps their finger down after a
+    // catch ends up towing a fish around underwater for ever.
+    if (poi.submerge > 0.6) f.submergedRide += dt;
+    else f.submergedRide = Math.max(0, f.submergedRide - dt * 2);
+
     // Did the paper give way underneath it?
     const support = supportRatio(poi.paper, f.paperX, f.paperY, f.halfWidthDisc);
     const offSheet = Math.hypot(f.paperX, f.paperY) > 1.02;
-    if (poi.paper.destroyed || support < 0.34 || offSheet) {
+    if (poi.paper.destroyed || support < 0.34 || offSheet || f.submergedRide > 0.5) {
       f.mode = FISH_MODE.SWIM;
       f.threat = 1;
       f.burst = 1;
       f.struggle = 0;
       f.speed = f.spec.cruise * 2.2;
-      this.events.push({ type: 'escaped', fish: f, throughHole: !offSheet });
+      this.events.push({
+        type: 'escaped',
+        fish: f,
+        throughHole: !offSheet && f.submergedRide <= 0.5,
+        swamOff: f.submergedRide > 0.5,
+      });
+      f.submergedRide = 0;
       return;
     }
 

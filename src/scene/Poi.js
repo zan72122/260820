@@ -486,9 +486,15 @@ export class Poi {
     this.group.updateMatrixWorld(true);
   }
 
-  /** Push the paper simulation results into the shader. */
+  /**
+   * Push the paper simulation results into the shader.
+   *
+   * No-op once the sheet has been handed off: `uniforms` still points at the
+   * detached sheet, which is now drifting in the tub under its own animation
+   * and must not be driven by the frame's paper state any more.
+   */
   syncMaterial(dt, time, load, loadR) {
-    if (!this.uniforms) return;
+    if (!this.paperMesh || !this.uniforms) return;
     const p = this.paper;
     const u = this.uniforms;
     u.uTime.value = time;
