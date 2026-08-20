@@ -426,46 +426,70 @@ export class Worker {
       return mesh;
     };
 
-    // Adult, 1.68 m, standing at the row with the weight on one leg. The
-    // point of this figure is scale: a boot, a tool, a stem and a person in
-    // the same frame settle how big everything is without a word.
-    const stance = 0.135;
-    for (const sx of [-1, 1]) {
-      const lean = sx * 0.02;
-      // thigh
-      const thigh = add(new THREE.CylinderGeometry(0.062, 0.052, 0.42, 8), trouser, sx * stance + lean, 1.02, 0);
-      thigh.rotation.z = -sx * 0.045;
-      // shin
-      add(new THREE.CylinderGeometry(0.050, 0.044, 0.36, 8), trouser, sx * stance, 0.63, 0);
-      // mud-caked rubber boot: shaft, foot, sole
-      const shaft = add(new THREE.CylinderGeometry(0.062, 0.066, 0.34, 10), bootMat, sx * stance, 0.30, 0);
-      shaft.scale.z = 1.06;
-      const foot = add(new THREE.BoxGeometry(0.105, 0.09, 0.24), bootMat, sx * stance, 0.055, 0.045);
-      foot.rotation.x = 0.04;
-      void foot;
-      const sole = add(new THREE.BoxGeometry(0.115, 0.028, 0.26), bootMat, sx * stance, 0.014, 0.05);
-      sole.receiveShadow = true;
-    }
+    /** A limb segment between two joints, tapered along its length. */
+    const limb = (
+      a: [number, number, number],
+      b: [number, number, number],
+      r0: number,
+      r1: number,
+      mat: THREE.Material,
+    ): THREE.Mesh => {
+      const from = new THREE.Vector3(...a);
+      const to = new THREE.Vector3(...b);
+      const dir = new THREE.Vector3().subVectors(to, from);
+      const len = dir.length();
+      const geom = new THREE.CylinderGeometry(r1, r0, len, 8);
+      this.disposables.push(geom);
+      const mesh = new THREE.Mesh(geom, mat);
+      mesh.position.copy(from).addScaledVector(dir, 0.5);
+      mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      this.group.add(mesh);
+      return mesh;
+    };
 
-    // torso: hips, chest, shoulders
-    add(new THREE.CapsuleGeometry(0.125, 0.10, 4, 10), trouser, 0, 1.26, 0).scale.set(1.15, 1, 0.8);
-    const chest = add(new THREE.CapsuleGeometry(0.135, 0.24, 4, 10), shirt, 0, 1.46, 0);
-    chest.scale.set(1.16, 1, 0.72);
-    const shoulders = add(new THREE.CapsuleGeometry(0.055, 0.30, 4, 8), shirt, 0, 1.58, 0);
+    /** A mud-caked rubber boot lying along the given direction. */
+    const boot = (ankle: [number, number, number], toe: [number, number, number]): void => {
+      limb(ankle, toe, 0.062, 0.052, bootMat);
+      const t = new THREE.Vector3(...toe);
+      const sole = add(new THREE.BoxGeometry(0.112, 0.030, 0.20), bootMat, t.x, 0.016, t.z - 0.03);
+      sole.receiveShadow = true;
+      add(new THREE.SphereGeometry(0.058, 10, 8), bootMat, t.x, 0.055, t.z - 0.02).scale.set(1, 0.85, 1.5);
+    };
+
+    // Crouched at the row, one knee down, the way cassava is lifted by hand.
+    // About 1.1 m tall in this pose, which is what lets a whole person, a
+    // boot, the tool and the stem share one frame on a phone held sideways.
+    // A standing adult would be cropped at the head every time, and half a
+    // person is no use as a scale reference.
+
+    // Left leg: knee on the ground, shin running back, boot trailing.
+    limb([-0.14, 0.46, -0.02], [-0.18, 0.13, 0.19], 0.066, 0.056, trouser);
+    limb([-0.18, 0.13, 0.19], [-0.18, 0.10, -0.17], 0.056, 0.050, trouser);
+    boot([-0.18, 0.10, -0.17], [-0.18, 0.075, -0.34]);
+
+    // Right leg: foot planted, knee up in front.
+    limb([0.14, 0.46, -0.02], [0.17, 0.43, 0.27], 0.068, 0.058, trouser);
+    limb([0.17, 0.43, 0.27], [0.17, 0.13, 0.24], 0.058, 0.052, trouser);
+    boot([0.17, 0.13, 0.24], [0.17, 0.075, 0.33]);
+
+    // Torso, leaning in over the work.
+    const hips = add(new THREE.CapsuleGeometry(0.128, 0.06, 4, 10), trouser, 0, 0.46, -0.02);
+    hips.scale.set(1.12, 1, 0.86);
+    limb([0, 0.48, -0.03], [0, 0.86, 0.06], 0.145, 0.128, shirt).scale.set(1.14, 1, 0.78);
+    const shoulders = add(new THREE.CapsuleGeometry(0.056, 0.26, 4, 8), shirt, 0, 0.86, 0.06);
     shoulders.rotation.z = Math.PI / 2;
 
-    // arms hanging, elbows slightly forward as if about to take the handle
+    // Arms: forearms down on the raised knee.
     for (const sx of [-1, 1]) {
-      const upper = add(new THREE.CapsuleGeometry(0.040, 0.24, 4, 8), shirt, sx * 0.20, 1.44, 0.01);
-      upper.rotation.z = -sx * 0.10;
-      const fore = add(new THREE.CapsuleGeometry(0.034, 0.24, 4, 8), skin, sx * 0.225, 1.19, 0.06);
-      fore.rotation.z = -sx * 0.06;
-      fore.rotation.x = 0.24;
-      add(new THREE.SphereGeometry(0.042, 10, 8), skin, sx * 0.235, 1.06, 0.12);
+      limb([sx * 0.18, 0.84, 0.05], [sx * 0.21, 0.63, 0.20], 0.044, 0.038, shirt);
+      limb([sx * 0.21, 0.63, 0.20], [sx * 0.19, 0.48, 0.31], 0.038, 0.032, skin);
+      add(new THREE.SphereGeometry(0.043, 10, 8), skin, sx * 0.19, 0.46, 0.34);
     }
 
     // Head group so it can turn between the clamp and the stem base.
-    this.head.position.set(0, 1.70, 0);
+    this.head.position.set(0, 0.97, 0.09);
     add(new THREE.CylinderGeometry(0.046, 0.052, 0.08, 8), skin, 0, -0.055, 0, this.head);
     add(new THREE.SphereGeometry(0.090, 14, 12), skin, 0, 0.01, 0, this.head).scale.set(0.90, 1.06, 0.98);
     add(new THREE.CylinderGeometry(0.098, 0.106, 0.075, 14), hat, 0, 0.072, 0, this.head);
@@ -473,7 +497,7 @@ export class Worker {
     brim.rotation.x = 0.05;
     this.group.add(this.head);
 
-    this.currentLook.set(0, 1.4, 2);
+    this.currentLook.set(0, 0.4, 2);
     this.lookTarget.copy(this.currentLook);
   }
 

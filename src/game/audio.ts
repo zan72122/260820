@@ -15,6 +15,11 @@ export class SoundField {
   private started = false;
   muted = false;
 
+  /** Whether the audio graph is live. iOS only allows this after a gesture. */
+  get running(): boolean {
+    return this.ctx !== null && this.ctx.state !== 'suspended';
+  }
+
   /** Must be called from a user gesture; iOS will not start audio otherwise. */
   unlock(): void {
     if (this.started) {

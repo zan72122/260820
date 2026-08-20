@@ -30,6 +30,8 @@ type State = {
   soil: string;
   fps: number;
   tier: string;
+  audio: boolean;
+  reducedMotion: boolean;
 };
 
 const PHASES = [
@@ -369,6 +371,35 @@ test('rotating the device mid-gesture keeps every bit of progress', async ({ pag
 
   await page.setViewportSize(size);
   await step(page, 0.3);
+});
+
+test('sound starts on the first touch and not before', async ({ page }) => {
+  await boot(page);
+  // iOS will not start an audio graph without a gesture, so it must not be
+  // running before one, and must be running straight after.
+  expect((await state(page)).audio).toBe(false);
+  const vp = page.viewportSize()!;
+  await page.mouse.move(vp.width / 2, vp.height / 2);
+  await page.mouse.down();
+  await page.mouse.up();
+  await step(page, 0.5);
+  expect((await state(page)).audio).toBe(true);
+  expect(errorsOf(page)).toEqual([]);
+});
+
+test('reduced motion still plays the whole plant through', async ({ page }) => {
+  test.slow();
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await boot(page);
+  expect((await state(page)).reducedMotion).toBe(true);
+
+  const first = await state(page);
+  await harvestOnePlant(page);
+  await waitForNextPlant(page, first.plotIndex);
+  // Every state change still happens; only the camera moves are damped.
+  const second = await state(page);
+  expect(second.plotIndex).toBe(1);
+  expect(errorsOf(page)).toEqual([]);
 });
 
 test('the lifted cluster stays inside the frame in both orientations', async ({ page }) => {

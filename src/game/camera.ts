@@ -53,15 +53,17 @@ export interface Extent {
 
 export const SHOTS: Record<ShotName, Shot> = {
   // 1. one stem and one tool, low three-quarter
-  establish: { azimuth: -0.66, elevation: 0.15, width: 1.16, height: 0.74, margin: 1.06, bias: 0.08, fov: 40 },
+  establish: { azimuth: -0.66, elevation: 0.10, width: 1.16, height: 0.74, margin: 1.06, bias: 0.05, fov: 40 },
   // 2. the hands: attaching the clamp
   clampWork: { azimuth: -0.46, elevation: 0.28, width: 0.28, height: 0.24, margin: 1.14, bias: 0.20, fov: 38 },
   // 3. side on, so lever, fulcrum and stem are all visible at once
   leverSide: { azimuth: -1.28, elevation: 0.15, width: 1.24, height: 0.68, margin: 1.08, bias: 0.14, fov: 42 },
   // 4. grazing the ground for the first crack and the root shoulder
-  crackGrazing: { azimuth: -0.28, elevation: 0.22, width: 0.30, height: 0.20, margin: 1.08, bias: 0.20, fov: 38 },
+  crackGrazing: { azimuth: -0.28, elevation: 0.30, width: 0.38, height: 0.26, margin: 1.06, bias: 0.16, fov: 38 },
   // the single, very short section that explains the lever's hold
-  section: { azimuth: -1.55, elevation: 0.045, width: 0.80, height: 0.50, margin: 1.10, bias: 0.02, fov: 40 },
+  // Deliberately tight: enough to show the lever holding a plant that carries
+  // on below the soil line, and not enough to give away the whole cluster.
+  section: { azimuth: -1.55, elevation: 0.06, width: 0.60, height: 0.40, margin: 1.06, bias: 0.06, fov: 40 },
   // 5. mid shot that follows the rocking
   rockFollow: { azimuth: -1.12, elevation: 0.21, width: 0.56, height: 0.44, margin: 1.10, bias: 0.18, fov: 40 },
   // 6. slow pull back as the cluster comes up (extents come from the cluster)

@@ -361,7 +361,7 @@ export class RootCluster {
   private elapsed = 0;
   private releaseStartedAt = -1;
   private hang = 0;
-  private shoulderRadius = 0;
+  private shoulderScore = -1;
 
   readonly node: THREE.Mesh;
   /** Azimuth of the thickest root — the one the reveal is staged around. */
@@ -512,8 +512,13 @@ export class RootCluster {
       // to show, so it is measured rather than guessed.
       const shoulderAt = curve.getPointAt(0.26);
       shoulderAt.y += radius * radiusProfile(0.26, slender);
-      if (radius >= (this.shoulderRadius ?? 0)) {
-        this.shoulderRadius = radius;
+      // Prefer a thick root running away from the tool, which stands on +Z:
+      // the crack over it is the one the low camera can look down without the
+      // fulcrum frame standing in the way.
+      const clearOfTool = Math.sin(azimuth) < -0.15;
+      const score = radius + (clearOfTool ? 1 : 0);
+      if (score >= this.shoulderScore) {
+        this.shoulderScore = score;
         this.shoulder.copy(shoulderAt);
         this.heroAzimuth = azimuth;
       }

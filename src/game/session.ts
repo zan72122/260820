@@ -61,6 +61,9 @@ export interface DebugState {
   soil: string;
   fps: number;
   tier: string;
+  /** Whether the audio graph has started (it may only do so after a touch). */
+  audio: boolean;
+  reducedMotion: boolean;
 }
 
 export class Session {
@@ -148,9 +151,12 @@ export class Session {
     // close enough that boot, tool and stem share a frame for scale.
     // Both sit well off the axis the establishing shot looks down, so a
     // person or a basket never stands between the player and the plant.
-    this.worker.group.position.set(x + 1.95, 0, -1.20);
-    this.worker.group.rotation.y = -2.30;
-    this.basket.group.position.set(x - 1.30, 0, -0.20);
+    this.worker.group.position.set(x + 2.15, 0, -1.45);
+    // Turned to face the plant being worked.
+    this.worker.group.rotation.y = -0.98;
+    // Ahead along the row and off to the near side, where it is reachable
+    // for the carry without ever standing between the eye and the plant.
+    this.basket.group.position.set(x + 1.10, 0, 0.92);
   }
 
   /* ---------------------------------------------------------------- */
@@ -165,6 +171,7 @@ export class Session {
 
     switch (next) {
       case 'approach':
+        this.plot.showTool();
         this.clampAttached = false;
         this.seatProgress = 0;
         this.rocks = 0;
@@ -241,7 +248,15 @@ export class Session {
 
   private applyClipping(on: boolean): void {
     const planes = on ? [this.clipPlane] : [];
+    // The section looks in from -X, and the half of the ground between the eye
+    // and the plant is the half that goes. Three keeps the positive side of
+    // the plane, so this normal points away from the camera.
     this.clipPlane.set(new THREE.Vector3(1, 0, 0), -this.plot.group.position.x + 0.001);
+    this.plot.patch.sectionWall.visible = on;
+    // The basket and the worker are not part of the diagram, and on this axis
+    // they would stand between the eye and the cut.
+    this.basket.group.visible = !on;
+    this.worker.group.visible = !on;
     for (const m of this.field.soilMaterials) {
       m.clippingPlanes = planes;
       m.needsUpdate = true;
@@ -272,9 +287,12 @@ export class Session {
    */
   private cameraAzimuth(shot: ShotName): number | null {
     if (shot !== 'crackGrazing') return null;
-    // Prefer a split running away from the lever, which lies along +Z.
     const a = this.plot.patch.firstCrackAzimuth();
-    return Math.atan2(Math.cos(a), Math.sin(a));
+    // Looking straight down the split foreshortens it into a line. Standing
+    // off it by half a radian shows the wedge opening, with the pale root
+    // shoulder inside it, and still keeps the tool out of the way.
+    const along = Math.atan2(Math.cos(a), Math.sin(a));
+    return along + (Math.sin(a) < 0 ? 0.55 : -0.55);
   }
 
   private cameraSubject(shot: ShotName, out: THREE.Vector3): THREE.Vector3 {
@@ -296,7 +314,7 @@ export class Session {
         out.y += 0.03;
         return out;
       case 'section':
-        return out.set(origin.x, -0.02, origin.z);
+        return out.set(origin.x, -0.04, origin.z);
       case 'rockFollow':
         return plot.gripWorldPoint(out).add(new THREE.Vector3(0, 0.08, 0));
       case 'rise': {
@@ -458,7 +476,7 @@ export class Session {
         break;
       case 'section':
         this.sectionShown = true;
-        if (this.phaseTime > 1.35) this.enterPhase('rocking');
+        if (this.phaseTime > 1.2) this.enterPhase('rocking');
         break;
       case 'rocking':
         this.updateRocking(dt, dx);
@@ -684,9 +702,10 @@ export class Session {
     if (this.pointer.justReleased) this.stemRock.release();
     if (this.pointer.active && this.stemRock.drive(dx, dt)) {
       this.rocks++;
-      // Each rock strips a little more soil and gives up one more direction.
+      // Each rock strips a little more soil and gives up exactly one more
+      // root direction.
       plot.patch.setSplit(1, 0.32 + this.rocks * 0.14);
-      plot.patch.setSplit(2, this.rocks * 0.15);
+      plot.patch.openNextCrack(0.30);
       plot.spill(new THREE.Vector3(0, 0.01, 0), 10, plot.patch.radius * 1.1);
       this.sound.soilCrack(0.65);
       this.sound.dryLeaves(0.5);
@@ -876,6 +895,8 @@ export class Session {
       soil: plot.variation.soil,
       fps: this.fps,
       tier: this.stage.quality.tier,
+      audio: this.sound.running,
+      reducedMotion: this.reducedMotion,
     };
   }
 
@@ -956,7 +977,7 @@ export class Session {
         if (this.stemRock.drive(this.rocks % 2 === 0 ? 0.3 : -0.3, dt)) {
           this.rocks++;
           this.plot.patch.setSplit(1, 0.32 + this.rocks * 0.14);
-          this.plot.patch.setSplit(2, this.rocks * 0.15);
+          this.plot.patch.openNextCrack(0.30);
         }
         this.stemRock.release();
         break;

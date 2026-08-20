@@ -139,6 +139,8 @@ export class Plot {
     // The tool waits beside the row, angled in, until the clamp is carried
     // across to the stem. Nothing about it is labelled; its shape is the label.
     this.lifter.group.position.set(0.27, 0, 0.17);
+    this.lifter.group.visible = false;
+    this.toolShadow.visible = false;
     this.lifter.group.rotation.y = -0.30;
     this.lifter.setPhi(LEVER.restPhi);
     this.lifter.setJaw(0);
@@ -213,9 +215,19 @@ export class Plot {
     this.stemShadow.visible = false;
   }
 
+  /**
+   * There is one lifter in this field, not one per plant. Each plot owns its
+   * own instance for simplicity, but only the plot being worked ever shows
+   * it, so the row never looks like a tool warehouse.
+   */
   hideTool(): void {
     this.lifter.group.visible = false;
     this.toolShadow.visible = false;
+  }
+
+  showTool(): void {
+    this.lifter.group.visible = true;
+    this.toolShadow.visible = true;
   }
 
   /** Emit falling grains from a point in plot space. */

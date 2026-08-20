@@ -127,6 +127,48 @@ function fixWallNormals(geom: THREE.BufferGeometry, start: number, count: number
   nrm.needsUpdate = true;
 }
 
+/**
+ * The face left behind when the ground is cut through: a thin band of dry
+ * surface over damp aggregate that darkens with depth.
+ */
+function buildSectionWall(
+  dry: ReturnType<typeof soilMaps>,
+  moist: ReturnType<typeof soilMaps>,
+  q: QualitySettings,
+): THREE.Mesh {
+  const width = 2.2;
+  const depth = 1.1;
+  const geom = new THREE.PlaneGeometry(width, depth, 24, 14);
+  // Stand it up in the cut plane, facing the eye.
+  geom.rotateY(Math.PI / 2);
+  geom.translate(0, -depth / 2, 0);
+  const pos = geom.getAttribute('position') as THREE.BufferAttribute;
+  const uv = geom.getAttribute('uv') as THREE.BufferAttribute;
+  const colors = new Float32Array(pos.count * 3);
+  for (let i = 0; i < pos.count; i++) {
+    const y = pos.getY(i);
+    // Dry, pale film in the top few centimetres; damp and darker below.
+    const dryBand = clamp01(1 + y / 0.05);
+    const withDepth = lerp(0.62, 1.0, clamp01(1 + y / 0.7));
+    const t = lerp(withDepth, 1.25, dryBand);
+    colors[i * 3] = t;
+    colors[i * 3 + 1] = t * 0.97;
+    colors[i * 3 + 2] = t * 0.93;
+    uv.setXY(i, pos.getZ(i) * SOIL_UV_SCALE, y * SOIL_UV_SCALE);
+  }
+  uv.needsUpdate = true;
+  geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  const mat = new THREE.MeshStandardMaterial({
+    roughness: 0.93,
+    metalness: 0,
+    vertexColors: true,
+    side: THREE.DoubleSide,
+  });
+  applyMaps(mat, moist, new THREE.Vector2(1.4, 1.4), q.anisotropy);
+  void dry;
+  return new THREE.Mesh(geom, mat);
+}
+
 /** Colour shift from the field's soil toward this plant's soil. */
 function soilTint(soil: SoilKind, fieldSoil: SoilKind): THREE.Color {
   const a = SOIL_PALETTES[soil].dry;
@@ -176,6 +218,13 @@ export class SoilPatch {
   readonly group = new THREE.Group();
   readonly radius: number;
   readonly crater: THREE.Mesh;
+  /**
+   * A wall of earth standing in the cut plane. Hidden in play; shown for the
+   * one brief section, where it gives the clipped-away ground something solid
+   * to have been cut out of. Without it the roots would simply hang in the
+   * sky, which reads as a bug rather than as a diagram.
+   */
+  readonly sectionWall: THREE.Mesh;
   /** Exposed so the one short section cutaway can clip only the soil. */
   readonly soilMaterials: THREE.Material[] = [];
   private plates: Plate[] = [];
@@ -251,6 +300,10 @@ export class SoilPatch {
       }
     }
     this.heroPlateIndex = heroIndex;
+    // The split itself lies on the root's own azimuth; the plate either side of
+    // it is centred between roots, so the camera must aim at this, not at the
+    // plate, or it ends up staring at unbroken ground.
+    this.heroAzimuth = crackAzimuths[heroIndex] ?? params.heroAzimuth;
     const firstWave = new Set<number>();
     if (n >= 3) {
       firstWave.add(heroIndex);
@@ -301,6 +354,11 @@ export class SoilPatch {
       this.group.add(crackMesh);
       this.crackMeshes.push(crackMesh);
     }
+
+    this.sectionWall = buildSectionWall(dry, moist, q);
+    this.sectionWall.visible = false;
+    this.disposables.push(this.sectionWall.geometry, this.sectionWall.material as THREE.Material);
+    this.group.add(this.sectionWall);
 
     // Crater: sculpted from the same layout the cluster was built from, with a
     // groove running out under each root.
@@ -571,6 +629,25 @@ export class SoilPatch {
     return this.stageReached;
   }
 
+  /**
+   * Open one more crack, the next one round from the hero.
+   *
+   * Each rock of the stem is meant to give up exactly one further root
+   * direction — not to widen everything a little — so the player counts the
+   * roots as they are revealed rather than watching a single blur.
+   */
+  openNextCrack(amount: number): boolean {
+    this.stageReached = Math.max(this.stageReached, 2);
+    const n = this.plates.length;
+    for (let k = 1; k <= n; k++) {
+      const plate = this.plates[(this.heroPlateIndex + k) % n];
+      if (!plate || plate.target > 0.05) continue;
+      plate.target = clamp01(amount);
+      return true;
+    }
+    return false;
+  }
+
   /** Widest gap currently open, used to decide when a root shoulder shows. */
   get maxOpen(): number {
     return this.plates.reduce((m, p) => Math.max(m, p.open), 0);
@@ -582,7 +659,7 @@ export class SoilPatch {
    */
   /** Azimuth of the crack sitting over the thickest root. */
   firstCrackAzimuth(): number {
-    return this.plates[this.heroPlateIndex]?.azimuth ?? this.heroAzimuth;
+    return this.heroAzimuth;
   }
 
   update(dt: number): void {
