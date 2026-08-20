@@ -105,6 +105,8 @@ export class Greenhouse {
     intensity: 1,
   }
 
+  private readonly shellMaterial: MeshBasicMaterial
+  private readonly roofMaterial: MeshBasicMaterial
   private readonly patch: Mesh
   private readonly glow: Mesh
   private readonly dust: Points | null
@@ -170,10 +172,12 @@ export class Greenhouse {
       }
     }
     // Glass roof: a bright diffusing plane with rafters under it.
-    const roof = new Mesh(
-      new PlaneGeometry(9, 9),
-      new MeshBasicMaterial({ color: new Color(1.35, 1.4, 1.32), side: DoubleSide, fog: false }),
-    )
+    this.roofMaterial = new MeshBasicMaterial({
+      color: new Color(1.35, 1.4, 1.32),
+      side: DoubleSide,
+      fog: false,
+    })
+    const roof = new Mesh(new PlaneGeometry(9, 9), this.roofMaterial)
     roof.rotation.x = Math.PI / 2
     roof.position.y = 3.35
     this.group.add(roof)
@@ -203,11 +207,12 @@ export class Greenhouse {
       shellCol[i * 3 + 2] = tmpCol.b
     }
     shellGeo.setAttribute('color', new BufferAttribute(shellCol, 3))
-    const wall = new Mesh(
-      shellGeo,
-      new MeshBasicMaterial({ vertexColors: true, side: BackSide, fog: false }),
-    )
-    this.group.add(wall)
+    this.shellMaterial = new MeshBasicMaterial({
+      vertexColors: true,
+      side: BackSide,
+      fog: false,
+    })
+    this.group.add(new Mesh(shellGeo, this.shellMaterial))
 
     // Foliage well behind the branch: depth, and something for the light to
     // bounce off, merged down to one draw call per clump.
@@ -357,9 +362,16 @@ export class Greenhouse {
     this.sun.color.copy(this.sunState.color)
     this.sun.intensity = this.sunState.intensity
 
-    this.hemi.intensity = lerp(0.45, 0.72, noon)
-    this.hemi.color.setRGB(lerp(0.95, 0.86, warm), lerp(0.96, 0.9, warm), lerp(1.0, 0.94, warm))
-    this.fill.intensity = lerp(0.22, 0.42, noon)
+    this.hemi.intensity = lerp(0.40, 0.72, noon)
+    this.hemi.color.setRGB(lerp(0.95, 1.0, warm), lerp(0.96, 0.82, warm), lerp(1.0, 0.66, warm))
+    this.hemi.groundColor.setRGB(lerp(0.25, 0.32, warm), lerp(0.31, 0.24, warm), lerp(0.18, 0.14, warm))
+    this.fill.intensity = lerp(0.18, 0.42, noon)
+    this.fill.color.setRGB(lerp(0.75, 0.62, warm), lerp(0.84, 0.68, warm), lerp(0.9, 0.82, warm))
+
+    // Ambient bounce drops away at the ends of the day, so the warm key light
+    // is what shapes the fruit at morning and evening instead of a flat wash.
+    this.scene.environmentIntensity = lerp(0.5, 1.0, noon)
+    this.scene.environmentRotation.set(0, -az * 1.2, 0)
 
     // The window patch slides across the floor as the sun swings.
     this.patch.position.x = -az * 0.8
@@ -373,7 +385,19 @@ export class Greenhouse {
     gm.color.setRGB(1.0, lerp(0.94, 0.72, warm), lerp(0.82, 0.46, warm))
     gm.opacity = 0.55 + noon * 0.25
 
-    this.fogColor.setRGB(lerp(0.34, 0.42, noon), lerp(0.39, 0.48, noon), lerp(0.30, 0.35, noon))
+    // The glass and the far shell carry the hour too, otherwise two thirds of
+    // the frame stays the same colour all day and nothing reads as evening.
+    const tintR = lerp(1.0, 1.06, warm) * lerp(0.78, 1.0, noon)
+    const tintG = lerp(1.0, 0.84, warm) * lerp(0.78, 1.0, noon)
+    const tintB = lerp(1.0, 0.63, warm) * lerp(0.78, 1.0, noon)
+    this.shellMaterial.color.setRGB(tintR, tintG, tintB)
+    this.roofMaterial.color.setRGB(1.35 * tintR, 1.4 * tintG, 1.32 * tintB)
+
+    this.fogColor.setRGB(
+      lerp(0.34, 0.42, noon) * tintR,
+      lerp(0.39, 0.48, noon) * tintG,
+      lerp(0.30, 0.35, noon) * tintB,
+    )
     if (this.scene.fog instanceof Fog) this.scene.fog.color.copy(this.fogColor)
   }
 

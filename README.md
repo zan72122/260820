@@ -38,7 +38,10 @@ npm run preview    # serve the built bundle on http://127.0.0.1:4173
 npm test           # simulation and state-machine unit tests (no GPU needed)
 npm run e2e        # Playwright: builds, serves and drives the real game
 npm run shots      # capture the five key moments at four screen sizes
-node scripts/perf.mjs   # CPU cost of one update, per quality tier
+node scripts/perf.mjs      # CPU cost of one update, per quality tier
+node scripts/daystrip.mjs  # the same shot at four points in the day
+node scripts/ripeStrip.mjs # the fruit at five stages of ripeness
+node scripts/tiershot.mjs  # the catch at the low and mid quality tiers
 ```
 
 `npm run e2e` and `npm run shots` need a preview server; the Playwright config

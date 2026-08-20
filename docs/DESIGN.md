@@ -102,9 +102,12 @@ thing being dragged is never hidden by the hand dragging it.
 
 ## Time
 
-One number moves the sun's arc, the colour temperature, the ambient bounce, the
-patch of window light sliding across the floor, and the fog — all together
-(`Greenhouse.setTimeOfDay`). Ripening is a separate, one-way quantity: scrubbing
+One number moves the sun's arc, the colour temperature, the ambient bounce and
+its rotation, the tint of the glass and the far shell, the patch of window light
+sliding across the floor, the fog, and the angle the leaves turn towards the
+light — all together (`Greenhouse.setTimeOfDay`, `BranchRig.setSun`).
+`node scripts/daystrip.mjs` captures the same shot at four points in the day so
+that coupling can be checked at a glance. Ripening is a separate, one-way quantity: scrubbing
 the light in either direction always advances it, so a child sweeping back and
 forth is always making progress and never losing any. It takes roughly four full
 swipes to go from hard green to ready, and the colour spreads a little each time.

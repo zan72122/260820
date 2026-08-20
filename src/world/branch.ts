@@ -82,6 +82,10 @@ export class BranchRig {
   private readonly glints: number[]
 
   private bendSpring: SpringState = { value: 0, velocity: 0 }
+  private sunTurn = 0
+  private sunLift = 0
+  private turn: SpringState = { value: 0, velocity: 0 }
+  private lift: SpringState = { value: 0, velocity: 0 }
   private loadTarget = 0
   private time = 0
 
@@ -237,6 +241,10 @@ export class BranchRig {
 
   setSun(dir: Vector3, color: Color, intensity: number): void {
     this.leafMat.setSun(dir, color, intensity)
+    // Leaves follow the light across the day. Small, but it is one of the
+    // things that has to move together when time is compressed.
+    this.sunTurn = dir.x * 0.13
+    this.sunLift = (dir.y - 0.7) * 0.1
   }
 
   update(dt: number, wind: number): void {
@@ -251,13 +259,21 @@ export class BranchRig {
       this.hookMaterials[i].emissiveIntensity = g * g * 1.7
     }
 
+    // The turn towards the light lags well behind the sun itself.
+    oscillatorStep(this.turn, this.sunTurn, 6, 4.4, dt)
+    oscillatorStep(this.lift, this.sunLift, 6, 4.4, dt)
+
     for (const leaf of this.leaves) {
       oscillatorStep(leaf.sway, 0, 52 + leaf.lag * 60, 4.5, dt)
       const breeze = Math.sin(this.time * (0.75 + leaf.lag) + leaf.phase) * wind * 0.075
       // The branch moves first; each blade answers a beat later.
       const delayed = leaf.sway.value * 1.7
       LEAF_SWAY.setFromEuler(
-        LEAF_EULER.set(breeze * 0.7 + delayed, breeze * 0.55, breeze + delayed * 0.8),
+        LEAF_EULER.set(
+          breeze * 0.7 + delayed + this.lift.value * (0.6 + leaf.lag),
+          breeze * 0.55 + this.turn.value * (0.7 + leaf.lag * 1.5),
+          breeze + delayed * 0.8 + this.turn.value * 0.5,
+        ),
       )
       leaf.mesh.quaternion.copy(leaf.baseQuat).multiply(LEAF_SWAY)
       leaf.mesh.position.set(leaf.base.x, leaf.base.y + this.bendAt(leaf.x), leaf.base.z)
