@@ -41,6 +41,16 @@ export interface Sphere {
   r: number
 }
 
+/** Flat surfaces the net can come to rest on: the bench, and the floor. */
+export interface Support {
+  floorY: number
+  benchTop: number
+  x0: number
+  x1: number
+  z0: number
+  z1: number
+}
+
 export interface StepContext {
   gravity: number
   /** Breeze strength; drives a slow, low amplitude lateral force field. */
@@ -48,6 +58,8 @@ export interface StepContext {
   windPhase: number
   /** Optional collider that the net can never penetrate. */
   collider?: Sphere | null
+  /** Where a dropped cord end lands instead of falling out of the world. */
+  support?: Support | null
 }
 
 const SUBSTEP = 1 / 240
@@ -58,6 +70,8 @@ export class NetSim {
   readonly pos: Float32Array
   readonly prev: Float32Array
   readonly pinned: Uint8Array
+  /** The sheet's shape with nothing resting in it. */
+  private readonly restPos: Float32Array
   /** Structural cords that get real tube geometry. */
   readonly ropeEdges: Int32Array
   readonly ringLeft: number
@@ -78,6 +92,12 @@ export class NetSim {
   private gripLocal: Float32Array = new Float32Array(0)
   private gripWeight: Float32Array = new Float32Array(0)
   private gripAmount = 0
+  /**
+   * Optional exact surface of the collider, in world-space unit directions.
+   * The fruit is not a ball, so the net asks the fruit where its skin actually
+   * is. Without this the contact patch would float on the flatter cheeks.
+   */
+  private radiusFn: ((dx: number, dy: number, dz: number) => number) | null = null
 
   private accumulator = 0
   private timeAcc = 0
@@ -94,6 +114,7 @@ export class NetSim {
 
     this.pos = new Float32Array(this.nodeCount * 3)
     this.prev = new Float32Array(this.nodeCount * 3)
+    this.restPos = new Float32Array(this.nodeCount * 3)
     this.pinned = new Uint8Array(this.nodeCount)
 
     this.cordLeft = new Int32Array(cordSegments)
@@ -168,6 +189,7 @@ export class NetSim {
     this.ropeEdges = Int32Array.from(rope)
 
     this.layFlat(0, 0.3, 0)
+    this.snapshotRest()
   }
 
   panel(c: number, r: number): number {
@@ -260,7 +282,7 @@ export class NetSim {
         const downness = -dy / d
         if (downness < 1 - reach) continue
         const horiz = Math.hypot(dx, dz)
-        if (horiz > s.r * 1.35) continue
+        if (horiz > s.r * 1.5) continue
         dx /= d; dy /= d; dz /= d
         idx.push(i)
         local.push(dx, dy, dz)
@@ -272,6 +294,14 @@ export class NetSim {
     this.gripLocal = Float32Array.from(local)
     this.gripWeight = Float32Array.from(weight)
     this.gripAmount = 0
+  }
+
+  setSurfaceRadiusFn(fn: ((dx: number, dy: number, dz: number) => number) | null): void {
+    this.radiusFn = fn
+  }
+
+  private radiusFor(dx: number, dy: number, dz: number, fallback: number): number {
+    return this.radiusFn ? this.radiusFn(dx, dy, dz) : fallback
   }
 
   setGripAmount(v: number): void {
@@ -293,16 +323,20 @@ export class NetSim {
 
   /** Height of the net sheet under a world position (nearest-knot average). */
   surfaceHeightAt(x: number, z: number, radius = 0.05): number {
+    return this.sampleHeight(this.pos, x, z, radius)
+  }
+
+  private sampleHeight(src: Float32Array, x: number, z: number, radius: number): number {
     const { cols, rows } = this.cfg
     let sum = 0
     let wsum = 0
     for (let c = 0; c < cols; c++) {
       for (let r = 0; r < rows; r++) {
         const o = this.panel(c, r) * 3
-        const d = Math.hypot(this.pos[o] - x, this.pos[o + 2] - z)
+        const d = Math.hypot(src[o] - x, src[o + 2] - z)
         if (d > radius) continue
         const w = 1 - d / radius
-        sum += this.pos[o + 1] * w
+        sum += src[o + 1] * w
         wsum += w
       }
     }
@@ -311,29 +345,61 @@ export class NetSim {
     let lowest = Infinity
     for (let c = 0; c < cols; c++) {
       for (let r = 0; r < rows; r++) {
-        const y = this.pos[this.panel(c, r) * 3 + 1]
+        const y = src[this.panel(c, r) * 3 + 1]
         if (y < lowest) lowest = y
       }
     }
     return lowest
   }
 
-  /** Deepest point of the sheet, used for framing and for the catch target. */
-  lowestPanelPoint(out: { x: number; y: number; z: number }): void {
+  private lowestOf(src: Float32Array, out: { x: number; y: number; z: number }): void {
     const { cols, rows } = this.cfg
     let best = Infinity
     let bx = 0, bz = 0
     for (let c = 0; c < cols; c++) {
       for (let r = 0; r < rows; r++) {
         const o = this.panel(c, r) * 3
-        if (this.pos[o + 1] < best) {
-          best = this.pos[o + 1]
-          bx = this.pos[o]
-          bz = this.pos[o + 2]
+        if (src[o + 1] < best) {
+          best = src[o + 1]
+          bx = src[o]
+          bz = src[o + 2]
         }
       }
     }
     out.x = bx; out.y = best; out.z = bz
+  }
+
+  // -------------------------------------------------------- unloaded shape
+
+  /**
+   * The catch needs to know where the net sits when *nothing* is in it. Once
+   * the fruit lands, the sheet is deformed by the fruit itself, so the
+   * unloaded shape is kept as a slowly updated snapshot instead of measured
+   * live. This is what makes a narrow, slack hanging genuinely sink deeper
+   * than a wide, taut one.
+   */
+  snapshotRest(): void {
+    this.restPos.set(this.pos)
+  }
+
+  updateRestSnapshot(alpha: number): void {
+    const a = alpha < 0 ? 0 : alpha > 1 ? 1 : alpha
+    for (let i = 0; i < this.restPos.length; i++) {
+      this.restPos[i] += (this.pos[i] - this.restPos[i]) * a
+    }
+  }
+
+  restHeightAt(x: number, z: number, radius = 0.05): number {
+    return this.sampleHeight(this.restPos, x, z, radius)
+  }
+
+  lowestRestPoint(out: { x: number; y: number; z: number }): void {
+    this.lowestOf(this.restPos, out)
+  }
+
+  /** Deepest point of the sheet, used for framing and for the catch target. */
+  lowestPanelPoint(out: { x: number; y: number; z: number }): void {
+    this.lowestOf(this.pos, out)
   }
 
   /** Centre of the sheet (average of the middle band). */
@@ -351,25 +417,21 @@ export class NetSim {
     out.x = x / n; out.y = y / n; out.z = z / n
   }
 
-  /** Push the sheet locally, e.g. a fingertip nudging it from underneath. */
+  /** Push the net locally, e.g. a fingertip nudging it from underneath. */
   addImpulse(
     x: number, y: number, z: number,
     radius: number,
     ix: number, iy: number, iz: number,
   ): void {
-    const { cols, rows } = this.cfg
-    for (let c = 0; c < cols; c++) {
-      for (let r = 0; r < rows; r++) {
-        const i = this.panel(c, r)
-        if (this.pinned[i]) continue
-        const o = i * 3
-        const d = Math.hypot(this.pos[o] - x, this.pos[o + 1] - y, this.pos[o + 2] - z)
-        if (d > radius) continue
-        const w = 1 - d / radius
-        this.prev[o] -= ix * w
-        this.prev[o + 1] -= iy * w
-        this.prev[o + 2] -= iz * w
-      }
+    for (let i = 0; i < this.nodeCount; i++) {
+      if (this.pinned[i]) continue
+      const o = i * 3
+      const d = Math.hypot(this.pos[o] - x, this.pos[o + 1] - y, this.pos[o + 2] - z)
+      if (d > radius) continue
+      const w = 1 - d / radius
+      this.prev[o] -= ix * w
+      this.prev[o + 1] -= iy * w
+      this.prev[o + 2] -= iz * w
     }
   }
 
@@ -427,6 +489,29 @@ export class NetSim {
       this.solveConstraints()
       this.applyGrip()
       if (ctx.collider) this.collide(ctx.collider)
+      if (ctx.support) this.rest(ctx.support)
+    }
+  }
+
+  /**
+   * Nothing in this game falls out of the world. A cord end let go halfway
+   * simply settles onto the bench or the floor and stays where it landed.
+   */
+  private rest(s: Support): void {
+    const { pos, prev } = this
+    for (let i = 0; i < this.nodeCount; i++) {
+      if (this.pinned[i]) continue
+      const o = i * 3
+      const x = pos[o]
+      const z = pos[o + 2]
+      const onBench = x > s.x0 && x < s.x1 && z > s.z0 && z < s.z1
+      const floor = onBench ? s.benchTop : s.floorY
+      if (pos[o + 1] >= floor) continue
+      pos[o + 1] = floor
+      // Friction, so a landed cord does not skate across the bench.
+      prev[o] += (pos[o] - prev[o]) * 0.45
+      prev[o + 2] += (pos[o + 2] - prev[o + 2]) * 0.45
+      if (prev[o + 1] > floor) prev[o + 1] = floor
     }
   }
 
@@ -468,9 +553,13 @@ export class NetSim {
       if (this.pinned[i]) continue
       const o = i * 3
       const lo = k * 3
-      const tx = s.x + this.gripLocal[lo] * s.r
-      const ty = s.y + this.gripLocal[lo + 1] * s.r
-      const tz = s.z + this.gripLocal[lo + 2] * s.r
+      const lx = this.gripLocal[lo]
+      const ly = this.gripLocal[lo + 1]
+      const lz = this.gripLocal[lo + 2]
+      const rr = this.radiusFor(lx, ly, lz, s.r)
+      const tx = s.x + lx * rr
+      const ty = s.y + ly * rr
+      const tz = s.z + lz * rr
       const w = this.gripWeight[k] * this.gripAmount
       this.pos[o] += (tx - this.pos[o]) * w
       this.pos[o + 1] += (ty - this.pos[o + 1]) * w
@@ -480,7 +569,9 @@ export class NetSim {
 
   private collide(s: Sphere): void {
     const { pos } = this
-    const r2 = s.r * s.r
+    // Broad phase against the largest radius the surface can reach.
+    const rMax = this.radiusFn ? s.r * 1.35 : s.r
+    const r2 = rMax * rMax
     for (let i = 0; i < this.nodeCount; i++) {
       if (this.pinned[i]) continue
       const o = i * 3
@@ -490,7 +581,9 @@ export class NetSim {
       const d2 = dx * dx + dy * dy + dz * dz
       if (d2 >= r2 || d2 < 1e-12) continue
       const d = Math.sqrt(d2)
-      const k = s.r / d
+      const surface = this.radiusFor(dx / d, dy / d, dz / d, s.r)
+      if (d >= surface) continue
+      const k = surface / d
       pos[o] = s.x + dx * k
       pos[o + 1] = s.y + dy * k
       pos[o + 2] = s.z + dz * k

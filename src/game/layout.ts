@@ -8,11 +8,11 @@ export const FLOOR_Y = 0
 
 /** The propagation bench the net is draped over before the child touches it. */
 export const BENCH = {
-  top: 0.30,
-  x0: -0.46,
-  x1: 0.46,
-  z0: -0.20,
-  z1: 0.24,
+  top: 0.335,
+  x0: -0.48,
+  x1: 0.48,
+  z0: -0.30,
+  z1: 0.04,
   legInset: 0.06,
 }
 
@@ -51,7 +51,7 @@ export interface HookSpec {
 }
 
 /** Small drop from the branch centreline to the eye of the hook. */
-export const HOOK_DROP = 0.045
+export const HOOK_DROP = 0.027
 
 export function buildHooks(): HookSpec[] {
   const hooks: HookSpec[] = []
@@ -70,15 +70,15 @@ export const FIRST_HINT_HOOKS: readonly [number, number] = [1, 5]
 
 export const STEM = {
   /** Where the peduncle leaves the branch. */
-  anchor: { x: 0.012, y: BRANCH.apex.y - 0.012, z: BRANCH.apex.z + 0.006 },
-  length: 0.155,
-  radius: 0.0042,
+  anchor: { x: 0.012, y: BRANCH.apex.y - 0.014, z: BRANCH.apex.z + 0.006 },
+  length: 0.135,
+  radius: 0.0063,
 }
 
 export const FRUIT = {
-  radius: 0.056,
+  radius: 0.060,
   /** Distance from the stem scar down to the fruit centre. */
-  hangOffset: 0.062,
+  hangOffset: 0.070,
 }
 
 /** Fruit centre while still attached to the stem. */
@@ -94,9 +94,8 @@ export const NET_GEOMETRY = {
   edgeShrink: 0.10,
 }
 
-/** Cord radius for the rope tubes, and the fine mesh gauge between them. */
-export const CORD_RADIUS = 0.0031
-export const KNOT_RADIUS = 0.0052
+/** Radius of every structural cord in the net. */
+export const CORD_RADIUS = 0.0042
 
 /** Span limits used to normalise "how taut is this hanging?" into 0..1. */
 export const SPAN_MIN = HOOK_XS[0] * 2

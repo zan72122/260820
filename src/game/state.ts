@@ -46,7 +46,7 @@ export function makeRoundProfile(round: number, baseSeed: number): RoundProfile 
   return {
     seed: (baseSeed ^ (round * 0x85ebca6b)) >>> 0,
     sizeScale: 1 + rng.jitter(0.085) * spread,
-    blush: clamp(0.72 + rng.jitter(0.26) * spread, 0.4, 1),
+    blush: clamp(0.86 + rng.jitter(0.22) * spread, 0.5, 1),
     speckle: clamp(0.45 + rng.jitter(0.4) * spread, 0.08, 1),
     loosenDelay: 0.25 + rng.range(0, 1.1) * spread,
     loosenDuration: 1.15 + rng.jitter(0.3) * spread,
@@ -183,7 +183,7 @@ export class GameState {
     this.timeTouched = true
     this.idleTime = 0
     this.clearHint()
-    this.ripeness = clamp01(this.ripeness + Math.abs(delta) * 0.62 * this.profile.ripenRate)
+    this.ripeness = clamp01(this.ripeness + Math.abs(delta) * 0.30 * this.profile.ripenRate)
   }
 
   notePush(): void {

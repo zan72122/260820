@@ -77,6 +77,7 @@ export interface FruitState {
 }
 
 export class FruitSim {
+  /** Mutable: the contact radius changes with each fruit's real shape. */
   readonly tuning: CatchTuning
   readonly state: FruitState
   private k = 0
