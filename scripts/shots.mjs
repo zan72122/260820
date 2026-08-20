@@ -44,18 +44,22 @@ async function run(label, { width, height, query }) {
   await page.screenshot({ path: `${OUT}/${label}-03-aim.png` });
 
   await page.evaluate(() => window.__suika.strike());
-  await adv(0.75);
+  await adv(0.62);
   await page.screenshot({ path: `${OUT}/${label}-04-impact.png` });
+  await adv(0.16);
+  await page.screenshot({ path: `${OUT}/${label}-04b-juice.png` });
   await adv(1.4);
   await page.screenshot({ path: `${OUT}/${label}-05-hero.png` });
   await adv(4.0);
   await page.screenshot({ path: `${OUT}/${label}-06-wide.png` });
+  await adv(2.6);
+  await page.screenshot({ path: `${OUT}/${label}-07-again.png` });
 
   console.log(label, JSON.stringify(await st()));
   await page.close();
 }
 
-await run('p', { width: 390, height: 780, query: '&shadows=1' });
-await run('l', { width: 812, height: 390, query: '&shadows=1' });
+await run('p', { width: 390, height: 780, query: '&shadows=1&particles=1' });
+await run('l', { width: 812, height: 390, query: '&shadows=1&particles=1' });
 await browser.close();
 console.log('shots written to', OUT);

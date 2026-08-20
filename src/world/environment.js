@@ -32,9 +32,9 @@ export function buildEnvironment(scene, renderer, quality) {
   const sky = new Sky();
   sky.scale.setScalar(20000);
   const u = sky.material.uniforms;
-  u.turbidity.value = 3.4;
-  u.rayleigh.value = 2.15;
-  u.mieCoefficient.value = 0.004;
+  u.turbidity.value = 2.4;
+  u.rayleigh.value = 2.85;
+  u.mieCoefficient.value = 0.0035;
   u.mieDirectionalG.value = 0.82;
   if (u.cloudCoverage) {
     u.cloudCoverage.value = 0.42;      // fair-weather summer cumulus

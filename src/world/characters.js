@@ -272,9 +272,9 @@ export function updateCharacter(ch, t, dt) {
       ch.torso.position.y = ch.torso.userData.baseY + bounce;
       set(ch.torso, -0.05, ch.torso.rotation.y, Math.sin(p * 6.2) * 0.06);
       set(ch.neck, -0.22, 0, 0);
-      set(ch.shoulderL, -2.42 + Math.sin(p * 7) * 0.28, 0, 0.62);
-      set(ch.shoulderR, -2.42 + Math.cos(p * 7) * 0.28, 0, -0.62);
-      set(ch.elbowL, -0.40, 0, -0.18); set(ch.elbowR, -0.40, 0, 0.18);
+      set(ch.shoulderL, -2.38 + Math.sin(p * 7) * 0.28, 0, 0.86);
+      set(ch.shoulderR, -2.38 + Math.cos(p * 7) * 0.28, 0, -0.86);
+      set(ch.elbowL, -0.34, 0, 0.10); set(ch.elbowR, -0.34, 0, -0.10);
       set(ch.hipL, 0.1, 0, 0.08); set(ch.hipR, -0.1, 0, -0.08);
       set(ch.kneeL, -0.3, 0, 0); set(ch.kneeR, -0.3, 0, 0);
       break;

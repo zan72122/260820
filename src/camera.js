@@ -110,7 +110,7 @@ export class CameraDirector {
         // swing round to one side of the player, otherwise the avatar and the
         // stick sit between the lens and the thing we came here to look at
         const toAvatar = new THREE.Vector3().subVectors(avatarPos, p).setY(0).normalize();
-        const dir = toAvatar.clone().applyAxisAngle(UP_Y, 0.95);
+        const dir = toAvatar.clone().applyAxisAngle(UP_Y, 1.30);
         const t = THREE.MathUtils.smoothstep(this.shotTime, 0, 1.5);
         targetPos.copy(p)
           .addScaledVector(dir, THREE.MathUtils.lerp(1.35, 0.58, t) * wide)
@@ -126,11 +126,11 @@ export class CameraDirector {
         const side = new THREE.Vector3(-dir.z, 0, dir.x);
         const t = THREE.MathUtils.smoothstep(this.shotTime, 0, 3.0);
         targetPos.copy(melonPos)
-          .addScaledVector(dir, -(2.0 + t * 2.6) * wide)
-          .addScaledVector(side, (0.9 + t * 1.1) * wide)
-          .setY(melonPos.y + 1.15 + t * 0.75);
-        targetLook.copy(melonPos).setY(melonPos.y + 0.35 + t * 0.5);
-        targetFov = 55;
+          .addScaledVector(dir, -(2.1 + t * 2.0) * wide)
+          .addScaledVector(side, (0.95 + t * 0.95) * wide)
+          .setY(melonPos.y + 1.00 + t * 0.45);
+        targetLook.copy(melonPos).setY(melonPos.y + 0.46 + t * 0.26);
+        targetFov = 49;
         lambda = 1.1;
         break;
       }

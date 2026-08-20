@@ -16,7 +16,7 @@ export class UI {
     this.againBtn = document.getElementById('againBtn');
     this._capTimer = 0;
     this._hintTimer = 0;
-    this._hintQueue = [];
+    this._hintNext = 0;
   }
 
   ready() {
@@ -39,6 +39,7 @@ export class UI {
 
   hint(text, ms = 4200) {
     clearTimeout(this._hintTimer);
+    clearTimeout(this._hintNext);
     if (!text) { this.hintEl.classList.remove('on'); return; }
     this.hintEl.textContent = text;
     this.hintEl.classList.add('on');
@@ -58,7 +59,7 @@ export class UI {
       case 'search':
         if (round === 0) {
           this.hint('よこに ドラッグ → むきをかえる', 4000);
-          setTimeout(() => this.hint('うえに スッ → すすむ', 3600), 4300);
+          this._hintNext = setTimeout(() => this.hint('うえに スッ → すすむ', 3600), 4300);
         }
         break;
       case 'aim':

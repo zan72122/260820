@@ -67,8 +67,15 @@ const FAST = {
 export function pickQuality() {
   const q = new URLSearchParams(location.search);
   if (q.has('e2e') || q.has('fast') || window.__E2E_FAST) {
-    // `shadows=1` re-enables sun shadows for a one-off look at the composition
-    return { ...FAST, e2e: true, shadows: q.get('shadows') === '1' };
+    // `shadows=1` / `particles=1` re-enable those for a one-off look at the
+    // composition; the default fast profile keeps runs cheap and deterministic
+    const particles = q.get('particles') === '1';
+    return {
+      ...FAST, e2e: true,
+      shadows: q.get('shadows') === '1',
+      particles,
+      dropletCount: particles ? 26 : 0,
+    };
   }
 
   const dpr = window.devicePixelRatio || 1;
