@@ -1,0 +1,34 @@
+{
+  "name": "260820",
+  "version": "1.0.0",
+  "description": "Realistic 3D lotus-root water digging for mobile web",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --port 4173 --host",
+    "typecheck": "tsc --noEmit",
+    "play": "node tests/play.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zan72122/260820.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/zan72122/260820/issues"
+  },
+  "homepage": "https://github.com/zan72122/260820#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@types/three": "^0.185.4",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2"
+  },
+  "dependencies": {
+    "three": "^0.185.1"
+  },
+  "type": "module"
+}
