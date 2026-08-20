@@ -36,12 +36,3 @@ export class Rng {
   }
 }
 
-/** Cheap string -> uint32 hash, used to derive stable sub-seeds. */
-export function hashSeed(text: string): number {
-  let h = 2166136261 >>> 0
-  for (let i = 0; i < text.length; i++) {
-    h ^= text.charCodeAt(i)
-    h = Math.imul(h, 16777619) >>> 0
-  }
-  return h >>> 0
-}

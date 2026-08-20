@@ -13,23 +13,6 @@ export const smoothstep = (edge0: number, edge1: number, x: number): number => {
   return t * t * (3 - 2 * t)
 }
 
-export const smootherstep = (edge0: number, edge1: number, x: number): number => {
-  const t = invLerp(edge0, edge1, x)
-  return t * t * t * (t * (t * 6 - 15) + 10)
-}
-
-export const easeOutCubic = (t: number): number => 1 - Math.pow(1 - clamp01(t), 3)
-export const easeInOutCubic = (t: number): number => {
-  const c = clamp01(t)
-  return c < 0.5 ? 4 * c * c * c : 1 - Math.pow(-2 * c + 2, 3) / 2
-}
-export const easeOutBack = (t: number): number => {
-  const c1 = 1.70158
-  const c3 = c1 + 1
-  const c = clamp01(t)
-  return 1 + c3 * Math.pow(c - 1, 3) + c1 * Math.pow(c - 1, 2)
-}
-
 /**
  * Frame-rate independent exponential approach. `rate` is roughly
  * "how many e-folds per second"; the result is stable at any dt.
@@ -78,5 +61,3 @@ export function oscillatorStep(
   state.value += state.velocity * dt
   return state.value
 }
-
-export const TAU = Math.PI * 2

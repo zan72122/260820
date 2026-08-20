@@ -95,3 +95,47 @@ describe('net rig', () => {
     }
   })
 })
+
+describe('contact against the real fruit surface', () => {
+  it('holds every gripped knot on the skin, not on a nominal sphere', async () => {
+    const { makeMangoShape, mangoRadiusAt, mangoExtents } = await import('../src/world/mango')
+    const { makeRoundProfile } = await import('../src/game/state')
+    const shape = makeMangoShape(makeRoundProfile(0, 0x1a2b3c4d), FRUIT.radius)
+    const extents = mangoExtents(shape)
+
+    const net = hungNet(HOOK_XS[1], HOOK_XS[2])
+    net.setSurfaceRadiusFn((dx, dy, dz) => mangoRadiusAt(shape, dx, dy, dz))
+    const surface = net.surfaceHeightAt(0, 0, 0.07)
+    const fruit = { x: 0, y: surface + extents.bottom, z: 0, r: extents.max }
+    net.beginGrip(fruit)
+    net.setGripAmount(1)
+    net.setGripSphere(fruit)
+
+    // Sink, then rebound: the sheet must track the skin in both directions.
+    for (const dy of [-0.0012, 0.0012]) {
+      for (let i = 0; i < 70; i++) {
+        fruit.y += dy
+        net.setGripSphere(fruit)
+        net.settle(1 / 240, { ...CTX, collider: fruit })
+      }
+    }
+
+    let worstOutside = 0
+    let worstInside = 0
+    for (let i = 0; i < net.nodeCount; i++) {
+      const dx = net.getX(i) - fruit.x
+      const dy = net.getY(i) - fruit.y
+      const dz = net.getZ(i) - fruit.z
+      const d = Math.hypot(dx, dy, dz)
+      if (d > extents.max * 1.4) continue
+      const skin = mangoRadiusAt(shape, dx / d, dy / d, dz / d)
+      if (d < skin) worstInside = Math.max(worstInside, skin - d)
+      // Only knots that are actually part of the contact patch may be measured
+      // for a gap; the rim of the sheet is legitimately away from the fruit.
+      if (-dy / d > 0.75) worstOutside = Math.max(worstOutside, d - skin)
+    }
+    // Nothing buried in the fruit, and nothing hovering off it.
+    expect(worstInside).toBeLessThan(1e-4)
+    expect(worstOutside).toBeLessThan(0.004)
+  })
+})

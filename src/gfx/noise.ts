@@ -106,20 +106,3 @@ export class Noise3 {
   }
 }
 
-/** Seamless-in-U noise sampler for equirectangular UV maps (no visible seam). */
-export function tubeNoise(
-  noise: Noise3,
-  u: number,
-  v: number,
-  freqU: number,
-  freqV: number,
-  octaves = 4,
-): number {
-  const a = u * Math.PI * 2
-  return noise.fbm(
-    Math.cos(a) * freqU,
-    Math.sin(a) * freqU,
-    v * freqV,
-    octaves,
-  )
-}

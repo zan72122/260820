@@ -13,7 +13,6 @@ export const BENCH = {
   x1: 0.48,
   z0: -0.30,
   z1: 0.04,
-  legInset: 0.06,
 }
 
 /** The branch arches over the scene; both limbs sweep down and outward. */

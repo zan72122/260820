@@ -932,7 +932,6 @@ export class Game {
     const st = this.state.stage
     if (st === 'idle' || st === 'oneEnd') {
       this.fallShot = null
-      this.settledOnce = this.fruitSim.state.phase === 'resting' ? this.settledOnce : false
       this.director.freeze(false)
       this.director.setShot(this.attachShot())
     } else if (st === 'hung') {

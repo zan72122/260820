@@ -150,7 +150,9 @@ async function main(): Promise<void> {
   setTimeout(() => boot.remove(), 800)
 
   // ---- automation surface ------------------------------------------------
-  // Only ever read by the capture scripts; the game itself never uses it.
+  // Only present with ?e2e=1, only read by the capture and test scripts, and
+  // never used by the game itself.
+  if (!isE2E()) return
   ;(window as unknown as Record<string, unknown>).__mango = {
     ready: true,
     quality: quality.tier,
@@ -174,7 +176,6 @@ async function main(): Promise<void> {
     hookScreen: (id: number) => game.hookScreen(id),
     netScreen: () => game.netScreen(),
     fingerOffset: HANDLE_FINGER_OFFSET_PX,
-    dumpTexture: (name: string) => textures.debugCanvases?.[name]?.toDataURL('image/png') ?? null,
     dumpMangoChannel: (channel: number) => {
       const t = textures.mangoData as unknown as {
         image: { data: Uint8Array; width: number; height: number }

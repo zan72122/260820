@@ -32,7 +32,6 @@ export interface MangoDebug {
   hookScreen: (id: number) => { x: number; y: number }
   netScreen: () => { x: number; y: number }
   fingerOffset: number
-  dumpTexture: (name: string) => string | null
   dumpMangoChannel: (channel: number) => string
 }
 

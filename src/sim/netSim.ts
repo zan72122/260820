@@ -590,8 +590,4 @@ export class NetSim {
     }
   }
 
-  /** Total cord path length from hook to hook, used to derive tautness. */
-  get spanLength(): number {
-    return this.cfg.panelLength + this.cfg.cordLength * 2 + this.cfg.panelWidth * 0.42
-  }
 }

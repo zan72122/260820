@@ -502,8 +502,6 @@ function environmentTexture(size: number, sunAzimuth: number): DataTexture {
 // -------------------------------------------------------------------- API
 
 export interface TextureBundle {
-  /** Raw canvases, exposed only so the capture scripts can audit the maps. */
-  debugCanvases?: Record<string, HTMLCanvasElement>
   mangoData: Texture
   mangoNormal: Texture
   barkColor: Texture
@@ -576,12 +574,6 @@ export async function buildTextures(
   mangoTexture.needsUpdate = true
 
   const bundle: TextureBundle = {
-    debugCanvases: {
-      mangoNormal: mango.normal,
-      leafColor: leaf.color,
-      fineAlpha: fine.alpha,
-      bark: bark.color,
-    },
     mangoData: mangoTexture,
     mangoNormal: tex(mango.normal, false, aniso),
     barkColor: tex(bark.color, true, aniso),
@@ -596,8 +588,7 @@ export async function buildTextures(
     env,
     dispose(): void {
       for (const key of Object.keys(bundle) as (keyof TextureBundle)[]) {
-        if (key === 'debugCanvases') continue
-        const value = bundle[key]
+          const value = bundle[key]
         if (value && typeof value === 'object' && 'dispose' in value) {
           ;(value as Texture).dispose()
         }
