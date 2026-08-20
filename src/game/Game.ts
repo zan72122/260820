@@ -284,11 +284,15 @@ export class Game {
   /** the paddy floor is cut open under every live plot so craters can be seen */
   private refreshHoles() {
     this.field.setHoles(
-      this.plots.map((p) => ({
-        x: p.plot.spec.center.x,
-        z: p.plot.spec.center.z,
-        half: p.plot.spec.size * 0.5 - 0.05,
-      })),
+      // only plots actually in the scene: a hole with no bed under it would
+      // punch straight through the paddy floor
+      this.plots
+        .filter((p) => p.plot.group.parent !== null)
+        .map((p) => ({
+          x: p.plot.spec.center.x,
+          z: p.plot.spec.center.z,
+          half: p.plot.spec.size * 0.5 - 0.05,
+        })),
     )
   }
 
@@ -304,6 +308,7 @@ export class Game {
     this.plotIndex++
     this.cur = next
     this.scene.add(next.plot.group, next.mesh)
+    this.refreshHoles()
     this.water.setCenter(next.plot.spec.center.x, next.plot.spec.center.z)
     this.bubbles.setOrigin(next.plot.petioles[0].base)
     this.bubbles.start()
@@ -541,7 +546,7 @@ export class Game {
     const workPoint = carrying ? this.holdPoint.clone().setY(0) : this.grip.clone().setY(0)
     // The worker stands almost directly beyond the work point, so the reaching
     // arm arrives from behind the find rather than across it.
-    const wa = this.camAz() + 2.3
+    const wa = this.camAz() + 2.25
     const carryNow = this.phase === 'lift' || this.phase === 'hold'
     this.worker.moveToward(workPoint, dt, new THREE.Vector3(Math.cos(wa), 0, Math.sin(wa)), carryNow ? 3.4 : 4.2)
     const support = this.supportPoint()
@@ -1069,11 +1074,10 @@ export class Game {
       addExposed()
       const centre = exposedCount ? exposedCenter.clone() : this.holdPoint.clone()
       const toBoat = centre.distanceTo(this.boat.group.position)
-      // the boat is only pulled into frame once the child carries the root over
-      if (toBoat < 0.95 || this.phase === 'stored') {
-        must.push(this.boat.group.position.clone().setY(0.16))
-        centre.lerp(this.boat.group.position, 0.3)
-      }
+      // Once the root is out, where it has to go must be on screen: the boat is
+      // always framed, and the shot leans further toward it as the child nears.
+      must.push(this.boat.group.position.clone().setY(0.16))
+      centre.lerp(this.boat.group.position, toBoat < 1.1 ? 0.42 : 0.3)
       req = {
         key: 'wash',
         dir: shot(0.52),
@@ -1106,8 +1110,8 @@ export class Game {
       }
       req = {
         key: 'work',
-        dir: shot(waiting ? (portrait ? 0.68 : 0.56) : portrait ? 0.78 : 0.64),
-        dist: waiting ? (portrait ? 1.5 : 1.3) : portrait ? 2.35 : 2.0,
+        dir: shot(waiting ? (portrait ? 0.72 : 0.66) : 0.84),
+        dist: waiting ? (portrait ? 1.6 : 1.45) : portrait ? 2.4 : 2.2,
         target,
         fov: portrait ? 54 : 46,
         must,

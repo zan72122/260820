@@ -61,7 +61,7 @@ export class Cutaway {
       roughness: 0.18,
       metalness: 0,
       transparent: true,
-      opacity: 0.86,
+      opacity: 0.93,
       side: THREE.DoubleSide,
     })
     waterMat.clippingPlanes = [this.plane]
@@ -88,7 +88,7 @@ export class Cutaway {
     this.root = new THREE.Mesh(g, mat)
     const s = Math.min(1.2, (this.W * 0.72) / Math.max(0.2, span))
     this.root.scale.setScalar(s)
-    this.root.position.set(0, -0.17, 0.02)
+    this.root.position.set(0, -0.17, -0.15)
     // lay the chain across the section rather than into it
     this.root.rotation.y = -Math.atan2(bb.max.z - bb.min.z, bb.max.x - bb.min.x) * 0.5
     this.scene.add(this.root)
@@ -99,7 +99,7 @@ export class Cutaway {
       const x = (i - 1) * this.W * 0.24
       const h = 0.17 + 0.29 + i * 0.02
       const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.011, h, 6), stalkMat)
-      stalk.position.set(x, -0.17 + h / 2, 0.02)
+      stalk.position.set(x, -0.17 + h / 2, -0.15)
       stalk.rotation.z = (i - 1) * 0.09
       this.stalks.add(stalk)
     }
@@ -116,7 +116,7 @@ export class Cutaway {
   update(dt: number, aspect: number) {
     this.t += dt
     const open = Math.min(1, Math.max(0, (this.t - 0.4) / 1.6))
-    this.plane.constant = this.D * 0.5 + 0.02 - open * (this.D * 0.5 + 0.03)
+    this.plane.constant = this.D * 0.5 + 0.02 - open * (this.D * 0.5 + 0.02)
     const a = -0.28 + Math.sin(this.t * 0.28) * 0.2
     const portrait = aspect < 1
     const dist = portrait ? 2.05 : 1.5

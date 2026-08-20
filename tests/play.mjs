@@ -136,7 +136,14 @@ for (const vp of list) {
     }
     await shot('06-wash')
     // carry to the boat
-    const boat = await page.evaluate(() => window.__renkon.game.__boatPoint())
+    let boat = await page.evaluate(() => window.__renkon.game.__boatPoint())
+    if (boat) {
+      // the boat must be reachable on screen; clamp so the drive matches a thumb
+      if (boat.x < 4 || boat.x > vp.width - 4 || boat.y < 4 || boat.y > vp.height - 4) {
+        problems.push(`${vp.name}: boat is not on screen while carrying the root`)
+      }
+      boat = { x: Math.min(vp.width - 6, Math.max(6, boat.x)), y: Math.min(vp.height - 6, Math.max(6, boat.y)) }
+    }
     if (boat) {
       await page.mouse.move(boat.x, boat.y, { steps: 22 })
       await page.waitForTimeout(1200)
