@@ -14,6 +14,29 @@ function canvas(size) {
   return c;
 }
 
+/**
+ * Bilinear read from a coarse scalar field. The expensive noise is evaluated once
+ * at half resolution and interpolated up: the maps are broad and smooth, and a
+ * phone should not spend two seconds on arithmetic before the shop appears.
+ */
+function sampleField(arr, n, u, v) {
+  const x = u * n - 0.5, y = v * n - 0.5;
+  const x0 = Math.floor(x), y0 = Math.floor(y);
+  const fx = x - x0, fy = y - y0;
+  const w = (i) => ((i % n) + n) % n;
+  const xa = w(x0), xb = w(x0 + 1), ya = w(y0), yb = w(y0 + 1);
+  const top = arr[ya * n + xa] + (arr[ya * n + xb] - arr[ya * n + xa]) * fx;
+  const bot = arr[yb * n + xa] + (arr[yb * n + xb] - arr[yb * n + xa]) * fx;
+  return top + (bot - top) * fy;
+}
+
+/** Evaluates `fn(u,v)` over an n x n grid into a Float32Array. */
+function makeField(n, fn) {
+  const a = new Float32Array(n * n);
+  for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) a[y * n + x] = fn(x / n, y / n);
+  return a;
+}
+
 function tex(cv, { srgb = false, repeat = 1, aniso = 4 } = {}) {
   const t = new CanvasTexture(cv);
   t.wrapS = t.wrapT = RepeatWrapping;
@@ -77,181 +100,197 @@ function writeRGB(size, fn, srgb) {
 // Planed keyaki, oiled and worked on for years. The grain runs along U; the
 // lattice is stretched hard on that axis so the lines are lines, not ripples.
 export function woodMaps(size = 512) {
-  const h = new Float32Array(size * size);
-  const grain = (u, v) => {
+  const grainF = makeField(size, (u, v) => {
     const warp = (fbm2(u, v, 4, 3, 3, 21) - 0.5) * 1.2;
     const r = v * 34.0 + warp + Math.sin(u * Math.PI * 2.0) * 0.4;
-    let g = Math.abs(Math.sin(r * Math.PI));
-    g = Math.pow(g, 0.35);
+    const g = Math.pow(Math.abs(Math.sin(r * Math.PI)), 0.35);
     const fibre = fbm2(u, v, 260, 30, 3, 77);
     return clamp(g * 0.62 + fibre * 0.38, 0, 1);
-  };
-  // relief is only the open pores and the fine tear-out; rings are flat
-  const relief = (u, v) => {
+  });
+  // relief is only the open pores and the fine tear-out; the rings are flat
+  const reliefF = makeField(size, (u, v) => {
     const pores = smoothstep(0.76, 0.99, fbm2(u, v, 340, 120, 2, 5));
     const fibre = fbm2(u, v, 300, 34, 2, 91);
     return clamp(pores * 0.75 + fibre * 0.25, 0, 1);
-  };
-  const color = writeRGB(size, (u, v, out) => {
-    const g = grain(u, v);
-    const wear = fbm2(u, v, 6, 5, 4, 303);
+  });
+  const half = size >> 1;
+  const wearF = makeField(half, (u, v) => fbm2(u, v, 6, 5, 4, 303));
+  const stainF = makeField(half, (u, v) => smoothstep(0.72, 0.94, fbm2(u, v, 7, 5, 3, 555)));
+  const polishF = makeField(half, (u, v) => smoothstep(0.22, 0.70, fbm2(u, v, 5, 4, 3, 41)));
+
+  const color = writeRGB(size, (u, v, out, x, y) => {
+    const g = grainF[y * size + x];
+    const wear = sampleField(wearF, half, u, v);
     const t = g * 0.80 + wear * 0.20;
-    // warm, light, sun-worn; the dark late-wood only in the ring lines
     out[0] = mix(0.512, 0.252, t) * mix(0.96, 1.05, wear);
     out[1] = mix(0.396, 0.180, t) * mix(0.97, 1.04, wear);
     out[2] = mix(0.283, 0.122, t);
-    const stain = smoothstep(0.72, 0.94, fbm2(u, v, 7, 5, 3, 555));
+    const stain = sampleField(stainF, half, u, v);
     out[0] *= mix(1, 0.82, stain); out[1] *= mix(1, 0.80, stain); out[2] *= mix(1, 0.84, stain);
   }, true);
-  const rough = writeRGB(size, (u, v, out) => {
-    const g = grain(u, v);
-    const polish = smoothstep(0.22, 0.70, fbm2(u, v, 5, 4, 3, 41));
+  const rough = writeRGB(size, (u, v, out, x, y) => {
+    const g = grainF[y * size + x];
+    const polish = sampleField(polishF, half, u, v);
     out[0] = out[1] = out[2] = clamp(mix(0.70, 0.44, polish) + g * 0.13, 0.2, 1);
   }, false);
-  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) h[y * size + x] = relief(x / size, y / size);
-  return { map: color, roughnessMap: rough, normalMap: normalFromHeight(h, size, 1.1) };
+  return { map: color, roughnessMap: rough, normalMap: normalFromHeight(reliefF, size, 1.1) };
 }
 
 // ------------------------------------------------------- old enamel-painted iron
 // The signature material: thick paint over cast iron, chipped at the corners,
 // hazed by decades of sugar water and towels.
 export function paintedMetalMaps(size = 1024, base = [0.62, 0.13, 0.12]) {
-  const rnd = mulberry32(9182);
-  // chip mask: sparse cellular blotches, biased to the map's edges (= object corners)
-  const chips = new Float32Array(size * size);
-  const scratches = new Float32Array(size * size);
-  const orange = new Float32Array(size * size);
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const u = x / size, v = y / size, i = y * size + x;
+  // Every field is broad; evaluating them at half resolution and interpolating up
+  // is indistinguishable and four times cheaper, which matters because this is the
+  // largest map in the game and it is generated on the main thread at boot.
+  const n = size >> 1;
+  const chips = new Float32Array(n * n);
+  const scratches = new Float32Array(n * n);
+  const orange = new Float32Array(n * n);
+  const grime = new Float32Array(n * n);
+  const haze = new Float32Array(n * n);
+  for (let y = 0; y < n; y++) {
+    for (let x = 0; x < n; x++) {
+      const u = x / n, v = y / n, i = y * n + x;
       const w = worley(u, v, 22, 13);
-      const w2 = worley(u * 1.0, v * 1.0, 46, 71);
+      const w2 = worley(u, v, 46, 71);
       const edgeBias = smoothstep(0.5, 0.02, Math.min(Math.min(u, 1 - u), Math.min(v, 1 - v)));
-      const n = fbm(u, v, 7, 4, 17);
-      let c = smoothstep(0.20, 0.02, w) * smoothstep(0.52, 0.70, n * 0.6 + edgeBias * 0.7);
-      c = Math.max(c, smoothstep(0.07, 0.0, w2) * smoothstep(0.62, 0.86, n + edgeBias * 0.5));
-      chips[i] = clamp(c, 0, 1);
+      const nz = fbm(u, v, 7, 4, 17);
+      let c = smoothstep(0.20, 0.02, w) * smoothstep(0.52, 0.70, nz * 0.6 + edgeBias * 0.7);
+      c = Math.max(c, smoothstep(0.07, 0.0, w2) * smoothstep(0.62, 0.86, nz + edgeBias * 0.5));
+      chips[i] = clamp(c * 0.85, 0, 1);
       // fine hairline scratches, mostly horizontal from wiping
-      const s = fbm2(u, v, 300, 16, 2, 909);
-      scratches[i] = smoothstep(0.70, 0.95, s);
+      scratches[i] = smoothstep(0.70, 0.95, fbm2(u, v, 300, 16, 2, 909));
       // "orange peel" of thick brush enamel
       orange[i] = fbm(u, v, 40, 3, 4242);
+      grime[i] = fbm(u, v, 5, 4, 88);
+      haze[i] = fbm(u, v, 6, 3, 611);
     }
   }
-  const color = writeRGB(size, (u, v, out, x, y) => {
-    const i = y * size + x;
-    const c = chips[i], s = scratches[i];
-    const grime = fbm(u, v, 5, 4, 88);
+  const S = (a, u, v) => sampleField(a, n, u, v);
+
+  const color = writeRGB(size, (u, v, out) => {
+    const c = S(chips, u, v), sc = S(scratches, u, v), gr = S(grime, u, v);
     // enamel
-    let r = base[0] * mix(0.86, 1.10, grime);
-    let g = base[1] * mix(0.86, 1.10, grime);
-    let b = base[2] * mix(0.86, 1.10, grime);
+    let r = base[0] * mix(0.86, 1.10, gr);
+    let g = base[1] * mix(0.86, 1.10, gr);
+    let b = base[2] * mix(0.86, 1.10, gr);
     // sun-bleached on the upper half
     const bleach = smoothstep(0.55, 0.0, v) * 0.22;
     r = mix(r, r * 1.25 + 0.09, bleach); g = mix(g, g * 1.2 + 0.08, bleach); b = mix(b, b * 1.2 + 0.08, bleach);
-    // chipped through to grey primer, then to rusty iron in the deepest chips
+    // chipped through to grey primer, then to bare iron in the deepest chips
     const deep = smoothstep(0.55, 1.0, c);
     const prim = smoothstep(0.10, 0.6, c);
     r = mix(r, 0.42, prim); g = mix(g, 0.40, prim); b = mix(b, 0.37, prim);
-    r = mix(r, 0.22 + grime * 0.16, deep); g = mix(g, 0.14 + grime * 0.09, deep); b = mix(b, 0.10, deep);
+    r = mix(r, 0.34 + gr * 0.14, deep); g = mix(g, 0.245 + gr * 0.09, deep); b = mix(b, 0.195, deep);
     // rust halo bleeding out of the chips
     const halo = smoothstep(0.02, 0.35, c) * (1 - deep) * 0.5;
     r = mix(r, 0.33, halo); g = mix(g, 0.17, halo); b = mix(b, 0.08, halo);
-    out[0] = r * mix(1, 1.18, s * 0.5); out[1] = g * mix(1, 1.18, s * 0.5); out[2] = b * mix(1, 1.18, s * 0.5);
+    const k = mix(1, 1.18, sc * 0.5);
+    out[0] = r * k; out[1] = g * k; out[2] = b * k;
   }, true);
-  const rough = writeRGB(size, (u, v, out, x, y) => {
-    const i = y * size + x;
-    const c = chips[i];
-    const haze = fbm(u, v, 6, 3, 611);
+
+  const rough = writeRGB(size, (u, v, out) => {
+    const c = S(chips, u, v);
     // fresh enamel is glossy; chips and old haze are matte
-    let r = mix(0.20, 0.42, haze);
+    let r = mix(0.20, 0.42, S(haze, u, v));
     r = mix(r, 0.86, smoothstep(0.05, 0.55, c));
-    r += scratches[i] * 0.12;
-    r -= orange[i] * 0.05;
+    r += S(scratches, u, v) * 0.12;
+    r -= S(orange, u, v) * 0.05;
     out[0] = out[1] = out[2] = clamp(r, 0.05, 1);
   }, false);
-  // height: paint edge lips around every chip + subtle orange peel
-  const h = new Float32Array(size * size);
+
+  // paint lips around every chip, plus the orange peel — half resolution is plenty
+  const h = new Float32Array(n * n);
   for (let i = 0; i < h.length; i++) {
-    const c = chips[i];
-    h[i] = (1 - smoothstep(0.02, 0.35, c)) * 0.7 + orange[i] * 0.28 + scratches[i] * 0.04;
+    h[i] = (1 - smoothstep(0.02, 0.35, chips[i])) * 0.7 + orange[i] * 0.28 + scratches[i] * 0.04;
   }
-  // where the enamel is gone the bare iron shows: that has to be metal, not paint
-  const metal = writeRGB(size, (u, v, out, x, y) => {
-    const c = chips[y * size + x];
-    out[0] = out[1] = out[2] = smoothstep(0.30, 0.85, c) * 0.85;
+  const metal = writeRGB(n, (u, v, out, x, y) => {
+    // where the enamel is gone the bare iron shows: that has to be metal, not paint
+    out[0] = out[1] = out[2] = smoothstep(0.30, 0.85, chips[y * n + x]) * 0.85;
   }, false);
-  return { map: color, roughnessMap: rough, metalnessMap: metal, normalMap: normalFromHeight(h, size, 2.2), chipMask: chips };
+  return { map: color, roughnessMap: rough, metalnessMap: metal, normalMap: normalFromHeight(h, n, 2.2), chipMask: chips };
 }
 
 // -------------------------------------------------------------------- cast iron
 export function castIronMaps(size = 512) {
-  const h = new Float32Array(size * size);
-  const color = writeRGB(size, (u, v, out, x, y) => {
-    const pit = worley(u, v, 60, 5);
-    const n = fbm(u, v, 9, 4, 31);
-    const grit = fbm(u, v, 90, 2, 12);
-    const k = mix(0.315, 0.430, n) + grit * 0.05 - smoothstep(0.25, 0.0, pit) * 0.05;
-    const rust = smoothstep(0.68, 0.95, fbm(u, v, 6, 4, 707));
+  const n = size >> 1;
+  const pitF = makeField(n, (u, v) => worley(u, v, 60, 5));
+  const nF = makeField(n, (u, v) => fbm(u, v, 9, 4, 31));
+  const gritF = makeField(n, (u, v) => fbm(u, v, 90, 2, 12));
+  const rustF = makeField(n, (u, v) => smoothstep(0.68, 0.95, fbm(u, v, 6, 4, 707)));
+  const roughF = makeField(n, (u, v) => fbm(u, v, 14, 3, 99));
+  const S = (a, u, v) => sampleField(a, n, u, v);
+  const h = new Float32Array(n * n);
+  for (let i = 0; i < h.length; i++) h[i] = gritF[i] * 0.5 + (1 - smoothstep(0.3, 0.0, pitF[i])) * 0.5;
+
+  const color = writeRGB(size, (u, v, out) => {
+    const pit = S(pitF, u, v), nz = S(nF, u, v), grit = S(gritF, u, v), rust = S(rustF, u, v);
+    const k = mix(0.315, 0.430, nz) + grit * 0.05 - smoothstep(0.25, 0.0, pit) * 0.05;
     out[0] = mix(k, 0.46, rust); out[1] = mix(k * 0.965, 0.295, rust); out[2] = mix(k * 0.935, 0.205, rust);
-    h[y * size + x] = grit * 0.5 + (1 - smoothstep(0.3, 0.0, pit)) * 0.5;
   }, true);
   const rough = writeRGB(size, (u, v, out) => {
-    const n = fbm(u, v, 14, 3, 99);
-    out[0] = out[1] = out[2] = mix(0.72, 0.94, n);
+    out[0] = out[1] = out[2] = mix(0.72, 0.94, S(roughF, u, v));
   }, false);
-  return { map: color, roughnessMap: rough, normalMap: normalFromHeight(h, size, 1.6) };
+  return { map: color, roughnessMap: rough, normalMap: normalFromHeight(h, n, 1.6) };
 }
 
 // ------------------------------------------------------------------ chrome wear
 export function chromeMaps(size = 512) {
-  const h = new Float32Array(size * size);
-  const rough = writeRGB(size, (u, v, out, x, y) => {
-    // circular buffing marks plus the odd deep scuff
-    const ang = Math.atan2(v - 0.5, u - 0.5);
-    const rad = Math.hypot(v - 0.5, u - 0.5);
-    const buff = fbm2((ang / (Math.PI * 2)) + 0.5, rad, 6, 150, 2, 55);
-    const scuff = smoothstep(0.86, 0.99, fbm2(u, v, 260, 12, 2, 313));
-    const dull = smoothstep(0.45, 0.90, fbm(u, v, 5, 3, 12));
-    let r = 0.028 + buff * 0.028 + scuff * 0.20 + dull * 0.055;
-    out[0] = out[1] = out[2] = clamp(r, 0.02, 1);
-    h[y * size + x] = scuff * 0.6 + buff * 0.4;
-  }, false);
-  const metal = writeRGB(size, (u, v, out) => {
-    // pinholes where the plating has lifted
-    const pit = smoothstep(0.035, 0.0, worley(u, v, 60, 91));
-    out[0] = out[1] = out[2] = 1 - pit * 0.30;
-  }, false);
-  return { roughnessMap: rough, metalnessMap: metal, normalMap: normalFromHeight(h, size, 0.5) };
+  const n = size >> 1;
+  const roughF = new Float32Array(n * n);
+  const h = new Float32Array(n * n);
+  const metalF = new Float32Array(n * n);
+  for (let y = 0; y < n; y++) {
+    for (let x = 0; x < n; x++) {
+      const u = x / n, v = y / n, i = y * n + x;
+      // circular buffing marks, the odd deep scuff, and a general dulling
+      const ang = Math.atan2(v - 0.5, u - 0.5);
+      const rad = Math.hypot(v - 0.5, u - 0.5);
+      const buff = fbm2((ang / (Math.PI * 2)) + 0.5, rad, 6, 150, 2, 55);
+      const scuff = smoothstep(0.86, 0.99, fbm2(u, v, 260, 12, 2, 313));
+      const dull = smoothstep(0.45, 0.90, fbm(u, v, 5, 3, 12));
+      roughF[i] = clamp(0.070 + buff * 0.045 + scuff * 0.22 + dull * 0.10, 0.02, 1);
+      h[i] = scuff * 0.6 + buff * 0.4;
+      // pinholes where the plating has lifted
+      metalF[i] = 1 - smoothstep(0.035, 0.0, worley(u, v, 60, 91)) * 0.30;
+    }
+  }
+  const rough = writeRGB(n, (u, v, out, x, y) => { out[0] = out[1] = out[2] = roughF[y * n + x]; }, false);
+  const metal = writeRGB(n, (u, v, out, x, y) => { out[0] = out[1] = out[2] = metalF[y * n + x]; }, false);
+  return { roughnessMap: rough, metalnessMap: metal, normalMap: normalFromHeight(h, n, 0.5) };
 }
 
 // ------------------------------------------------------------ shaved-ice surface
 // Not snow, not sugar: a dense mat of translucent shards. The normal map gives
 // the grain, the sparkle map drives the individual facet glints.
 export function shavedIceMaps(size = 512) {
-  const h = new Float32Array(size * size);
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const u = x / size, v = y / size;
+  // the shard relief is a few millimetres across on a 17 cm heap: half resolution
+  // still lands about one texel per pixel at the closest the camera ever gets
+  const n = size >> 1;
+  const h = new Float32Array(n * n);
+  for (let y = 0; y < n; y++) {
+    for (let x = 0; x < n; x++) {
+      const u = x / n, v = y / n;
       const flakes = 1 - worley(u, v, 26, 17);
       const fine = 1 - worley(u, v, 58, 63);
-      h[y * size + x] = clamp(flakes * 0.62 + fine * 0.3 + fbm(u, v, 140, 2, 5) * 0.14, 0, 1);
+      h[y * n + x] = clamp(flakes * 0.62 + fine * 0.3 + fbm(u, v, 140, 2, 5) * 0.14, 0, 1);
     }
   }
   // low-frequency clumping: the heap is built of handfuls, not a smooth shell
-  const clump = writeRGB(size, (u, v, out) => {
+  const clump = writeRGB(size >> 1, (u, v, out) => {
     const c1 = 1 - worley(u, v, 7, 41);
     const c2 = 1 - worley(u, v, 15, 88);
     const n = fbm(u, v, 11, 3, 210);
     out[0] = out[1] = out[2] = clamp(c1 * 0.5 + c2 * 0.3 + n * 0.35, 0, 1);
   }, false);
-  const sparkle = writeRGB(size, (u, v, out) => {
+  const sparkle = writeRGB(n, (u, v, out) => {
     const a = smoothstep(0.86, 1.0, fbm(u, v, 200, 1, 3));
     const b = smoothstep(0.90, 1.0, fbm(u, v, 110, 1, 77));
     const c = 1 - smoothstep(0.0, 0.09, worley(u, v, 110, 29));
     out[0] = a; out[1] = b; out[2] = c;
   }, false);
-  return { normalMap: normalFromHeight(h, size, 1.5), sparkleMap: sparkle, clumpMap: clump };
+  return { normalMap: normalFromHeight(h, n, 1.5), sparkleMap: sparkle, clumpMap: clump };
 }
 
 // ---------------------------------------------------------------- fabric (noren)
@@ -294,9 +333,6 @@ export function fabricMaps(size = 256, glyph = '') {
 export function iceVolume(res = 64) {
   const data = new Uint8Array(res * res * res * 2);
   const rnd = mulberry32(7331);
-  // scatter a handful of bubble seeds so the block has real specks, not just noise
-  const seeds = [];
-  for (let i = 0; i < 90; i++) seeds.push([rnd(), rnd(), rnd(), 0.012 + rnd() * 0.03]);
   for (let z = 0; z < res; z++) {
     for (let y = 0; y < res; y++) {
       for (let x = 0; x < res; x++) {
@@ -314,18 +350,36 @@ export function iceVolume(res = 64) {
         let cloud = core * (0.30 + n * 1.10) * (0.30 + feather * 1.15);
         cloud = clamp(cloud * (0.65 + wisp * 0.9), 0, 1);
         cloud = Math.pow(cloud, 1.30) * 1.15;
-        let bub = 0;
-        for (const s of seeds) {
-          const d = Math.hypot(u - s[0], v - s[1], w - s[2]);
-          if (d < s[3]) bub = Math.max(bub, 1 - d / s[3]);
-        }
-        bub = Math.max(bub, smoothstep(0.055, 0.0, worley(u + w * 0.5, v, 26, 8)) * core * 0.8);
+        // a fine haze of micro-bubbles; the visible ones are splatted in below
+        const bub = smoothstep(0.86, 1.0, n) * core * 0.55;
         const i = ((z * res + y) * res + x) * 2;
         data[i] = cloud * 255;
         data[i + 1] = clamp(bub, 0, 1) * 255;
       }
     }
   }
+  // Trapped air, splatted rather than tested per voxel: ninety seeds against a
+  // quarter of a million voxels was the single slowest thing in the boot.
+  for (let s = 0; s < 90; s++) {
+    const cx = rnd(), cy = rnd(), cz = rnd();
+    const r = 0.012 + rnd() * 0.030;
+    const rv = Math.ceil(r * res);
+    const ix = Math.round(cx * res), iy = Math.round(cy * res), iz = Math.round(cz * res);
+    for (let z = iz - rv; z <= iz + rv; z++) {
+      if (z < 0 || z >= res) continue;
+      for (let y = iy - rv; y <= iy + rv; y++) {
+        if (y < 0 || y >= res) continue;
+        for (let x = ix - rv; x <= ix + rv; x++) {
+          if (x < 0 || x >= res) continue;
+          const d = Math.hypot(x / res - cx, y / res - cy, z / res - cz);
+          if (d >= r) continue;
+          const i = ((z * res + y) * res + x) * 2 + 1;
+          data[i] = Math.max(data[i], (1 - d / r) * 255);
+        }
+      }
+    }
+  }
+
   const t = new Data3DTexture(data, res, res, res);
   t.format = RGFormat;
   t.type = UnsignedByteType;
@@ -389,7 +443,7 @@ export function counterShadeTexture(size = 512) {
     for (let x = 0; x < size; x++) {
       const u = x / size, v = y / size;
       // broad shade under the eave, softest at its leading edge
-      const eave = smoothstep(0.64, 0.26, u + v * 0.16 + (fbm(u, v, 5, 3, 12) - 0.5) * 0.10);
+      const eave = smoothstep(0.78, 0.16, u + v * 0.20 + (fbm(u, v, 4, 4, 12) - 0.5) * 0.26);
       // noren panels: five soft bars running with the light
       const su = (u + v * 0.20) * 6.4 - 0.35;
       const cellf = su - Math.floor(su);

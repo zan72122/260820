@@ -100,8 +100,14 @@ export function createMoundMaterial({
         // shaved ice does not end on a clean contour: crumble the boundary
         float edgeN = texture2D(tGrain, vGrid * 34.0).x + texture2D(tGrain, vGrid * 11.0).y;
         if (vSnow < 0.00030 + edgeN * 0.00055) discard;
-        vec4 sSurf = texture2D(tSurf, vGrid);
-        vec4 sSoak = texture2D(tSoak, vGrid);
+        // Read the syrup through the crystal grain. The simulation runs on a
+        // smooth grid, but liquid does not stop on a smooth contour when it is
+        // soaking between shards -- jittering the lookup by the grain is what
+        // turns an airbrushed blob into something that was poured.
+        vec2 jit = (texture2D(tGrain, vGrid * 6.5).xy - 0.5) * 0.013
+                 + (texture2D(tGrain, vGrid * 17.0 + 0.23).xy - 0.5) * 0.006;
+        vec4 sSurf = texture2D(tSurf, vGrid + jit);
+        vec4 sSoak = texture2D(tSoak, vGrid + jit);
         float syrupWet = smoothstep(0.015, 0.16, sSurf.a);
         float syrupSoak = clamp(sSoak.a, 0.0, 1.0);`)
       .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
@@ -133,6 +139,8 @@ export function createMoundMaterial({
           // dry ice: bright but not paper white, blue-grey deep in the gutters
           vec3 dry = vec3(0.955, 0.972, 0.995);
           dry = mix(dry, vec3(0.72, 0.80, 0.90), smoothstep(0.0, 0.75, max(vCav, 0.0)) * 0.55);
+          // wetted before it is coloured: the white goes glassy first
+          dry *= mix(1.0, 0.86, smoothstep(0.0, 0.12, soak));
 
           // soaked colour: the crystals take the dye but keep scattering, so it
           // saturates and deepens rather than turning to a dark stain

@@ -115,7 +115,7 @@ export class Machine {
     this.chromeMat = new MeshStandardMaterial({
       color: new Color(0.86, 0.87, 0.89), metalness: 1.0, roughness: 1.0,
       roughnessMap: chrome.roughnessMap, metalnessMap: chrome.metalnessMap,
-      normalMap: chrome.normalMap, envMapIntensity: 1.25,
+      normalMap: chrome.normalMap, envMapIntensity: 1.05,
     });
     this.chromeMat.normalScale.set(0.14, 0.14);
 
@@ -430,6 +430,14 @@ export class Machine {
     rig.rotation.z = this._r;
     rig.rotation.x = this._r * 0.35 + hum;
     rig.position.y = -Math.abs(this._r) * 0.05;
+  }
+
+  /** Momentarily sharpens the plating, so the reflection actually travels. */
+  setGlint(amount) {
+    if (this.glintAmt === amount) return;
+    this.glintAmt = amount;
+    this.chromeMat.envMapIntensity = 1.05 + amount * 1.6;
+    this.steelMat.envMapIntensity = 0.75 + amount * 1.1;
   }
 
   /** World-space position of the wooden grip, for input hit-testing and audio. */

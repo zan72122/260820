@@ -110,7 +110,7 @@ export class Game {
 
     // a light that never actually lights anything except the one glint on the
     // chrome while the machine is waiting to be understood
-    this.glint = new PointLight(new Color(1, 0.97, 0.9), 0, 0.55, 2);
+    this.glint = new PointLight(new Color(1, 0.97, 0.9), 0, 0.42, 2);
     this.glint.position.set(0.22, 0.50, 0.20);
     this.glint.castShadow = false;
     this.scene.add(this.glint);
@@ -344,12 +344,19 @@ export class Game {
       const twitch = Math.exp(-((t % 4.2) - 0.2) * 6) * Math.sin((t % 4.2) * 34) * 0.05;
       displayAngle += Math.sin(t * 0.55) * 0.012 + twitch;
       if (!this.glintDone && t > 2.4 && t < 3.4) {
+        // one small reflection off the metal, and then nothing. It is not a hint,
+        // it is the machine admitting it is made of something.
         const k = (t - 2.4) / 1.0;
-        this.glint.intensity = Math.sin(k * Math.PI) * 0.30;
-        this.glint.position.set(0.34 - k * 0.30, 0.50, 0.26 - k * 0.05);
-      } else if (t >= 3.4) { this.glint.intensity = 0; this.glintDone = true; }
+        const e = Math.pow(Math.sin(k * Math.PI), 2.2);
+        this.glint.intensity = e * 0.62;
+        this.glint.position.set(0.30 - k * 0.26, 0.505, 0.22 - k * 0.06);
+        this.machine.setGlint(e);
+      } else if (t >= 3.4) {
+        this.glint.intensity = 0; this.glintDone = true; this.machine.setGlint(0);
+      }
     } else {
       this.glint.intensity = 0;
+      if (this.machine.glintAmt) this.machine.setGlint(0);
     }
 
     // ---------------------------------------------------- slack, then lock-up
