@@ -156,7 +156,7 @@ export class Scenery {
       }
       lobe.computeVertexNormals();
       lobe.translate(ox, oy, oz);
-      lobes.push(lobe.toNonIndexed());
+      lobes.push(lobe);
     }
     const crownGeo = BufferGeometryUtils.mergeGeometries(lobes, false)!;
     const paint = (g: THREE.BufferGeometry, r: number, gr: number, b: number) => {

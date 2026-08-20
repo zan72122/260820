@@ -15,9 +15,10 @@ const pointer = new Pointer(engine.canvas);
 const rig = new CameraRig(engine.camera);
 const finger = new FingerHint();
 
-engine.scene.add(buildTerrain(hillCutouts()));
+const terrain = buildTerrain(hillCutouts());
+engine.scene.add(terrain.mesh);
 
-const director = new Director(engine, pointer, rig, finger);
+const director = new Director(engine, pointer, rig, finger, terrain);
 
 let audioUnlocked = false;
 const unlock = () => {

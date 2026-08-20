@@ -58,7 +58,20 @@ function makeAxis(nearHalf: number, nearStep: number, growth: number, far: numbe
   return out;
 }
 
-export function buildTerrain(cutouts: Array<{ x: number; z: number; r: number }> = []) {
+export type Terrain = {
+  mesh: THREE.Mesh;
+  /** Open the soil under hill `i` so its own patch can be dug into. */
+  openCut: (i: number) => void;
+  /** Close it again once that hill is far behind the player. */
+  closeCut: (i: number) => void;
+};
+
+/**
+ * One static field mesh. Openings are punched only under hills that
+ * actually have a soil patch covering them, otherwise a hole in the ground
+ * would show the sky through the ridge.
+ */
+export function buildTerrain(cutouts: Array<{ x: number; z: number; r: number }> = []): Terrain {
   const xs = makeAxis(2.6, 0.075, 1.105, 62);
   const zs = makeAxis(3.2, 0.085, 1.1, 74);
   const nx = xs.length;
@@ -67,15 +80,15 @@ export function buildTerrain(cutouts: Array<{ x: number; z: number; r: number }>
   const uv = new Float32Array(nx * nz * 2);
   const col = new Float32Array(nx * nz * 3);
   const c = new THREE.Color();
+  const far = new THREE.Color(0.88, 0.86, 0.8);
 
   for (let j = 0; j < nz; j++) {
     for (let i = 0; i < nx; i++) {
       const k = j * nx + i;
       const x = xs[i];
       const z = zs[j];
-      const y = terrainHeight(x, z);
       pos[k * 3] = x;
-      pos[k * 3 + 1] = y;
+      pos[k * 3 + 1] = terrainHeight(x, z);
       pos[k * 3 + 2] = z;
       uv[k * 2] = x * 1.15;
       uv[k * 2 + 1] = z * 1.15;
@@ -91,32 +104,26 @@ export function buildTerrain(cutouts: Array<{ x: number; z: number; r: number }>
         0.58 + dry * 0.36 - damp * 0.14,
       );
       // distant rows lift in value: cheap aerial perspective on top of fog
-      const far = clamp01((Math.abs(z) - 14) / 40);
-      c.lerp(new THREE.Color(0.88, 0.86, 0.8), far * 0.35);
+      c.lerp(far, clamp01((Math.abs(z) - 14) / 40) * 0.35);
       col[k * 3] = c.r;
       col[k * 3 + 1] = c.g;
       col[k * 3 + 2] = c.b;
     }
   }
 
-  const idx: number[] = [];
+  /** Which cutout, if any, swallows each quad. */
+  const quadCut = new Int16Array((nx - 1) * (nz - 1)).fill(-1);
   for (let j = 0; j < nz - 1; j++) {
     for (let i = 0; i < nx - 1; i++) {
       const cx = (xs[i] + xs[i + 1]) * 0.5;
       const cz = (zs[j] + zs[j + 1]) * 0.5;
-      let cut = false;
-      for (const c of cutouts) {
-        if ((cx - c.x) * (cx - c.x) + (cz - c.z) * (cz - c.z) < c.r * c.r) {
-          cut = true;
+      for (let n = 0; n < cutouts.length; n++) {
+        const cut = cutouts[n];
+        if ((cx - cut.x) * (cx - cut.x) + (cz - cut.z) * (cz - cut.z) < cut.r * cut.r) {
+          quadCut[j * (nx - 1) + i] = n;
           break;
         }
       }
-      if (cut) continue;
-      const a = j * nx + i;
-      const b = a + 1;
-      const cIdx = a + nx;
-      const d = cIdx + 1;
-      idx.push(a, cIdx, b, b, cIdx, d);
     }
   }
 
@@ -124,9 +131,26 @@ export function buildTerrain(cutouts: Array<{ x: number; z: number; r: number }>
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
   g.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  g.setIndex(idx);
-  g.computeVertexNormals();
-  g.computeBoundingSphere();
+
+  const open = new Set<number>();
+  const rebuild = () => {
+    const idx: number[] = [];
+    for (let j = 0; j < nz - 1; j++) {
+      for (let i = 0; i < nx - 1; i++) {
+        const cut = quadCut[j * (nx - 1) + i];
+        if (cut >= 0 && open.has(cut)) continue;
+        const a = j * nx + i;
+        const b = a + 1;
+        const cIdx = a + nx;
+        const d = cIdx + 1;
+        idx.push(a, cIdx, b, b, cIdx, d);
+      }
+    }
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    g.computeBoundingSphere();
+  };
+  rebuild();
 
   const tex = soilTextures();
   const mat = new THREE.MeshStandardMaterial({
@@ -139,7 +163,6 @@ export function buildTerrain(cutouts: Array<{ x: number; z: number; r: number }>
     metalness: 0,
     dithering: true,
   });
-
   addSoilDetail(mat);
 
   const mesh = new THREE.Mesh(g, mat);
@@ -147,7 +170,19 @@ export function buildTerrain(cutouts: Array<{ x: number; z: number; r: number }>
   mesh.receiveShadow = true;
   mesh.matrixAutoUpdate = false;
   mesh.updateMatrix();
-  return mesh;
+
+  return {
+    mesh,
+    openCut: (i: number) => {
+      if (i < 0 || i >= cutouts.length || open.has(i)) return;
+      open.add(i);
+      rebuild();
+    },
+    closeCut: (i: number) => {
+      if (!open.delete(i)) return;
+      rebuild();
+    },
+  };
 }
 
 export { holes as fieldHoles };

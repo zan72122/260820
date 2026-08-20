@@ -8,7 +8,7 @@ import { DirtParticles } from '../world/particles';
 import { ClusterKind, Plant, TuberInstance } from '../world/plant';
 import { fillCrate, makeCrate, makeFork, makeGloveHand } from '../world/props';
 import { Scenery } from '../world/scenery';
-import { terrainHeight } from '../world/terrain';
+import { terrainHeight, Terrain } from '../world/terrain';
 import { FingerHint, Pt } from '../ui/hud';
 import { CameraRig } from './camera';
 import { hillPos } from './layout';
@@ -21,6 +21,7 @@ const UP = new THREE.Vector3(0, 1, 0);
 export class Director {
   private plants = new Map<number, Plant>();
   private retired: Array<{ index: number; group: THREE.Group; site: { dispose: () => void } }> = [];
+  private inCrate: THREE.Group[] = [];
   private index = 0;
   private phase: Phase = 'trace';
   private phaseTime = 0;
@@ -50,6 +51,11 @@ export class Director {
   private shakeCount = 0;
   private carry = 0;
   private carryFrom = new THREE.Vector3();
+  private settle = 1;
+  private settleFrom = new THREE.Vector3();
+  private settleFromQ = new THREE.Quaternion();
+  private settleTo = new THREE.Vector3();
+  private settleToQ = new THREE.Quaternion();
   private handPose = { pos: new THREE.Vector3(), target: new THREE.Vector3(), vis: 0 };
   private crateTarget = new THREE.Vector3();
   private rng = makeRng(20260820);
@@ -65,6 +71,7 @@ export class Director {
     private pointer: Pointer,
     private rig: CameraRig,
     private finger: FingerHint,
+    private terrain: Terrain,
   ) {
     const first = this.ensurePlant(0);
     this.ensurePlant(1);
@@ -103,6 +110,8 @@ export class Director {
     const p = hillPos(i);
     const heading = -Math.PI * 0.5 + (this.rng() - 0.5) * 0.5;
     const plant = new Plant(p.x, p.z, KINDS[i % KINDS.length], 1000 + i * 137, heading);
+    // open the ground only where a patch now covers it
+    this.terrain.openCut(i);
     plant.onPop = (t, idx) => this.onTuberPop(t, idx);
     this.engine.scene.add(plant.group);
     this.plants.set(i, plant);
@@ -119,6 +128,7 @@ export class Director {
       const gone = this.retired.shift()!;
       this.engine.scene.remove(gone.group);
       gone.site.dispose();
+      this.terrain.closeCut(gone.index);
     }
     return plant;
   }
@@ -131,12 +141,16 @@ export class Director {
     return this.ensurePlant(this.index + 1);
   }
 
+  /** Where the fork waits: stood in the soil at the end of the row. */
+  private forkRest(plant: Plant, out = new THREE.Vector3()) {
+    const x = 1.24;
+    const z = plant.crownWorld.z - 1.15;
+    return out.set(x, terrainHeight(x, z) - 0.14, z);
+  }
+
   private restFork(plant: Plant) {
-    // the fork waits on the ground beside the row until it is needed
-    const x = 0.62;
-    const z = plant.crownWorld.z - 0.85;
-    this.fork.group.position.set(x, terrainHeight(x, z) + 0.02, z);
-    this.fork.group.rotation.set(-Math.PI * 0.5 + 0.12, 0.8, 0);
+    this.fork.group.position.copy(this.forkRest(plant));
+    this.fork.group.rotation.set(0.12, 0.9, 0.07);
   }
 
   /* ------------------------------------------------------------------ */
@@ -314,12 +328,16 @@ export class Director {
         break;
       }
       case 'handoff': {
+        // hold on the filled crate for a beat, then drift to the next vine
         const next = this.nextPlant;
+        const crateTop = this.crate.group.position.clone().add(new THREE.Vector3(0, 0.24, 0));
         const mid = new THREE.Vector3().lerpVectors(crown, next.vineTipWorld, 0.62);
         mid.y += 0.12;
+        const k = smoothstep((this.phaseTime - 1.1) / 2.4);
+        const focus = crateTop.lerp(mid, k);
         const back = toward.clone().multiplyScalar(0.9).addScaledVector(right, 0.5).normalize();
         this.rig.apply(
-          { focus: mid, back, dist: 1.9, height: 1.05, fov: portrait ? 56 : 48, rate: 1.3 },
+          { focus, back, dist: lerp(0.95, 1.9, k), height: lerp(0.6, 1.05, k), fov: portrait ? 56 : 48, rate: 1.3 },
           portrait,
         );
         break;
@@ -626,15 +644,14 @@ export class Director {
     this.forkStowed = Math.min(1, this.forkStowed + dt * 0.9);
     const k = easeOutCubic(this.forkStowed);
     const from = this.forkWorldPos();
-    const rest = new THREE.Vector3(0.62, 0, this.plant.crownWorld.z - 0.85);
-    rest.y = terrainHeight(rest.x, rest.z) + 0.02;
-    const lift = Math.sin(Math.PI * k) * 0.22;
+    const rest = this.forkRest(this.plant);
+    const lift = Math.sin(Math.PI * k) * 0.26;
     this.fork.group.position.lerpVectors(from.setY(from.y - 0.19), rest, k);
     this.fork.group.position.y += lift;
     const toCrown = new THREE.Vector3().subVectors(this.plant.crownWorld, from).setY(0).normalize();
-    this.fork.group.rotation.set(0, Math.atan2(toCrown.x, toCrown.z), 0);
-    this.fork.group.rotateX(lerp(0.72, -Math.PI * 0.5 + 0.12, k));
-    this.fork.group.rotateZ(k * 0.8);
+    this.fork.group.rotation.set(0, lerp(Math.atan2(toCrown.x, toCrown.z), 0.9, k), 0);
+    this.fork.group.rotateX(lerp(0.72, 0.12, k));
+    this.fork.group.rotateZ(k * 0.07);
   }
 
   private updatePull(dt: number) {
@@ -716,8 +733,26 @@ export class Director {
 
     if (this.carry >= 0.995) {
       audio.crateSet();
-      // the crop stays with the crate from here on
+      // the crop stays with the crate from here on, and lies down in it
       this.crate.group.attach(plant.cluster);
+      // the crate keeps the last few clusters; older ones are buried anyway
+      this.inCrate.push(plant.cluster);
+      while (this.inCrate.length > 4) {
+        const old = this.inCrate.shift()!;
+        old.removeFromParent();
+        old.traverse((o) => {
+          const m = o as THREE.Mesh;
+          if (m.isMesh) m.geometry.dispose();
+        });
+      }
+      this.settle = 0;
+      this.settleFrom.copy(plant.cluster.position);
+      this.settleFromQ.copy(plant.cluster.quaternion);
+      const slot = (this.index % 3) - 1;
+      this.settleTo.set(slot * 0.1, 0.085 + (this.index % 2) * 0.03, (this.rng() - 0.5) * 0.1);
+      this.settleToQ.setFromEuler(
+        new THREE.Euler(Math.PI * 0.46, this.rng() * Math.PI * 2, (this.rng() - 0.5) * 0.4),
+      );
       this.setPhase('handoff');
       this.gustLeaves(this.nextPlant, 3.2);
       audio.leafRustle(0.9);
@@ -726,6 +761,14 @@ export class Director {
 
   private updateHandoff(dt: number) {
     const next = this.nextPlant;
+    const plant = this.plant;
+    if (this.settle < 1) {
+      this.settle = Math.min(1, this.settle + dt * 1.7);
+      const k = easeOutCubic(this.settle);
+      plant.cluster.position.lerpVectors(this.settleFrom, this.settleTo, k);
+      plant.cluster.quaternion.slerpQuaternions(this.settleFromQ, this.settleToQ, k);
+      if (this.settle >= 1) audio.crateSet();
+    }
     this.handPose.vis = damp(this.handPose.vis, 0, 3, dt);
     if (this.phaseTime > 0.6 && this.holding) {
       const gp = this.groundPoint(next.crownWorld.y + 0.02);
