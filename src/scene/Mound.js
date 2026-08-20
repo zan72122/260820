@@ -157,7 +157,7 @@ export class Mound {
   settle(dt, iterations = 1) {
     const N = this.N, snow = this.snow, floor = this.floor, act = this.active;
     const maxDrop = 0.74 * this.cell;      // tan(36.5 deg)
-    const rate = Math.min(0.42, dt * 19);
+    const rate = Math.min(0.55, dt * 26);
     for (let it = 0; it < iterations; it++) {
       const tmp = this.tmp;
       tmp.set(snow);
@@ -193,7 +193,9 @@ export class Mound {
   }
 
   update(dt) {
-    if (this.volume > 0) this.settle(dt, 1);
+    // a long frame drops a lot of snow at once, so it has to slump proportionally
+    // harder or the pile grows a spire the repose angle would never allow
+    if (this.volume > 0) this.settle(dt, Math.max(1, Math.min(4, Math.round(dt * 90))));
     if (this.dirty) this._upload();
   }
 

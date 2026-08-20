@@ -61,7 +61,7 @@ void main() {
     vec3  wcol = col * amt;
 
     // the film has its own thickness, so a thick puddle also pushes outward
-    float H0 = hHere + amt * 0.010;
+    float H0 = hHere + amt * 0.0022;
     vec2 offs[4];
     offs[0] = vec2( uTexel.x, 0.0);
     offs[1] = vec2(-uTexel.x, 0.0);
@@ -71,7 +71,7 @@ void main() {
     for (int i = 0; i < 4; i++) {
       vec2 nuv = clamp(vUv + offs[i], vec2(0.0), vec2(1.0));
       vec4 cn = texture2D(tSurf, nuv);
-      float Hn = terrain(nuv) + cn.a * 0.010;
+      float Hn = terrain(nuv) + cn.a * 0.0022;
       float fin  = min(cn.a * clamp(k * (Hn - H0), 0.0, 0.22), cn.a * 0.22);
       float fout = min(amt  * clamp(k * (H0 - Hn), 0.0, 0.22), amt  * 0.22);
       acc  += fin - fout;
@@ -146,10 +146,10 @@ export class SyrupSim {
       tSurf: { value: null }, tSoak: { value: null }, tHeight: { value: heightTex },
       uTexel: { value: new Vector2(1 / size, 1 / size) },
       uDt: { value: 0.016 }, uCell: { value: cell },
-      uFlow: { value: 0.030 },
-      uSoakRate: { value: 0.42 },
-      uSoakGain: { value: 1.5 },
-      uWick: { value: 0.16 },
+      uFlow: { value: 0.62 },
+      uSoakRate: { value: 0.70 },
+      uSoakGain: { value: 4.5 },
+      uWick: { value: 0.22 },
       uPass: { value: 0 },
       uBrushCol: { value: new Color(1, 0, 0) },
       uBrush: { value: new Vector3(0.5, 0.5, 0.05) },

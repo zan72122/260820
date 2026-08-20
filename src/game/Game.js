@@ -178,6 +178,7 @@ export class Game {
     this.shaveNow = 0;
     this.lastLanding = 0;
     this.idleQuiet = 0;
+    this.fullFor = 0;
     this.input.mode = 'crank';
     this.input.enabledCrank = true;
     if (this.onState) this.onState(S.IDLE);
@@ -223,7 +224,8 @@ export class Game {
     this.renderer.setPixelRatio(this.baseDpr * this.renderScale);
     this.renderer.setSize(w, h, false);
     this.aspect = w / h;
-    this.portrait = h > w;
+    this.portrait = this.aspect < 0.86;
+    if (this.syrup) this.syrup.setLayout(this.portrait);
     this.camera.aspect = this.aspect;
     this.camera.updateProjectionMatrix();
   }
@@ -266,7 +268,10 @@ export class Game {
       return;
     }
 
-    const damp = 1 - Math.pow(this.mound.fill, 3.0) * 0.95;   // eases off before it overflows
+    // eases off before it overflows, on both how much is in the bowl and how high
+    // the heap has got -- a four-year-old must not be able to make a mess
+    const tall = Math.max(0, Math.min(1, (this.mound.peak - 0.070) / 0.030));
+    const damp = (1 - Math.pow(this.mound.fill, 3.0) * 0.95) * (1 - tall * 0.97);
     const vol = Math.abs(dIce) * 0.035 * L * CUT_DEPTH * damp;
     this.shaveNow += (Math.min(1, vol / (dt * 2.4e-5)) - this.shaveNow) * Math.min(1, dt * 12);
     if (vol <= 0) return;
@@ -403,7 +408,11 @@ export class Game {
     // ------------------------------------------------------- enough of a pile
     if (st === S.SHAVING) {
       if (Math.abs(this.omega) < 0.35) this.idleQuiet += dt; else this.idleQuiet = 0;
+      this.fullFor = this.mound.fill >= 0.97 ? this.fullFor + dt : 0;
+      // normally we wait for the hand to rest; but a child who never stops
+      // cranking still deserves to reach the syrup
       if (this.mound.fill >= 0.72 && this.idleQuiet > 0.75) this.toSyrup();
+      else if (this.fullFor > 2.4) this.toSyrup();
     }
 
     // ------------------------------------------------------------------ syrup
@@ -435,6 +444,7 @@ export class Game {
 
   toSyrup() {
     this.setState(S.TO_SYRUP);
+    this.syrup.hint = 7;
     this.input.mode = 'bottle';
     this.input.enabledCrank = false;
     this.rig.setShot(SHOTS.syrup);
@@ -491,11 +501,12 @@ export class Game {
       const [u, v] = this.mound.uvOf(this._v.x, this._v.z);
       brush = {
         u, v,
-        radius: 0.017 + flow * 0.009,
-        amount: flow * 3.4,
+        radius: 0.026 + flow * 0.010,
+        amount: flow * 7.0,
         color: b.flavour.color,
       };
       this.poured += flow * dt;
+      this.syrup.hint = 0;
       if (Math.random() < dt * 5.5 * flow) this.audio.plip();
     }
     this.sim.step(this.renderer, dt, brush);

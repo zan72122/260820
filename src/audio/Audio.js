@@ -104,7 +104,7 @@ export class Audio {
       const sway = ctx.createOscillator(); sway.frequency.value = v.sway;
       const swayAmt = ctx.createGain(); swayAmt.gain.value = v.lvl * 0.8;
       sway.connect(swayAmt); swayAmt.connect(lvl.gain);
-      src.start(); buzz.start(); bias.start(); sway.start();
+      src.start(); buzz.start(); sway.start();
       this.cicadas.push({ lvl, bp });
     }
   }

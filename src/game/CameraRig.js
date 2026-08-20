@@ -4,10 +4,14 @@
 
 import { Vector3, MathUtils } from 'three';
 
-const F = (target, dir, fitW, fitH, fov) => ({
+const F = (target, dir, fitW, fitH, fov, portrait) => ({
   target: new Vector3(...target),
   dir: new Vector3(...dir).normalize(),
   fitW, fitH, fov,
+  // A tall screen cannot hold a wide arrangement without retreating until
+  // everything is small, so the upright shots restage the scene vertically
+  // instead of just squeezing it.
+  portrait: portrait ? F(...portrait) : null,
 });
 
 export const SHOTS = {
@@ -20,9 +24,11 @@ export const SHOTS = {
   // drop the eye line so the bowl's rim and the layers in it read clearly
   growing: F([0.014, 0.230, 0.054], [0.285, 0.120, 0.951], 0.40, 0.52, 39),
   // in on the bowl, but the spout and the place the syrup lands stay together
-  syrup: F([-0.044, 0.118, 0.078], [0.215, 0.345, 0.914], 0.54, 0.44, 38),
+  syrup: F([-0.044, 0.118, 0.078], [0.215, 0.345, 0.914], 0.54, 0.44, 38,
+    [[0.0, 0.118, 0.112], [0.105, 0.545, 0.832], 0.31, 0.34, 38]),
   // step back and let it sit in the summer light
-  finish: F([-0.026, 0.118, 0.062], [0.275, 0.295, 0.915], 0.52, 0.46, 36),
+  finish: F([-0.026, 0.118, 0.062], [0.275, 0.295, 0.915], 0.52, 0.46, 36,
+    [[0.0, 0.128, 0.104], [0.150, 0.455, 0.878], 0.34, 0.40, 36]),
 };
 
 export class CameraRig {
@@ -52,6 +58,7 @@ export class CameraRig {
   setBlend(a, b, t) { this.blend = { a, b, t: MathUtils.clamp(t, 0, 1) }; }
 
   _resolve(shot, outPos, outLook) {
+    if (shot.portrait && this.aspect < 0.86) shot = shot.portrait;
     const fovRad = MathUtils.degToRad(shot.fov);
     const dV = shot.fitH / (2 * Math.tan(fovRad / 2));
     const dH = shot.fitW / (2 * Math.tan(fovRad / 2) * Math.max(this.aspect, 0.0001));

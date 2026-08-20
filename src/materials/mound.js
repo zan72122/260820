@@ -60,7 +60,9 @@ export function createMoundMaterial({
       .replace('#include <beginnormal_vertex>', `
         vGrid = uv;
         float snow0 = texture2D(tHeight, uv).g;
-        float lumpMask = uLump * smoothstep(0.0004, 0.006, snow0);
+        // clumps must never be taller than the snow they are made of, or a thin
+        // first layer comes out as a crown of spikes
+        float lumpMask = min(uLump, snow0 * 0.45) * smoothstep(0.0004, 0.004, snow0);
         #define LUMP(q) ((texture2D(tGrainV, (q) * 2.0).r - 0.5) + (texture2D(tGrainV, (q) * 5.3 + 0.41).r - 0.5) * 0.5) * lumpMask
         float h  = texture2D(tHeight, uv).r + LUMP(uv);
         float hl = texture2D(tHeight, uv - vec2(uTexel.x, 0.0)).r + LUMP(uv - vec2(uTexel.x, 0.0));
@@ -116,8 +118,9 @@ export function createMoundMaterial({
         }`)
       .replace('#include <lights_physical_fragment>', `#include <lights_physical_fragment>
         #ifdef USE_SHEEN
-          // the white fuzz of dry crystals; syrup drowns it
-          material.sheenColor *= (1.0 - syrupWet);
+          // the white fuzz of dry crystals; syrup drowns it, whether it is still
+          // sitting on top or has already gone in
+          material.sheenColor *= (1.0 - max(syrupWet, smoothstep(0.0, 0.30, syrupSoak)));
         #endif`)
       .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
         // dry shaved ice is a matte scatterer; a syrup film turns it to glass
@@ -136,9 +139,9 @@ export function createMoundMaterial({
           vec3 sc = max(sSoak.rgb, vec3(0.0));
           float sMax = max(max(sc.r, sc.g), sc.b);
           vec3 hue = sc / max(sMax, 1e-4);
-          float depth = smoothstep(0.02, 0.85, soak);
+          float depth = smoothstep(0.003, 0.22, soak);
           vec3 body = dry * mix(vec3(1.0), hue * 1.06, depth);
-          body *= mix(1.0, 0.80, smoothstep(0.25, 1.15, soak));
+          body *= mix(1.0, 0.78, smoothstep(0.10, 0.75, soak));
 
           // the wet film sitting on top: darker, richer, still translucent
           vec3 filmCol = max(sSurf.rgb, vec3(0.0));
@@ -147,7 +150,7 @@ export function createMoundMaterial({
         }`)
       .replace('#include <opaque_fragment>', `
         {
-          float wet = syrupWet;
+          float wet = max(syrupWet, smoothstep(0.0, 0.28, syrupSoak));
 
           // micro-facet glitter: thousands of tiny mirrors, not a plastic white ball
           vec3 h = normalize(uSunDir + geometryViewDir);

@@ -13,9 +13,9 @@ import {
 import { mulberry32 } from '../util/rand.js';
 
 export const FLAVOURS = [
-  { name: 'いちご', color: new Color(0.76, 0.055, 0.13), label: '#d8soft' },
-  { name: 'メロン', color: new Color(0.26, 0.66, 0.15) },
-  { name: 'ブルーハワイ', color: new Color(0.09, 0.40, 0.85) },
+  { name: 'いちご', color: new Color(0.700, 0.042, 0.048) },
+  { name: 'メロン', color: new Color(0.215, 0.610, 0.125) },
+  { name: 'ブルーハワイ', color: new Color(0.055, 0.315, 0.820) },
 ];
 
 function labelTexture(name, color) {
@@ -126,13 +126,22 @@ export class SyrupStage {
     this.quality = quality;
     this.bottles = [];
     this.rnd = mulberry32(555);
-    const homes = [
-      new Vector3(-0.163, 0, 0.176),
-      new Vector3(-0.246, 0, 0.104),
-      new Vector3(-0.278, 0, 0.012),
-    ];
+    // beside the bowl on a wide screen; in front of it on a tall one, so the
+    // machine, the bowl and the bottles stack down the screen
+    this.LAYOUT = {
+      landscape: [
+        new Vector3(-0.163, 0, 0.176),
+        new Vector3(-0.246, 0, 0.104),
+        new Vector3(-0.278, 0, 0.012),
+      ],
+      portrait: [
+        new Vector3(-0.118, 0, 0.212),
+        new Vector3(0.004, 0, 0.246),
+        new Vector3(0.126, 0, 0.212),
+      ],
+    };
     for (let i = 0; i < 3; i++) {
-      const b = new Bottle(scene, FLAVOURS[i], homes[i], quality);
+      const b = new Bottle(scene, FLAVOURS[i], this.LAYOUT.landscape[i], quality);
       b.group.scale.setScalar(0.88);
       b.group.rotation.y = (i - 1) * 0.45 + 0.3;
       b.baseYaw = b.group.rotation.y;
@@ -158,11 +167,10 @@ export class SyrupStage {
     g.setIndex(idx);
     this.streamGeo = g;
     this.streamMat = new MeshPhysicalMaterial({
-      color: new Color(1, 1, 1), roughness: 0.06, metalness: 0.0,
-      transmission: quality.transmission ? 0.75 : 0.0,
-      transparent: true, opacity: quality.transmission ? 1.0 : 0.88,
-      thickness: 0.006, ior: 1.4, side: DoubleSide,
-      attenuationDistance: 0.010, clearcoat: 0.6,
+      color: new Color(1, 1, 1), roughness: 0.045, metalness: 0.0,
+      transparent: true, opacity: 0.93, side: DoubleSide,
+      clearcoat: 1.0, clearcoatRoughness: 0.03,
+      envMapIntensity: 1.4,
     });
     this.stream = new Mesh(g, this.streamMat);
     this.stream.frustumCulled = false;
@@ -173,8 +181,9 @@ export class SyrupStage {
     // ---- splash droplets ----------------------------------------------------
     this.DROPS = quality.dropCount;
     this.dropMat = new MeshPhysicalMaterial({
-      color: new Color(1, 1, 1), roughness: 0.05, metalness: 0.0,
-      transparent: true, opacity: 0.92, clearcoat: 0.8,
+      color: new Color(1, 1, 1), roughness: 0.045, metalness: 0.0,
+      transparent: true, opacity: 0.94, clearcoat: 1.0, clearcoatRoughness: 0.04,
+      envMapIntensity: 1.4,
     });
     this.drops = new InstancedMesh(new SphereGeometry(1, 7, 5), this.dropMat, this.DROPS);
     this.drops.instanceMatrix.setUsage(DynamicDrawUsage);
@@ -191,9 +200,22 @@ export class SyrupStage {
 
     this.pouring = null;      // { bottle, hit:Vector3 }
     this.flow = 0;
+    this.hint = 0;            // seconds of "these are for you" left to play
+    this.t = 0;
   }
 
   setVisible(v) { for (const b of this.bottles) b.group.visible = v; }
+
+  /** Called on resize: the bottles physically move when the screen turns. */
+  setLayout(portrait) {
+    const homes = portrait ? this.LAYOUT.portrait : this.LAYOUT.landscape;
+    for (let i = 0; i < this.bottles.length; i++) {
+      const b = this.bottles[i];
+      b.home.copy(homes[i]);
+      b.baseYaw = portrait ? (i - 1) * 0.5 : (i - 1) * 0.45 + 0.3;
+      if (b.held <= 0) b.target.copy(b.home);
+    }
+  }
 
   reset() {
     for (const b of this.bottles) {
@@ -201,7 +223,7 @@ export class SyrupStage {
       b.group.position.copy(b.home);
       b.group.rotation.set(0, b.baseYaw, 0);
     }
-    this.pouring = null; this.flow = 0;
+    this.pouring = null; this.flow = 0; this.hint = 0;
     this.stream.visible = false;
     this.drops.visible = false;
     for (let i = 0; i < this.DROPS; i++) this.dl[i] = 0;
@@ -216,10 +238,17 @@ export class SyrupStage {
 
   update(dt, camera) {
     // ---- bottle transforms --------------------------------------------------
-    for (const b of this.bottles) {
+    this.t += dt;
+    if (this.hint > 0) this.hint -= dt;
+    for (let i = 0; i < this.bottles.length; i++) {
+      const b = this.bottles[i];
       b.group.position.lerp(b.target, Math.min(1, dt * 13));
       b.tilt += ((b.tiltTarget || 0) - b.tilt) * Math.min(1, dt * 9);
-      b.group.rotation.set(0, b.baseYaw + (b.yawExtra || 0), -b.tilt);
+      // no arrow, no label: they just lift a little, in turn, until one is picked up
+      const cue = b.held > 0 || this.hint <= 0 ? 0
+        : Math.max(0, Math.sin(this.t * 2.2 - i * 1.1)) * 0.010 * Math.min(1, this.hint / 1.5);
+      b.group.position.y += cue;
+      b.group.rotation.set(cue * 1.2, b.baseYaw + (b.yawExtra || 0), -b.tilt);
     }
 
     // ---- stream -------------------------------------------------------------
@@ -229,8 +258,7 @@ export class SyrupStage {
     if (this.flow > 0.02 && p) {
       this._buildStream(p.bottle);
       this.stream.visible = true;
-      this.streamMat.color.copy(p.bottle.flavour.color).lerp(new Color(1, 1, 1), 0.10);
-      this.streamMat.attenuationColor = p.bottle.flavour.color;
+      this.streamMat.color.copy(p.bottle.flavour.color).lerp(new Color(1, 1, 1), 0.16);
       this._spawnDrops(dt, p.bottle);
     } else {
       this.stream.visible = false;
