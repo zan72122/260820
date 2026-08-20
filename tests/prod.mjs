@@ -1,0 +1,14 @@
+import { chromium } from 'playwright';
+const b = await chromium.launch({ args: ['--use-angle=swiftshader','--enable-unsafe-swiftshader','--disable-dev-shm-usage'] });
+const p = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+const logs = [];
+p.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') logs.push(`${m.type()}: ${m.text()}`); });
+p.on('pageerror', (e) => logs.push('pageerror: ' + e.message));
+await p.goto('http://localhost:4173/?fast=1', { waitUntil: 'load' });
+await p.waitForFunction(() => !!window.__imo, null, { timeout: 60000 });
+await p.evaluate(() => window.__imo.manual(true));
+await p.evaluate(() => { for (let i = 0; i < 240; i++) window.__imo.tick(1/60, i % 60 === 59); });
+console.log('state:', JSON.stringify(await p.evaluate(() => window.__imo.state())).slice(0, 150));
+await p.screenshot({ path: 'shots/prod-build.png' });
+console.log('issues:', logs.length ? logs.slice(0, 8) : 'none');
+await b.close();

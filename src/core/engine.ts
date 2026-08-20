@@ -76,7 +76,7 @@ export class Engine {
     this.scene.add(this.sun.target);
 
     // Bounce from the sky and the surrounding dry field, one cheap light.
-    const hemi = new THREE.HemisphereLight(0xb4cbe4, 0x8a7a5c, 0.75);
+    const hemi = new THREE.HemisphereLight(0xb4cbe4, 0x93835f, 0.92);
     this.scene.add(hemi);
 
     this.applyPixelRatio();
