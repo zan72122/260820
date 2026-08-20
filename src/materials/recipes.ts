@@ -89,21 +89,25 @@ export const clayFloor: Recipe = {
   size: 512,
   bump: 0.9,
   sample(u, v, s) {
-    const body = fbm(u * 18, v * 18, 18, 5, 29);
-    const broad = fbm(u * 4, v * 4, 4, 3, 83);
+    // A worked clay bed is smooth at the small scale and undulating at the
+    // large one — the opposite of sand, and that difference is most of what
+    // separates the two on screen.
+    const body = fbm(u * 7, v * 7, 7, 4, 29);
+    const fine = fbm(u * 26, v * 26, 26, 3, 31);
+    const broad = fbm(u * 3, v * 3, 3, 3, 83);
     // Traces of the tool that last smoothed the bed.
-    const tool = ridged(u * 9, v * 34, 34, 2, 61);
-    const damp = clamp01(smoothstep(0.42, 0.72, broad + body * 0.25));
+    const tool = ridged(u * 6, v * 22, 22, 2, 61);
+    const damp = clamp01(smoothstep(0.4, 0.7, broad * 0.7 + body * 0.3));
 
-    const light = 0.3 + body * 0.1 + broad * 0.07 - damp * 0.09;
+    const light = 0.24 + body * 0.09 + broad * 0.05 + fine * 0.02 - damp * 0.07;
     setRgb(s, light * 1.0, light * 0.86, light * 0.72);
     tint(s, 0.13, 0.11, 0.1, damp * 0.45);
 
     // The water film is the whole point: roughness collapses where it is wet.
-    s.rough = lerp(0.78, 0.24, damp) - tool * 0.05;
+    s.rough = lerp(0.72, 0.19, damp) - tool * 0.04 + fine * 0.06;
     s.metal = 0;
-    s.height = 0.5 + (body - 0.5) * 0.55 + tool * 0.12 - damp * 0.08;
-    s.ao = 0.82 + body * 0.18 - damp * 0.06;
+    s.height = 0.5 + (body - 0.5) * 0.62 + tool * 0.1 + (fine - 0.5) * 0.08 - damp * 0.06;
+    s.ao = 0.86 + body * 0.14 - damp * 0.05;
   },
 };
 

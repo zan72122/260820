@@ -26,6 +26,8 @@ export interface FramingRequest {
   impact: THREE.Vector3;
   /** Extra points that must stay on screen (chain pads, the release ring). */
   extra: THREE.Vector3[];
+  /** How many entries of `extra` are live this frame. */
+  extraCount: number;
   portrait: boolean;
 }
 
@@ -118,7 +120,7 @@ export class CameraDirector {
     _box.makeEmpty();
     _box.expandByPoint(req.release);
     _box.expandByPoint(req.impact);
-    for (const p of req.extra) _box.expandByPoint(p);
+    for (let i = 0; i < req.extraCount; i++) _box.expandByPoint(req.extra[i]);
     _box.min.y -= pose.padBottom;
     _box.max.y += pose.padTop;
     _box.expandByScalar(0.07);

@@ -180,11 +180,9 @@ export class BallShelf {
   }
 
   /** The two ends of the rail, so the camera can keep all of it on screen. */
-  extents(): [THREE.Vector3, THREE.Vector3] {
-    return [
-      this.displays[0].getWorldPosition(new THREE.Vector3()),
-      this.displays[this.displays.length - 1].getWorldPosition(new THREE.Vector3()),
-    ];
+  extentsInto(a: THREE.Vector3, b: THREE.Vector3) {
+    this.displays[0].getWorldPosition(a);
+    this.displays[this.displays.length - 1].getWorldPosition(b);
   }
 
   /** Open the rail's dust cover once specimens become selectable. */

@@ -218,11 +218,15 @@ WebGL 2 を前提とし、起動時に端末から品質段階を推定して、
 ```bash
 npm run typecheck
 npm run build
-node tools/smoke.mjs iphone-portrait      # Chromium で一連の流れを自動操作
-node tools/shots.mjs iphone-landscape     # 画面写真を撮る
+node tools/smoke.mjs iphone-portrait      # 一連の流れを自動操作して検証
+node tools/shots.mjs iphone-landscape     # 各段階の画面写真を撮る
+node tools/tour.mjs water,clay,felt       # 指定した床材へ順に落として撮る
+node tools/probe.mjs yard                 # 各操作対象の画面位置と当たり判定を出す
 ```
 
-`tools/` の 2 本は Chromium（Playwright）で実際に解除リングを引き、
+視点は `iphone-portrait` / `iphone-landscape` / `ipad-portrait` / `ipad-landscape`。
+
+`tools/` の各スクリプトは Chromium（Playwright）で実際に解除リングを引き、
 床を替え、球を替え、連鎖を組むところまでを操作して状態を検証します。
 ヘッドレスの SwiftShader 上で動くため、**フレームレートと絵の品質の判断には使えません**。
 それらは GPU が有効な実機で確認してください。

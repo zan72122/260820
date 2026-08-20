@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { clamp01, damp } from '../util/math';
 import type { BallSpec } from '../physics/params';
 
+const _axis = new THREE.Vector3();
+
 /**
  * The test ball.
  *
@@ -108,7 +110,8 @@ export class BallView {
     // Spin.
     const w = spin.length();
     if (w > 1e-5) {
-      this.spinQuat.setFromAxisAngle(spin.clone().normalize(), w * dt);
+      _axis.copy(spin).multiplyScalar(1 / w);
+      this.spinQuat.setFromAxisAngle(_axis, w * dt);
       this.mesh.quaternion.premultiply(this.spinQuat);
     }
 

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { AudioEngine } from '../audio/engine';
-import { CameraDirector, type CameraMode } from '../camera/director';
+import { CameraDirector, type CameraMode, type FramingRequest } from '../camera/director';
 import { buildEnvironment } from '../materials/envmap';
 import { MaterialLibrary } from '../materials/library';
 import { rubberBall, rubberFloor, sandFloor } from '../materials/recipes';
@@ -43,6 +43,9 @@ import { PerformanceGovernor, detectQuality, settingsFor, type QualitySettings }
 
 const RELOAD_SECONDS = 1.05;
 const nextFrame = () => new Promise<void>((r) => requestAnimationFrame(() => r()));
+
+const _q = new THREE.Quaternion();
+const _n = new THREE.Vector3();
 
 const DEBRIS_FOR: Record<string, DebrisKind> = {
   sand: 'sand',
@@ -100,6 +103,17 @@ export class App implements InteractionHost {
   private tmpLocal = new THREE.Vector3();
   private lastTileWorld = new THREE.Vector3();
   private lastSweep = new THREE.Vector3(999, 999, 999);
+  private frameRelease = new THREE.Vector3();
+  private frameImpact = new THREE.Vector3();
+  private frameExtra = Array.from({ length: 10 }, () => new THREE.Vector3());
+  private frameRequest: FramingRequest = {
+    mode: 'tray',
+    release: new THREE.Vector3(),
+    impact: new THREE.Vector3(),
+    extra: [],
+    extraCount: 0,
+    portrait: true,
+  };
   private sweepCooldown = 0;
   private userRingPull = 0;
   private paused = false;
@@ -294,6 +308,14 @@ export class App implements InteractionHost {
         ballY: this.ballPosition.y,
         marked: this.chainActive ? this.chain.slots[0].panel.marked : this.turntable.activePanel.marked,
       }),
+      /** Jump the tray straight to a sample, for automated material checks. */
+      setFloor: (id: string) => {
+        const i = FLOOR_ORDER.indexOf(id as FloorId);
+        if (i < 0) return false;
+        this.turntable.rotateTo(i, true);
+        this.updatePads();
+        return true;
+      },
       /** Force a stage open, so later stages can be exercised without waiting. */
       unlock: (what: 'balls' | 'height' | 'chain') => {
         this.state.unlocks.floors = true;
@@ -394,15 +416,16 @@ export class App implements InteractionHost {
     let best = SLAB_Y;
     for (const pad of this.sim.pads) {
       if (!pad.enabled) continue;
-      this.tmpLocal.copy(point).sub(pad.center).applyQuaternion(pad.quaternion.clone().invert());
+      _q.copy(pad.quaternion).invert();
+      this.tmpLocal.copy(point).sub(pad.center).applyQuaternion(_q);
       const inside =
         pad.shape === 'circle'
           ? Math.hypot(this.tmpLocal.x, this.tmpLocal.z) <= pad.halfX
           : Math.abs(this.tmpLocal.x) <= pad.halfX && Math.abs(this.tmpLocal.z) <= pad.halfZ;
       if (!inside) continue;
-      const n = new THREE.Vector3(0, 1, 0).applyQuaternion(pad.quaternion);
+      _n.set(0, 1, 0).applyQuaternion(pad.quaternion);
       const y =
-        pad.center.y - (n.x * (point.x - pad.center.x) + n.z * (point.z - pad.center.z)) / Math.max(n.y, 0.2);
+        pad.center.y - (_n.x * (point.x - pad.center.x) + _n.z * (point.z - pad.center.z)) / Math.max(_n.y, 0.2);
       const carved = pad.depthAt ? pad.depthAt(this.tmpLocal.x, this.tmpLocal.z) : 0;
       best = Math.max(best, y - carved);
     }
@@ -579,30 +602,38 @@ export class App implements InteractionHost {
 
   private frameCamera(immediate = false) {
     const mode: CameraMode = this.chainActive ? 'chain' : 'tray';
-    const release = this.rig.ballAnchor(new THREE.Vector3(), this.sim.ball.radius);
-    const impact = this.chainActive
-      ? new THREE.Vector3(CHAIN_PADS[0].x, CHAIN_PADS[0].y, CHAIN_PADS[0].z)
-      : new THREE.Vector3(0, TRAY_SURFACE_Y, TRAY_DROP_Z);
+    this.rig.ballAnchor(this.frameRelease, this.sim.ball.radius);
+    if (this.chainActive) this.frameImpact.set(CHAIN_PADS[0].x, CHAIN_PADS[0].y, CHAIN_PADS[0].z);
+    else this.frameImpact.set(0, TRAY_SURFACE_Y, TRAY_DROP_Z);
 
-    const extra: THREE.Vector3[] = [this.rig.ring.position.clone()];
+    // Runs every frame, so the point list is preallocated and refilled rather
+    // than rebuilt.
+    const extra = this.frameExtra;
+    let n = 0;
+    extra[n++].copy(this.rig.ring.position);
     // The specimen rail is a control the child has to be able to reach, so
     // both ends of it stay inside the frame in every mode.
-    if (this.state.unlocks.balls) extra.push(...this.shelf.extents());
+    if (this.state.unlocks.balls) {
+      this.shelf.extentsInto(extra[n++], extra[n++]);
+    }
     if (this.chainActive) {
-      for (const cfg of CHAIN_PADS) extra.push(new THREE.Vector3(cfg.x, cfg.y, cfg.z));
+      for (const cfg of CHAIN_PADS) extra[n++].set(cfg.x, cfg.y, cfg.z);
       // The spare-tile rack is a control, so it has to stay on screen.
-      extra.push(new THREE.Vector3(TILE_RACK_POS.x, 0.24, TILE_RACK_POS.z));
+      extra[n++].set(TILE_RACK_POS.x, 0.24, TILE_RACK_POS.z);
     }
     // Once the ball has passed its first peak we may follow it, so a ball that
     // rolls off the sample is never lost off the edge of the screen.
     if (!this.sim.airborne && this.sim.phase !== 'contact' && this.sim.phase !== 'held') {
-      extra.push(this.ballPosition.clone());
+      extra[n++].copy(this.ballPosition);
     }
 
-    this.director.frame(
-      { mode, release, impact, extra, portrait: window.innerHeight >= window.innerWidth },
-      immediate
-    );
+    this.frameRequest.mode = mode;
+    this.frameRequest.release = this.frameRelease;
+    this.frameRequest.impact = this.frameImpact;
+    this.frameRequest.extra = extra;
+    this.frameRequest.extraCount = n;
+    this.frameRequest.portrait = window.innerHeight >= window.innerWidth;
+    this.director.frame(this.frameRequest, immediate);
   }
 
   private hintContext(): HintContext {

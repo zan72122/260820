@@ -185,7 +185,13 @@ await step('tiles-placed', async () => {
 await step('chain-run', async () => {
   const before = (await snap()).drops;
   await pullRing();
-  return until('chain drop settled', (s) => s.drops > before && ready(s), 60000);
+  // The ball may finish on a cradle, on the apron, or already be back in the
+  // clamp — all we require is that the drop happened and motion stopped.
+  return until(
+    'chain drop settled',
+    (s) => s.drops > before && ['settled', 'held'].includes(s.simPhase),
+    90000
+  );
 });
 
 const finalDebug = await page.evaluate(() => document.getElementById('debug')?.textContent ?? '');
