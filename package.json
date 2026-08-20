@@ -1,0 +1,27 @@
+{
+  "name": "kingyo-sukui",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Kingyo-sukui — a photoreal 3D mobile web goldfish-scooping game for 4-year-olds",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4173 --strictPort",
+    "lint": "eslint src tests",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "e2e": "playwright test",
+    "e2e:smoke": "playwright test tests/e2e/smoke.spec.js"
+  },
+  "dependencies": {
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.0",
+    "eslint": "^9.18.0",
+    "globals": "^15.14.0",
+    "vite": "^6.0.7",
+    "vitest": "^3.0.0"
+  }
+}

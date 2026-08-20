@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <title>金魚すくい</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#120a08" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="description" content="夏祭りの金魚すくい。濡れた薄紙のポイで、そっと金魚をすくう。" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="金魚すくい" />
+    <meta name="format-detection" content="telephone=no" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23140c09'/%3E%3Cpath d='M20 16c0 3-3 5-6 5s-6-2-6-5 3-5 6-5 6 2 6 5z' fill='%23e2481f'/%3E%3Cpath d='M20 16l6-4v8z' fill='%23f2703a'/%3E%3C/svg%3E" />
+    <style>
+      :root {
+        --veil: #120a08;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: var(--veil);
+        overscroll-behavior: none;
+        touch-action: none;
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-touch-callout: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      body {
+        position: fixed;
+        inset: 0;
+        font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+      }
+      #stage {
+        position: absolute;
+        inset: 0;
+        display: block;
+        width: 100%;
+        height: 100%;
+        touch-action: none;
+        outline: none;
+      }
+      /* Wordless loading veil: a single warm lantern breathing in the dark. */
+      #veil {
+        position: absolute;
+        inset: 0;
+        z-index: 10;
+        background:
+          radial-gradient(38vmin 38vmin at 50% 44%, rgba(255, 176, 96, 0.18), transparent 70%),
+          var(--veil);
+        display: grid;
+        place-items: center;
+        transition: opacity 900ms ease;
+        pointer-events: none;
+      }
+      #veil.gone {
+        opacity: 0;
+      }
+      #lantern {
+        width: 46px;
+        height: 62px;
+        border-radius: 46% / 40%;
+        background: radial-gradient(60% 55% at 50% 42%, #ffd9a1, #f0913f 62%, #c85a20);
+        box-shadow: 0 0 44px 12px rgba(255, 150, 70, 0.35);
+        animation: breathe 2600ms ease-in-out infinite;
+      }
+      @keyframes breathe {
+        0%,
+        100% {
+          opacity: 0.5;
+          transform: scale(0.94);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.04);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #lantern {
+          animation: none;
+          opacity: 0.85;
+        }
+      }
+      /* Diegetic HUD layer (the bowl tally is drawn in 3D; this is only for the
+         rotate-your-device hint and the paper-change hand shadow). */
+      #hud {
+        position: absolute;
+        inset: 0;
+        z-index: 5;
+        pointer-events: none;
+      }
+      #fallback {
+        position: absolute;
+        inset: 0;
+        z-index: 20;
+        display: none;
+        place-items: center;
+        padding: 8vmin;
+        color: #f3ded0;
+        text-align: center;
+        line-height: 1.9;
+        background: var(--veil);
+        font-size: 15px;
+      }
+      #fallback.show {
+        display: grid;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="stage"></canvas>
+    <div id="hud"></div>
+    <div id="veil"><div id="lantern"></div></div>
+    <div id="fallback">
+      <p>
+        このゲームには WebGL が必要です。<br />
+        Safari の設定で WebGL を有効にしてから、<br />
+        もう一度開いてください。
+      </p>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
