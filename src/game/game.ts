@@ -15,6 +15,8 @@ import { CameraDirector, type SafeInsets, type Shot } from './cameraDirector'
 import { GameState, type Side } from './state'
 import {
   BENCH,
+  CORD_RADIUS,
+  FIRST_HINT_HOOKS,
   FRUIT,
   HANDLE_FINGER_OFFSET_PX,
   HANDLE_PICK_PX,
@@ -195,6 +197,7 @@ export class Game {
     this.scene.add(this.mangoMesh)
 
     this.netSim.setSurfaceRadiusFn((dx, dy, dz) => this.fruitSurfaceRadius(dx, dy, dz))
+    this.netSim.surfaceOffset = CORD_RADIUS
 
     this.touch = new SingleTouch(deps.canvas)
     this.touch.on((phase, s) => this.onPointer(phase, s))
@@ -804,8 +807,7 @@ export class Game {
     // One reflection off the hooks at the very start: the branch says "here".
     if (!this.openingGlintDone && this.elapsed > 1.1) {
       this.openingGlintDone = true
-      this.branch.glint(1, 0.9)
-      this.branch.glint(5, 0.9)
+      for (const id of FIRST_HINT_HOOKS) this.branch.glint(id, 0.9)
     }
 
     const phase = this.state.hintPhase

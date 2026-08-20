@@ -98,6 +98,13 @@ export class NetSim {
    * is. Without this the contact patch would float on the flatter cheeks.
    */
   private radiusFn: ((dx: number, dy: number, dz: number) => number) | null = null
+  /**
+   * Cord half-thickness. Knots ride this far outside the skin so the cordage
+   * rests *on* the fruit instead of being buried half its own thickness into
+   * it, and so the interpolated fine sheet cannot cut a chord through the
+   * skin between two knots.
+   */
+  surfaceOffset = 0
 
   private accumulator = 0
   private timeAcc = 0
@@ -301,7 +308,7 @@ export class NetSim {
   }
 
   private radiusFor(dx: number, dy: number, dz: number, fallback: number): number {
-    return this.radiusFn ? this.radiusFn(dx, dy, dz) : fallback
+    return (this.radiusFn ? this.radiusFn(dx, dy, dz) : fallback) + this.surfaceOffset
   }
 
   setGripAmount(v: number): void {
@@ -570,7 +577,7 @@ export class NetSim {
   private collide(s: Sphere): void {
     const { pos } = this
     // Broad phase against the largest radius the surface can reach.
-    const rMax = this.radiusFn ? s.r * 1.35 : s.r
+    const rMax = (this.radiusFn ? s.r * 1.35 : s.r) + this.surfaceOffset
     const r2 = rMax * rMax
     for (let i = 0; i < this.nodeCount; i++) {
       if (this.pinned[i]) continue

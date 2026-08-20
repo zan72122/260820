@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { NetSim } from '../src/sim/netSim'
 import {
   BENCH,
+  CORD_RADIUS,
   FRUIT,
   FRUIT_HANG_Y,
   HOOK_XS,
@@ -105,6 +106,7 @@ describe('contact against the real fruit surface', () => {
 
     const net = hungNet(HOOK_XS[1], HOOK_XS[2])
     net.setSurfaceRadiusFn((dx, dy, dz) => mangoRadiusAt(shape, dx, dy, dz))
+    net.surfaceOffset = CORD_RADIUS
     const surface = net.surfaceHeightAt(0, 0, 0.07)
     const fruit = { x: 0, y: surface + extents.bottom, z: 0, r: extents.max }
     net.beginGrip(fruit)
@@ -128,7 +130,8 @@ describe('contact against the real fruit surface', () => {
       const dz = net.getZ(i) - fruit.z
       const d = Math.hypot(dx, dy, dz)
       if (d > extents.max * 1.4) continue
-      const skin = mangoRadiusAt(shape, dx / d, dy / d, dz / d)
+      // Cordage rests on the skin, so a knot belongs one cord radius out.
+      const skin = mangoRadiusAt(shape, dx / d, dy / d, dz / d) + CORD_RADIUS
       if (d < skin) worstInside = Math.max(worstInside, skin - d)
       // Only knots that are actually part of the contact patch may be measured
       // for a gap; the rim of the sheet is legitimately away from the fruit.
