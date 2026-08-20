@@ -142,7 +142,9 @@ export const washStep: Step = {
     const looksClean = g.mudLeft <= CLEAN_ENOUGH
       || (ctx.stepTime > GIVE_UP_AFTER && g.mudLeft < 0.5);
     settled = looksClean && !f.active && !contact ? settled + dt : 0;
-    if (settled > SETTLE) {
+    // Last resort: never let enthusiasm become a dead end.
+    const stranded = looksClean && ctx.stepTime > GIVE_UP_AFTER + 50;
+    if (settled > SETTLE || stranded) {
       ctx.session.washQuality = clamp((1 - g.mudLeft) / 0.78);
       ctx.audio.setScrub(0, 0);
       ctx.audio.chime(5, 0.09);

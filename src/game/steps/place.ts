@@ -77,7 +77,9 @@ export const placeStep: Step = {
       const dropX = spring.target.x;
       const midX = (STATION.wash.x + STATION.cradle.x) * 0.5;
       // Anything let go past halfway, or flicked rightward, lands in the cradle.
-      if (dropX > midX || f.flickX > 0.35) {
+      // After a while, so does anything at all: a child who has picked the
+      // stone up has already understood the instruction.
+      if (dropX > midX || f.flickX > 0.35 || ctx.stepTime > 22) {
         dropped = true;
         settling = 0;
         ctx.audio.knock(0.85, 0.30);

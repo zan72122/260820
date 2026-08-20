@@ -102,7 +102,8 @@ export const dustStep: Step = {
     const clear = g.powderLeft <= DONE_POWDER
       || (ctx.stepTime > GIVE_UP_AFTER && g.powderLeft < 0.5);
     settled = clear && !f.active && !touching ? settled + dt : 0;
-    if (!done && settled > SETTLE) {
+    const stranded = clear && ctx.stepTime > GIVE_UP_AFTER + 40;
+    if (!done && (settled > SETTLE || stranded)) {
       done = true;
       doneT = 0;
       ctx.session.dustQuality = clamp((1 - g.powderLeft) / 0.9);

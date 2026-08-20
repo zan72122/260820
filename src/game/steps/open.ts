@@ -16,6 +16,8 @@ let creakLevel = 0;
 let lastCreak = 0;
 
 const SNAP_AT = 0.58;
+/** The lid gives up sooner the longer a child has been wrestling with it. */
+const snapThreshold = (stepTime: number) => Math.max(0.24, SNAP_AT - Math.max(0, stepTime - 12) * 0.02);
 
 /**
  * VERB: OPEN (wider).
@@ -76,7 +78,7 @@ export const openStep: Step = {
           Math.round(2 * ctx.quality.particleMul) + 1, 0.28, 1.6);
       }
 
-      if (spring.target >= SNAP_AT) {
+      if (spring.target >= snapThreshold(ctx.stepTime)) {
         snapped = true;
         sinceSnap = 0;
         ctx.audio.setCreak(0);

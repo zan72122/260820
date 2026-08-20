@@ -88,7 +88,7 @@ export const holdStep: Step = {
       held = false;
       const dropX = spring.target.x;
       const midX = (STATION.cradle.x + STATION.pedestal.x) * 0.5;
-      if (dropX > midX || f.flickX > 0.4) {
+      if (dropX > midX || f.flickX > 0.4 || ctx.stepTime > 30) {
         dropping = true;
         dropT = 0;
         ctx.audio.knock(0.7, 0.20);
