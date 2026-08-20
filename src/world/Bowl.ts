@@ -57,8 +57,9 @@ const tsuyuFrag = /* glsl */ `
   void main() {
     float r = length(vLocal);
     vec2 g = vec2(0.0);
-    // idle shimmer
-    g += vec2(cos(vLocal.x * 210.0 + uTime * 2.2), cos(vLocal.y * 190.0 - uTime * 1.7)) * 0.00035 * 200.0;
+    // Idle shimmer. Even still tsuyu is never a perfect mirror.
+    g += vec2(cos(vLocal.x * 260.0 + uTime * 1.9), cos(vLocal.y * 230.0 - uTime * 1.5)) * 0.055;
+    g += vec2(cos(vLocal.y * 91.0 - uTime * 0.9), cos(vLocal.x * 77.0 + uTime * 1.1)) * 0.028;
     for (int i = 0; i < ${MAX_RIPPLES}; i++) {
       vec4 rp = uRipples[i];
       if (rp.w <= 0.0) continue;
@@ -73,15 +74,15 @@ const tsuyuFrag = /* glsl */ `
     }
     // meniscus climbing the bowl wall
     float edge = smoothstep(uRadius * 0.80, uRadius, r);
-    g += normalize(vLocal + 1e-5) * edge * 1.6;
+    g += normalize(vLocal + 1e-5) * edge * 0.55;
 
     vec3 N = normalize(vec3(-g.x, 1.0, g.y));
     vec3 V = normalize(cameraPosition - vWorld);
     float F = 0.03 + 0.97 * pow(1.0 - max(dot(N, V), 0.0), 5.0);
     vec3 refl = skyColor(reflect(-V, N));
     vec3 H = normalize(V + uSunDir);
-    float spec = pow(max(dot(N, H), 0.0), 900.0) * 12.0 + pow(max(dot(N, H), 0.0), 60.0) * 0.3;
-    vec3 col = mix(uLiquid, refl, clamp(F, 0.0, 1.0)) + uSunColor * spec;
+    float spec = pow(max(dot(N, H), 0.0), 1600.0) * 3.2 + pow(max(dot(N, H), 0.0), 260.0) * 0.28;
+    vec3 col = mix(uLiquid, refl, clamp(F, 0.0, 0.75)) + uSunColor * spec;
     gl_FragColor = vec4(col, 1.0);
     #include <colorspace_fragment>
   }
@@ -103,13 +104,13 @@ export class Bowl {
     const w = bakeWood()
     for (const t of [w.map, w.roughnessMap, w.normalMap]) {
       t.wrapS = t.wrapT = RepeatWrapping
-      t.repeat.set(1.2, 0.8)
+      t.repeat.set(2.6, 2.6)
     }
     const woodMat = new MeshStandardMaterial({
       map: w.map,
       roughnessMap: w.roughnessMap,
       normalMap: w.normalMap,
-      color: 0xb08a63,
+      color: 0xc39a70,
       roughness: 1,
       metalness: 0,
       envMapIntensity: 0.8,
@@ -153,13 +154,13 @@ export class Bowl {
     const bowlGeo = new LatheGeometry(pts, 48)
     bowlGeo.computeVertexNormals()
     const porcelain = new MeshPhysicalMaterial({
-      color: 0xf2f1ea,
-      roughness: 0.09,
+      color: 0xe8eae6,
+      roughness: 0.15,
       metalness: 0,
       clearcoat: 1.0,
-      clearcoatRoughness: 0.05,
+      clearcoatRoughness: 0.08,
       side: DoubleSide,
-      envMapIntensity: 1.5,
+      envMapIntensity: 1.0,
       sheen: 0.2,
       sheenColor: new Color(0xdfe8ea),
     })
@@ -179,7 +180,7 @@ export class Bowl {
         uSunDir: { value: new Vector3(SUN_DIR.x, SUN_DIR.y, SUN_DIR.z).normalize() },
         uSunColor: { value: new Color(1.0, 0.94, 0.8) },
         uZenith: { value: new Color(0.095, 0.225, 0.62) },
-        uHorizon: { value: new Color(0.545, 0.625, 0.685) },
+        uHorizon: { value: new Color(0.470, 0.545, 0.640) },
         uLiquid: { value: new Color(0.055, 0.030, 0.018) },
         uRadius: { value: liquidR },
         uLevel: { value: 0 },
@@ -194,6 +195,12 @@ export class Bowl {
     this.liquid.position.set(BOWL.x, BOWL.liquidY, BOWL.z)
     this.liquid.renderOrder = 3
     this.group.add(this.liquid)
+  }
+
+  /** Match the tsuyu's lighting to the rest of the scene. */
+  applyLighting(sunDir: Vector3, sunColor: Color): void {
+    ;(this.mat.uniforms.uSunDir.value as Vector3).copy(sunDir)
+    ;(this.mat.uniforms.uSunColor.value as Color).copy(sunColor)
   }
 
   /** World-space offset from the bowl centre, in metres. */

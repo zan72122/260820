@@ -253,11 +253,11 @@ export class Water {
         UniformsLib.fog,
         {
           uTime: { value: 0 },
-          uFlow: { value: 0.95 },
+          uFlow: { value: 1.15 },
           uSunDir: { value: new Vector3(0, 1, 0) },
           uSunColor: { value: new Color(1.0, 0.94, 0.8) },
           uZenith: { value: new Color(0.095, 0.225, 0.62) },
-          uHorizon: { value: new Color(0.545, 0.625, 0.685) },
+          uHorizon: { value: new Color(0.470, 0.545, 0.640) },
           uSurround: { value: new Color(0.085, 0.105, 0.055) },
           uBedLight: { value: new Color(1.5, 1.45, 1.3) },  // replaced at runtime
           uTint: { value: new Color(0.62, 0.86, 0.83) },

@@ -49,8 +49,8 @@ export const PLAY = {
   hMin: -0.014,
   hMax: 0.44,
   /** Where the somen is released and where it dies. */
-  spawnZ: -7.6,
-  despawnZ: 3.6,
+  spawnZ: -4.7,
+  despawnZ: 1.3,
 } as const
 
 export const BOWL = {

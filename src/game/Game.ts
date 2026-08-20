@@ -118,7 +118,7 @@ export class Game {
     this.scene.add(this.sky.mesh)
     this.scene.environment = this.sky.buildEnvironment(this.renderer)
     this.scene.environmentIntensity = 0.9
-    this.scene.fog = new FogExp2(0xc6d1d6, 0.020)
+    this.scene.fog = new FogExp2(0xb6c5d2, 0.020)
 
     this.sun = new DirectionalLight(SUN_COLOR.getHex(), SUN_STRENGTH)
     this.sun.color.copy(SUN_COLOR)
@@ -149,6 +149,7 @@ export class Game {
     this.scene.add(this.garden.group)
 
     this.bowl = new Bowl()
+    this.bowl.applyLighting(sunDir, SUN_COLOR.clone().multiplyScalar(SUN_STRENGTH))
     this.scene.add(this.bowl.group)
 
     this.scene.add(this.sticks.group)
@@ -161,7 +162,7 @@ export class Game {
     this.drops.applyLighting(sunDir, SUN_COLOR.clone().multiplyScalar(SUN_STRENGTH))
 
     const q = new URLSearchParams(location.search)
-    if (q.has('fixed')) this.fixedStep = 1 / 30
+    if (q.has('fixed')) this.fixedStep = Number(q.get('fixed')) || 1 / 30
     if (q.has('quality')) {
       this.qualityTier = Number(q.get('quality'))
       this.qualityLocked = true
@@ -188,11 +189,16 @@ export class Game {
         bundles: this.noodles.active.map((b) => ({
           p: b.pattern.name,
           s: b.state,
-          z: +b.centre(new Vector3()).z.toFixed(2),
+          at: b.centre(new Vector3()).toArray().map((v) => +v.toFixed(2)),
         })),
         ms: +this.frameAvg.toFixed(1),
         tier: this.qualityTier,
         aim: [+this.aimS.toFixed(2), +this.aimH.toFixed(3)],
+        cam: this.rig.camera.position.toArray().map((v) => +v.toFixed(3)),
+        camFov: +this.rig.camera.fov.toFixed(1),
+        subjectDist: this.noodles.active.length
+          ? +this.rig.camera.position.distanceTo(this.noodles.active[0].centre(new Vector3())).toFixed(3)
+          : -1,
       }),
       cut: (shot: string) => this.rig.cut(shot as never, this.clock),
       skipTo: (phase: Phase) => {
@@ -249,6 +255,22 @@ export class Game {
           matVisible: (b.material as unknown as { visible: boolean }).visible,
           program: !!(b.material as unknown as { program?: unknown }).program,
         }
+      },
+      screenAt: (sPos: number, h: number) => {
+        const p = Aim.point(sPos, h, new Vector3()).project(this.rig.camera)
+        return [
+          Math.round((p.x * 0.5 + 0.5) * this.width),
+          Math.round((-p.y * 0.5 + 0.5) * this.height),
+        ]
+      },
+      bundleScreen: () => {
+        const b = this.noodles.active[0]
+        if (!b) return null
+        const p = b.centre(new Vector3()).project(this.rig.camera)
+        return [
+          Math.round((p.x * 0.5 + 0.5) * this.width),
+          Math.round((-p.y * 0.5 + 0.5) * this.height),
+        ]
       },
       post: (bloom: boolean, dof: boolean) => {
         this.post.options.bloom = bloom
@@ -405,7 +427,14 @@ export class Game {
       case 'opening':
         // Just water, sunlight and the sound of the garden.
         if (t >= this.nextSpawn) {
-          this.spawn(PATTERNS[1], t)
+          // The first bundle starts inside the stretch the travelling camera
+          // will ride, so the mystery beat lands within the first few seconds.
+          this.spawn({ ...PATTERNS[1], strands: 10, spread: 0.0105, speedScale: 0.80 }, t, -4.3)
+          if (this.trackBundle) {
+            this.trackBundle.centre(this.tmp)
+            this.rig.setSubject(this.tmp)
+            this.rig.cut('travel', t)
+          }
           this.phase = 'firstPass'
         }
         break
@@ -415,8 +444,7 @@ export class Game {
         if (b && b.state === 'flowing') {
           b.centre(this.tmp)
           this.rig.setSubject(this.tmp)
-          if (this.rig.current === 'establish' && this.tmp.z > -6.4) this.rig.cut('travel', t)
-          if (this.tmp.z > 1.15) {
+          if (this.tmp.z > 0.15) {
             this.rig.cut('play', t)
             this.revealChopsticks(t)
             this.phase = 'invite'
@@ -484,11 +512,11 @@ export class Game {
     return PATTERNS[i]
   }
 
-  private spawn(p: Pattern, t: number): void {
+  private spawn(p: Pattern, t: number, z: number = PLAY.spawnZ): void {
     const b = this.noodles.free()
     if (!b) return
-    b.spawn(p, t, PLAY.spawnZ)
-    this.lastNodeIdx.set(b, Math.floor((PLAY.spawnZ - FLUME.nodePhase) / FLUME.nodeSpacing))
+    b.spawn(p, t, z)
+    this.lastNodeIdx.set(b, Math.floor((z - FLUME.nodePhase) / FLUME.nodeSpacing))
     if (this.phase === 'opening' || this.phase === 'firstPass') this.trackBundle = b
   }
 

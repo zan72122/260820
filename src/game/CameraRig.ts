@@ -28,8 +28,8 @@ const SHOTS: Record<ShotName, ShotDef> = {
   // Running alongside a bundle, right down at the surface of the water.
   travel: {
     relative: true,
-    land: { pos: [0.30, 0.075, 0.52], target: [0.0, 0.0, -0.30], fov: 32, tau: 0.30 },
-    port: { pos: [0.27, 0.085, 0.45], target: [0.0, 0.0, -0.34], fov: 48, tau: 0.30 },
+    land: { pos: [0.26, 0.215, 0.26], target: [-0.04, -0.035, -0.12], fov: 36, tau: 0.16 },
+    port: { pos: [0.23, 0.200, 0.23], target: [-0.04, -0.035, -0.11], fov: 52, tau: 0.16 },
   },
   // The framing the game lives in: chopsticks, water and somen together.
   play: {
@@ -40,8 +40,8 @@ const SHOTS: Record<ShotName, ShotDef> = {
   // Following the catch upwards. Never cut here — the causality must hold.
   lift: {
     relative: true,
-    land: { pos: [0.30, 0.07, 0.44], target: [0.0, -0.02, -0.04], fov: 31, tau: 0.26 },
-    port: { pos: [0.26, 0.075, 0.36], target: [0.0, -0.02, -0.05], fov: 46, tau: 0.26 },
+    land: { pos: [0.30, 0.215, 0.34], target: [-0.02, -0.055, -0.08], fov: 34, tau: 0.18 },
+    port: { pos: [0.27, 0.205, 0.30], target: [-0.02, -0.055, -0.08], fov: 48, tau: 0.18 },
   },
   bowl: {
     relative: false,
@@ -73,6 +73,7 @@ export class CameraRig {
   private landscapeMix = 1
   private drift = 0
   private overridden = false
+  private tmpLook = new Vector3()
 
   constructor() {
     this.camera = new PerspectiveCamera(36, 1, 0.03, 160)
@@ -93,6 +94,16 @@ export class CameraRig {
 
   cut(shot: ShotName, time: number): void {
     if (this.shot === shot) return
+    // Poses are stored in the active shot's own frame — world space for a
+    // fixed shot, subject space for a tracking one — so that a tracking shot
+    // never lags behind what it is following. Convert on the way in.
+    const wasRelative = SHOTS[this.shot].relative
+    const nowRelative = SHOTS[shot].relative
+    if (wasRelative !== nowRelative) {
+      const sign = nowRelative ? -1 : 1
+      this.pos.addScaledVector(this.subject, sign)
+      this.look.addScaledVector(this.subject, sign)
+    }
     this.shot = shot
     this.shotAt = time
   }
@@ -107,7 +118,7 @@ export class CameraRig {
   }
 
   get focusDistance(): number {
-    return this.pos.distanceTo(this.look)
+    return this.camera.position.distanceTo(this.tmpLook)
   }
 
   /** Debug only: pin the camera so a detail can be inspected in a browser. */
@@ -116,6 +127,7 @@ export class CameraRig {
     this.pos.set(pos[0], pos[1], pos[2])
     this.look.set(target[0], target[1], target[2])
     this.fov = fov
+    this.tmpLook.set(target[0], target[1], target[2])
     this.camera.fov = fov
     this.camera.updateProjectionMatrix()
     this.camera.position.copy(this.pos)
@@ -137,44 +149,41 @@ export class CameraRig {
     const fov = lerp(def.port.fov, def.land.fov, m)
     const tau = lerp(def.port.tau, def.land.tau, m)
 
-    let wantX = px[0]
-    let wantY = px[1]
-    let wantZ = px[2]
+    const wantX = px[0]
+    const wantY = px[1]
+    const wantZ = px[2]
     let lookX = tx[0]
     let lookY = tx[1]
     let lookZ = tx[2]
-    if (def.relative) {
-      wantX += this.subject.x
-      wantY += this.subject.y
-      wantZ += this.subject.z
-      lookX += this.subject.x
-      lookY += this.subject.y
-      lookZ += this.subject.z
-    }
 
     // Very slow breathing so a static shot is never dead.
     this.drift += dt
-    if (this.shot === 'establish' || this.shot === 'play') {
-      wantX += Math.sin(this.drift * 0.17) * 0.022
-      wantY += Math.sin(this.drift * 0.13 + 1.7) * 0.014
-      wantZ += Math.sin(this.drift * 0.11 + 0.4) * 0.018
-    }
+    const breathe = this.shot === 'establish' || this.shot === 'play' ? 1 : 0
+    const bx = Math.sin(this.drift * 0.17) * 0.022 * breathe
+    const by = Math.sin(this.drift * 0.13 + 1.7) * 0.014 * breathe
+    const bz = Math.sin(this.drift * 0.11 + 0.4) * 0.018 * breathe
 
     // Ease in after a change of shot, then tighten up.
     const since = time - this.shotAt
     const t = tau * (1 + 2.4 * Math.exp(-since * 1.5))
     const k = 1 - Math.exp(-dt / Math.max(0.02, t))
 
-    this.pos.x += (wantX - this.pos.x) * k
-    this.pos.y += (wantY - this.pos.y) * k
-    this.pos.z += (wantZ - this.pos.z) * k
+    this.pos.x += (wantX + bx - this.pos.x) * k
+    this.pos.y += (wantY + by - this.pos.y) * k
+    this.pos.z += (wantZ + bz - this.pos.z) * k
     this.look.x += (lookX - this.look.x) * k
     this.look.y += (lookY - this.look.y) * k
     this.look.z += (lookZ - this.look.z) * k
     this.fov += (fov - this.fov) * k
 
-    this.camera.position.copy(this.pos)
-    this.camera.lookAt(this.look)
+    if (def.relative) {
+      this.camera.position.addVectors(this.pos, this.subject)
+      this.tmpLook.addVectors(this.look, this.subject)
+    } else {
+      this.camera.position.copy(this.pos)
+      this.tmpLook.copy(this.look)
+    }
+    this.camera.lookAt(this.tmpLook)
     if (Math.abs(this.camera.fov - this.fov) > 0.01) {
       this.camera.fov = this.fov
       this.camera.updateProjectionMatrix()

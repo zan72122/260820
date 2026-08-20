@@ -23,7 +23,8 @@ const logs = []
 page.on('console', (m) => logs.push(`[${m.type()}] ${m.text()}`))
 page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}`))
 
-await page.goto(URL_BASE + '?fixed=1&quality=2', { waitUntil: 'load' })
+const STEP = process.env.STEP || '1'
+await page.goto(URL_BASE + `?fixed=${STEP}&quality=2`, { waitUntil: 'load' })
 await page.waitForTimeout(4000)
 
 async function frames(n) {

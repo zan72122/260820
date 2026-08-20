@@ -67,7 +67,7 @@ export class Sky {
       uniforms: {
         uSunDir: { value: sunDir.clone().normalize() },
         uZenith: { value: new Color(0.095, 0.225, 0.62) },
-        uHorizon: { value: new Color(0.545, 0.625, 0.685) },
+        uHorizon: { value: new Color(0.470, 0.545, 0.640) },
         uGroundHaze: { value: new Color(0.26, 0.29, 0.20) },
         uSunColor: { value: new Color(1.0, 0.95, 0.84) },
         uExposure: { value: 1.0 },

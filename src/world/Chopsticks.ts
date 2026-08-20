@@ -22,7 +22,9 @@ export class Chopsticks {
   private lacquer: MeshPhysicalMaterial
   private wood: MeshPhysicalMaterial
   private glintT = -10
-  private glintDur = 0.55
+  private glintDur = 0.62
+  private glintPos = { value: -1 }
+  private glintAmt = { value: 0 }
 
   /** Mid-point between the two tips, in world space. */
   readonly tip = new Vector3()
@@ -42,6 +44,7 @@ export class Chopsticks {
       emissive: new Color(0xfff0d8),
       emissiveIntensity: 0,
     })
+    this.installGlint(this.lacquer)
     this.wood = new MeshPhysicalMaterial({
       color: new Color(0xcdb489),
       roughness: 0.45,
@@ -52,6 +55,7 @@ export class Chopsticks {
       emissive: new Color(0xfff0d8),
       emissiveIntensity: 0,
     })
+    this.installGlint(this.wood)
 
     const rBack = 0.0056
     const rTip = 0.0017
@@ -75,6 +79,29 @@ export class Chopsticks {
     this.group.visible = false
   }
 
+  /**
+   * The only hint the game ever gives: a highlight that slides once down the
+   * lacquer, the way a real chopstick catches the sun when it moves.
+   */
+  private installGlint(mat: MeshPhysicalMaterial): void {
+    mat.onBeforeCompile = (shader) => {
+      shader.uniforms.uGlintPos = this.glintPos
+      shader.uniforms.uGlintAmt = this.glintAmt
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying float vAlong;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvAlong = position.y;')
+      shader.fragmentShader = shader.fragmentShader
+        .replace(
+          '#include <common>',
+          '#include <common>\nvarying float vAlong;\nuniform float uGlintPos;\nuniform float uGlintAmt;',
+        )
+        .replace(
+          '#include <emissivemap_fragment>',
+          '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance += vec3(1.0, 0.95, 0.86) * exp(-pow((vAlong - uGlintPos) / 0.11, 2.0)) * uGlintAmt;',
+        )
+    }
+  }
+
   /** A single, silent catch of the light. */
   flash(time: number): void {
     this.glintT = time
@@ -87,7 +114,7 @@ export class Chopsticks {
   place(tip: Vector3, hand: Vector3): void {
     this.tip.copy(tip)
     const dir = new Vector3().subVectors(tip, hand)
-    const len = Math.max(0.20, Math.min(0.46, dir.length() * 1.06))
+    const len = Math.max(0.20, Math.min(0.33, dir.length() * 1.04))
     dir.normalize()
     this.forward.copy(dir)
 
@@ -118,12 +145,12 @@ export class Chopsticks {
 
   update(time: number): void {
     const age = time - this.glintT
-    let e = 0
     if (age >= 0 && age < this.glintDur) {
       const t = age / this.glintDur
-      e = Math.sin(t * Math.PI) ** 2 * 0.85
+      this.glintPos.value = -0.12 + t * 1.30
+      this.glintAmt.value = Math.sin(t * Math.PI) ** 2 * 1.25
+    } else {
+      this.glintAmt.value = 0
     }
-    this.lacquer.emissiveIntensity = e
-    this.wood.emissiveIntensity = e * 0.5
   }
 }

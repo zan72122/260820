@@ -101,7 +101,7 @@ const frag = /* glsl */ `
 
     vec3 sun = uSunColor * wrap * uShade;
     float back = pow(clamp(dot(V, -uSunDir) * 0.5 + 0.5, 0.0, 1.0), 3.0);
-    vec3 sss = uSunColor * back * thin * 0.55 * uShade;
+    vec3 sss = uSunColor * back * thin * 0.85 * uShade;
     vec3 amb = mix(uGround, uSky, N.y * 0.5 + 0.5);
 
     vec3 H = normalize(V + uSunDir);
@@ -384,15 +384,21 @@ export class Bundle {
 
         if (z > FLUME.zStart && z < PLAY.despawnZ + 1.6) {
           const wy = waterY(z)
-          const half = Math.sqrt(
-            Math.max(1e-6, innerRadius(z) ** 2 - (innerRadius(z) - FLUME.waterDepth) ** 2),
-          )
-          const sub = Math.max(0, Math.min(1, (wy + 0.004 - y) / 0.012))
-          if (sub > 0) {
-            inLiquid = sub
-            targetY = wy + 0.0003
-            targetX = this.laneX(z, half)
-            flowZ = flow * this.speed
+          const ri = innerRadius(z)
+          const half = Math.sqrt(Math.max(1e-6, ri * ri - (ri - FLUME.waterDepth) ** 2))
+          // Only the water *inside* the trough carries anything: a strand that
+          // has been lifted out, or dropped into the tsuyu, must not be swept
+          // along by a stream it is nowhere near.
+          const inside =
+            Math.abs(x - FLUME.xAt(z)) < half + 0.006 && y > wy - 0.05 && y < wy + 0.02
+          if (inside) {
+            const sub = Math.max(0, Math.min(1, (wy + 0.004 - y) / 0.012))
+            if (sub > 0) {
+              inLiquid = sub
+              targetY = wy + 0.0003
+              targetX = this.laneX(z, half)
+              flowZ = flow * this.speed
+            }
           }
         }
         // The tsuyu bowl catches it at the end.
@@ -426,6 +432,12 @@ export class Bundle {
           vx *= air
           vy *= air
           vz *= air
+          // Falling towards the tsuyu: guide it in. A four-year-old should
+          // never watch their catch land on the grass.
+          if (this.state === 'dropping') {
+            vx += (bowl.x - x) * 3.2 * dt
+            vz += (bowl.z - z) * 3.2 * dt
+          }
         }
 
         this.vel[i] = vx
@@ -461,9 +473,9 @@ export class Bundle {
           this.pos[b + 2] -= dz * corr * wb
         }
       }
-      if (this.state === 'flowing') this.clampToTrough()
+      this.clampToTrough()
+      if (this.state === 'dropping' || this.state === 'soaking') this.clampToBowl(bowl, bowlR)
     }
-    if (this.state !== 'flowing') this.clampToTrough()
 
     // --- surface wetness dries off once it is out of the water --------------
     let above = 0
@@ -497,12 +509,44 @@ export class Bundle {
         const dy = this.pos[i + 1] - cy
         const r = Math.hypot(dx, dy)
         const rmax = innerRadius(z) - RADIUS - 0.0008
-        if (r > rmax && dy < 0.001) {
+        // Only nudge strands that are genuinely inside the culm. Anything
+        // further out has been lifted away or dropped in the tsuyu, and must
+        // not be sucked back into the trough.
+        if (r > rmax && r < rmax * 1.9 && dy < 0.001) {
           const f = rmax / r
           this.pos[i] = cx + dx * f
           this.pos[i + 1] = cy + dy * f
           this.vel[i] *= 0.4
           this.vel[i + 1] *= 0.4
+        }
+      }
+    }
+  }
+
+  /**
+   * Once the bundle is over the tsuyu it belongs in the tsuyu. Somen coils
+   * when you drop it in a bowl; this keeps that true even though the strand
+   * is longer than the bowl is wide.
+   */
+  private clampToBowl(bowl: Vector3, r: number): void {
+    const floor = bowl.y - 0.026
+    for (let s = 0; s < this.strandCount; s++) {
+      for (let j = 0; j < NODES; j++) {
+        const i = (s * NODES + j) * 3
+        if (this.pos[i + 1] > bowl.y + 0.03) continue
+        const dx = this.pos[i] - bowl.x
+        const dz = this.pos[i + 2] - bowl.z
+        const rr = Math.hypot(dx, dz)
+        if (rr > r) {
+          const f = r / rr
+          this.pos[i] = bowl.x + dx * f
+          this.pos[i + 2] = bowl.z + dz * f
+          this.vel[i] *= 0.3
+          this.vel[i + 2] *= 0.3
+        }
+        if (this.pos[i + 1] < floor) {
+          this.pos[i + 1] = floor
+          this.vel[i + 1] = Math.max(0, this.vel[i + 1])
         }
       }
     }
