@@ -1,0 +1,16 @@
+{
+  "name": "nagaoka-phoenix",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "長岡花火の一晩 — 第2章 復興祈願花火フェニックス",
+  "scripts": {
+    "dev": "node server.mjs",
+    "start": "node server.mjs",
+    "test:e2e": "playwright test",
+    "test:smoke": "playwright test tests/smoke.spec.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0"
+  }
+}
