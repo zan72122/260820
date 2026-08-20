@@ -382,7 +382,10 @@ export class Game {
   private get liftReady() {
     let n = 0
     for (let i = 0; i < PROFILE_SIZE; i++) if (this.cur.exposure[i] > 0.5) n++
-    return n / PROFILE_SIZE > 0.58
+    // forgiving on purpose: once enough of the chain is clear of the mud the
+    // child may pull, and the rest slides free as the body comes up
+    const found = this.cur.discovered.filter(Boolean).length
+    return n / PROFILE_SIZE > 0.45 || found >= Math.ceil(this.cur.discovered.length / 2)
   }
 
   // ---------------------------------------------------------------- loop
@@ -562,7 +565,7 @@ export class Game {
           0.75 *
             THREE.MathUtils.clamp((this.phaseTimer - 0.1) / 0.5, 0, 1) *
             (1 - THREE.MathUtils.clamp((this.phaseTimer - 1.3) / 0.5, 0, 1))
-        : 0.24
+        : 0.17
     this.worker.update(dt, { handPos, aim: handAim, support, gaze: gazeTarget, crouch })
     const workerOut = new THREE.Vector3().subVectors(this.worker.stance, plot.spec.center).setY(0)
     if (workerOut.lengthSq() < 1e-4) workerOut.set(1, 0, 0)
@@ -1093,6 +1096,9 @@ export class Game {
       const waiting = this.phase === 'idle' || this.phase === 'probe'
       const target = plot.spec.center.clone().setY(-0.04)
       if (exposedCount > 2) target.lerp(exposedCenter.setY(-0.04), 0.6)
+      // a gentle, heavily damped pan toward the jet keeps the work near the
+      // middle of a narrow portrait frame without the ground sliding underfoot
+      if (this.input.down) target.lerp(this.impact.clone().setY(-0.04), 0.38)
       if (waiting) {
         // before anything is found, the one moving petiole is the whole subject
         must.push(plot.petioles[0].base.clone().setY(0.16))

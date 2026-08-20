@@ -54,6 +54,8 @@ export class CameraDirector {
     this.key = ''
   }
 
+  private framed = false
+
   update(dt: number, req: ShotRequest) {
     const isNew = req.key !== this.key
     this.key = req.key
@@ -95,7 +97,10 @@ export class CameraDirector {
     if (req.minEyeY !== undefined) wantEye.y = Math.max(wantEye.y, req.minEyeY)
 
     const speed = req.speed ?? 2.6
-    const k = isNew ? 1 - Math.exp(-dt * speed * 0.75) : 1 - Math.exp(-dt * speed)
+    // the very first frame lands on the intended establishing shot rather than
+    // easing in from a default position
+    const k = this.framed ? (isNew ? 1 - Math.exp(-dt * speed * 0.75) : 1 - Math.exp(-dt * speed)) : 1
+    this.framed = true
     this.eye.lerp(wantEye, k)
     this.look.lerp(req.target, k)
     this.fov += (req.fov - this.fov) * k

@@ -101,7 +101,7 @@ export class Worker {
 
     this.head = new THREE.Mesh(new THREE.SphereGeometry(0.094, 16, 12), skin)
     this.head.castShadow = true
-    const capMesh = new THREE.Mesh(new THREE.SphereGeometry(0.101, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), cap)
+    const capMesh = new THREE.Mesh(new THREE.SphereGeometry(0.101, 14, 8, 0, Math.PI * 2, 0, Math.PI * 0.66), cap)
     const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.115, 0.115, 0.012, 12, 1, false, -0.9, 1.9), cap)
     brim.position.set(0, 0.028, 0.055)
     this.head.add(capMesh, brim)
