@@ -165,9 +165,10 @@ export class Orchard {
         map: tex.map,
         normalMap: tex.normalMap,
         roughnessMap: tex.roughnessMap,
+        normalScale: new THREE.Vector2(0.55, 0.55),
         roughness: 1,
         metalness: 0,
-        envMapIntensity: 0.55,
+        envMapIntensity: 0.42,
       }),
       this.rig,
       {
@@ -176,7 +177,7 @@ export class Orchard {
             // Macro breakup: the same soil sampled far larger kills the tiling
             // that a repeated texture would otherwise print across the orchard.
             vec3 macro = texture2D(map, vMapUv * 0.077).rgb;
-            diffuseColor.rgb *= mix(vec3(1.0), macro * 1.9, 0.4);
+            diffuseColor.rgb *= mix(vec3(1.0), macro * 1.85, 0.3);
           }
         `,
         afterLights: /* glsl */ `
@@ -201,15 +202,27 @@ export class Orchard {
     grass.map.anisotropy = this.q.anisotropy
     const bladeGeo = new THREE.PlaneGeometry(0.17, 0.17, 1, 1)
     bladeGeo.translate(0, 0.085, 0)
-    const grassMat = new THREE.MeshPhysicalMaterial({
-      map: grass.map,
-      alphaMap: grass.alphaMap,
-      alphaTest: 0.5,
-      side: THREE.DoubleSide,
-      roughness: 0.85,
-      metalness: 0,
-      envMapIntensity: 0.6,
-    })
+    const grassMat = withBounce(
+      new THREE.MeshPhysicalMaterial({
+        map: grass.map,
+        alphaMap: grass.alphaMap,
+        alphaTest: 0.5,
+        side: THREE.DoubleSide,
+        roughness: 0.82,
+        metalness: 0,
+        envMapIntensity: 0.6,
+      }),
+      this.rig,
+      {
+        afterLights: /* glsl */ `
+          {
+            // Blades are thin enough to glow when the sun is behind them.
+            float back = max(0.0, dot(-normalize(vMomoWNrm), uSunDir));
+            reflectedLight.indirectDiffuse += diffuseColor.rgb * pow(back, 1.7) * uSunStrength * 0.45;
+          }
+        `,
+      },
+    )
     const tufts = this.q.grassTufts
     const grassMesh = new THREE.InstancedMesh(bladeGeo, grassMat, tufts * 2)
     const m = new THREE.Matrix4()
@@ -339,9 +352,9 @@ export class Orchard {
       let r = 0
       for (let tries = 0; tries < 12; tries++) {
         a = rng() * Math.PI * 2
-        r = far ? 17 + rng() * 11 : 10 + rng() * 6
+        r = far ? 21 + rng() * 12 : 11 + rng() * 6
         const d = Math.abs((((a - viewAz) % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) - Math.PI)
-        if (far || d > 0.3) break
+        if (far || d > 0.45) break
       }
       const x = Math.cos(a) * r
       const z = Math.sin(a) * r
@@ -356,9 +369,9 @@ export class Orchard {
         const cs = s * (0.55 + rng() * 0.6)
         m.compose(
           pos.set(
-            x + (rng() - 0.5) * 3.0 * s,
-            y + (1.15 + rng() * 1.7) * s,
-            z + (rng() - 0.5) * 3.0 * s,
+            x + (rng() - 0.5) * 1.15 * s,
+            y + (1.35 + rng() * 0.95) * s,
+            z + (rng() - 0.5) * 1.15 * s,
           ),
           qt,
           new THREE.Vector3(cs, cs, cs),
@@ -414,7 +427,7 @@ export class Orchard {
       toneMapped: false,
     })
     const sprite = new THREE.Sprite(mat)
-    sprite.scale.setScalar(3.2)
+    sprite.scale.setScalar(4.0)
     sprite.renderOrder = -1
     this.disposables.push(canvasTex, mat)
     return sprite
@@ -601,7 +614,7 @@ export class Orchard {
   updateSun(rig: LightRig): void {
     this.sunSprite.position.copy(rig.sunDir).multiplyScalar(14).add(new THREE.Vector3(0, 0.5, 0))
     const noon = Math.max(0.2, rig.sunDir.y)
-    this.sunSprite.scale.setScalar(3.0 + (1 - noon) * 1.6)
+    this.sunSprite.scale.setScalar(3.8 + (1 - noon) * 2.0)
     const mat = this.sunSprite.material as THREE.SpriteMaterial
     mat.opacity = 0.42 + noon * 0.3
   }

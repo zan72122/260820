@@ -97,6 +97,29 @@ export class BlushField {
     this.flush()
   }
 
+  /**
+   * Mask-weighted centre of colour, relative to the fruit's own centre. This is
+   * the number that says "the blush moved", which is the whole point of letting
+   * the sheet be moved around.
+   */
+  centroid(out: THREE.Vector3, origin: THREE.Vector3): THREE.Vector3 {
+    let wx = 0
+    let wy = 0
+    let wz = 0
+    let w = 0
+    const n = RES_U * RES_V
+    for (let k = 0; k < n; k++) {
+      const m = this.mask[k]
+      if (m <= 0.001) continue
+      wx += this.worldPos[k * 3] * m
+      wy += this.worldPos[k * 3 + 1] * m
+      wz += this.worldPos[k * 3 + 2] * m
+      w += m
+    }
+    if (w <= 0) return out.set(0, 0, 0)
+    return out.set(wx / w - origin.x, wy / w - origin.y, wz / w - origin.z)
+  }
+
   /** Restore a mask saved in a previous session. */
   loadMask(src: Float32Array): void {
     if (src.length !== this.mask.length) return

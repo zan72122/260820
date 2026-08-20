@@ -11,6 +11,8 @@ type Debug = {
   bagPull: number
   tier: string
   hintLevel: number
+  blushShift: number
+  bounce: number
 }
 
 async function boot(page: Page): Promise<void> {
@@ -64,6 +66,33 @@ test.describe('モモの光のじゅうたん', () => {
     expect(ripened.coverage).toBeGreaterThan(before + 0.05)
   })
 
+  test('the sheet is the light source: rolling it out turns the bounce on', async ({ page }) => {
+    await boot(page)
+    await call(page, 'skip', 2)
+    await call(page, 'bag', 1)
+    await call(page, 'skip', 6)
+
+    // The strip already lying beside the roll is nowhere near the fruit, so
+    // almost nothing comes back before the child pulls it.
+    const rolled = (await debug(page)).bounce
+    expect(rolled).toBeLessThan(0.005)
+    await call(page, 'sheet', 0.3)
+    const partial = (await debug(page)).bounce
+    await call(page, 'sheet', 0.7)
+    const full = (await debug(page)).bounce
+    expect(partial).toBeGreaterThan(rolled)
+    expect(full).toBeGreaterThan(partial)
+    expect(full).toBeGreaterThan(rolled * 10 + 0.02)
+
+    // Folding the far end back really does take light away from the fruit.
+    await call(page, 'skip', 3.2)
+    await call(page, 'fold', 1)
+    const folded = (await debug(page)).bounce
+    expect(folded).toBeLessThan(full * 0.75)
+    await call(page, 'fold', 0)
+    expect((await debug(page)).bounce).toBeCloseTo(full, 3)
+  })
+
   test('where the sheet is put decides where the colour lands', async ({ page }) => {
     await boot(page)
     await call(page, 'skip', 2)
@@ -71,22 +100,21 @@ test.describe('モモの光のじゅうたん', () => {
     await call(page, 'skip', 6)
     await call(page, 'sheet', 1)
     await call(page, 'skip', 3.2)
-    await call(page, 'ripen', 20)
-    const centred = (await debug(page)).coverage
 
-    // Same fruit, same sun; only the sheet moves away.
-    await page.evaluate(() => window.momo!.test.lateral(1))
-    await call(page, 'fold', 1)
-    await call(page, 'ripen', 20)
-    const afterAway = (await debug(page)).coverage
+    await call(page, 'lateral', -1)
+    await call(page, 'ripen', 30)
+    const left = await debug(page)
 
-    await page.evaluate(() => window.momo!.test.lateral(0))
-    await call(page, 'fold', 0)
-    await call(page, 'ripen', 20)
-    const afterBack = (await debug(page)).coverage
+    await call(page, 'lateral', 1)
+    await call(page, 'ripen', 30)
+    const right = await debug(page)
 
-    expect(afterAway).toBeGreaterThanOrEqual(centred)
-    expect(afterBack - afterAway).toBeGreaterThan(afterAway - centred)
+    // Same fruit, same sun, same amount of ripening time: only the sheet moved,
+    // and the centre of colour followed it.
+    expect(right.blushShift).toBeGreaterThan(left.blushShift)
+    expect(right.coverage).toBeGreaterThan(left.coverage)
+    // And nothing anywhere counts as a mistake.
+    expect(right.phase === 'ripening' || right.phase === 'freeplay').toBe(true)
   })
 
   test('nothing breaks under mashing, reversed drags or rotation', async ({ page }) => {
@@ -154,6 +182,17 @@ test.describe('モモの光のじゅうたん', () => {
     await call(page, 'skip', 26)
     const st = await debug(page)
     expect(st.phase).toBe('handoff')
+
+    await page.evaluate(() => window.momo!.test.next())
+    await call(page, 'skip', 1)
+    const next = await debug(page)
+    expect(next.round).toBe(1)
+    // Straight back to a bagged fruit: no opening beat, no repeated lesson.
+    expect(next.phase).toBe('bagged')
+    expect(next.bagPull).toBe(0)
+    expect(next.deploy).toBe(0)
+    await call(page, 'skip', 4)
+    expect((await debug(page)).hintLevel).toBe(1)
 
   })
 })

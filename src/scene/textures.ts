@@ -109,9 +109,9 @@ export function makePeachTextures(seed: number, sutureU = 0, size = 512): PeachT
       // down. The pink is not painted here - the blush mask adds it later.
       const green = smoothstep(0.75, 1.0, v) * 0.5
       const warm = fbmWrapU(u, v, 6, 3, seed + 3)
-      let r = mix(0.79, 0.64, green) + (warm - 0.5) * 0.07
-      let g = mix(0.78, 0.72, green) + (warm - 0.5) * 0.06
-      let b = mix(0.5, 0.4, green) + (warm - 0.5) * 0.06
+      let r = mix(0.78, 0.6, green) + (warm - 0.5) * 0.07
+      let g = mix(0.78, 0.74, green) + (warm - 0.5) * 0.06
+      let b = mix(0.5, 0.38, green) + (warm - 0.5) * 0.06
       const sp = speck(u, v)
       r = mix(r, 0.93, sp * 0.5)
       g = mix(g, 0.9, sp * 0.5)
@@ -120,10 +120,12 @@ export function makePeachTextures(seed: number, sutureU = 0, size = 512): PeachT
       const shade = 1 - (p - 0.5) * 0.09
       // The suture holds shadow and a little more colour than the cheeks.
       const su = (1 - smoothstep(0.006, 0.05, sutureDist(u))) * Math.pow(Math.sin(v * Math.PI), 0.5)
-      const groove = 1 - su * 0.3
+      // Neutral shading in the crease: tinting it unevenly turns the suture
+      // into a lavender stripe, which no peach has.
+      const groove = 1 - su * 0.26
       out[0] = r * shade * groove
-      out[1] = g * shade * groove * (1 - su * 0.06)
-      out[2] = b * shade * groove * (1 - su * 0.08)
+      out[1] = g * shade * groove
+      out[2] = b * shade * groove
       out[3] = 1
     },
     true,
@@ -410,9 +412,9 @@ export function makeGroundTextures(seed: number, size = 512): SurfaceTextures {
     (u, v, out) => {
       // Mown orchard floor: grass with soil showing through, not bare desert.
       const s = soil(u, v)
-      let r = 0.2 + s * 0.12
-      let g = 0.27 + s * 0.17
-      let b = 0.12 + s * 0.07
+      let r = 0.22 + s * 0.14
+      let g = 0.28 + s * 0.18
+      let b = 0.12 + s * 0.06
       const bare = smoothstep(0.55, 0.86, fbm2(u * 5.5, v * 5.2, 4, seed + 33))
       r = mix(r, 0.3 + s * 0.16, bare * 0.85)
       g = mix(g, 0.24 + s * 0.14, bare * 0.85)
@@ -464,11 +466,12 @@ export function makeSkyTexture(size = 256): THREE.DataTexture {
         g = mix(g, 0.97, cloud)
         b = mix(b, 0.98, cloud)
       } else {
-        // Ground hemisphere: warm orchard bounce, so ambient is not blue-grey.
+        // Ground hemisphere. It must start from exactly the horizon colour, or
+        // a tan band appears above the far edge of the terrain.
         const t = Math.pow(-el, 0.7)
-        r = mix(0.62, 0.3, t)
-        g = mix(0.63, 0.31, t)
-        b = mix(0.5, 0.2, t)
+        r = mix(0.72, 0.32, t)
+        g = mix(0.83, 0.33, t)
+        b = mix(0.95, 0.24, t)
       }
       const i = (y * w + x) * 4
       data[i] = clamp01(r) * 255
@@ -536,10 +539,10 @@ export function makeGrassTexture(seed: number, size = 128): { map: THREE.DataTex
     size,
     (u, v, out) => {
       const { tone } = cover(u, v)
-      const shade = 0.62 + v * 0.55
-      out[0] = (0.24 + tone * 0.18) * shade
-      out[1] = (0.42 + tone * 0.24) * shade
-      out[2] = (0.15 + tone * 0.1) * shade
+      const shade = 0.68 + v * 0.62
+      out[0] = (0.32 + tone * 0.2) * shade
+      out[1] = (0.5 + tone * 0.26) * shade
+      out[2] = (0.2 + tone * 0.12) * shade
       out[3] = 1
     },
     true,

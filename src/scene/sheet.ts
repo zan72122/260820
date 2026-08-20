@@ -120,7 +120,7 @@ export class ReflectorSheet {
         sheen: 0.12,
         sheenColor: new THREE.Color(0xffffff),
         sheenRoughness: 0.92,
-        envMapIntensity: 0.26,
+        envMapIntensity: 0.16,
       }),
       rig,
       {

@@ -42,12 +42,14 @@ export class LightRig {
     this.sun.shadow.normalBias = 0.016
     this.sun.shadow.radius = q.softShadow ? 2.6 : 1
     const cam = this.sun.shadow.camera
-    cam.left = -1.6
-    cam.right = 1.6
-    cam.top = 1.9
-    cam.bottom = -0.5
-    cam.near = 0.4
-    cam.far = 9
+    // Wide enough to hold the fruit, the branch and the whole spread sheet even
+    // with the sun low: a tight frustum silently drops the ground shadows.
+    cam.left = -2.3
+    cam.right = 2.3
+    cam.top = 2.3
+    cam.bottom = -2.3
+    cam.near = 1.2
+    cam.far = 11
     cam.updateProjectionMatrix()
     scene.add(this.sun)
     scene.add(this.target)
@@ -102,7 +104,7 @@ export class LightRig {
     const el = (9 + 14 * Math.sin(Math.PI * Math.min(1, Math.max(0, t)))) * DEG
     const ce = Math.cos(el)
     this.sunDir.set(Math.sin(az) * ce, Math.sin(el), Math.cos(az) * ce).normalize()
-    this.sun.position.copy(this.sunDir).multiplyScalar(5.2).add(this.target.position)
+    this.sun.position.copy(this.sunDir).multiplyScalar(6).add(this.target.position)
 
     // Warmer and weaker near the ends of the arc.
     const noon = Math.sin(Math.PI * t)

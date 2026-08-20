@@ -129,7 +129,7 @@ void main() {
   vec3 base = mix(uDownColor, uDownColor * vec3(1.02, 0.76, 0.72), smoothstep(0.15, 0.9, blush));
   vec3 lit = base * (0.22 + sun * 0.62 + trans) * uSunColor + uSheetTint * bnc * 1.5;
 
-  gl_FragColor = vec4(lit, clamp(a, 0.0, 0.34));
+  gl_FragColor = vec4(lit, clamp(a, 0.0, 0.42));
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
 }
@@ -248,7 +248,7 @@ export class Peach {
     this.disposeShells()
     const count = this.q.fuzzShells
     if (count <= 0) return
-    const step = this.shape.radius * 0.0042
+    const step = this.shape.radius * 0.009
     for (let i = 0; i < count; i++) {
       const mat = new THREE.ShaderMaterial({
         vertexShader: SHELL_VERT,

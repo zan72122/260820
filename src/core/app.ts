@@ -36,6 +36,7 @@ import { makeSkyTexture } from '../scene/textures'
 import { makePeachShape } from '../scene/peachShape'
 import { BLUSH_RES_U, BLUSH_RES_V } from '../sim/blush'
 import { groundHeight } from '../scene/terrain'
+import { bounceIrradiance } from '../sim/lightMath'
 
 const MAX_DT = 0.05
 const GROUND_PLANE = new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.008)
@@ -94,6 +95,7 @@ export class Game {
   private hintPulse = 0
   private hintCycle = 0
   private preMoveT = 0
+  private sunHint = 0
   private framingBias = 0
   private framingBiasGoal = 0
   private maxAlong = 0
@@ -143,7 +145,7 @@ export class Game {
 
     this.sky = makeSkyTexture()
     this.scene.background = this.sky
-    this.scene.fog = new THREE.Fog(0xbdd2e4, 14, 40)
+    this.scene.fog = new THREE.Fog(0xbdd2e4, 8, 34)
     this.pmrem = new THREE.PMREMGenerator(this.renderer)
     this.envRT = this.pmrem.fromEquirectangular(this.sky)
     this.scene.environment = this.envRT.texture
@@ -223,7 +225,7 @@ export class Game {
     this.peach.syncTransform()
     this.motes.setCenter(new THREE.Vector3(this.peachWorld.x, 0.5, this.peachWorld.z))
     this.shots = this.buildShots()
-    this.bagRest.set(this.peachWorld.x - 0.38, 0, this.peachWorld.z + 0.42)
+    this.bagRest.set(this.peachWorld.x - 0.26, 0, this.peachWorld.z - 0.56)
     if (!initial) this.cam.moveTo(this.shots.wide, 1.2)
   }
 
@@ -235,8 +237,8 @@ export class Game {
     return {
       // Bagged fruit, rolled sheet and soil all in one read.
       wide: {
-        target: at(0.3, -0.4, 0.02),
-        landscape: f(42, 1.4, 1.12, v(0.64, 0.12, 0.76), 0.1),
+        target: at(0.3, -0.36, 0.02),
+        landscape: f(42, 1.5, 1.38, v(0.64, 0.12, 0.76), 0.08),
         portrait: f(48, 0.95, 1.45, v(0.7, 0.13, 0.71), 0.14),
       },
       // Closer for the bag, but the whole fruit and the hem stay in frame.
@@ -248,14 +250,14 @@ export class Game {
       // Down near the soil: the roll turning, the sheet spreading and the fruit
       // above it live in one depth.
       sheet: {
-        target: at(0.2, -0.52, 0.02),
-        landscape: f(46, 1.45, 1.15, v(0.66, 0.04, 0.75), 0.1),
+        target: at(0.2, -0.44, 0.02),
+        landscape: f(46, 1.55, 1.42, v(0.66, 0.05, 0.75), 0.1),
         portrait: f(52, 0.86, 1.5, v(0.74, 0.03, 0.67), 0.2),
       },
       // The causal frame: sun above, sheet below, fruit between them.
       causal: {
-        target: at(0.06, -0.51, 0.0),
-        landscape: f(48, 1.4, 1.2, v(0.64, 0.02, 0.77), 0.1),
+        target: at(0.06, -0.38, 0.0),
+        landscape: f(48, 1.5, 1.45, v(0.64, 0.02, 0.77), 0.1),
         portrait: f(56, 0.85, 1.55, v(0.72, 0.01, 0.69), 0.24),
       },
       // Close enough for the down and the colour gradient, no closer.
@@ -266,8 +268,8 @@ export class Game {
       },
       // Free placement: sheet and fruit must both stay readable.
       play: {
-        target: at(0.16, -0.46, 0.02),
-        landscape: f(44, 1.4, 1.15, v(0.62, 0.08, 0.78), 0.1),
+        target: at(0.16, -0.38, 0.02),
+        landscape: f(44, 1.5, 1.38, v(0.62, 0.09, 0.78), 0.08),
         portrait: f(50, 0.85, 1.5, v(0.72, 0.06, 0.69), 0.18),
       },
     }
@@ -382,6 +384,13 @@ export class Game {
       this.swapT = 0
       this.sound.paper(0.6)
     }
+    if (best.id === 'look') {
+      // Tapping the fruit itself: a fingertip on skin, and nothing else.
+      const sp = { x: 0, y: 0 }
+      if (this.screenOf(this.peachWorld, sp)) {
+        if (Math.hypot(sp.x - p.x, sp.y - p.y) < base * 0.9) this.sound.touchFruit()
+      }
+    }
     this.framingBiasGoal = best.id === 'bag' ? 0 : -0.075
   }
 
@@ -482,7 +491,10 @@ export class Game {
     if (target === 'bag' && strong > 0.001) {
       this.bag.pull = Math.max(this.state.bagPull, this.state.bagPull + strong * 0.09)
     }
-    if (target === 'sun' && strong > 0.001) this.sound.breeze(strong * 0.3)
+    // The sun's hint is the sun itself drifting a little and coming back - the
+    // move the child is being invited to make, shown rather than described.
+    this.sunHint = target === 'sun' ? this.hintPulse * (this.state.hintLevel >= 2 ? 0.05 : 0.018) : 0
+    if (target === 'sun' && this.hintPulse > 0.01) this.sound.breeze(this.hintPulse * 0.3)
   }
 
   /**
@@ -511,7 +523,7 @@ export class Game {
       this.bag.pull = 1
       const e = OFF[s.phase] ? 1 : Math.min(1, s.phaseTimer / 1.55)
       const restLocal = this.orchard.branchGroup.worldToLocal(
-        this.tmpV.set(this.bagRest.x, groundHeight(this.bagRest.x, this.bagRest.z) + 0.03, this.bagRest.z),
+        this.tmpV.set(this.bagRest.x, groundHeight(this.bagRest.x, this.bagRest.z) + 0.075, this.bagRest.z),
       )
       this.bag.group.position
         .set(this.layout.peachPos.x, this.layout.peachPos.y + 0.012, this.layout.peachPos.z)
@@ -591,6 +603,7 @@ export class Game {
     this.bagLanded = false
     this.bag.group.rotation.set(0, 0, 0)
     this.firstLightDone = false
+    this.cam.yawOffset = 0
     this.placeRound(this.layout, false)
     this.rig.setSunT(this.state.sunT)
     this.cam.cut(this.shotForPhase())
@@ -606,7 +619,7 @@ export class Game {
     this.updateBag(dt)
     this.updateSheetPose()
     this.sheet.update(dt)
-    this.rig.setSunT(this.state.sunT)
+    this.rig.setSunT(Math.min(0.96, this.state.sunT + this.sunHint))
     this.rig.setTime(this.time)
     this.orchard.updateSun(this.rig)
 
@@ -662,6 +675,21 @@ export class Game {
 
   // ---------------------------------------------------------------- lifecycle
 
+  /** Read the live safe-area insets that CSS exposes on :root. */
+  private safeArea(): { w: number; h: number } {
+    const cs = getComputedStyle(document.documentElement)
+    const px = (name: string) => {
+      const v = parseFloat(cs.getPropertyValue(name))
+      return Number.isFinite(v) ? v : 0
+    }
+    const w = Math.max(1, window.innerWidth)
+    const h = Math.max(1, window.innerHeight)
+    return {
+      w: Math.max(0.6, (w - px('--safe-l') - px('--safe-r')) / w),
+      h: Math.max(0.6, (h - px('--safe-t') - px('--safe-b')) / h),
+    }
+  }
+
   private resize(): void {
     const w = Math.max(1, Math.round(window.innerWidth))
     const h = Math.max(1, Math.round(window.innerHeight))
@@ -670,7 +698,11 @@ export class Game {
     this.renderer.setSize(w, h, false)
     this.canvas.style.width = `${w}px`
     this.canvas.style.height = `${h}px`
-    if (this.cam) this.cam.setAspect(w / h)
+    if (this.cam) {
+      this.cam.setAspect(w / h)
+      const safe = this.safeArea()
+      this.cam.setSafeArea(safe.w, safe.h)
+    }
   }
 
   private bindWindow(): void {
@@ -738,18 +770,61 @@ export class Game {
       tier: this.tier,
       renderScale: Number(this.governor.renderScale.toFixed(3)),
       hintLevel: this.state.hintLevel,
+      // Where the colour actually sits on the fruit, along the axis the sheet
+      // swings on. This is what has to move when the sheet moves.
+      blushShift: Number(
+        this.peach.blush
+          .centroid(this.tmpV, this.peachWorld)
+          .dot(this.tmpV2.set(-this.layout.sheetDir.z, 0, this.layout.sheetDir.x))
+          .toFixed(4),
+      ),
+      bounce: Number(
+        bounceIrradiance(
+          { x: this.peachWorld.x, y: this.peachWorld.y - this.peach.shape.radius * 0.8, z: this.peachWorld.z },
+          { x: 0, y: -1, z: 0 },
+          this.rig.sheetState,
+          { x: this.rig.sunDir.x, y: this.rig.sunDir.y, z: this.rig.sunDir.z },
+          this.rig.sunStrength,
+        ).toFixed(4),
+      ),
     }
   }
 
   /** Test hook: drive the game without a real finger. */
   testApi(): Record<string, (...args: number[]) => void> {
+    // Every hook republishes the sheet quad and the sun before returning, so a
+    // probe taken straight afterwards sees the same world the next frame will.
+    const sync = () => {
+      this.updateSheetPose()
+      this.sheet.rebuildGeometry()
+      this.rig.setSunT(this.state.sunT)
+      this.peach.syncTransform()
+    }
     return {
-      bag: (amount: number) => pullBag(this.state, amount),
-      sheet: (amount: number) => pullSheet(this.state, amount),
-      lateral: (amount: number) => placeSheet(this.state, { lateral: amount }),
-      fold: (amount: number) => placeSheet(this.state, { fold: amount }),
-      reach: (amount: number) => placeSheet(this.state, { reach: amount }),
-      sun: (amount: number) => moveSun(this.state, amount),
+      bag: (amount: number) => {
+        pullBag(this.state, amount)
+        sync()
+      },
+      sheet: (amount: number) => {
+        pullSheet(this.state, amount)
+        sync()
+      },
+      lateral: (amount: number) => {
+        placeSheet(this.state, { lateral: amount })
+        sync()
+      },
+      fold: (amount: number) => {
+        placeSheet(this.state, { fold: amount })
+        sync()
+      },
+      reach: (amount: number) => {
+        placeSheet(this.state, { reach: amount })
+        sync()
+      },
+      sun: (amount: number) => {
+        moveSun(this.state, amount)
+        sync()
+      },
       skip: (seconds: number) => {
         for (let i = 0; i < Math.round(seconds / 0.05); i++) {
           this.time += 0.05
@@ -761,9 +836,7 @@ export class Game {
         this.swapT = 0
       },
       ripen: (steps: number) => {
-        this.updateSheetPose()
-        this.sheet.rebuildGeometry()
-        this.peach.syncTransform()
+        sync()
         for (let i = 0; i < steps; i++) {
           this.peach.update(0.1, 0.9, this.orchard.occluders)
         }

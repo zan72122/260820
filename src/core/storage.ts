@@ -61,11 +61,3 @@ export function snapshotMask(snap: Snapshot, into: Float32Array, w: number, h: n
   for (let i = 0; i < into.length; i++) into[i] = bytes[i] / 255
   return true
 }
-
-export function clearSnapshot(): void {
-  try {
-    sessionStorage.removeItem(KEY)
-  } catch {
-    /* ignore */
-  }
-}

@@ -58,6 +58,9 @@ export class CameraRig {
   private cur: Resolved
   private blend = 1
   private blendSpeed = 0.6
+  /** Fraction of the viewport that is not under a notch / home indicator. */
+  private safeW = 1
+  private safeH = 1
 
   constructor(shot: Shot, aspect: number) {
     this.camera = new THREE.PerspectiveCamera(40, aspect, 0.05, 60)
@@ -82,11 +85,19 @@ export class CameraRig {
     }
   }
 
+  /** Insets are given as the safe fraction of each axis, in (0, 1]. */
+  setSafeArea(fracW: number, fracH: number): void {
+    this.safeW = Math.min(1, Math.max(0.6, fracW))
+    this.safeH = Math.min(1, Math.max(0.6, fracH))
+    this.apply()
+  }
+
   private fitDistance(r: Resolved): number {
     const vHalf = (r.fov * Math.PI) / 360
     const hHalf = Math.atan(Math.tan(vHalf) * this.camera.aspect)
-    const dv = r.h * 0.5 / Math.max(0.02, Math.tan(vHalf))
-    const dh = r.w * 0.5 / Math.max(0.02, Math.tan(hHalf))
+    // Fit inside the safe area, not the glass: a notch must never crop the fruit.
+    const dv = r.h * 0.5 / this.safeH / Math.max(0.02, Math.tan(vHalf))
+    const dh = r.w * 0.5 / this.safeW / Math.max(0.02, Math.tan(hHalf))
     return Math.max(dv, dh)
   }
 
