@@ -4,14 +4,15 @@ import { chromium, devices } from 'playwright';
 import fs from 'node:fs';
 
 const PROFILES = {
-  'iphone-portrait': { width: 390, height: 844, dsf: 3 },
-  'iphone-landscape': { width: 844, height: 390, dsf: 3 },
-  'ipad-portrait': { width: 820, height: 1180, dsf: 2 },
-  'ipad-landscape': { width: 1180, height: 820, dsf: 2 },
+  'iphone-portrait': { width: 390, height: 844, dsf: 2 },
+  'iphone-landscape': { width: 844, height: 390, dsf: 2 },
+  'ipad-portrait': { width: 820, height: 1180, dsf: 1 },
+  'ipad-landscape': { width: 1180, height: 820, dsf: 1 },
 };
 
 const name = process.argv[2] || 'iphone-portrait';
 const outDir = process.argv[3] || 'shots';
+const stopAfter = Number(process.argv[4] || 0);
 const profile = PROFILES[name];
 if (!profile) throw new Error('unknown profile ' + name);
 fs.mkdirSync(outDir, { recursive: true });
@@ -58,7 +59,8 @@ const state = () =>
     route: window.__dig.route(),
   }));
 
-const shot = (tag) => page.screenshot({ path: `${outDir}/${name}-${tag}.png` });
+const shot = (tag) =>
+  page.screenshot({ path: `${outDir}/${name}-${tag}.png`, timeout: 120000 });
 
 // tap to start
 await page.mouse.move(profile.width / 2, profile.height / 2);
@@ -92,6 +94,7 @@ while (Date.now() < deadline && guard++ < 4000) {
       // let the camera settle so the frame shows the real composition
       await page.waitForTimeout(1400);
       await shot(`${String(seen.size).padStart(2, '0')}-s${s.site}-${s.phase}`);
+      if (stopAfter && seen.size >= stopAfter) break;
     }
   }
 
@@ -146,6 +149,10 @@ while (Date.now() < deadline && guard++ < 4000) {
       const t = (Math.sin(i * 0.22) + 1) / 2;
       await page.mouse.move(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t);
       await page.waitForTimeout(65);
+      if (i === 24 && !seen.has('water-live')) {
+        seen.add('water-live');
+        await shot('live-water');
+      }
     }
     await release();
   } else if (s.phase === 'vacuum') {
@@ -158,6 +165,10 @@ while (Date.now() < deadline && guard++ < 4000) {
       const t = (Math.sin(i * 0.18) + 1) / 2;
       await page.mouse.move(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t);
       await page.waitForTimeout(60);
+      if (i === 30 && !seen.has('vac-live')) {
+        seen.add('vac-live');
+        await shot('live-vacuum');
+      }
     }
     await release();
   } else if (s.phase === 'depth') {

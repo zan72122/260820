@@ -94,15 +94,3 @@ body {
   }
 }
 
-#rotate {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  background: rgba(8, 11, 15, 0.86);
-  pointer-events: none;
-}
-
-#rotate[hidden] {
-  display: none;
-}

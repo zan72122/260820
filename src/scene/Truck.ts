@@ -34,7 +34,7 @@ export class Truck {
   constructor(quality: number) {
     const seg = quality >= 1 ? 20 : 10;
     const bodyMat = new THREE.MeshStandardMaterial({
-      map: paintTexture(0xa8a79f, 256),
+      map: paintTexture(0xb7b5ad, 256),
       roughness: 0.66,
       metalness: 0.12,
     });
@@ -82,6 +82,28 @@ export class Truck {
     bumper.position.set(3.55, 1.02, 0);
     bumper.castShadow = true;
     this.group.add(bumper);
+    const grille = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.42, 1.7), darkSteel);
+    grille.position.set(3.47, 1.52, 0);
+    this.group.add(grille);
+    for (const z of [-0.82, 0.82]) {
+      const lamp = new THREE.Mesh(
+        new THREE.BoxGeometry(0.07, 0.2, 0.3),
+        new THREE.MeshStandardMaterial({ color: 0xbfc4c8, roughness: 0.22, metalness: 0.35 })
+      );
+      lamp.position.set(3.46, 1.46, z);
+      this.group.add(lamp);
+      const mirrorArm = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.34, 6), steel);
+      mirrorArm.rotation.x = Math.PI / 2;
+      mirrorArm.position.set(3.2, 2.32, z * 1.5);
+      this.group.add(mirrorArm);
+      const mirror = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.42, 0.16), darkSteel);
+      mirror.position.set(3.2, 2.32, z * 1.72);
+      mirror.castShadow = true;
+      this.group.add(mirror);
+    }
+    const step = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.05, 0.36), steel);
+    step.position.set(2.3, 0.86, 1.16);
+    this.group.add(step);
     // parked amber beacon, unlit
     const beacon = new THREE.Mesh(
       new THREE.CylinderGeometry(0.09, 0.1, 0.13, 10),

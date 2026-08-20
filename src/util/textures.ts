@@ -172,7 +172,7 @@ export function paintTexture(hex: number, size = 256): THREE.Texture {
   // low grime band (splash from wheels)
   const grad = ctx.createLinearGradient(0, size * 0.62, 0, size);
   grad.addColorStop(0, 'rgba(58,46,34,0)');
-  grad.addColorStop(1, 'rgba(58,46,34,0.5)');
+  grad.addColorStop(1, 'rgba(58,46,34,0.34)');
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, size, size);
   const t = finish(c, 1);

@@ -333,7 +333,7 @@ export class Game {
     this.particleScale = q.particleScale;
     this.soilFx.setCapacity(Math.round(260 * q.particleScale));
     this.dropFx.setCapacity(Math.round(110 * q.particleScale));
-    this.env.applyQuality(q.shadowSize >= 2048 ? 2 : q.shadowSize >= 1024 ? 1 : 0);
+    this.env.applyQuality(q.shadowSize >= 2048 ? 2 : q.shadowSize >= 1024 ? 1 : 0, q.farProps);
   }
 
   // ------------------------------------------------------------------ input
@@ -456,7 +456,10 @@ export class Game {
     if (outgoing && outgoing !== incoming) {
       const p = this.parkSpot(this.tool).clone();
       outgoing.aim(p, this.tmp2.set(p.x + 0.5, 0, p.z + 0.5), 0.85, dt);
-      if (t > 0.5 && this.tool !== 'nozzle') outgoing.setVisible(false);
+      if (t > 0.5 && this.tool !== 'nozzle') {
+        outgoing.setVisible(false);
+        if (this.tool === 'lance') this.waterHose.setVisible(false);
+      }
     }
     if (incoming && t > 0.42) {
       if (!incoming.group.visible) {

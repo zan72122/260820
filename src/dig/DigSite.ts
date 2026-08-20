@@ -92,6 +92,7 @@ export class DigSite {
   readonly base: Float32Array;
   /** 0..1 per vertex: soil actually cleared off the buried surface. */
   readonly cut: Float32Array;
+  private grain: Float32Array;
 
   private mesh: THREE.Mesh;
   private geo: THREE.BufferGeometry;
@@ -125,6 +126,7 @@ export class DigSite {
     this.cap = new Float32Array(count);
     this.base = new Float32Array(count);
     this.cut = new Float32Array(count);
+    this.grain = new Float32Array(count);
 
     this.geo = new THREE.PlaneGeometry(this.size, this.size, this.n - 1, this.n - 1);
     this.geo.rotateX(-Math.PI / 2);
@@ -182,6 +184,7 @@ export class DigSite {
         // micro relief, faded out at the patch border so it meets the flat lot
         const edge = smoothstep(half, half * 0.72, Math.max(Math.abs(x), Math.abs(z)));
         this.base[i] = (fbm2(x * 5.5 + this.origin.x, z * 5.5 + this.origin.z, 3, 5) - 0.5) * 0.028 * edge;
+        this.grain[i] = 0.96 + fbm2(c, r, 2, 3) * 0.09;
         const clearance = pipeClearanceY(this.pipes, x, z, PIPE_MARGIN);
         this.cap[i] = clearance === -Infinity ? MAX_DEPTH : Math.min(MAX_DEPTH, -clearance);
         if (this.cap[i] < 0) this.cap[i] = 0;
@@ -479,7 +482,7 @@ export class DigSite {
     for (let i = 0; i < this.depth.length; i++) {
       ca[i] = this.cut[i];
       this.layerColor(this.depth[i], this.tmpColor);
-      const grain = 0.96 + fbm2(i % this.n, Math.floor(i / this.n), 2, 3) * 0.09;
+      const grain = this.grain[i];
       arr[i * 3] = this.tmpColor.r * grain;
       arr[i * 3 + 1] = this.tmpColor.g * grain;
       arr[i * 3 + 2] = this.tmpColor.b * grain;

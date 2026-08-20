@@ -112,7 +112,7 @@ export class Environment {
     this.group.add(this.buildBackdrop(quality, rng));
     this.group.add(this.buildLoosePebbles(rng, quality));
 
-    const hemi = new THREE.HemisphereLight(0xb6cbe0, 0x715f45, 1.15);
+    const hemi = new THREE.HemisphereLight(0xb6cbe0, 0x7b6950, 1.32);
     this.group.add(hemi);
     this.group.add(new THREE.AmbientLight(0xdae2ea, 0.2));
 
@@ -145,7 +145,7 @@ export class Environment {
     this.sun.position.set(point.x - 5.0, 8.0, point.z - 4.2);
   }
 
-  applyQuality(quality: number) {
+  applyQuality(quality: number, farProps = quality >= 1) {
     const size = quality >= 2 ? 2048 : quality >= 1 ? 1024 : 512;
     if (this.sun.shadow.mapSize.width !== size) {
       this.sun.shadow.mapSize.set(size, size);
@@ -154,7 +154,7 @@ export class Environment {
         this.sun.shadow.map = null as unknown as THREE.WebGLRenderTarget;
       }
     }
-    for (const o of this.farProps) o.visible = quality >= 1;
+    for (const o of this.farProps) o.visible = farProps;
   }
 
   // ---------------------------------------------------------------------
