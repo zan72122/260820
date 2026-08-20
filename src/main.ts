@@ -124,6 +124,22 @@ async function main(): Promise<void> {
       game.ctx.input.simulate('up', x1, y1);
       game.frame(1 / 60);
     },
+    /** Low-level gesture primitives: press, move, release, each ticking a frame. */
+    press(x: number, y: number) { game.ctx.input.simulate('down', x, y); game.frame(1 / 60); },
+    move(x: number, y: number, steps = 1) {
+      const f = game.ctx.input.frame;
+      const x0 = f.px, y0 = f.py;
+      for (let i = 1; i <= steps; i++) {
+        const t = i / steps;
+        game.ctx.input.simulate('move', x0 + (x - x0) * t, y0 + (y - y0) * t);
+        game.frame(1 / 60);
+      }
+    },
+    release(x?: number, y?: number) {
+      const f = game.ctx.input.frame;
+      game.ctx.input.simulate('up', x ?? f.px, y ?? f.py);
+      game.frame(1 / 60);
+    },
     /** Scrub in a loop over the stone, the way a child actually washes it. */
     rub(cx: number, cy: number, rx = 46, ry = 34, laps = 3, samples = 24) {
       const total = laps * samples;

@@ -116,7 +116,7 @@ export function createShellMaterial(un: ShellUniforms): MeshPhysicalMaterial {
 
       // ---- relief ---------------------------------------------------------
       float height = mix(
-        crag * 1.0 + lump * 0.40 + grain * 0.10,
+        crag * 1.15 + lump * 0.45 + grain * 0.12,
         mudCake * 1.0 + mudGrit * 0.35,
         mudMask);
       height = mix(height, height * 0.80, wet);
@@ -128,7 +128,7 @@ export function createShellMaterial(un: ShellUniforms): MeshPhysicalMaterial {
       gRough = clamp(rough, 0.05, 1.0);
       gMetal = 0.0;
       gHeight = height;
-      gBumpScale = mix(0.023, 0.019, mudMask) * mix(1.0, 0.7, rim) * mix(1.0, 0.8, wet);
+      gBumpScale = mix(0.029, 0.021, mudMask) * mix(1.0, 0.85, rim) * mix(1.0, 0.82, wet);
       gEmiss = hueLin * ((hint * 0.40 + seamLine * seamBand * 0.55) * uSeamGlow + stressGlow * 0.75);
     `,
     params: { roughness: 0.8, metalness: 0, envMapIntensity: 0.85 },

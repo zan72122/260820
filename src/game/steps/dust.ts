@@ -16,7 +16,7 @@ let doneT = 0;
 let lastPuff = 0;
 let settled = 0;
 
-const DONE_POWDER = 0.16;
+const DONE_POWDER = 0.18;
 const SETTLE = 0.9;
 const GIVE_UP_AFTER = 45;
 
@@ -65,7 +65,7 @@ export const dustStep: Step = {
         const mesh = hit.object as Mesh;
         const speed = Math.hypot(f.vx, f.vy);
         const sweep = clamp(speed * 0.85, 0, 1.4);
-        g.dustAt(_hit, mesh, 0.085 + sweep * 0.030, 0.28 + sweep * 0.34);
+        g.dustAt(_hit, mesh, 0.105 + sweep * 0.035, 0.34 + sweep * 0.34);
 
         if (sweep > 0.06 && ctx.time - lastPuff > 0.045) {
           lastPuff = ctx.time;

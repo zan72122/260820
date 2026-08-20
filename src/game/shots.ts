@@ -36,8 +36,8 @@ export const SHOTS: Record<string, Shot> = {
   hold: shot('hold', [C.x + 0.34, 1.40, 1.95], [C.x + 0.16, 0.98, -0.10], 1.10, 42, 1.8, 0.95),
 
   // Low, reverent, the velvet catching the last of the light.
-  display: shot('display', [P.x - 0.34, 1.06, 1.34], [P.x, P.y - 0.06, P.z - 0.24], 0.86, 38, 1.5, 0.5),
+  display: shot('display', [P.x - 0.26, 1.02, 1.26], [P.x - 0.05, P.y - 0.08, P.z - 0.26], 0.82, 38, 1.5, 0.5),
 
   // Slow drift around the finished stone while the choices fade in.
-  displayArc: shot('displayArc', [P.x + 0.50, 1.12, 1.26], [P.x, P.y - 0.06, P.z - 0.24], 0.90, 38, 0.5, 0.5),
+  displayArc: shot('displayArc', [P.x + 0.40, 1.08, 1.20], [P.x - 0.05, P.y - 0.08, P.z - 0.26], 0.86, 38, 0.5, 0.5),
 };

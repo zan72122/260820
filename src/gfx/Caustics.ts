@@ -58,27 +58,31 @@ export class Caustics {
         void main() {
           vec2 uvc = vUv - 0.5;
           float t = uTime * 0.55 + uSweep * 2.4;
-          vec2 p = uvc * 7.0 + vec2(uSweep * 1.4, 0.0);
-          float c = cells(p, t);
-          float fil = smoothstep(0.42, 0.02, c);
-          float c2 = cells(p * 1.9 + 13.0, t * 1.4);
-          fil = max(fil, smoothstep(0.30, 0.02, c2) * 0.55);
+          vec2 p = uvc * 13.0 + vec2(uSweep * 1.4, 0.0);
+          // Warp before sampling: an unwarped Worley border set reads as a
+          // honeycomb, and caustics are anything but regular.
+          p += 0.9 * vec2(sin(p.y * 0.83 + t * 1.1), cos(p.x * 0.71 - t * 0.8));
+          float fil = pow(smoothstep(0.22, 0.005, cells(p, t)), 2.2);
+          vec2 p2 = p * vec2(2.3, 1.4) + 13.0;
+          fil = max(fil, pow(smoothstep(0.16, 0.005, cells(p2, t * 1.5)), 2.4) * 0.6);
+          // Patchy brightness so the filaments swell and fade along their length.
+          fil *= 0.30 + 1.15 * smoothstep(0.15, 0.75, cells(uvc * 3.1 + 7.0, t * 0.6));
 
           // Soft elliptical pool so the projection has an edge.
-          float falloff = smoothstep(0.52, 0.10, length(uvc * vec2(1.0, 1.25)));
+          float falloff = smoothstep(0.50, 0.06, length(uvc * vec2(1.0, 1.25)));
           float a = fil * falloff * uIntensity;
           if (a < 0.004) discard;
-          vec3 col = mix(uColor, vec3(1.0), fil * 0.35);
+          vec3 col = mix(uColor * 1.7, vec3(1.0), fil * 0.18);
           gl_FragColor = vec4(col * a, a);
         }`,
     });
 
-    this.bench = new Mesh(new PlaneGeometry(2.6, 2.0), this.material);
+    this.bench = new Mesh(new PlaneGeometry(1.7, 1.3), this.material);
     this.bench.rotation.x = -Math.PI / 2;
     this.bench.renderOrder = 3;
     this.bench.visible = false;
 
-    this.wall = new Mesh(new PlaneGeometry(3.2, 2.4), this.material);
+    this.wall = new Mesh(new PlaneGeometry(2.1, 1.6), this.material);
     this.wall.renderOrder = 3;
     this.wall.visible = false;
   }

@@ -17,7 +17,7 @@ import {
 export const STATION = {
   wash: new Vector3(-0.86, 0.500, 0.10),
   cradle: new Vector3(0.46, 0.560, -0.02),
-  pedestal: new Vector3(1.62, 0.600, 0.20),
+  pedestal: new Vector3(1.40, 0.600, 0.20),
 };
 
 const UP = new Vector3(0, 1, 0);
@@ -303,8 +303,8 @@ export class Workshop {
     lamp.position.set(-1.9, 1.25, 1.25);
     this.root.add(lamp);
 
-    this.spot = new SpotLight(0xfff2dc, 0, 4.5, 0.52, 0.62, 1.4);
-    this.spot.position.set(STATION.pedestal.x + 0.25, 2.15, STATION.pedestal.z + 0.85);
+    this.spot = new SpotLight(0xfff2dc, 0, 5.0, 0.46, 0.55, 1.0);
+    this.spot.position.set(STATION.pedestal.x + 0.20, 1.95, STATION.pedestal.z + 0.75);
     this.spot.target.position.set(STATION.pedestal.x, 0.5, STATION.pedestal.z);
     this.root.add(this.spot, this.spot.target);
 

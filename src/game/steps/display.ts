@@ -56,12 +56,12 @@ export const displayStep: Step = {
 
     // The room bows out; only the stone is lit.
     ws.mood = 0.16;
-    ws.spot.intensity = damp(ws.spot.intensity, 3.6, 1.8, dt);
+    ws.spot.intensity = damp(ws.spot.intensity, 11.0, 1.8, dt);
 
     const care = clamp((ctx.session.washQuality + ctx.session.dustQuality) * 0.5);
     g.uCrystalGlow.value = damp(g.uCrystalGlow.value, 0.95 + care * 0.4, 2, dt);
     g.uSparkle.value = damp(g.uSparkle.value, 1.3 + care * 0.6, 2, dt);
-    g.uSeamGlow.value = damp(g.uSeamGlow.value, 0.08, 3, dt);
+    g.uSeamGlow.value = damp(g.uSeamGlow.value, 0.0, 4, dt);
 
     if (!arced && settle > 1.6) {
       arced = true;

@@ -311,7 +311,7 @@ export class Geode {
     const sweep = (x: number, y: number) => {
       mask.paintUV(x, y, radius, radius, strength);
       // Bristles fan out; powder does not leave in a stencilled dot.
-      mask.paintUV(x, y, radius * 1.9, radius * 1.9, strength * 0.28);
+      mask.paintUV(x, y, radius * 2.4, radius * 2.4, strength * 0.34);
     };
     const prev = this.lastDust;
     if (prev) {

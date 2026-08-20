@@ -75,7 +75,7 @@ export class SeamGlow {
   }
 
   update(camera: Camera): void {
-    this.mesh.visible = this.uIntensity.value > 0.002;
+    this.mesh.visible = this.uIntensity.value > 0.02;
     if (!this.mesh.visible) return;
     // Billboard toward the camera, keeping the crack horizontal on screen.
     this.mesh.quaternion.copy(camera.quaternion);

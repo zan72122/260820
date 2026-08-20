@@ -72,10 +72,12 @@ export const placeStep: Step = {
       }
     } else if (held) {
       held = false;
-      const p = spring.value;
+      // Judge by where the finger let go, not by where the (heavy, lagging)
+      // stone had got to — otherwise a correct drag can read as a miss.
+      const dropX = spring.target.x;
       const midX = (STATION.wash.x + STATION.cradle.x) * 0.5;
       // Anything let go past halfway, or flicked rightward, lands in the cradle.
-      if (p.x > midX || f.flickX > 0.35) {
+      if (dropX > midX || f.flickX > 0.35) {
         dropped = true;
         settling = 0;
         ctx.audio.knock(0.85, 0.30);

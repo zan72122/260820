@@ -86,9 +86,9 @@ export const holdStep: Step = {
       spinVel += f.dx * 5.2;
     } else if (held) {
       held = false;
-      const p = spring.value;
+      const dropX = spring.target.x;
       const midX = (STATION.cradle.x + STATION.pedestal.x) * 0.5;
-      if (p.x > midX || f.flickX > 0.4) {
+      if (dropX > midX || f.flickX > 0.4) {
         dropping = true;
         dropT = 0;
         ctx.audio.knock(0.7, 0.20);
@@ -115,7 +115,7 @@ export const holdStep: Step = {
     // --- light show ---
     const height = clamp((g.root.position.y - REST.y) / (LIFT_Y - REST.y));
     const inBeam = smoothstep((height - 0.28) / 0.55);
-    ws.caustics.uIntensity.value = damp(ws.caustics.uIntensity.value, inBeam * 0.95, 4, dt);
+    ws.caustics.uIntensity.value = damp(ws.caustics.uIntensity.value, inBeam * 0.42, 4, dt);
     ws.caustics.uSweep.value = spin * 0.5 + g.root.position.x * 0.7;
     ws.caustics.bench.position.x = damp(ws.caustics.bench.position.x, g.root.position.x, 5, dt);
     ws.caustics.wall.position.x = damp(ws.caustics.wall.position.x, g.root.position.x * 0.7 + 0.1, 4, dt);
@@ -132,7 +132,7 @@ export const holdStep: Step = {
     // The velvet starts asking for it once the player has had their look.
     const invite = smoothstep((ctx.stepTime - 7) / 6);
     ws.pedestal.scale.setScalar(1 + invite * (0.5 + 0.5 * Math.sin(ctx.time * 2.4)) * 0.02);
-    ws.spot.intensity = damp(ws.spot.intensity, invite * 1.4, 2, dt);
+    ws.spot.intensity = damp(ws.spot.intensity, invite * 4.0, 2, dt);
 
     if (!nudged && ctx.stepTime > 9) {
       nudged = true;
