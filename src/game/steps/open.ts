@@ -45,13 +45,12 @@ export const openStep: Step = {
 
     if (!snapped) {
       if (f.justPressed) {
-        const hit = ctx.pick(ctx.shellMeshes());
-        // Grabbing anywhere on the stone works; the lid is the obvious target
-        // but a four-year-old should not have to hit it.
+        // Grabbing anywhere works; the lid is the obvious target but a
+        // four-year-old should not have to hit it.
         dragging = true;
         grabBase = spring.target;
         grabY = f.y;
-        if (hit) ctx.audio.knock(1.8, 0.06);
+        if (ctx.grabbedStone()) ctx.audio.knock(1.8, 0.06);
       }
 
       if (dragging && f.active) {
@@ -101,9 +100,9 @@ export const openStep: Step = {
     // Light escapes in proportion to how far it is open, then the inside takes over.
     const a = g.openAmount;
     g.gap = clamp(g.radius * 0.135 + a * g.radius * 0.05);
-    g.uSeamGlow.value = damp(g.uSeamGlow.value, 1.35 * (1 - a * 0.75), 4, dt);
-    g.uCrystalGlow.value = damp(g.uCrystalGlow.value, 0.55 + a * 0.75, 3, dt);
-    g.uSparkle.value = damp(g.uSparkle.value, 0.35 + a * 0.75, 2.5, dt);
+    g.uSeamGlow.value = damp(g.uSeamGlow.value, 1.0 * (1 - a * 0.78), 4, dt);
+    g.uCrystalGlow.value = damp(g.uCrystalGlow.value, 0.35 + a * 0.35, 3, dt);
+    g.uSparkle.value = damp(g.uSparkle.value, 0.3 + a * 0.6, 2.5, dt);
     ctx.rig.setDolly(-0.10 + a * 0.16);
 
     if (ctx.input.idleFor > 1.5 && !f.active && !snapped) {

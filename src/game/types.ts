@@ -51,10 +51,19 @@ export interface GameCtx {
   go(step: StepName): void;
   /** Ray-cast the current pointer against `objects`. */
   pick(objects: Object3D[]): Intersection | null;
+  /** Every hit along the pointer ray, nearest first. */
+  pickAll(objects: Object3D[]): Intersection[];
   /** Where the pointer ray crosses a horizontal plane at `y`. */
   pickPlane(y: number, out: Vector3): Vector3 | null;
   /** World point -> CSS pixels inside the canvas, for placing the hint. */
   toScreen(world: Vector3): { x: number; y: number };
+  /** Canvas size in CSS pixels. */
+  viewport: { w: number; h: number };
+  /**
+   * True if the finger is on the stone, or near enough that it clearly meant
+   * to be. Four-year-olds do not aim.
+   */
+  grabbedStone(): boolean;
   shellMeshes(): Mesh[];
   /** Ask the renderer for a brief exposure bump (the crack flash). */
   flash(amount: number): void;

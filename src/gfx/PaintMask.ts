@@ -12,6 +12,11 @@ export interface MaskOptions {
   wrap?: boolean;
   /** 2 for equirect (2:1), 1 for the square disc projection used on cavities. */
   aspect?: 1 | 2;
+  /**
+   * For disc masks: the uv radius that actually lies on the surface. Coverage
+   * ignores everything outside it, so "all clean" really means zero.
+   */
+  discRadius?: number;
 }
 
 /**
@@ -36,6 +41,7 @@ export class PaintMask {
   private wrap: boolean;
   /** Equal-area weighting only applies to the equirect projection. */
   private equirect: boolean = true;
+  private discRadius: number;
   private dirty = false;
   private uploadAcc = 0;
   private coverageAcc = 0;
@@ -48,6 +54,7 @@ export class PaintMask {
     this.size = size;
     this.wrap = opts.wrap ?? aspect === 2;
     this.equirect = aspect === 2;
+    this.discRadius = opts.discRadius ?? 0;
 
     this.canvas = document.createElement('canvas');
     this.canvas.width = size;
@@ -127,21 +134,25 @@ export class PaintMask {
     ctx.save();
     ctx.globalCompositeOperation = this.mode === 'erode' ? 'destination-out' : 'source-over';
 
+    const R = Math.max(rx, ry);
+    const a = clamp(strength);
+
     // Draw three times so strokes wrap across the u seam.
     for (const off of this.wrap ? [-W, 0, W] : [0]) {
       const x = cx + off;
       if (x + rx < 0 || x - rx > W) continue;
-      const g = ctx.createRadialGradient(x, cy, 0, x, cy, Math.max(rx, ry));
-      const a = clamp(strength);
+      ctx.save();
+      // Transform first, then build the gradient: gradient coordinates are
+      // resolved with whatever transform is current when the fill happens.
+      ctx.translate(x, cy);
+      ctx.scale(rx / R, ry / R);
+      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, R);
       g.addColorStop(0, `rgba(255,255,255,${a})`);
-      g.addColorStop(0.55, `rgba(255,255,255,${a * 0.72})`);
+      g.addColorStop(0.5, `rgba(255,255,255,${a * 0.78})`);
       g.addColorStop(1, 'rgba(255,255,255,0)');
       ctx.fillStyle = g;
-      ctx.save();
-      ctx.translate(x, cy);
-      ctx.scale(rx / Math.max(rx, ry), ry / Math.max(rx, ry));
       ctx.beginPath();
-      ctx.arc(0, 0, Math.max(rx, ry), 0, Math.PI * 2);
+      ctx.arc(0, 0, R, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
     }
@@ -191,6 +202,11 @@ export class PaintMask {
       const v = 1 - (y + 0.5) / ph;
       const w = this.equirect ? Math.cos((v - 0.5) * Math.PI) : 1;
       for (let x = 0; x < pw; x++) {
+        if (this.discRadius > 0) {
+          const uu = (x + 0.5) / pw - 0.5;
+          const vv = v - 0.5;
+          if (Math.hypot(uu, vv) > this.discRadius) continue;
+        }
         sum += (data[(y * pw + x) * 4 + 3] / 255) * w;
         wsum += w;
       }

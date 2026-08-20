@@ -10,6 +10,9 @@ import { buildEnvironment } from '../gfx/Env';
 import { damp } from './Easing';
 import { guessQuality, qualityFor, QualityGovernor, type QualitySettings, type QualityTier } from './Quality';
 
+/** Slightly under-exposed: the crystals are the only thing allowed to be hot. */
+const BASE_EXPOSURE = 0.9;
+
 export interface AppHooks {
   onFrame(dt: number): void;
   onResize(width: number, height: number, aspect: number): void;
@@ -34,8 +37,8 @@ export class App {
   private raf = 0;
   private last = 0;
   private running = false;
-  private exposure = 1;
-  private exposureTarget = 1;
+  private exposure = BASE_EXPOSURE;
+  private exposureTarget = BASE_EXPOSURE;
   private governor: QualityGovernor;
   private canvas: HTMLCanvasElement;
   private dpr = 1;
@@ -55,13 +58,13 @@ export class App {
       failIfMajorPerformanceCaveat: false,
     });
     this.renderer.toneMapping = ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1;
+    this.renderer.toneMappingExposure = 0.9;
     this.renderer.shadowMap.enabled = this.quality.shadows;
     this.renderer.shadowMap.type = PCFSoftShadowMap;
     this.renderer.setClearColor(0x07060a, 1);
 
     this.camera = new PerspectiveCamera(42, 1, 0.05, 40);
-    this.scene.environmentIntensity = 1;
+    this.scene.environmentIntensity = 0.9;
 
     this.envMap = buildEnvironment(this.renderer);
     this.scene.environment = this.envMap;
@@ -116,7 +119,7 @@ export class App {
     const bloom = new UnrealBloomPass(
       new Vector2(Math.max(8, size.x * this.quality.bloomScale),
                   Math.max(8, size.y * this.quality.bloomScale)),
-      0.66, 0.52, 0.74,
+      0.40, 0.55, 1.00,
     );
     composer.addPass(bloom);
     composer.addPass(new OutputPass());
@@ -153,7 +156,7 @@ export class App {
 
   /** Brief exposure lift — used for the instant the stone cracks. */
   flash(amount: number): void {
-    this.exposureTarget = Math.max(this.exposureTarget, 1 + amount);
+    this.exposureTarget = Math.max(this.exposureTarget, BASE_EXPOSURE + amount);
   }
 
   start(hooks: AppHooks): void {
@@ -164,12 +167,13 @@ export class App {
     const tick = (now: number) => {
       if (!this.running) return;
       this.raf = requestAnimationFrame(tick);
-      // A long frame (tab switch, thermal hitch) must not teleport the physics.
-      const dt = Math.min(0.05, Math.max(0.0001, (now - this.last) / 1000));
+      // A long frame (tab switch, thermal hitch) must not teleport the physics,
+      // but clamping too hard makes a struggling device run in slow motion.
+      const dt = Math.min(0.1, Math.max(0.0001, (now - this.last) / 1000));
       this.last = now;
 
       this.exposure = damp(this.exposure, this.exposureTarget, 6, dt);
-      this.exposureTarget = damp(this.exposureTarget, 1, 5, dt);
+      this.exposureTarget = damp(this.exposureTarget, BASE_EXPOSURE, 5, dt);
       this.renderer.toneMappingExposure = this.exposure;
 
       hooks.onFrame(dt);

@@ -54,14 +54,14 @@ export function buildEnvironment(renderer: WebGLRenderer): Texture {
   };
 
   // Warm window, upper-left — the key light the whole scene is lit by.
-  light(3.4, 4.6, 0.1, 0xfff0d2, 7.0, -6.4, 4.2, -2.0);
+  light(3.4, 4.6, 0.1, 0xfff0d2, 3.2, -6.4, 4.2, -2.0);
   // Cool sky fill from the right so wet stone reads as wet, not just dark.
-  light(5.0, 3.0, 0.1, 0xbcd6ff, 1.35, 6.6, 3.0, 1.2);
+  light(5.0, 3.0, 0.1, 0xbcd6ff, 0.85, 6.6, 3.0, 1.2);
   // Low warm bounce off the bench for the underside of the crystals.
-  light(6.0, 0.1, 6.0, 0xffc98a, 0.55, 0, -3.2, 0);
+  light(6.0, 0.1, 6.0, 0xffc98a, 0.40, 0, -3.2, 0);
   // Two small speculars so facets get discrete glints instead of a smear.
-  light(0.55, 0.55, 0.1, 0xffffff, 16.0, -2.4, 5.4, 3.2);
-  light(0.4, 0.4, 0.1, 0xdff0ff, 9.0, 3.6, 4.8, -3.4);
+  light(0.55, 0.55, 0.1, 0xffffff, 6.5, -2.4, 5.4, 3.2);
+  light(0.4, 0.4, 0.1, 0xdff0ff, 4.0, 3.6, 4.8, -3.4);
 
   const pmrem = new PMREMGenerator(renderer);
   pmrem.compileEquirectangularShader();

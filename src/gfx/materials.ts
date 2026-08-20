@@ -49,83 +49,89 @@ export function createShellMaterial(un: ShellUniforms): MeshPhysicalMaterial {
       vec2 muv = dirToEquirect(dir);
 
       float mud = texture2D(uMud, muv).a;
-      float wet = clamp(texture2D(uWet, muv).a * 1.15, 0.0, 1.0);
-
-      // ---- dry stone: warped ridged noise gives broken-rock crags ----
-      float warp  = fbm3(op * 3.1 + uSeed, 3);
-      float crag  = ridged3(op * 5.4 + warp * 0.85 + uSeed, 4);
-      float grain = fbm3(op * 27.0 + uSeed * 1.7, 3);
-      float pit   = smoothstep(0.60, 0.94, ridged3(op * 12.0 + uSeed * 2.3, 2));
-
-      vec3 stonePale = vec3(0.400, 0.372, 0.344) * uStoneTint;
-      vec3 stoneDark = vec3(0.148, 0.132, 0.126) * uStoneTint;
-      vec3 stone = mix(stoneDark, stonePale, clamp(crag * 0.95 + grain * 0.28, 0.0, 1.0));
-      stone = mix(stone, stone * vec3(1.10, 0.99, 0.88), pit * 0.8);
-
-      // Cut face reads paler and more granular than the weathered outside.
+      float wet = clamp(texture2D(uWet, muv).a * 1.2, 0.0, 1.0);
+      float mudMask = smoothstep(0.05, 0.5, mud);
       float rim = step(0.5, vSurf);
-      stone = mix(stone, stone * 1.28 + vec3(0.03, 0.026, 0.022), rim * 0.8);
 
-      // ---- mud: clumped, matte, hides everything underneath ----
-      vec2 cell = worley2(muv * vec2(26.0, 13.0) + uSeed.xy * 4.0);
-      float clump = smoothstep(0.02, 0.42, cell.y - cell.x);
-      float mudN = fbm3(op * 8.0 + 19.0, 3) * 0.5 + 0.5;
-      vec3 mudCol = mix(vec3(0.072, 0.052, 0.034), vec3(0.180, 0.132, 0.082), mudN);
-      mudCol *= 0.82 + 0.34 * clump;
+      // ---- dry stone ------------------------------------------------------
+      // Everything below is 3D noise on the object position. Equirect-space
+      // patterns pinch at the poles, and this stone is looked at from every
+      // angle, so only the painted masks are allowed to live in uv space.
+      float warp  = fbm3(op * 2.4 + uSeed, 3);
+      float crag  = ridged3(op * 4.4 + warp * 0.75 + uSeed, 4);
+      float lump  = fbm3(op * 8.5 + uSeed * 1.3, 3) * 0.5 + 0.5;
+      float grain = fbm3(op * 26.0 + uSeed * 2.1, 2) * 0.5 + 0.5;
 
-      float mudMask = smoothstep(0.06, 0.55, mud);
+      // Albedo stays low-contrast: the form should come from light on relief,
+      // not from a busy colour texture that aliases on a phone screen.
+      float tone = clamp(crag * 0.92 + lump * 0.30 - 0.10, 0.0, 1.0);
+      vec3 stonePale = vec3(0.318, 0.296, 0.272) * uStoneTint;
+      vec3 stoneDark = vec3(0.118, 0.104, 0.098) * uStoneTint;
+      vec3 stone = mix(stoneDark, stonePale, tone);
+
+      // The fresh cut is paler and more granular than the weathered outside.
+      stone = mix(stone, stone * 1.12 + vec3(0.012, 0.010, 0.009), rim * 0.85);
+
+      // ---- caked mud ------------------------------------------------------
+      float mudLump = fbm3(op * 4.6 + 11.0, 3) * 0.5 + 0.5;
+      float mudGrit = fbm3(op * 19.0 + 4.0, 2) * 0.5 + 0.5;
+      float mudCake = smoothstep(0.30, 0.72, mudLump);
+      vec3 mudCol = mix(vec3(0.048, 0.034, 0.021), vec3(0.135, 0.096, 0.055), mudLump);
+      mudCol *= 0.86 + 0.26 * mudGrit;
+
       vec3 albedo = mix(stone, mudCol, mudMask);
 
-      // ---- wet: darkens, smooths, and lets the stone finally reflect ----
-      albedo *= mix(1.0, 0.46 + 0.16 * mudMask, wet);
+      // ---- water ----------------------------------------------------------
+      albedo *= mix(1.0, 0.48 + 0.14 * mudMask, wet);
 
-      float rough = mix(0.78 - crag * 0.16, 0.96, mudMask);
-      rough = mix(rough, 0.085 + 0.10 * mudMask, wet * (1.0 - mudMask * 0.45));
-      rough -= pit * 0.06 * (1.0 - mudMask);
+      float rough = mix(0.86 - crag * 0.10 - grain * 0.08, 0.97 - mudGrit * 0.05, mudMask);
+      rough = mix(rough, 0.30 + 0.16 * mudMask + grain * 0.10, wet * (1.0 - mudMask * 0.4));
 
-      // ---- beaded droplets only survive on clean wet stone ----
-      vec2 dcell = worley2(muv * vec2(78.0, 39.0) + 31.7);
-      float drop = smoothstep(0.34, 0.10, dcell.x) * wet * (1.0 - mudMask);
-      rough = mix(rough, 0.03, drop * 0.85);
-      albedo *= mix(1.0, 0.88, drop * 0.5);
+      // Beads only survive on clean wet stone, and they are small.
+      float dn = fbm3(op * 78.0 + 71.0, 2);
+      float drop = smoothstep(0.20, 0.40, dn) * wet * (1.0 - mudMask);
+      rough = mix(rough, 0.14, drop * 0.55);
 
-      // ---- the break line, revealed only once the mud is gone ----
+      // ---- the break line, revealed only once the mud is gone --------------
       float lon = atan(op.z, op.x);
       float seamDist = abs(op.y - seamOffset(lon));
-      float seamLine = 1.0 - smoothstep(0.0, 0.030, seamDist);
-      float seamBand = 1.0 - smoothstep(0.0, 0.30, seamDist);
-      albedo *= mix(1.0, 0.30, seamLine * (1.0 - mudMask) * (1.0 - rim));
+      float seamLine = 1.0 - smoothstep(0.004, 0.026, seamDist);
+      // Tight: a wide band tints the whole stone blue instead of reading as
+      // colour seeping out of the crack.
+      float seamBand = 1.0 - smoothstep(0.015, 0.115, seamDist);
+      albedo *= mix(1.0, 0.24, seamLine * (1.0 - mudMask) * (1.0 - rim));
 
-      // ---- the promise: colour bleeding out of the crevices near the seam ----
-      float crevice = smoothstep(0.52, 0.94, 1.0 - crag);
-      float hint = uHint * (1.0 - mudMask) * seamBand * (0.30 + 0.85 * crevice);
-      hint = clamp(hint, 0.0, 0.80);
-      vec3 hueLin = uHue * uHue; // uHue is authored in sRGB-ish terms
-      albedo = mix(albedo, hueLin * 1.15, hint * 0.75);
+      // ---- the promise: colour bleeding out of the crevices ---------------
+      float crevice = smoothstep(0.45, 0.9, 1.0 - crag);
+      float hint = uHint * (1.0 - mudMask) * seamBand * (0.35 + 0.85 * crevice);
+      hint = clamp(hint, 0.0, 0.85);
+      vec3 hueLin = uHue * uHue;
+      albedo = mix(albedo, hueLin * 0.85, hint * 0.62);
 
-      float height = mix(
-        crag * 1.0 + grain * 0.30 - pit * 0.55,
-        mudN * 0.85 + clump * 0.55,
-        mudMask);
-      height = mix(height, height * 0.72, wet);
-      height += drop * 0.55;
-      height -= seamLine * 0.45 * (1.0 - mudMask) * (1.0 - rim);
-      height = mix(height, height * 0.45 + grain * 0.5, rim);
-
-      // ---- strain: light gathers where the wedge keeps working ----
+      // ---- strain: light gathers where the wedge keeps working -------------
       float dLon = abs(mod(lon - uStressLon + 3.14159265, 6.28318531) - 3.14159265);
       float stress = exp(-dLon * dLon * 7.0) * uStress * (1.0 - mudMask);
-      float stressGlow = stress * mix(seamLine, seamBand, 0.35);
-      albedo += hueLin * stressGlow * 0.35;
+      float stressGlow = stress * mix(seamLine, seamBand, 0.30);
+      albedo += hueLin * stressGlow * 0.22;
+
+      // ---- relief ---------------------------------------------------------
+      float height = mix(
+        crag * 1.0 + lump * 0.40 + grain * 0.10,
+        mudCake * 1.0 + mudGrit * 0.35,
+        mudMask);
+      height = mix(height, height * 0.80, wet);
+      height += drop * 0.12;
+      height -= seamLine * 0.9 * (1.0 - mudMask) * (1.0 - rim);
+      height = mix(height, grain * 0.75 + crag * 0.45 + lump * 0.3, rim);
 
       gAlbedo = albedo;
-      gRough = rough;
+      gRough = clamp(rough, 0.05, 1.0);
       gMetal = 0.0;
       gHeight = height;
-      gBumpScale = mix(0.030, 0.020, mudMask) * mix(1.0, 0.62, rim);
-      gEmiss = hueLin * ((hint * 0.5 + seamLine * seamBand * 0.9) * uSeamGlow + stressGlow * 1.5);
+      gBumpScale = mix(0.023, 0.019, mudMask) * mix(1.0, 0.7, rim) * mix(1.0, 0.8, wet);
+      gEmiss = hueLin * ((hint * 0.40 + seamLine * seamBand * 0.55) * uSeamGlow + stressGlow * 0.75);
     `,
-    params: { roughness: 0.8, metalness: 0, envMapIntensity: 1.0 },
+    params: { roughness: 0.8, metalness: 0, envMapIntensity: 0.85 },
   });
 }
 
@@ -162,9 +168,9 @@ export function createDruzyMaterial(un: DruzyUniforms): MeshPhysicalMaterial {
 
       float band = fbm3(op * 6.0 + uSeed, 4) * 0.5 + 0.5;   // agate banding
       vec3 hueLin = uHue * uHue;
-      vec3 base = mix(hueLin * 0.30, hueLin * 0.92, band);
-      base = mix(base, vec3(0.62, 0.58, 0.55) * 0.55, smoothstep(0.72, 1.0, band) * 0.6);
-      base += hueLin * sugar * 0.55;
+      vec3 base = mix(hueLin * 0.20, hueLin * 0.60, band);
+      base = mix(base, vec3(0.40, 0.38, 0.36) * 0.55, smoothstep(0.72, 1.0, band) * 0.6);
+      base += hueLin * sugar * 0.30;
 
       float dust = smoothstep(0.05, 0.6, powder);
       vec3 dustCol = mix(vec3(0.30, 0.28, 0.25), vec3(0.46, 0.43, 0.39), band);
@@ -177,9 +183,9 @@ export function createDruzyMaterial(un: DruzyUniforms): MeshPhysicalMaterial {
       gMetal = 0.0;
       gHeight = sugar * 0.9 + band * 0.25 + dust * 0.4;
       gBumpScale = mix(0.016, 0.010, dust);
-      gEmiss = hueLin * (1.0 - dust) * (0.06 + 0.30 * sugar) * uGlow;
+      gEmiss = hueLin * (1.0 - dust) * (0.03 + 0.13 * sugar) * uGlow;
     `,
-    params: { roughness: 0.3, metalness: 0, envMapIntensity: 1.35, clearcoat: 0.35, clearcoatRoughness: 0.25 },
+    params: { roughness: 0.3, metalness: 0, envMapIntensity: 0.9, clearcoat: 0.3, clearcoatRoughness: 0.25 },
   });
 }
 
@@ -217,8 +223,10 @@ export function createCrystalMaterial(un: CrystalUniforms, iridescent: boolean):
 
       // Colour zoning: pale, almost colourless at the base, saturated at the tip.
       float zone = smoothstep(0.05, 0.85, vTipT);
-      vec3 body = mix(vec3(0.86, 0.87, 0.90) * 0.55, hueLin * 1.35, zone * uClarity);
-      body = mix(body, hueLin * 0.65, 0.35);
+      // Kept well under 1: a near-mirror surface multiplies its albedo by a
+      // bright environment, and a white-ish gem reads as a blown-out blob.
+      vec3 body = mix(vec3(0.52, 0.54, 0.58) * 0.55, hueLin * 0.78, zone * uClarity);
+      body = mix(body, hueLin * 0.55, 0.45);
 
       // Internal veils / phantoms so the gem is not a flat plastic blob.
       float veil = fbm3(vObjPos * vec3(9.0, 5.0, 9.0) + 4.2, 3) * 0.5 + 0.5;
@@ -229,22 +237,22 @@ export function createCrystalMaterial(un: CrystalUniforms, iridescent: boolean):
       vec3 dustCol = vec3(0.40, 0.38, 0.35);
 
       gAlbedo = mix(body, dustCol, dust * 0.88);
-      gRough = mix(0.045 + (1.0 - uClarity) * 0.12, 0.86, dust);
+      gRough = mix(0.060 + (1.0 - uClarity) * 0.14, 0.86, dust);
       gMetal = 0.0;
       gHeight = veil * 0.2 + dust * 0.5;
       gBumpScale = dust * 0.012;
       // Fresnel-weighted inner fire. Kept above the bloom threshold only at the
       // grazing rim, so the selective bloom picks out edges, not the whole gem.
-      gEmiss = hueLin * (0.10 + 1.55 * fres) * uGlow * (1.0 - dust * 0.9) * (0.4 + 0.6 * zone);
+      gEmiss = hueLin * (0.05 + 0.62 * fres) * uGlow * (1.0 - dust * 0.9) * (0.4 + 0.6 * zone);
     `,
     params: {
-      roughness: 0.06,
+      roughness: 0.075,
       metalness: 0,
       flatShading: true,
-      clearcoat: 1.0,
-      clearcoatRoughness: 0.06,
+      clearcoat: 0.55,
+      clearcoatRoughness: 0.10,
       ior: 1.55,
-      envMapIntensity: 2.1,
+      envMapIntensity: 1.1,
       ...(iridescent ? { iridescence: 0.5, iridescenceIOR: 1.8, iridescenceThicknessRange: [180, 520] as [number, number] } : {}),
     },
   });
@@ -319,7 +327,7 @@ export function createMetalMaterial(
       vec3 albedo = uTint * uTint;
       albedo = mix(albedo, albedo * vec3(0.55, 0.48, 0.42), tarnish);
 
-      float rough = mix(0.14, 0.42, uBrushed) + streak * 0.20 * uBrushed;
+      float rough = mix(0.26, 0.62, uBrushed) + streak * 0.20 * uBrushed;
       rough = mix(rough, 0.72, tarnish);
       rough += dents * 0.07;
 
@@ -330,7 +338,7 @@ export function createMetalMaterial(
       gBumpScale = 0.006;
       gEmiss = vec3(0.0);
     `,
-    params: { roughness: 0.3, metalness: 1, envMapIntensity: 1.5 },
+    params: { roughness: 0.3, metalness: 1, envMapIntensity: 0.6 },
   });
 }
 
@@ -352,7 +360,7 @@ export function createVelvetMaterial(tint: Color): MeshPhysicalMaterial {
 
       vec3 base = uTint * uTint * (0.72 + 0.30 * fuzz);
       // Cheap asperity scattering: the pile catches light at grazing angles.
-      base += uTint * uTint * fres * 1.05;
+      base += uTint * uTint * fres * 0.75;
 
       gAlbedo = base;
       gRough = 0.86 - nap * 0.08;
@@ -420,17 +428,20 @@ export function createWaterMaterial(uTime: IUniform<number>, uAgitate: IUniform<
       float h = ripple * 0.5 + rings * 0.7;
       float fres = fresnelTerm(vVNormal, vViewPosition, 3.2);
 
-      gAlbedo = mix(vec3(0.014, 0.026, 0.030), vec3(0.045, 0.070, 0.075), ripple * 0.5 + 0.5);
-      gRough = 0.035 + max(0.0, -h) * 0.05;
+      gAlbedo = mix(vec3(0.020, 0.042, 0.048), vec3(0.070, 0.115, 0.120), ripple * 0.5 + 0.5);
+      gRough = 0.045 + max(0.0, -h) * 0.05;
       gMetal = 0.0;
       gHeight = h;
-      gBumpScale = 0.012 + uAgitate * 0.02;
+      gBumpScale = 0.016 + uAgitate * 0.024;
       gEmiss = vec3(0.0);
-      gAlpha = clamp(0.42 + fres * 0.55 + abs(rings) * 0.25, 0.0, 1.0);
+      // Mostly clear looking straight down, mirror-like at grazing angles.
+      float edge = smoothstep(1.0, 0.86, length(p.xz) / 0.94);
+      gAlpha = clamp(0.20 + fres * 0.72 + abs(rings) * 0.30, 0.0, 1.0) * edge;
     `,
     params: {
       roughness: 0.04, metalness: 0, envMapIntensity: 1.6,
       transparent: true, opacity: 1.0, depthWrite: false,
+      clearcoat: 1.0, clearcoatRoughness: 0.03,
     },
   });
 }
@@ -478,10 +489,10 @@ export function createStoneMaterial(tint: Color, wet: IUniform<number>): MeshPhy
       float wet = clamp(uWet, 0.0, 1.0);
       albedo *= mix(1.0, 0.44, wet);
       gAlbedo = albedo;
-      gRough = mix(0.82 - chisel * 0.12, 0.11, wet);
+      gRough = mix(0.86 - chisel * 0.10, 0.24, wet);
       gMetal = 0.0;
-      gHeight = chisel * 0.7 + grain * 0.3 + fleck * 0.2;
-      gBumpScale = mix(0.016, 0.008, wet);
+      gHeight = chisel * 0.7 + grain * 0.2 + fleck * 0.1;
+      gBumpScale = mix(0.011, 0.006, wet);
       gEmiss = vec3(0.0);
     `,
     params: { roughness: 0.85, metalness: 0, envMapIntensity: 0.8 },

@@ -59,8 +59,8 @@ export const displayStep: Step = {
     ws.spot.intensity = damp(ws.spot.intensity, 3.6, 1.8, dt);
 
     const care = clamp((ctx.session.washQuality + ctx.session.dustQuality) * 0.5);
-    g.uCrystalGlow.value = damp(g.uCrystalGlow.value, 1.5 + care * 1.1, 2, dt);
-    g.uSparkle.value = damp(g.uSparkle.value, 1.4 + care * 1.0, 2, dt);
+    g.uCrystalGlow.value = damp(g.uCrystalGlow.value, 0.95 + care * 0.4, 2, dt);
+    g.uSparkle.value = damp(g.uSparkle.value, 1.3 + care * 0.6, 2, dt);
     g.uSeamGlow.value = damp(g.uSeamGlow.value, 0.08, 3, dt);
 
     if (!arced && settle > 1.6) {

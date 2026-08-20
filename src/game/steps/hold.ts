@@ -64,13 +64,12 @@ export const holdStep: Step = {
       return;
     }
 
-    if (f.justPressed) {
+    if (f.justPressed && ctx.grabbedStone()) {
+      held = true;
       const hit = ctx.pick(ctx.shellMeshes());
-      if (hit) {
-        held = true;
-        _grab.copy(hit.point).sub(g.root.position);
-        _grab.y = 0;
-      }
+      if (hit) _grab.copy(hit.point).sub(g.root.position);
+      else _grab.set(0, 0, 0);
+      _grab.y = 0;
     }
 
     if (held && f.active) {
@@ -122,12 +121,12 @@ export const holdStep: Step = {
     ws.caustics.wall.position.x = damp(ws.caustics.wall.position.x, g.root.position.x * 0.7 + 0.1, 4, dt);
     ws.mood = 1 - inBeam * 0.42;
 
-    g.uCrystalGlow.value = damp(g.uCrystalGlow.value, 1.1 + inBeam * 0.9, 3, dt);
-    g.uSparkle.value = damp(g.uSparkle.value, 0.9 + inBeam * 1.1, 3, dt);
+    g.uCrystalGlow.value = damp(g.uCrystalGlow.value, 0.8 + inBeam * 0.3, 3, dt);
+    g.uSparkle.value = damp(g.uSparkle.value, 0.9 + inBeam * 0.7, 3, dt);
     g.uSeamGlow.value = damp(g.uSeamGlow.value, 0.15, 3, dt);
 
     // Keep the stone in frame while it is being carried around.
-    _follow.copy(g.root.position).setY(g.root.position.y - 0.05);
+    _follow.copy(g.root.position).setY(g.root.position.y + 0.14);
     ctx.rig.follow(held || lifted > 0.05 ? _follow : null);
 
     // The velvet starts asking for it once the player has had their look.

@@ -81,6 +81,11 @@ export function proceduralMaterial(spec: ProceduralSpec): MeshPhysicalMaterial {
       {
         ${spec.surface}
       }
+      // Specular anti-aliasing: procedural relief has no mip chain, so where
+      // the height field changes fast on screen (distance, grazing angles) the
+      // highlight would break into crawling white specks. Widen the lobe there.
+      gRough = clamp(gRough + clamp(
+        length(vec2(dFdx(gHeight), dFdy(gHeight))) * gBumpScale * 26.0, 0.0, 0.45), 0.02, 1.0);
       diffuseColor.rgb *= gAlbedo;
       diffuseColor.a *= gAlpha;
     `);

@@ -87,6 +87,8 @@ async function main(): Promise<void> {
     get shot(): string { return game.ctx.rig.shotName; },
     get open(): number { return game.ctx.geode.openAmount; },
     get choicesVisible(): boolean { return game.ctx.overlay.choicesVisible; },
+    /** Where the stone currently is on screen, in CSS pixels. */
+    get pos(): { x: number; y: number } { return game.ctx.toScreen(game.ctx.geode.root.position); },
     go(step: StepName) { game.ctx.go(step); },
     restart(s?: number) { game.restart(s ?? game.ctx.session.seed); },
     /** Wash off `amount` of the mud instantly. */
@@ -106,15 +108,34 @@ async function main(): Promise<void> {
       const px = x ?? canvas.clientWidth * 0.5;
       const py = y ?? canvas.clientHeight * 0.5;
       game.ctx.input.simulate('down', px, py);
-      setTimeout(() => game.ctx.input.simulate('up', px, py), 60);
+      game.frame(1 / 60);
+      game.ctx.input.simulate('up', px, py);
+      game.frame(1 / 60);
     },
-    drag(x0: number, y0: number, x1: number, y1: number, steps = 8) {
+    /** A gesture is only meaningful if the game gets to tick between samples. */
+    drag(x0: number, y0: number, x1: number, y1: number, steps = 12) {
       game.ctx.input.simulate('down', x0, y0);
+      game.frame(1 / 60);
       for (let i = 1; i <= steps; i++) {
         const t = i / steps;
         game.ctx.input.simulate('move', x0 + (x1 - x0) * t, y0 + (y1 - y0) * t);
+        game.frame(1 / 60);
       }
       game.ctx.input.simulate('up', x1, y1);
+      game.frame(1 / 60);
+    },
+    /** Scrub in a loop over the stone, the way a child actually washes it. */
+    rub(cx: number, cy: number, rx = 46, ry = 34, laps = 3, samples = 24) {
+      const total = laps * samples;
+      game.ctx.input.simulate('down', cx + rx, cy);
+      game.frame(1 / 60);
+      for (let i = 1; i <= total; i++) {
+        const a = (i / samples) * Math.PI * 2;
+        game.ctx.input.simulate('move', cx + Math.cos(a) * rx, cy + Math.sin(a * 1.7) * ry);
+        game.frame(1 / 60);
+      }
+      game.ctx.input.simulate('up', cx + rx, cy);
+      game.frame(1 / 60);
     },
     frames(n = 1, dt = 1 / 60) {
       for (let i = 0; i < n; i++) game.frame(dt);

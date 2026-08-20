@@ -108,8 +108,11 @@ export class Game {
       timeScale: 1,
       go: (s) => { this.queued = s; },
       pick: (objects) => this.pick(objects),
+      pickAll: (objects) => this.pickAll(objects),
       pickPlane: (y, out) => this.pickPlane(y, out),
       toScreen: (world) => this.toScreen(world),
+      viewport: { w: 1, h: 1 },
+      grabbedStone: () => this.grabbedStone(),
       shellMeshes: () => this.ctx.geode.shellMeshes,
       flash: (a) => this.app.flash(a),
     };
@@ -146,6 +149,8 @@ export class Game {
   onResize(w: number, h: number, aspect: number): void {
     this.width = w;
     this.height = h;
+    this.ctx.viewport.w = w;
+    this.ctx.viewport.h = h;
     this.ctx.rig.setAspect(aspect);
     this.ctx.input.measure();
   }
@@ -192,11 +197,15 @@ export class Game {
   // -------------------------------------------------------------- utilities
 
   private pick(objects: Object3D[]): Intersection | null {
+    const hits = this.pickAll(objects);
+    return hits.length > 0 ? hits[0] : null;
+  }
+
+  private pickAll(objects: Object3D[]): Intersection[] {
     const f = this.ctx.input.frame;
     _ndc.set(f.x, f.y);
     this.raycaster.setFromCamera(_ndc, this.ctx.camera);
-    const hits = this.raycaster.intersectObjects(objects, false);
-    return hits.length > 0 ? hits[0] : null;
+    return this.raycaster.intersectObjects(objects, false);
   }
 
   private pickPlane(y: number, out: Vector3): Vector3 | null {
@@ -205,6 +214,18 @@ export class Game {
     this.raycaster.setFromCamera(_ndc, this.ctx.camera);
     GROUND.constant = -y;
     return this.raycaster.ray.intersectPlane(GROUND, out);
+  }
+
+  /**
+   * Generous grab test. A raycast alone punishes a child for missing a lumpy
+   * silhouette by ten pixels, which reads to them as "the game is broken".
+   */
+  private grabbedStone(): boolean {
+    if (this.pick(this.ctx.geode.shellMeshes)) return true;
+    const s = this.toScreen(this.ctx.geode.root.position);
+    const f = this.ctx.input.frame;
+    const margin = Math.min(this.width, this.height) * 0.24;
+    return Math.hypot(f.px - s.x, f.py - s.y) < margin;
   }
 
   private toScreen(world: Vector3): { x: number; y: number } {

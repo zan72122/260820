@@ -8,14 +8,24 @@ const _hit = new Vector3();
 const _n = new Vector3();
 const _tmp = new Vector3();
 
-const DONE_MUD = 0.15;
-const GIVE_UP_AFTER = 55;
+/** The underside sits in the water and never gets scrubbed, so "clean" can
+ *  never mean zero. Past this the stone reads as washed. */
+const CLEAN_ENOUGH = 0.28;
+/** After it looks clean, wait for the player to stop before moving on — so the
+ *  scene ends when they are done enjoying it, not the instant a number trips. */
+const SETTLE = 1.1;
+const GIVE_UP_AFTER = 70;
 
 let rock = 0;
 let rockVel = 0;
+let spin = 0;
+let spinVel = 0;
+let tilt = 0;
+let tiltVel = 0;
 let scrubLevel = 0;
 let celebrated = 0;
 let lastDripAt = 0;
+let settled = 0;
 
 /**
  * VERB: WASH.
@@ -32,6 +42,9 @@ export const washStep: Step = {
     ctx.rig.to(SHOTS.wash);
     ctx.audio.setAmbience(0.5);
     rock = 0; rockVel = 0; scrubLevel = 0; celebrated = 0; lastDripAt = 0;
+    spin = ctx.geode.carrier.rotation.y;
+    spinVel = 0; tilt = 0; tiltVel = 0;
+    settled = 0;
   },
 
   update(ctx, dt) {
@@ -48,11 +61,12 @@ export const washStep: Step = {
         _hit.copy(hit.point);
         const mesh = hit.object as Mesh;
 
-        // Scrubbing hard removes mud; resting a finger only wets the stone.
+        // Scrubbing removes mud; resting a finger only wets the stone. The
+        // stroke itself is interpolated inside washAt, so a slow deliberate rub
+        // cleans just as reliably as a fast one.
         const rub = clamp(speed * 0.9, 0, 1.6);
-        const strength = 0.10 + rub * 0.42;
-        const radius = 0.055 + rub * 0.018;
-        g.washAt(_hit, mesh, radius, strength * (0.35 + 0.65 * Math.min(1, rub * 2)));
+        const radius = 0.105 + rub * 0.045;
+        g.washAt(_hit, mesh, radius, 0.30 + rub * 0.40);
 
         // Spray: droplets fly off along the surface tangent, mud falls.
         _n.copy(hit.face?.normal ?? _n.set(0, 1, 0));
@@ -68,6 +82,11 @@ export const washStep: Step = {
 
         // The stone rocks against the finger — it has weight.
         rockVel += (f.dx * 2.6 - rock * 5.0) * dt * 12;
+        // ...and it turns under it, like a trackball. This is what makes the
+        // far side reachable: rubbing sideways brings fresh mud to the finger,
+        // so "keep rubbing" is all a child ever has to work out.
+        spinVel += f.dx * 34;
+        tiltVel += f.dy * 16;
 
         ctx.workshop.touchWater(_hit, dt * 1.4 * (0.4 + rub));
         if (ctx.time - lastDripAt > 0.34 && rub > 0.35) {
@@ -77,11 +96,20 @@ export const washStep: Step = {
       }
     }
 
+    if (!contact) g.endStroke();
     scrubLevel = damp(scrubLevel, contact ? clamp(speed * 0.75, 0, 1) : 0, 12, dt);
     ctx.audio.setScrub(scrubLevel, 1 - g.mudLeft);
 
     rockVel = damp(rockVel, 0, 3.2, dt);
     rock = damp(rock + rockVel * dt, 0, 2.6, dt);
+
+    spinVel = damp(spinVel, 0, 3.4, dt);
+    spin += spinVel * dt;
+    tiltVel = damp(tiltVel, 0, 4.0, dt);
+    tilt = clamp(tilt + tiltVel * dt, -0.42, 0.42);
+    if (!f.active) tilt = damp(tilt, 0, 1.6, dt);
+    g.carrier.rotation.y = spin;
+    g.carrier.rotation.x = tilt;
     g.root.rotation.z = -0.04 + Math.sin(ctx.time * 0.7) * 0.012 - clamp(rock, -0.16, 0.16);
     g.root.rotation.x = 0.06 + clamp(rockVel * 0.02, -0.08, 0.08);
     g.root.position.y = STATION.wash.y + Math.sin(ctx.time * 0.9) * 0.004;
@@ -111,9 +139,11 @@ export const washStep: Step = {
       ctx.hint.hide();
     }
 
-    const done = g.mudLeft <= DONE_MUD || (ctx.stepTime > GIVE_UP_AFTER && g.mudLeft < 0.45);
-    if (done && !f.active) {
-      ctx.session.washQuality = clamp(1 - g.mudLeft * 1.6);
+    const looksClean = g.mudLeft <= CLEAN_ENOUGH
+      || (ctx.stepTime > GIVE_UP_AFTER && g.mudLeft < 0.5);
+    settled = looksClean && !f.active && !contact ? settled + dt : 0;
+    if (settled > SETTLE) {
+      ctx.session.washQuality = clamp((1 - g.mudLeft) / 0.78);
       ctx.audio.setScrub(0, 0);
       ctx.audio.chime(5, 0.09);
       ctx.go('place');
@@ -124,5 +154,6 @@ export const washStep: Step = {
     ctx.audio.setScrub(0, 0);
     ctx.rig.setDolly(0);
     ctx.hint.hide();
+    ctx.geode.endStroke();
   },
 };

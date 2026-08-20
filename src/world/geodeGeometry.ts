@@ -62,8 +62,8 @@ export function defaultShape(seed: number, rand = new Rand(seed)): GeodeShape {
   return {
     seed,
     radius: 0.50,
-    cavityR: 0.335,
-    crag: 0.115,
+    cavityR: 0.300,
+    crag: 0.145,
     seamAmp: 0.038,
     seamPhase: new Vector3(rand.range(0, 6.28), rand.range(0, 6.28), rand.range(0, 6.28)),
     breakAmp: 0.020,
@@ -93,8 +93,11 @@ function outerRadius(d: Vector3, sh: GeodeShape): number {
   const f = 2.7;
   const warp = fbm(d.x * 1.9 + 13.1, d.y * 1.9, d.z * 1.9 + sh.seed * 0.013, 2);
   const n = fbm(d.x * f + warp * 0.6, d.y * f + sh.seed * 0.021, d.z * f, 4);
-  const lumps = fbm(d.x * 1.35, d.y * 1.35 + 5.0, d.z * 1.35 + sh.seed * 0.007, 2);
-  return sh.radius * (1 + sh.crag * n + 0.085 * lumps);
+  const lumps = fbm(d.x * 1.25, d.y * 1.25 + 5.0, d.z * 1.25 + sh.seed * 0.007, 2);
+  // Geodes are squat ovoids, not balls; flattening the poles reads as "found
+  // in a riverbed" rather than "primitive sphere".
+  const oblate = 1 - 0.085 * d.y * d.y;
+  return sh.radius * oblate * (1 + sh.crag * n + 0.115 * lumps);
 }
 
 function cavityRadius(d: Vector3, sh: GeodeShape): number {
@@ -103,6 +106,12 @@ function cavityRadius(d: Vector3, sh: GeodeShape): number {
 }
 
 const _d = new Vector3();
+const _seamDir = new Vector3();
+
+/** Outer radius of the stone at the break line, for a given longitude. */
+export function seamRadiusAt(lon: number, sh: GeodeShape): number {
+  return outerRadius(_seamDir.set(Math.cos(lon), 0, Math.sin(lon)), sh);
+}
 
 /**
  * One half of the geode: outer weathered shell, the broken rim cross-section,

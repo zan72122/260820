@@ -23,7 +23,7 @@ export class Spring {
 
   step(dt: number): number {
     // Sub-step so a long frame can't blow the integrator up.
-    const steps = Math.min(4, Math.max(1, Math.ceil(dt / 0.012)));
+    const steps = Math.min(9, Math.max(1, Math.ceil(dt / 0.012)));
     const h = dt / steps;
     for (let i = 0; i < steps; i++) {
       const a = (this.target - this.value) * this.stiffness - this.velocity * this.damping;
@@ -56,7 +56,7 @@ export class Spring3 {
   }
 
   step(dt: number): Vector3 {
-    const steps = Math.min(4, Math.max(1, Math.ceil(dt / 0.012)));
+    const steps = Math.min(9, Math.max(1, Math.ceil(dt / 0.012)));
     const h = dt / steps;
     for (let i = 0; i < steps; i++) {
       _a.copy(this.target).sub(this.value).multiplyScalar(this.stiffness)

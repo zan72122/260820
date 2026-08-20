@@ -52,13 +52,12 @@ export const placeStep: Step = {
       return;
     }
 
-    if (f.justPressed) {
+    if (f.justPressed && ctx.grabbedStone()) {
+      held = true;
       const hit = ctx.pick(ctx.shellMeshes());
-      if (hit) {
-        held = true;
-        _grab.copy(hit.point).sub(g.root.position);
-        ctx.audio.knock(1.6, 0.10);
-      }
+      if (hit) _grab.copy(hit.point).sub(g.root.position);
+      else _grab.set(0, 0, 0);
+      ctx.audio.knock(1.6, 0.10);
     }
 
     if (held && f.active) {
@@ -113,6 +112,7 @@ export const placeStep: Step = {
 
   exit(ctx) {
     ctx.hint.hide();
+    ctx.geode.carrier.rotation.set(0, 0, 0);
     ctx.workshop.cradle.scale.setScalar(1);
     ctx.geode.root.position.copy(STATION.cradle);
     ctx.geode.root.rotation.set(0, 0, 0);

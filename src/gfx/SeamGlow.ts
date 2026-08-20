@@ -59,9 +59,11 @@ export class SeamGlow {
           float sides = smoothstep(0.5, 0.10, abs(c.x));
           float streak = pow(sides, 0.55);
 
-          float breathe = 0.88 + 0.12 * sin(uTime * 3.1);
-          float a = (band * 1.35 + flare * 0.45 * streak) * sides * uIntensity * breathe;
-          vec3 col = mix(uColor, vec3(1.0), clamp(band * 0.85, 0.0, 1.0));
+          float breathe = 0.90 + 0.10 * sin(uTime * 3.1);
+          // Capped: this quad is additive and sits in front of a bloom pass, so
+          // an unbounded value turns the whole screen into a white card.
+          float a = min(1.15, (band * 0.85 + flare * 0.26 * streak) * sides * uIntensity * breathe);
+          vec3 col = mix(uColor, vec3(1.0), clamp(band * 0.55, 0.0, 1.0));
           gl_FragColor = vec4(col * a, a);
         }`,
     });

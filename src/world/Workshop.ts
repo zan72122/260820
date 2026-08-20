@@ -1,8 +1,8 @@
 import {
-  BoxGeometry, BufferGeometry, Color, CylinderGeometry, DirectionalLight, Float32BufferAttribute,
-  Group, HemisphereLight, InstancedMesh, LatheGeometry, Matrix4, Mesh, MeshPhysicalMaterial,
-  Object3D, PlaneGeometry, Quaternion, Scene, SphereGeometry, SpotLight, Texture, TorusGeometry,
-  Vector2, Vector3, type IUniform,
+  BoxGeometry, BufferGeometry, CircleGeometry, Color, CylinderGeometry, DirectionalLight,
+  DoubleSide, Float32BufferAttribute, Fog, Group, HemisphereLight, InstancedMesh, LatheGeometry,
+  Matrix4, Mesh, MeshPhysicalMaterial, Object3D, PlaneGeometry, PointLight, Quaternion, Scene,
+  SphereGeometry, SpotLight, Texture, TorusGeometry, Vector2, Vector3, type IUniform,
 } from 'three';
 import { Rand } from '../core/Rand';
 import { clamp, damp } from '../core/Easing';
@@ -15,9 +15,9 @@ import {
 
 /** Where each verb happens. Everything is within a comfortable thumb-swipe. */
 export const STATION = {
-  wash: new Vector3(-0.70, 0.455, 0.10),
-  cradle: new Vector3(0.20, 0.560, -0.02),
-  pedestal: new Vector3(1.14, 0.640, 0.24),
+  wash: new Vector3(-0.86, 0.500, 0.10),
+  cradle: new Vector3(0.46, 0.560, -0.02),
+  pedestal: new Vector3(1.62, 0.600, 0.20),
 };
 
 const UP = new Vector3(0, 1, 0);
@@ -100,67 +100,82 @@ export class Workshop {
 
     // ---------------- bench + wall ----------------
     const wood = apply(createWoodMaterial(opts.uTime, this.uBenchWet));
-    const bench = new Mesh(new BoxGeometry(4.6, 0.24, 2.8), wood);
-    bench.position.set(0.15, -0.12, 0.05);
+    const bench = new Mesh(new BoxGeometry(6.4, 0.30, 3.2), wood);
+    bench.position.set(0.15, -0.15, 0.10);
     bench.receiveShadow = q.shadows;
-    bench.castShadow = false;
+    bench.castShadow = q.shadows;
     this.root.add(bench);
     this.disposables.push(bench.geometry);
 
     const plaster = apply(createPlasterMaterial());
-    const wall = new Mesh(new PlaneGeometry(14, 8), plaster);
-    wall.position.set(0, 2.0, -1.85);
+    const wall = new Mesh(new PlaneGeometry(16, 9), plaster);
+    wall.position.set(0, 2.4, -2.05);
     wall.receiveShadow = q.shadows;
     this.root.add(wall);
     this.disposables.push(wall.geometry);
 
+    // A floor so the wall never runs off the bottom of a tall phone screen.
+    const floor = new Mesh(new PlaneGeometry(16, 10), plaster);
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.set(0, -2.2, 1.0);
+    floor.receiveShadow = false;
+    this.root.add(floor);
+    this.disposables.push(floor.geometry);
+
     // ---------------- basin + water ----------------
-    const stone = apply(createStoneMaterial(new Color(0.62, 0.60, 0.58), this.uBasinWet));
-    const profile: Vector2[] = [];
-    for (let i = 0; i <= 12; i++) {
-      const t = i / 12;
-      // Shallow dish: flat centre, curved wall, flared rim.
-      const r = 0.86 * t;
-      const y = 0.02 + 0.20 * Math.pow(t, 2.4);
-      profile.push(new Vector2(r, y));
-    }
-    profile.push(new Vector2(0.90, 0.24), new Vector2(0.88, 0.05), new Vector2(0.86, -0.02));
-    const basin = new Mesh(new LatheGeometry(profile, 40), stone);
-    basin.position.copy(STATION.wash).setY(0);
-    basin.position.z = STATION.wash.z;
+    const stone = apply(createStoneMaterial(new Color(0.50, 0.49, 0.47), this.uBasinWet));
+    stone.side = DoubleSide;
+    // A shallow carved tray: flat floor, curved wall, thick rolled rim, then
+    // straight back down the outside so it reads as a solid block of stone.
+    const profile: Vector2[] = [
+      new Vector2(0.00, 0.020), new Vector2(0.28, 0.026), new Vector2(0.50, 0.050),
+      new Vector2(0.68, 0.110), new Vector2(0.80, 0.195), new Vector2(0.86, 0.238),
+      new Vector2(0.91, 0.226), new Vector2(0.93, 0.180), new Vector2(0.93, 0.000),
+      new Vector2(0.88, -0.03),
+    ];
+    const basin = new Mesh(new LatheGeometry(profile, 44), stone);
+    basin.position.set(STATION.wash.x, 0, STATION.wash.z);
     basin.receiveShadow = q.shadows;
     basin.castShadow = q.shadows;
     this.root.add(basin);
     this.disposables.push(basin.geometry);
 
     const waterMat = apply(createWaterMaterial(opts.uTime, this.uWaterAgitate, this.uWaterTouch));
-    this.water = new Mesh(new PlaneGeometry(1.5, 1.5, 24, 24), waterMat);
+    this.water = new Mesh(new CircleGeometry(0.80, 44), waterMat);
     this.water.rotation.x = -Math.PI / 2;
-    this.water.position.set(STATION.wash.x, 0.088, STATION.wash.z);
+    this.water.position.set(STATION.wash.x, 0.140, STATION.wash.z);
     this.water.renderOrder = 2;
     this.root.add(this.water);
     this.disposables.push(this.water.geometry);
 
     // ---------------- cradle ----------------
-    const steel = apply(createMetalMaterial(opts.uTime, new Color(0.72, 0.74, 0.78), 0.8, 0.45));
-    const brass = apply(createMetalMaterial(opts.uTime, new Color(0.86, 0.68, 0.36), 0.35, 0.6));
+    const steel = apply(createMetalMaterial(opts.uTime, new Color(0.42, 0.44, 0.48), 1.0, 0.7));
+    const brass = apply(createMetalMaterial(opts.uTime, new Color(0.50, 0.38, 0.20), 0.6, 0.78));
 
-    const ring = new Mesh(new TorusGeometry(0.355, 0.022, 6, 34), steel);
+    const ring = new Mesh(new TorusGeometry(0.355, 0.026, 8, 40), steel);
     ring.rotation.x = -Math.PI / 2;
     ring.position.y = 0.215;
     ring.castShadow = q.shadows;
     this.cradle.add(ring);
     this.disposables.push(ring.geometry);
 
-    const legGeo = new CylinderGeometry(0.017, 0.023, 0.235, 8);
+    const standGeo = new CylinderGeometry(0.235, 0.285, 0.075, 26);
+    const stand = new Mesh(standGeo, wood);
+    stand.position.y = 0.038;
+    stand.castShadow = q.shadows;
+    stand.receiveShadow = q.shadows;
+    this.cradle.add(stand);
+    this.disposables.push(standGeo);
+
+    const legGeo = new CylinderGeometry(0.014, 0.019, 0.185, 8);
     this.disposables.push(legGeo);
     const padGeo = new SphereGeometry(0.036, 10, 8);
     this.disposables.push(padGeo);
-    const padMat = apply(createVelvetMaterial(new Color(0.16, 0.12, 0.13)));
+    const padMat = apply(createVelvetMaterial(new Color(0.075, 0.055, 0.060)));
     for (let i = 0; i < 3; i++) {
       const a = (i / 3) * Math.PI * 2 + 0.4;
-      const leg = new Mesh(legGeo, brass);
-      leg.position.set(Math.cos(a) * 0.33, 0.108, Math.sin(a) * 0.33);
+      const leg = new Mesh(legGeo, steel);
+      leg.position.set(Math.cos(a) * 0.31, 0.130, Math.sin(a) * 0.31);
       leg.rotation.z = -Math.cos(a) * 0.16;
       leg.rotation.x = Math.sin(a) * 0.16;
       leg.castShadow = q.shadows;
@@ -175,23 +190,23 @@ export class Workshop {
     this.root.add(this.cradle);
 
     // ---------------- wedge ----------------
-    const bladeGeo = wedgeBlade(0.135, 0.085, 0.042);
+    const bladeGeo = wedgeBlade(0.19, 0.105, 0.052);
     const blade = new Mesh(bladeGeo, steel);
     blade.castShadow = q.shadows;
     this.wedge.add(blade);
     this.disposables.push(bladeGeo);
 
-    const collarGeo = new CylinderGeometry(0.030, 0.026, 0.035, 10);
+    const collarGeo = new CylinderGeometry(0.036, 0.031, 0.042, 12);
     const collar = new Mesh(collarGeo, brass);
     collar.rotation.z = Math.PI / 2;
-    collar.position.x = 0.018;
+    collar.position.x = 0.022;
     this.wedge.add(collar);
     this.disposables.push(collarGeo);
 
-    const handleGeo = new CylinderGeometry(0.030, 0.040, 0.19, 12);
+    const handleGeo = new CylinderGeometry(0.036, 0.048, 0.24, 12);
     const handle = new Mesh(handleGeo, wood);
     handle.rotation.z = Math.PI / 2;
-    handle.position.x = 0.130;
+    handle.position.x = 0.165;
     handle.castShadow = q.shadows;
     this.wedge.add(handle);
     this.disposables.push(handleGeo);
@@ -247,7 +262,7 @@ export class Workshop {
     this.pedestal.add(base);
     this.disposables.push(baseGeo);
 
-    const velvetMat = apply(createVelvetMaterial(new Color(0.30, 0.055, 0.11)));
+    const velvetMat = apply(createVelvetMaterial(new Color(0.20, 0.040, 0.075)));
     const cushionGeo = new SphereGeometry(0.275, 28, 18);
     const cushion = new Mesh(cushionGeo, velvetMat);
     cushion.scale.set(1, 0.42, 1);
@@ -256,29 +271,37 @@ export class Workshop {
     this.pedestal.add(cushion);
     this.disposables.push(cushionGeo);
     this.pedestal.position.set(STATION.pedestal.x, 0, STATION.pedestal.z);
+    this.pedestal.scale.setScalar(1);
     this.root.add(this.pedestal);
 
     // ---------------- light ----------------
-    this.keyLight = new DirectionalLight(0xffe4bc, 2.9);
-    this.keyLight.position.set(-3.1, 4.0, 2.0);
+    this.keyLight = new DirectionalLight(0xffe0b2, 3.1);
+    this.keyLight.position.set(-3.1, 4.0, 2.4);
     this.keyLight.target.position.set(0.1, 0.3, 0);
     if (q.shadows) {
       this.keyLight.castShadow = true;
       this.keyLight.shadow.mapSize.set(q.shadowMapSize, q.shadowMapSize);
       const c = this.keyLight.shadow.camera;
-      c.left = -2.2; c.right = 2.2; c.top = 2.0; c.bottom = -1.2; c.near = 0.5; c.far = 10;
+      c.left = -3.2; c.right = 3.2; c.top = 2.4; c.bottom = -1.5; c.near = 0.5; c.far = 12;
       this.keyLight.shadow.bias = -0.0012;
       this.keyLight.shadow.normalBias = 0.018;
       this.keyLight.shadow.radius = 2.4;
     }
     this.root.add(this.keyLight, this.keyLight.target);
 
-    this.fillLight = new DirectionalLight(0xa9c6ff, 0.55);
-    this.fillLight.position.set(3.2, 1.8, -1.8);
+    // Cool back-rim so the stone separates from a bench of the same brown.
+    this.fillLight = new DirectionalLight(0x9fc0ff, 1.05);
+    this.fillLight.position.set(2.6, 1.6, -2.6);
     this.root.add(this.fillLight);
 
-    this.hemi = new HemisphereLight(0x35405e, 0x1b1310, 0.42);
+    this.hemi = new HemisphereLight(0x2a3350, 0x140e0c, 0.40);
     this.root.add(this.hemi);
+
+    // A dim practical near the bench so the workshop is legibly a room and not
+    // an object floating in the void.
+    const lamp = new PointLight(0xffbe78, 1.5, 5.0, 1.8);
+    lamp.position.set(-1.9, 1.25, 1.25);
+    this.root.add(lamp);
 
     this.spot = new SpotLight(0xfff2dc, 0, 4.5, 0.52, 0.62, 1.4);
     this.spot.position.set(STATION.pedestal.x + 0.25, 2.15, STATION.pedestal.z + 0.85);
@@ -299,6 +322,8 @@ export class Workshop {
 
   addTo(scene: Scene): void {
     scene.add(this.root);
+    // Depth cue: the workshop should fall away into the dark behind the bench.
+    scene.fog = new Fog(0x0d0a12, 3.6, 15.0);
   }
 
   /** Splash ripples radiating from a world point on the water. */

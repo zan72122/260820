@@ -14,9 +14,11 @@ let sweepLevel = 0;
 let done = false;
 let doneT = 0;
 let lastPuff = 0;
+let settled = 0;
 
-const DONE_POWDER = 0.20;
-const GIVE_UP_AFTER = 40;
+const DONE_POWDER = 0.16;
+const SETTLE = 0.9;
+const GIVE_UP_AFTER = 45;
 
 /**
  * VERB: DUST.
@@ -40,6 +42,7 @@ export const dustStep: Step = {
     done = false;
     doneT = 0;
     lastPuff = 0;
+    settled = 0;
     ctx.audio.setAmbience(0.28);
   },
 
@@ -51,14 +54,18 @@ export const dustStep: Step = {
     let touching = false;
 
     if (f.active) {
-      const hit = ctx.pick([...ctx.shellMeshes()]);
+      // The ray enters over the rim, so the nearest hit is often the outside of
+      // the rock. Walk the hits and take the first one that is actually inside.
+      const hits = ctx.pickAll(ctx.shellMeshes());
+      const hit = hits.find((h) => ctx.geode.isCavityPoint(h.point, h.object as Mesh))
+        ?? null;
       if (hit) {
         touching = true;
         _hit.copy(hit.point);
         const mesh = hit.object as Mesh;
         const speed = Math.hypot(f.vx, f.vy);
         const sweep = clamp(speed * 0.85, 0, 1.4);
-        g.dustAt(_hit, mesh, 0.055 + sweep * 0.02, 0.16 + sweep * 0.34);
+        g.dustAt(_hit, mesh, 0.085 + sweep * 0.030, 0.28 + sweep * 0.34);
 
         if (sweep > 0.06 && ctx.time - lastPuff > 0.045) {
           lastPuff = ctx.time;
@@ -72,6 +79,7 @@ export const dustStep: Step = {
     }
 
     if (!touching) {
+      g.endStroke();
       sweepLevel = damp(sweepLevel, 0, 8, dt);
       if (!f.active) spring.target.copy(_home);
     }
@@ -87,14 +95,16 @@ export const dustStep: Step = {
     brush.rotation.x = damp(brush.rotation.x, clamp(spring.velocity.z * 0.12, -0.5, 0.5), 8, dt);
 
     const clean = 1 - g.powderLeft;
-    g.uCrystalGlow.value = damp(g.uCrystalGlow.value, 0.8 + clean * 0.7, 3, dt);
-    g.uSparkle.value = damp(g.uSparkle.value, 0.45 + clean * 0.85, 2.5, dt);
+    g.uCrystalGlow.value = damp(g.uCrystalGlow.value, 0.55 + clean * 0.3, 3, dt);
+    g.uSparkle.value = damp(g.uSparkle.value, 0.45 + clean * 0.6, 2.5, dt);
 
-    if (!done && (g.powderLeft <= DONE_POWDER
-      || (ctx.stepTime > GIVE_UP_AFTER && g.powderLeft < 0.55))) {
+    const clear = g.powderLeft <= DONE_POWDER
+      || (ctx.stepTime > GIVE_UP_AFTER && g.powderLeft < 0.5);
+    settled = clear && !f.active && !touching ? settled + dt : 0;
+    if (!done && settled > SETTLE) {
       done = true;
       doneT = 0;
-      ctx.session.dustQuality = clamp(1 - g.powderLeft * 1.6);
+      ctx.session.dustQuality = clamp((1 - g.powderLeft) / 0.9);
       ctx.audio.chime(7, 0.10);
     }
 
@@ -116,6 +126,7 @@ export const dustStep: Step = {
 
   exit(ctx) {
     ctx.audio.setScrub(0, 0);
+    ctx.geode.endStroke();
     ctx.workshop.setBristleBend(0);
     ctx.workshop.brush.visible = false;
     ctx.hint.hide();

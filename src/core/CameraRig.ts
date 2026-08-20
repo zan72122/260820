@@ -58,7 +58,9 @@ export class CameraRig {
 
   private solve(s: Shot, target: Vector3): Vector3 {
     const vHalf = (s.fov * Math.PI) / 360;
-    const hHalf = Math.atan(Math.tan(vHalf) * this.aspect);
+    // A very tall phone would otherwise drag the camera absurdly far back to
+    // satisfy the horizontal fit. Past 5:3 the framing stops getting wider.
+    const hHalf = Math.atan(Math.tan(vHalf) * Math.max(this.aspect, 0.60));
     const half = Math.max(0.06, Math.min(vHalf, hHalf));
     const dist = (s.fit / Math.tan(half)) * (1 + this.dolly);
     return new Vector3().copy(target).addScaledVector(s.dir, dist);
