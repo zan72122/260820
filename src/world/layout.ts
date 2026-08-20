@@ -85,7 +85,7 @@ export function buildLayout(id: number): Layout {
       const i = z * NX + x;
 
       // A gentle, steady fall from the dam to the far end.
-      let y = 0.05 - smoothstep(DAM_V1, 0.94, v) * 0.085;
+      let y = 0.05 - smoothstep(DAM_V1, 0.94, v) * 0.125;
 
       const n = fbm(u * 4.4, v * 7.4, 4, seed) - 0.5;
       const n2 = fbm(u * 11.0, v * 17.0, 3, seed + 7) - 0.5;
@@ -126,9 +126,10 @@ export function buildLayout(id: number): Layout {
 
       if (id === 0) {
         // A low ridge with one weak, off-centre saddle.
-        const ridge = smoothstep(0.05, 0.0, Math.abs(v - 0.63));
-        const saddle = smoothstep(0.24, 0.07, Math.abs(u - 0.7));
-        y += ridge * (0.1 - saddle * 0.058);
+        // A bank across the sand with one deliberately weak, off-centre spot.
+        const ridge = smoothstep(0.052, 0.0, Math.abs(v - 0.63));
+        const saddle = smoothstep(0.22, 0.05, Math.abs(u - 0.7));
+        y += ridge * (0.075 - saddle * 0.068);
       } else if (id === 1) {
         // Two shelves: the flow splits if the child lets it.
         const b1 = smoothstep(0.05, 0.0, segDist(u, v, 0.14, 0.5, 0.66, 0.57));

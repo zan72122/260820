@@ -74,32 +74,48 @@ function drop(ctx: Ctx, x: number, y: number, r: number) {
   ctx.fill();
 }
 
-function hand(ctx: Ctx, x: number, y: number, s: number, tone = '#f6d8b8', edge = '#c79a72') {
+function hand(ctx: Ctx, x: number, y: number, s: number, rot = 0, tone = '#f6d8b8', edge = '#c1926a') {
   ctx.save();
   ctx.translate(x, y);
+  ctx.rotate(rot);
   ctx.scale(s, s);
   ctx.lineJoin = 'round';
-  ctx.lineWidth = 0.09;
+  ctx.lineCap = 'round';
+  ctx.lineWidth = 0.085;
   ctx.strokeStyle = edge;
   ctx.fillStyle = tone;
-  // palm
+
+  // folded fingers, drawn first so the palm overlaps them
+  for (let i = 0; i < 3; i++) {
+    ctx.beginPath();
+    ctx.ellipse(0.3 - i * 0.005, 0.28 + i * 0.2, 0.19, 0.115, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+  // thumb
   ctx.beginPath();
-  ctx.moveTo(-0.42, 0.28);
-  ctx.quadraticCurveTo(-0.55, 0.95, -0.2, 1.12);
-  ctx.quadraticCurveTo(0.28, 1.25, 0.48, 0.86);
-  ctx.quadraticCurveTo(0.6, 0.5, 0.5, 0.16);
-  ctx.quadraticCurveTo(0.36, -0.05, 0.1, 0.0);
-  ctx.closePath();
+  ctx.ellipse(-0.34, 0.56, 0.155, 0.11, -0.5, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
-  // index finger, pointing up
+
+  // palm
   ctx.beginPath();
-  ctx.moveTo(-0.18, 0.22);
-  ctx.quadraticCurveTo(-0.24, -0.5, -0.12, -0.86);
-  ctx.quadraticCurveTo(0.03, -1.02, 0.14, -0.84);
-  ctx.quadraticCurveTo(0.22, -0.42, 0.18, 0.2);
-  ctx.closePath();
+  roundRect(ctx, -0.36, 0.1, 0.72, 0.86, 0.26);
   ctx.fill();
+  ctx.stroke();
+
+  // extended index finger
+  ctx.beginPath();
+  roundRect(ctx, -0.17, -0.94, 0.32, 1.2, 0.155);
+  ctx.fill();
+  ctx.stroke();
+
+  // knuckle crease, so the finger reads as separate from the palm
+  ctx.globalAlpha = 0.5;
+  ctx.lineWidth = 0.045;
+  ctx.beginPath();
+  ctx.moveTo(-0.14, 0.16);
+  ctx.lineTo(0.12, 0.16);
   ctx.stroke();
   ctx.restore();
 }
@@ -155,24 +171,30 @@ export function drawDigTool(ctx: Ctx, s: number) {
   ctx.beginPath();
   ctx.arc(s / 2, s / 2, s / 2, 0, Math.PI * 2);
   ctx.clip();
-  // a groove already carved, with water starting to run down it
-  ctx.strokeStyle = '#9d7c4f';
-  ctx.lineWidth = s * 0.17;
+
+  // a wide groove pushed through the sand, with spoil along its sides
+  ctx.strokeStyle = '#b99a6b';
+  ctx.lineWidth = s * 0.3;
   ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.moveTo(s * 0.2, s * 0.78);
-  ctx.quadraticCurveTo(s * 0.46, s * 0.6, s * 0.78, s * 0.28);
+  ctx.moveTo(s * 0.12, s * 0.86);
+  ctx.quadraticCurveTo(s * 0.4, s * 0.66, s * 0.62, s * 0.34);
   ctx.stroke();
-  ctx.strokeStyle = 'rgba(150,190,196,0.95)';
-  ctx.lineWidth = s * 0.1;
+  ctx.strokeStyle = '#7d6440';
+  ctx.lineWidth = s * 0.19;
   ctx.stroke();
-  ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-  ctx.lineWidth = s * 0.028;
+  ctx.strokeStyle = 'rgba(150,190,196,0.92)';
+  ctx.lineWidth = s * 0.13;
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+  ctx.lineWidth = s * 0.025;
   ctx.beginPath();
-  ctx.moveTo(s * 0.24, s * 0.74);
-  ctx.quadraticCurveTo(s * 0.47, s * 0.58, s * 0.74, s * 0.29);
+  ctx.moveTo(s * 0.15, s * 0.82);
+  ctx.quadraticCurveTo(s * 0.41, s * 0.63, s * 0.6, s * 0.34);
   ctx.stroke();
-  hand(ctx, s * 0.66, s * 0.3, s * 0.28);
+
+  // the fingertip that made it
+  hand(ctx, s * 0.74, s * 0.3, s * 0.34, 2.55);
   ctx.restore();
 }
 
@@ -183,23 +205,26 @@ export function drawMudTool(ctx: Ctx, s: number) {
   ctx.beginPath();
   ctx.arc(s / 2, s / 2, s / 2, 0, Math.PI * 2);
   ctx.clip();
-  // a squashed lump of wet mud with a glossy film
-  const g = ctx.createRadialGradient(s * 0.42, s * 0.6, s * 0.03, s * 0.5, s * 0.68, s * 0.42);
-  g.addColorStop(0, '#6b5233');
-  g.addColorStop(1, '#3a2b1a');
+
+  // a squashed lump of wet mud pressed into a gap
+  const g = ctx.createRadialGradient(s * 0.4, s * 0.62, s * 0.02, s * 0.5, s * 0.72, s * 0.44);
+  g.addColorStop(0, '#75593a');
+  g.addColorStop(1, '#33261611');
+  ctx.fillStyle = '#3e2f1d';
+  ctx.beginPath();
+  ctx.ellipse(s * 0.5, s * 0.72, s * 0.36, s * 0.19, 0, 0, Math.PI * 2);
+  ctx.fill();
   ctx.fillStyle = g;
   ctx.beginPath();
-  ctx.ellipse(s * 0.5, s * 0.68, s * 0.34, s * 0.2, 0, 0, Math.PI * 2);
+  ctx.ellipse(s * 0.48, s * 0.69, s * 0.31, s * 0.15, 0, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = 'rgba(255,255,255,0.28)';
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
   ctx.beginPath();
-  ctx.ellipse(s * 0.4, s * 0.62, s * 0.11, s * 0.05, -0.35, 0, Math.PI * 2);
+  ctx.ellipse(s * 0.38, s * 0.65, s * 0.1, s * 0.042, -0.32, 0, Math.PI * 2);
   ctx.fill();
-  ctx.fillStyle = '#4a3722';
-  ctx.beginPath();
-  ctx.ellipse(s * 0.66, s * 0.56, s * 0.1, s * 0.075, 0.4, 0, Math.PI * 2);
-  ctx.fill();
-  hand(ctx, s * 0.47, s * 0.16, s * 0.3);
+
+  // the palm pressing down on it
+  hand(ctx, s * 0.55, s * 0.16, s * 0.34, 3.14);
   ctx.restore();
 }
 
@@ -254,19 +279,31 @@ export function drawMenuGlyph(ctx: Ctx, s: number) {
 
 export function drawBack(ctx: Ctx, s: number) {
   ctx.clearRect(0, 0, s, s);
+  const cx = s * 0.52;
+  const cy = s * 0.52;
+  const r = s * 0.23;
   ctx.strokeStyle = '#6b4f2c';
-  ctx.lineWidth = s * 0.085;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  ctx.beginPath();
-  ctx.arc(s * 0.5, s * 0.52, s * 0.24, 0.6, Math.PI * 1.65);
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.moveTo(s * 0.28, s * 0.28);
-  ctx.lineTo(s * 0.26, s * 0.5);
-  ctx.lineTo(s * 0.47, s * 0.46);
-  ctx.closePath();
   ctx.fillStyle = '#6b4f2c';
+  ctx.lineWidth = s * 0.09;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, -0.35 * Math.PI, 0.85 * Math.PI);
+  ctx.stroke();
+  // arrow head on the tangent at the end of the sweep
+  const a = 0.85 * Math.PI;
+  const px = cx + Math.cos(a) * r;
+  const py = cy + Math.sin(a) * r;
+  const tx = -Math.sin(a);
+  const ty = Math.cos(a);
+  const nx = -ty;
+  const ny = tx;
+  const hl = s * 0.15;
+  const hw = s * 0.1;
+  ctx.beginPath();
+  ctx.moveTo(px + tx * hl, py + ty * hl);
+  ctx.lineTo(px + nx * hw, py + ny * hw);
+  ctx.lineTo(px - nx * hw, py - ny * hw);
+  ctx.closePath();
   ctx.fill();
 }
 
@@ -282,6 +319,15 @@ function cardBg(ctx: Ctx, w: number, h: number) {
   for (let i = 0; i < 400; i++) {
     ctx.fillRect(((i * 7919) % 997) / 997 * w, ((i * 104729) % 991) / 991 * h, 1.5, 1.5);
   }
+}
+
+function gateGlyph(ctx: Ctx, w: number, h: number, cx: number, cy: number) {
+  const k = Math.min(w, h);
+  ctx.fillStyle = '#7a5a35';
+  ctx.fillRect(cx - k * 0.11, cy - k * 0.03, k * 0.035, k * 0.16);
+  ctx.fillRect(cx + k * 0.075, cy - k * 0.03, k * 0.035, k * 0.16);
+  ctx.fillStyle = '#9c7847';
+  ctx.fillRect(cx - k * 0.125, cy - k * 0.06, k * 0.25, k * 0.055);
 }
 
 function sandbox(ctx: Ctx, w: number, h: number, path: (x: number) => number, split: boolean) {
@@ -314,6 +360,7 @@ function sandbox(ctx: Ctx, w: number, h: number, path: (x: number) => number, sp
   }
   // lower pond
   waterBlob(ctx, w * 0.5, h * 0.76, w * 0.5, h * 0.17);
+  gateGlyph(ctx, w, h, w * 0.5, h * 0.3);
   ctx.restore();
 }
 
@@ -360,7 +407,7 @@ export function drawGhostHand(ctx: Ctx, s: number) {
   ctx.globalAlpha = 0.9;
   ctx.shadowColor = 'rgba(0,0,0,0.35)';
   ctx.shadowBlur = s * 0.06;
-  hand(ctx, s * 0.5, s * 0.46, s * 0.3, 'rgba(255,250,240,0.92)', 'rgba(120,95,60,0.85)');
+  hand(ctx, s * 0.5, s * 0.46, s * 0.3, 0, 'rgba(255,250,240,0.92)', 'rgba(120,95,60,0.85)');
   ctx.restore();
   // short upward stroke: the direction only, never the outcome
   ctx.strokeStyle = 'rgba(255,255,255,0.92)';

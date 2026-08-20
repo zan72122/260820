@@ -20,16 +20,19 @@ game.onResize(engine.portrait);
 
 let ready = false;
 let started = false;
+let pendingStart = false;
 
 game
   .init((p) => ui.setProgress(p))
   .then(() => {
-    ready = true;
-    ui.setProgress(1);
     game.onResize(engine.portrait);
     // Warm the pipeline before the first frame the child sees.
     engine.renderer.compile(engine.scene, engine.camera);
     engine.renderer.render(engine.scene, engine.camera);
+    ready = true;
+    ui.setProgress(1);
+    ui.setReady();
+    if (pendingStart) ui.onStart();
   })
   .catch((err) => {
     console.error(err);
@@ -51,9 +54,15 @@ audio.setMuted(!ui.soundOn);
 game.setHaptics(ui.hapticsOn);
 
 ui.onStart = () => {
-  if (!ready || started) return;
-  started = true;
+  if (started) return;
+  // The tap is the only gesture that can unlock audio on iOS: use it even if
+  // the textures are still being built, and start as soon as they are ready.
   void audio.unlock();
+  if (!ready) {
+    pendingStart = true;
+    return;
+  }
+  started = true;
   ui.hideStart();
   game.begin();
   engine.start();

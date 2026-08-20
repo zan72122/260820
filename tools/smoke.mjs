@@ -34,7 +34,7 @@ async function dragPath(page, pts, stepMs = 40) {
 }
 
 async function run(page, name) {
-  await page.waitForFunction(() => document.querySelector('#boot > i')?.style.width === '100%', null, {
+  await page.waitForFunction(() => document.querySelector('#start-btn')?.classList.contains('ready'), null, {
     timeout: 90000,
   });
   await shot(page, name, '00-start');

@@ -60,8 +60,10 @@ export class Game {
   private ghostOn = false;
 
   private dripTimer = 0;
+  private creakTimer = 4;
   private jetTimer = 0;
   private breachHold = 0;
+  private breachShotCooldown = 0;
   private lowShotHold = 0;
   private arrived = false;
   private arrivedTime = 0;
@@ -386,13 +388,13 @@ export class Game {
   }
 
   private digAt(p: THREE.Vector3, speedPx: number) {
-    const strength = 0.0125;
-    const radius = 0.185;
+    const strength = 0.032;
+    const radius = 0.2;
     let moved = 0;
     if (this.hasLastDig) {
       // stamp along the stroke so a fast finger still leaves a continuous groove
       const dist = Math.hypot(p.x - this.lastDig.x, p.z - this.lastDig.z);
-      const n = Math.min(8, Math.max(1, Math.ceil(dist / 0.07)));
+      const n = Math.min(10, Math.max(1, Math.ceil(dist / 0.05)));
       for (let i = 1; i <= n; i++) {
         const t = i / n;
         moved += this.terrain.dig(
@@ -544,6 +546,15 @@ export class Game {
 
     const pressure = clamp((this.water.resFloorSurface - this.layout.sillY) * 3, 0, 1);
     this.gate.update(dt, elapsed, pressure);
+
+    // A shut gate under a full pool never sits quiet: it works against itself.
+    if (this.gate.open < 0.05 && this.drag !== 'gate') {
+      this.creakTimer -= dt;
+      if (this.creakTimer <= 0) {
+        this.creakTimer = 2.6 + Math.random() * 2.4;
+        this.audio.creak(0.1 * pressure);
+      }
+    }
     this.terrain.update(dt);
     this.waterMesh.update(dt, elapsed);
     this.boat.update(dt, elapsed, this.terrain, this.water);
@@ -596,9 +607,17 @@ export class Game {
         this.particles.splash(e.x, e.y, e.z, 0.5 * e.power);
         this.haptic(16);
         this.revealMud();
-        if (this.phase === 'play' && this.breachHold <= 0 && this.sinceInteraction > 0.35) {
+        // Cut to the failure only occasionally: the child is playing, not
+        // watching a camera jump back and forth.
+        if (
+          this.phase === 'play' &&
+          this.breachHold <= 0 &&
+          this.breachShotCooldown <= 0 &&
+          this.sinceInteraction > 0.4
+        ) {
           this.applyFraming(this.fBreach(e.x, e.z));
           this.breachHold = 3.4;
+          this.breachShotCooldown = 26;
         }
       } else if (e.type === 'arrive') {
         this.audio.arrive();
@@ -631,6 +650,7 @@ export class Game {
   }
 
   private updatePhase(dt: number) {
+    this.breachShotCooldown -= dt;
     if (this.breachHold > 0) {
       this.breachHold -= dt;
       if (this.breachHold <= 0 && !this.arrived) this.applyFraming(this.fDig());

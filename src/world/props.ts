@@ -241,7 +241,7 @@ export class LeafBoat {
     const p = this.group.position;
     const s = water.sample(worldToGridX(p.x), worldToGridZ(p.z));
     const ground = terrain.heightAt(p.x, p.z);
-    const floatDepth = 0.014;
+    const floatDepth = 0.009;
 
     if (s.depth > floatDepth) {
       this.afloat = true;
@@ -529,8 +529,8 @@ export class Surroundings {
 
   /** Toys rest on the sand at whatever height the sand happens to be. */
   placeTools(terrain: Terrain) {
-    const bx = WORLD_W / 2 - 0.58;
-    const bz = WORLD_D / 2 - 0.75;
+    const bx = WORLD_W / 2 - 0.5;
+    const bz = WORLD_D / 2 - 2.3;
     this.bucket.position.set(bx, terrain.heightAt(bx, bz) - 0.01, bz);
     const sx = -WORLD_W / 2 + 0.52;
     const sz = WORLD_D / 2 - 1.3;

@@ -219,34 +219,40 @@ export class Terrain {
     const gx = worldToGridX(wx);
     const gz = worldToGridZ(wz);
     const rc = radiusWorld / CELL;
-    const x0 = Math.max(0, Math.floor(gx - rc * 1.85));
-    const x1 = Math.min(NX - 1, Math.ceil(gx + rc * 1.85));
-    const z0 = Math.max(0, Math.floor(gz - rc * 1.85));
-    const z1 = Math.min(NZ - 1, Math.ceil(gz + rc * 1.85));
+    const x0 = Math.max(0, Math.floor(gx - rc * 1.8));
+    const x1 = Math.min(NX - 1, Math.ceil(gx + rc * 1.8));
+    const z0 = Math.max(0, Math.floor(gz - rc * 1.8));
+    const z1 = Math.min(NZ - 1, Math.ceil(gz + rc * 1.8));
     let moved = 0;
+    let rimWeight = 0;
     for (let z = z0; z <= z1; z++) {
       for (let x = x0; x <= x1; x++) {
         const i = z * NX + x;
         const d = Math.hypot(x - gx, z - gz) / rc;
-        if (d >= 1.85) continue;
         if (d < 1) {
-          const k = Math.pow(1 - d * d, 1.4);
+          const k = Math.pow(1 - d * d, 1.2);
           const cut = strength * k * (1 - this.mud[i] * 0.55);
           const before = this.height[i];
           this.height[i] = Math.max(FLOOR_Y, before - cut);
           moved += before - this.height[i];
           this.mud[i] *= 1 - k * 0.5;
+        } else if (d < 1.75) {
+          rimWeight += smoothstep(0.95, 1.18, d) * smoothstep(1.75, 1.2, d);
         }
       }
     }
     if (moved <= 0) return 0;
-    const rim = moved / 5.2;
-    for (let z = z0; z <= z1; z++) {
-      for (let x = x0; x <= x1; x++) {
-        const d = Math.hypot(x - gx, z - gz) / rc;
-        if (d < 0.86 || d >= 1.85) continue;
-        const k = smoothstep(0.86, 1.12, d) * smoothstep(1.85, 1.2, d);
-        this.height[z * NX + x] += rim * k * 0.5;
+    // Part of the spoil piles up along the sides as a bank; the rest is
+    // treated as carried away, which keeps repeated passes from exploding.
+    if (rimWeight > 0) {
+      const deposit = (moved * 0.4) / rimWeight;
+      for (let z = z0; z <= z1; z++) {
+        for (let x = x0; x <= x1; x++) {
+          const d = Math.hypot(x - gx, z - gz) / rc;
+          if (d < 1 || d >= 1.75) continue;
+          const k = smoothstep(0.95, 1.18, d) * smoothstep(1.75, 1.2, d);
+          this.height[z * NX + x] += deposit * k;
+        }
       }
     }
     this.shapeDirty = true;
@@ -279,6 +285,24 @@ export class Terrain {
     }
     this.shapeDirty = true;
     this.aoDirty = true;
+  }
+
+  /** A landing drop darkens the sand exactly where it fell. */
+  wetSpot(wx: number, wz: number, amount: number, radiusCells = 1.6) {
+    const gx = worldToGridX(wx);
+    const gz = worldToGridZ(wz);
+    const x0 = Math.max(0, Math.floor(gx - radiusCells));
+    const x1 = Math.min(NX - 1, Math.ceil(gx + radiusCells));
+    const z0 = Math.max(0, Math.floor(gz - radiusCells));
+    const z1 = Math.min(NZ - 1, Math.ceil(gz + radiusCells));
+    for (let z = z0; z <= z1; z++) {
+      for (let x = x0; x <= x1; x++) {
+        const d = Math.hypot(x - gx, z - gz) / radiusCells;
+        if (d >= 1) continue;
+        const i = z * NX + x;
+        this.wet[i] = clamp(this.wet[i] + amount * (1 - d * d), 0, 1);
+      }
+    }
   }
 
   markShapeDirty() {

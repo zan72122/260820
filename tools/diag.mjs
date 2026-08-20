@@ -7,7 +7,7 @@ const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, de
 const page = await ctx.newPage();
 page.on('pageerror', (e) => console.log('pageerror', e.message));
 await page.goto('http://localhost:4173/', { waitUntil: 'load' });
-await page.waitForFunction(() => document.querySelector('#boot > i')?.style.width === '100%', null, { timeout: 90000 });
+await page.waitForFunction(() => document.querySelector('#start-btn')?.classList.contains('ready'), null, { timeout: 90000 });
 await page.locator('#start-btn').dispatchEvent('click');
 await page.waitForTimeout(2600);
 await page.screenshot({ path: `${OUT}/full-establish.png` });

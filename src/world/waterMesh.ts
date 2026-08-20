@@ -128,18 +128,19 @@ float wFoam;`,
           vec3 shallow = vec3( 0.315, 0.278, 0.212 );
           vec3 deep    = vec3( 0.052, 0.070, 0.064 );
           diffuseColor.rgb = mix( shallow, deep, deepK );
-          diffuseColor.a = smoothstep( 0.0004, 0.0055, dep ) * mix( 0.20, 0.92, deepK );
-          wFoam = smoothstep( 0.32, 1.15, spd ) * smoothstep( 0.0006, 0.0035, dep );
-          wFoam += smoothstep( 0.0045, 0.0012, dep ) * smoothstep( 0.12, 0.6, spd ) * 0.55;
+          diffuseColor.a = smoothstep( 0.0004, 0.0055, dep ) * mix( 0.14, 0.9, deepK );
+          // foam only where the water is genuinely broken, not everywhere fast
+          wFoam = smoothstep( 1.3, 3.4, spd ) * smoothstep( 0.0008, 0.004, dep );
+          wFoam += smoothstep( 0.004, 0.0012, dep ) * smoothstep( 0.6, 1.8, spd ) * 0.32;
           wFoam = clamp( wFoam, 0.0, 1.0 );
-          diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.80, 0.815, 0.80 ), wFoam * 0.8 );
-          diffuseColor.a = clamp( diffuseColor.a + wFoam * 0.45, 0.0, 1.0 );
+          diffuseColor.rgb = mix( diffuseColor.rgb, vec3( 0.78, 0.79, 0.775 ), wFoam * 0.7 );
+          diffuseColor.a = clamp( diffuseColor.a + wFoam * 0.3, 0.0, 1.0 );
           `,
         )
         .replace(
           '#include <roughnessmap_fragment>',
           /* glsl */ `
-          float roughnessFactor = clamp( mix( 0.028, 0.30, clamp( spd * 0.75, 0.0, 1.0 ) ) + wFoam * 0.45, 0.02, 1.0 );
+          float roughnessFactor = clamp( mix( 0.028, 0.26, clamp( spd * 0.35, 0.0, 1.0 ) ) + wFoam * 0.45, 0.02, 1.0 );
           `,
         )
         .replace(

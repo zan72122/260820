@@ -238,6 +238,8 @@ export class Particles {
       p[i * 3 + 2] += v[i * 3 + 2] * dt;
       const g = terrain.heightAt(p[i * 3], p[i * 3 + 2]);
       if (p[i * 3 + 1] <= g) {
+        // a water drop leaves a dark spot exactly where it lands
+        if (k === 0) terrain.wetSpot(p[i * 3], p[i * 3 + 2], 0.32);
         p[i * 3 + 1] = -999;
         this.life[i] = 0;
         this.alpha[i] = 0;

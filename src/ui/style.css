@@ -80,8 +80,16 @@ body {
   background: none;
   padding: 0;
   cursor: pointer;
-  animation: breathe 2.4s ease-in-out infinite;
   pointer-events: auto;
+  opacity: 0.45;
+  transform: scale(0.92);
+  transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+#start-btn.ready {
+  opacity: 1;
+  transform: none;
+  animation: breathe 2.4s ease-in-out infinite;
 }
 
 #start-btn canvas {
@@ -140,18 +148,23 @@ body {
   transition: opacity 0.5s ease, visibility 0s;
 }
 
-body.portrait #dock {
+/* Always along the bottom edge: in landscape the upstream side of the
+   sandbox is on the left, and the tools must never cover the sluice. */
+#dock {
   left: 50%;
   transform: translateX(-50%);
   bottom: calc(14px + var(--safe-b));
   flex-direction: row;
 }
 
+body.landscape .tool {
+  width: 62px;
+  height: 62px;
+}
+
 body.landscape #dock {
-  left: calc(14px + var(--safe-l));
-  top: 50%;
-  transform: translateY(-50%);
-  flex-direction: column;
+  bottom: calc(10px + var(--safe-b));
+  gap: 12px;
 }
 
 .tool {

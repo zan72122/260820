@@ -36,6 +36,7 @@ export class UI {
 
   private root: HTMLElement;
   private startEl!: HTMLElement;
+  private startBtn!: HTMLElement;
   private bootBar!: HTMLElement;
   private dock!: HTMLElement;
   private tools: Record<Tool, HTMLElement> = {} as Record<Tool, HTMLElement>;
@@ -99,11 +100,17 @@ export class UI {
     wrap.appendChild(boot);
     this.root.appendChild(wrap);
     this.startEl = wrap;
+    this.startBtn = btn;
     btn.addEventListener('click', () => this.onStart());
   }
 
   setProgress(p: number) {
     this.bootBar.style.width = `${Math.round(p * 100)}%`;
+  }
+
+  /** Only invite the tap once there is really something to show. */
+  setReady() {
+    this.startBtn.classList.add('ready');
   }
 
   hideStart() {

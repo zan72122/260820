@@ -7,21 +7,21 @@ const G = 9.81;
 
 /* Tuned so a 4-year-old sees a response inside one breath, and so the same
    terrain plus the same gate movement reproduces the same run. */
-const FLOW_GAIN = 0.9;
-const FLUX_DAMP = 0.96;
+const FLOW_GAIN = 1.1;
+const FLUX_DAMP = 0.995;
 const SUBSTEPS = 2;
 const MIN_DEPTH = 2.5e-5;
 
-const GATE_C = 0.15;
+const GATE_C = 0.3;
 const GATE_GAP_MAX = 0.16;
 
-const SOAK_RATE = 0.011; // m/s of water the dry sand can drink
+const SOAK_RATE = 0.0018; // m/s of water the dry sand can drink
 const SOAK_CAPACITY = 0.0045; // metres of water that saturates one cell
 const DRY_RATE = 0.028; // wetness lost per second on bare sand
 const WET_SPREAD = 0.9; // capillary creep beyond the waterline
 
-const EROSION = 0.09;
-const EROSION_START = 0.30;
+const EROSION = 0.055;
+const EROSION_START = 0.62;
 const MAX_EROSION_PER_CELL = 0.085;
 
 export interface WaterEvent {
@@ -333,9 +333,14 @@ export class Water {
         h[i] -= cut;
         this.eroded[i] += cut;
         changed = true;
-        // a ridge losing material fast is a breach, not just scouring
+        // A breach is water cutting a bank open into dry ground. Ordinary
+        // scouring inside a channel is not a breach and must not read as one.
         const ridge = h[i] - Math.min(h[i - NX], h[i + NX], h[i - 1], h[i + 1]);
-        const score = cut * (0.4 + ridge * 6);
+        if (ridge < 0.03) continue;
+        const dryAhead =
+          d[i - 1] < 0.0008 || d[i + 1] < 0.0008 || d[i - NX] < 0.0008 || d[i + NX] < 0.0008;
+        if (!dryAhead) continue;
+        const score = cut * ridge;
         if (score > worst) {
           worst = score;
           worstIdx = i;
@@ -343,9 +348,9 @@ export class Water {
       }
     }
     if (changed) this.terrain.markShapeDirty();
-    if (worstIdx >= 0 && worst > 0.0009 && this.breachCooldown <= 0) {
-      this.breachCooldown = 2.2;
-      this.pushEvent('breach', worstIdx, clamp(worst * 260, 0.3, 1));
+    if (worstIdx >= 0 && worst > 1.2e-5 && this.breachCooldown <= 0) {
+      this.breachCooldown = 3.5;
+      this.pushEvent('breach', worstIdx, clamp(worst * 9000, 0.3, 1));
     }
   }
 
@@ -375,7 +380,7 @@ export class Water {
     for (let i = 0; i < N; i += 3) flow += this.depth[i] > 0.002 ? Math.hypot(this.velX[i], this.velZ[i]) : 0;
     this.totalFlow = flow / (N / 3);
 
-    if (!this.reachedPond && this.pondFill > 0.34 && this.pondDepth > 0.016) {
+    if (!this.reachedPond && this.pondFill > 0.3 && this.pondDepth > 0.009) {
       this.reachedPond = true;
       const i = this.pondCells[(this.pondCells.length / 2) | 0];
       this.pushEvent('arrive', i, 1);

@@ -5,7 +5,7 @@ const page = await ctx.newPage();
 page.on('console', (m) => console.log('LOG', m.text()));
 page.on('pageerror', (e) => console.log('ERR', e.message));
 await page.goto('http://localhost:4173/?debug=1', { waitUntil: 'load' });
-await page.waitForFunction(() => document.querySelector('#boot > i')?.style.width === '100%', null, { timeout: 90000 });
+await page.waitForFunction(() => document.querySelector('#start-btn')?.classList.contains('ready'), null, { timeout: 90000 });
 await page.locator('#start-btn').dispatchEvent('click');
 await page.waitForTimeout(6500);
 await page.evaluate(() => {
