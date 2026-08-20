@@ -43,7 +43,7 @@ export class FingerHint {
 
   private drawTrail() {
     const d = this.path.map((p, i) => `${i ? 'L' : 'M'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
-    this.svg.innerHTML = `<path d="${d}" fill="none" stroke="rgba(255,250,238,0.5)" stroke-width="3" stroke-linecap="round" stroke-dasharray="7 9"/>`;
+    this.svg.innerHTML = `<path d="${d}" fill="none" stroke="rgba(255,250,238,0.62)" stroke-width="4" stroke-linecap="round" stroke-dasharray="8 10"/>`;
     this.svg.style.opacity = '0.8';
   }
 

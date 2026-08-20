@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { clamp01, fbm, lerp, makeRng, Rng, rrange, smoothstep } from '../core/util';
 import { perf } from '../core/perf';
+import { settings } from '../core/settings';
 import { DigSite } from './digsite';
 import { LeafClump, LeafPlacement, leafTint } from './foliage';
 import { Strand } from './strand';
@@ -290,7 +291,7 @@ export class Plant {
       const alignedToCrack = i === 0;
       const pitch = alignedToCrack ? rrange(rng, 0.08, 0.15) : rrange(rng, 0.12, 0.30);
       const headR = rrange(rng, 0.028, 0.06);
-      const headDepth = alignedToCrack ? 0.05 : rrange(rng, 0.058, 0.078);
+      const headDepth = alignedToCrack ? 0.042 : rrange(rng, 0.058, 0.078);
 
       const geo = makeTuberGeometry(spec);
       const mesh = new THREE.Mesh(geo, mat);
@@ -420,7 +421,7 @@ export class Plant {
 
     this.shakeAmount = Math.max(0, this.shakeAmount - dt * 0.9);
     this.shakePhase += dt * 15;
-    const swing = this.lifted ? Math.sin(this.shakePhase) * this.shakeAmount * 0.34 : 0;
+    const swing = this.lifted ? Math.sin(this.shakePhase) * this.shakeAmount * 0.34 * settings.motionScale : 0;
 
     const tmpA = new THREE.Vector3();
     const tmpB = new THREE.Vector3();

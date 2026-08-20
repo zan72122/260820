@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { Rng, rrange } from '../core/util';
+import { settings } from '../core/settings';
 
 /** One small pool of soil grains — enough to sell a break, not a physics demo. */
 export class DirtParticles {
@@ -78,7 +79,8 @@ export class DirtParticles {
   }
 
   burst(at: THREE.Vector3, count: number, rng: Rng, spread = 0.5, up = 1.2) {
-    for (let i = 0; i < count; i++) {
+    const n = settings.state.reduceMotion ? Math.ceil(count * 0.45) : count;
+    for (let i = 0; i < n; i++) {
       const k = this.cursor;
       this.cursor = (this.cursor + 1) % this.max;
       this.pos[k * 3] = at.x + rrange(rng, -0.02, 0.02);

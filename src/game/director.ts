@@ -43,6 +43,7 @@ export class Director {
   private forkStowed = 0;
   private forkDragged = false;
   private lever = 0;
+  private plantCrack = 0;
   private crackRevealed = false;
   private pull = 0;
   private shakeDir = 0;
@@ -192,11 +193,14 @@ export class Director {
     return this.pointer.down && this.pointer.pressId > this.phasePress;
   }
 
-  /** Horizontal direction to the side of the sight line, away from the crate. */
+  /**
+   * Horizontal direction that reads as "screen right" from the current lens.
+   * A hand offset this way keeps its forearm across the frame instead of
+   * pointing at the camera, where it would collapse into a disc.
+   */
   private besideCamera(at: THREE.Vector3, out = new THREE.Vector3()) {
     out.subVectors(at, this.engine.camera.position).setY(0).normalize();
-    const side = new THREE.Vector3().crossVectors(UP, out).normalize();
-    return out.copy(side).multiplyScalar(-1).addScaledVector(out, 0).normalize();
+    return out.crossVectors(UP, out).normalize().multiplyScalar(-1);
   }
 
   private forkHandleWorld(out = new THREE.Vector3()) {
@@ -218,14 +222,16 @@ export class Director {
         // low oblique that keeps vine, leaves and the ground plane readable
         const focus = plant.vineCurve.getPointAt(clamp01(lerp(0.42, 0.9, this.trace))).clone();
         focus.y += 0.06;
-        const back = toward.clone().multiplyScalar(0.82).addScaledVector(right, 0.58).normalize();
+        const back = toward.clone().multiplyScalar(0.92).addScaledVector(right, 0.36).normalize();
         this.rig.apply(
           {
             focus,
             back,
-            dist: lerp(1.95, 1.3, this.trace),
-            height: lerp(0.58, 0.5, this.trace),
+            dist: lerp(1.7, 1.2, this.trace),
+            height: lerp(0.74, 0.56, this.trace),
             fov: portrait ? 58 : 52,
+            portraitDist: 1.06,
+            lift: 0.6,
             rate: 1.9,
           },
           portrait,
@@ -239,15 +245,16 @@ export class Director {
         const grip = this.forkHandleWorld(new THREE.Vector3());
         const wide = crown.clone().lerp(grip, 0.44);
         wide.y = lerp(crown.y, grip.y, 0.32);
-        const closeIn = smoothstep((this.lever - 0.62) / 0.38);
-        const focus = wide.lerp(plant.revealTipWorld.clone().add(new THREE.Vector3(0, 0.03, 0)), closeIn * 0.8);
+        // close in on the fissure as it opens, not on some arbitrary lever value
+        const closeIn = smoothstep((this.plantCrack - 0.2) / 0.55);
+        const focus = wide.lerp(plant.revealTipWorld.clone().add(new THREE.Vector3(0, 0.04, 0)), closeIn);
         const back = toward.clone().multiplyScalar(0.5).addScaledVector(right, 0.98).normalize();
         this.rig.apply(
           {
             focus,
             back,
-            dist: lerp(1.38, 0.72, closeIn),
-            height: lerp(0.5, 0.36, closeIn),
+            dist: lerp(1.24, 0.66, closeIn),
+            height: lerp(0.44, 0.3, closeIn),
             fov: portrait ? 56 : 48,
             lift: 0.55,
             rate: 2.0,
@@ -329,7 +336,7 @@ export class Director {
     switch (kind) {
       case 'trace': {
         for (let i = 0; i <= 6; i++) {
-          pts.push(this.toScreen(plant.vineCurve.getPointAt(clamp01(0.02 + (i / 6) * 0.26))));
+          pts.push(this.toScreen(plant.vineCurve.getPointAt(clamp01(0.03 + (i / 6) * 0.42))));
         }
         break;
       }
@@ -395,9 +402,12 @@ export class Director {
       }
       if (this.hintStage < 2 && this.idle > t2) {
         this.hintStage = 2;
-        const p = this.plant.vineCurve.getPointAt(0.12).clone();
-        this.handPose.pos.copy(p).add(new THREE.Vector3(0.14, 0.19, -0.1));
-        this.handPose.target.copy(this.plant.crownWorld);
+        // the hand comes in beside the vine, on the lens side, fully in frame
+        const p = this.plant.vineCurve.getPointAt(0.16).clone();
+        // reaching in from the side of the frame, forearm running out of it
+        this.handPose.pos.copy(p).addScaledVector(this.besideCamera(p), 0.26);
+        this.handPose.pos.y += 0.14;
+        this.handPose.target.copy(this.plant.vineCurve.getPointAt(0.16));
       }
       if (this.hintStage >= 2 && this.hintStage < 4) this.handPose.vis = 1;
       if (this.hintStage < 3 && this.idle > t3) {
@@ -560,6 +570,7 @@ export class Director {
 
     plant.digSite.setLift(this.lever);
     const crack = smoothstep((this.lever - 0.22) / 0.78);
+    this.plantCrack = crack;
     plant.digSite.setCrack(crack);
 
     const base = this.forkWorldPos();
@@ -573,7 +584,7 @@ export class Director {
       this.crackRevealed = true;
       audio.clodCrack(1);
       audio.haptic('crack');
-      plant.digSite.seedReveal(plant.revealTipWorld, 0.062);
+      plant.digSite.seedReveal(plant.revealTipWorld, 0.085);
       this.particles.burst(plant.revealTipWorld, 18, this.rng, 0.35, 0.9);
       audio.soilFall(0.8);
     }
@@ -739,6 +750,7 @@ export class Director {
     this.ensurePlant(this.index + 2);
     this.trace = 0;
     this.lever = 0;
+    this.plantCrack = 0;
     this.pull = 0;
     this.carry = 0;
     this.forkInsert = 0;

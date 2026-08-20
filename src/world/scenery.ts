@@ -172,7 +172,7 @@ export class Scenery {
     };
     paint(trunkGeo, 0.26, 0.21, 0.17);
     paint(crownGeo, 1, 1, 1);
-    const merged = BufferGeometryUtils.mergeGeometries([trunkGeo, crownGeo.toNonIndexed()], false);
+    const merged = BufferGeometryUtils.mergeGeometries([trunkGeo, crownGeo], false);
     const group = new THREE.Group();
     if (!merged) return group;
 

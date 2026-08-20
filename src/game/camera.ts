@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { clamp, damp } from '../core/util';
+import { settings } from '../core/settings';
 import { terrainHeight } from '../world/terrain';
 
 export type ShotSpec = {
@@ -35,7 +36,7 @@ export class CameraRig {
 
   apply(spec: ShotSpec, portrait: boolean) {
     const back = spec.back.clone().setY(0).normalize();
-    const distScale = portrait ? spec.portraitDist ?? 1.24 : 1;
+    const distScale = portrait ? spec.portraitDist ?? 1.15 : 1;
     const dist = spec.dist * distScale;
     this.targetPos
       .copy(spec.focus)
@@ -44,10 +45,10 @@ export class CameraRig {
 
     const lift = spec.lift ?? 1;
     // In portrait the subject is pushed above centre so fingers stay clear.
-    const drop = portrait ? 0.16 * dist * lift : 0.05 * dist * lift;
+    const drop = portrait ? 0.105 * dist * lift : 0.045 * dist * lift;
     this.targetLook.copy(spec.focus).add(new THREE.Vector3(0, -drop, 0));
     this.targetFov = spec.fov ?? (portrait ? 54 : 44);
-    this.rate = spec.rate ?? 2.6;
+    this.rate = (spec.rate ?? 2.6) * (settings.state.reduceMotion ? 0.72 : 1);
 
     if (!this.initialised) {
       this.initialised = true;
