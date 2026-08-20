@@ -39,13 +39,16 @@ export const STATE = {
   FREE: 'free',
 };
 
+/** How far the opening sheet is allowed to wear. Two holes, never the third. */
+const FIRST_PAPER_DAMAGE_CAP = 0.58;
+
 const FIRST_FISH = {
   cruise: 0.048,
   turnRate: 1.05,
   wanderRate: 0.34,
   wanderAmp: 0.5,
   skittish: 0.2,
-  depthPref: -0.042,
+  depthPref: -0.035,
   length: 0.116,
   waveSpeed: 6.4,
 };
@@ -308,6 +311,16 @@ export class Game {
         },
         this.rng
       );
+      // The very first sheet cannot be lost. A child who swishes it about for
+      // two minutes without catching anything should still be looking at a
+      // poi, not at a hand arriving with a new one: losing the paper before
+      // the first fish teaches "the paper breaks" before it teaches "you
+      // scoop a fish with it", which is the wrong order to learn them in.
+      // It still wets, sags, cracks and opens a couple of holes on the way.
+      if (this.state === STATE.FIRST) {
+        this.poi.paper.damage = Math.min(this.poi.paper.damage, FIRST_PAPER_DAMAGE_CAP);
+        this.poi.paper.destroyed = false;
+      }
       const after = this.poi.paper.tears.length;
       if (after > before) {
         const t = this.poi.paper.tears[after - 1];
@@ -663,6 +676,8 @@ export class Game {
         damage: this.poi.paper.damage,
         tears: this.poi.paper.tears.length,
         destroyed: this.poi.paper.destroyed,
+        wetFront: this.poi.paper.wetFront,
+        everWet: this.poi.paper.everWet,
         integrity: this.paperIntegrity,
         hasPaper: this.poi.hasPaper,
       },

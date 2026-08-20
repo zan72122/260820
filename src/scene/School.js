@@ -50,6 +50,7 @@ class Fish {
     this.assist = new THREE.Vector2();
     this.paperX = 0;
     this.paperY = 0;
+    this._flankSide = 1;
     this.struggle = 0;
     this.airTime = 0;
     this.bowlT = 0;
@@ -137,7 +138,7 @@ export class School {
         wanderRate: rng.range(0.35, 0.95),
         wanderAmp: rng.range(0.5, 1.4),
         skittish: rng.range(0.45, 1.0),
-        depthPref: rng.range(-0.098, -0.038),
+        depthPref: rng.range(-0.085, -0.03),
         phase: rng.range(0, TAU),
         waveAmp: rng.range(0.055, 0.085),
         waveSpeed: rng.range(6.2, 10.4),
@@ -408,6 +409,7 @@ export class School {
     if (!res.caught) return;
 
     f.mode = FISH_MODE.ON_PAPER;
+    f._flankSide = this.rng.next() < 0.5 ? -1 : 1;
     f.paperX = clamp(local.x, -0.7, 0.7);
     f.paperY = clamp(local.y, -0.7, 0.7);
     f.struggle = 1;
@@ -434,9 +436,12 @@ export class School {
 
     const p = poi.paperWorldPoint(f.paperX, f.paperY);
     const sagY = -poi.uniforms.uSag.value * poi.radius * 0.6;
-    f.pos.set(p.x, p.y + sagY + f.spec.length * 0.11, p.z);
+    f.pos.set(p.x, p.y + sagY + f.spec.length * 0.09, p.z);
     f.heading = damp(f.heading, poi.yaw + Math.PI * 0.5 + wob * 0.35, 6, dt);
-    f.roll = wob * 0.5;
+    // A landed fish lies on its flank and flaps. That pose is also the one
+    // that shows the child a whole goldfish rather than a lump.
+    const flank = 1.45 * f._flankSide;
+    f.roll = damp(f.roll, flank, 7, dt) + wob * 0.42;
     f.pitch = wob2 * 0.22;
     f.uniforms.uWaveSpeed.value = lerp(4.0, 18.0, f.struggle);
     f.burst = Math.max(f.burst, f.struggle * 0.8);

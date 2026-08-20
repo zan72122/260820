@@ -219,6 +219,6 @@ export function updatePaper(state, dt, ctx, rng) {
 export function sagProfile(r, sag, load = 0, loadR = 0) {
   const base = -sag * (1 - r * r) * (0.55 + 0.45 * (1 - r));
   const d = (r - loadR) / 0.5;
-  const dimple = -load * 0.55 * Math.exp(-d * d);
+  const dimple = -load * 0.85 * Math.exp(-d * d);
   return base + dimple;
 }

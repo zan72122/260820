@@ -19,4 +19,10 @@ export default defineConfig({
   preview: {
     host: true,
   },
+  // Unit tests only. The browser suite is Playwright's, and vitest picking up
+  // `*.spec.js` under tests/e2e makes it fail to collect.
+  test: {
+    include: ['tests/unit/**/*.test.js'],
+    environment: 'node',
+  },
 });

@@ -183,10 +183,10 @@ export function woodTexture(size = 512, hue = '#8a5a34') {
 // ---------------------------------------------------------------------- fish
 
 const FISH_PALETTES = {
-  wakin: { back: '#8e1c07', side: '#e0491a', flank: '#f4762c', belly: '#f6d7b0' },
-  sarasa: { back: '#a02209', side: '#e2531d', flank: '#f5893f', belly: '#fbf1e2' },
-  demekin: { back: '#0d0b0d', side: '#231a1c', flank: '#3a2a28', belly: '#4a3630' },
-  calico: { back: '#6d6a72', side: '#a49aa0', flank: '#d8cfcb', belly: '#f2ece4' },
+  wakin: { back: '#a01503', side: '#ee4405', flank: '#ff6f16', belly: '#ffd9a2' },
+  sarasa: { back: '#b81c02', side: '#f24c07', flank: '#ff8420', belly: '#fff4e6' },
+  demekin: { back: '#120a0c', side: '#361d1c', flank: '#5a3126', belly: '#6d442f' },
+  calico: { back: '#7d6f78', side: '#cdbdb8', flank: '#f0e2d6', belly: '#fffaf1' },
 };
 
 /**
@@ -323,9 +323,9 @@ export function clothTexture(size = 256) {
   g.fillStyle = '#1d2c47';
   g.fillRect(0, 0, size, size);
   g.fillStyle = '#f0e6d4';
-  g.fillRect(0, size * 0.36, size, size * 0.2);
+  g.fillRect(0, size * 0.5, size, size * 0.22);
   g.fillStyle = '#a8271b';
-  g.fillRect(0, size * 0.62, size, size * 0.07);
+  g.fillRect(0, size * 0.78, size, size * 0.08);
   const weave = canvas(size, size);
   fbm(weave.g, size, size, { octaves: 3, scale: 60, seed: 9 });
   g.globalAlpha = 0.22;
@@ -370,29 +370,33 @@ export function crowdTexture(w = 512, h = 256) {
   const cw = w / cells;
   for (let i = 0; i < cells; i++) {
     const ox = i * cw;
-    const s = 0.82 + hash2(i, 61) * 0.3;
-    const bodyW = cw * 0.34 * s;
+    const s = 0.86 + hash2(i, 61) * 0.34;
+    const bodyW = cw * 0.5 * s;
     const cx = ox + cw * 0.5;
     const top = h * (0.16 + hash2(i, 62) * 0.08);
-    g.fillStyle = 'rgba(14,10,12,0.92)';
-    // yukata: a slightly flared column
+    g.fillStyle = 'rgba(18,12,14,0.9)';
+    // yukata: shoulders, a slight flare, and a hem that stops above the ankle
     g.beginPath();
-    g.moveTo(cx - bodyW * 0.55, top + h * 0.14);
-    g.lineTo(cx + bodyW * 0.55, top + h * 0.14);
-    g.lineTo(cx + bodyW * 0.78, h * 0.99);
-    g.lineTo(cx - bodyW * 0.78, h * 0.99);
+    g.moveTo(cx - bodyW * 0.62, top + h * 0.15);
+    g.quadraticCurveTo(cx, top + h * 0.1, cx + bodyW * 0.62, top + h * 0.15);
+    g.lineTo(cx + bodyW * 0.72, h * 0.82);
+    g.lineTo(cx - bodyW * 0.72, h * 0.82);
     g.closePath();
     g.fill();
+    // legs below the hem
+    for (const lx of [-0.26, 0.26]) {
+      g.fillRect(cx + bodyW * lx - bodyW * 0.11, h * 0.8, bodyW * 0.22, h * 0.2);
+    }
     // head
     g.beginPath();
-    g.ellipse(cx, top + h * 0.06, bodyW * 0.34, bodyW * 0.4, 0, 0, Math.PI * 2);
+    g.ellipse(cx, top + h * 0.055, bodyW * 0.24, bodyW * 0.29, 0, 0, Math.PI * 2);
     g.fill();
     // a hint of an obi catching the lantern light
     g.fillStyle = `rgba(${180 + hash2(i, 63) * 60},${90 + hash2(i, 64) * 70},${60},0.3)`;
-    g.fillRect(cx - bodyW * 0.6, h * 0.52, bodyW * 1.2, h * 0.07);
-    // a shoulder rim light
-    g.fillStyle = 'rgba(255,178,110,0.16)';
-    g.fillRect(cx - bodyW * 0.58, top + h * 0.14, bodyW * 0.14, h * 0.5);
+    g.fillRect(cx - bodyW * 0.66, h * 0.5, bodyW * 1.32, h * 0.07);
+    // a shoulder rim light from the lanterns behind them
+    g.fillStyle = 'rgba(255,178,110,0.22)';
+    g.fillRect(cx - bodyW * 0.62, top + h * 0.15, bodyW * 0.13, h * 0.62);
   }
   return tex(c, { repeat: 1 });
 }
@@ -479,29 +483,29 @@ export function porcelainTexture(size = 256) {
 /** Gravel and a few pebbles for the bottom of the tub. */
 export function tubFloorTexture(size = 512) {
   const { c, g } = canvas(size, size);
-  g.fillStyle = '#3e4b52';
+  g.fillStyle = '#221c19';
   g.fillRect(0, 0, size, size);
-  for (let i = 0; i < 1600; i++) {
+  for (let i = 0; i < 420; i++) {
     const x = hash2(i, 91) * size;
     const y = hash2(i, 92) * size;
-    const r = 2 + hash2(i, 93) * 7;
+    const r = 7 + hash2(i, 93) * 15;
     const t = hash2(i, 94);
-    const base = 70 + t * 90;
-    g.fillStyle = `rgba(${base},${base - 6 + t * 16},${base - 16 + t * 10},${0.5 + t * 0.4})`;
+    const base = 34 + t * 44;
+    g.fillStyle = `rgba(${base + 12},${base - 1},${base - 12},${0.5 + t * 0.4})`;
     g.beginPath();
     g.ellipse(x, y, r, r * (0.7 + hash2(i, 95) * 0.4), hash2(i, 96) * 3, 0, Math.PI * 2);
     g.fill();
-    g.fillStyle = `rgba(255,240,220,${0.05 + t * 0.1})`;
+    g.fillStyle = `rgba(255,238,214,${0.02 + t * 0.045})`;
     g.beginPath();
     g.ellipse(x - r * 0.25, y - r * 0.3, r * 0.42, r * 0.3, 0, 0, Math.PI * 2);
     g.fill();
   }
   const shade = canvas(size, size);
-  fbm(shade.g, size, size, { octaves: 4, scale: 6, seed: 17 });
-  g.globalAlpha = 0.3;
+  fbm(shade.g, size, size, { octaves: 4, scale: 4, seed: 17 });
+  g.globalAlpha = 0.24;
   g.globalCompositeOperation = 'multiply';
   g.drawImage(shade.c, 0, 0);
   g.globalCompositeOperation = 'source-over';
   g.globalAlpha = 1;
-  return tex(c, { repeat: 2 });
+  return tex(c, { repeat: 1 });
 }

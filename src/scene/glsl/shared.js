@@ -36,10 +36,11 @@ float rippleAt(vec2 p, vec4 r, float t) {
 // dead flat even when nobody is touching it.
 float swellAt(vec2 p, float t) {
   float h = 0.0;
-  h += sin(p.x * 3.1 + t * 0.75) * 0.0042;
-  h += sin(p.y * 2.55 - t * 0.61) * 0.0038;
-  h += sin((p.x + p.y) * 7.3 + t * 1.6) * 0.0014;
-  h += sin((p.x - p.y * 1.4) * 12.1 - t * 2.1) * 0.0008;
+  h += sin(p.x * 3.1 + t * 0.75) * 0.0062;
+  h += sin(p.y * 2.55 - t * 0.61) * 0.0055;
+  h += sin((p.x + p.y) * 7.3 + t * 1.6) * 0.0024;
+  h += sin((p.x - p.y * 1.4) * 12.1 - t * 2.1) * 0.0013;
+  h += sin((p.x * 1.7 + p.y * 2.2) * 19.0 + t * 2.8) * 0.0006;
   return h * uSwell;
 }
 
@@ -90,7 +91,7 @@ export const SAG_GLSL = /* glsl */ `
 float sagProfile(float r, float sag, float load, float loadR) {
   float base = -sag * (1.0 - r * r) * (0.55 + 0.45 * (1.0 - r));
   float d = (r - loadR) / 0.5;
-  return base - load * 0.55 * exp(-d * d);
+  return base - load * 0.85 * exp(-d * d);
 }
 `;
 
@@ -159,7 +160,7 @@ float causticCell(vec2 p, float t) {
 float caustics(vec2 p, float t) {
   float a = causticCell(p * 3.1 + vec2(t * 0.06, -t * 0.04), t);
   float b = causticCell(p * 4.4 - vec2(t * 0.05, t * 0.07), t * 1.3);
-  float c = pow(1.0 - min(a, b), 5.0);
+  float c = pow(1.0 - min(a, b), 3.2);
   return clamp(c, 0.0, 1.0);
 }
 `;

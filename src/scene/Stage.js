@@ -32,6 +32,14 @@ export const TUB = {
   wall: 0.022,
 };
 
+/**
+ * The tub stands on trestles, the way it does at a real stall. That one
+ * decision is what puts the festival *behind* the water instead of underneath
+ * it: from a child's eye height the background of a raised tub is the stall,
+ * the cloth and the lanterns, not a metre of empty ground.
+ */
+export const GROUND_Y = -0.72;
+
 export class Stage {
   /**
    * @param {object} o
@@ -131,16 +139,16 @@ export class Stage {
     key.castShadow = s.shadows;
     if (s.shadows) {
       const c = key.shadow.camera;
-      c.left = -0.95;
-      c.right = 0.95;
-      c.top = 0.95;
-      c.bottom = -0.95;
-      c.near = 1.2;
-      c.far = 5.2;
+      c.left = -1.35;
+      c.right = 1.35;
+      c.top = 1.35;
+      c.bottom = -1.35;
+      c.near = 1.0;
+      c.far = 6.0;
       key.shadow.mapSize.set(s.shadowMapSize, s.shadowMapSize);
       key.shadow.bias = -0.0011;
       key.shadow.normalBias = 0.012;
-      key.shadow.radius = s.softShadow ? 2.4 : 1;
+      key.shadow.radius = s.softShadow ? 4.5 : 1.5;
     }
     this.root.add(key, key.target);
     this.keyLight = key;
@@ -165,7 +173,7 @@ export class Stage {
   // ---------------------------------------------------------------- ground
 
   _ground() {
-    const tex = this._track(woodTexture(512, '#3a2c24'));
+    const tex = this._track(woodTexture(512, '#2a201a'));
     tex.repeat.set(9, 9);
     const mat = this._track(
       new THREE.MeshStandardMaterial({ map: tex, roughness: 0.94, metalness: 0 })
@@ -173,14 +181,14 @@ export class Stage {
     const geo = this._track(new THREE.PlaneGeometry(26, 26));
     const m = new THREE.Mesh(geo, mat);
     m.rotation.x = -Math.PI / 2;
-    m.position.y = -TUB.depth - 0.012;
+    m.position.y = GROUND_Y;
     m.receiveShadow = this.settings.shadows;
     this.root.add(m);
-    this.groundY = m.position.y;
+    this.groundY = GROUND_Y;
 
     // Pools of lantern light on the wet ground, faked with additive sprites.
     const glow = this._track(glowTexture(128, 'rgba(255,196,120,1)', 'rgba(255,120,40,0)'));
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 7; i++) {
       const g = new THREE.Mesh(
         this._track(new THREE.PlaneGeometry(1.6, 1.6)),
         this._track(
@@ -189,12 +197,12 @@ export class Stage {
             transparent: true,
             blending: THREE.AdditiveBlending,
             depthWrite: false,
-            opacity: 0.16,
+            opacity: 0.24,
           })
         )
       );
       g.rotation.x = -Math.PI / 2;
-      g.position.set(this.rng.range(-2.4, 2.4), this.groundY + 0.004, this.rng.range(-3.2, 0.4));
+      g.position.set(this.rng.range(-2.6, 2.6), this.groundY + 0.004, this.rng.range(-3.4, 1.2));
       this.root.add(g);
     }
   }
@@ -206,6 +214,29 @@ export class Stage {
     this.tubGroup = g;
     this.root.add(g);
 
+    // Trestles. Barely seen, but they are the reason the tub reads as being
+    // at working height rather than sitting in the dirt.
+    const standWood = this._track(woodTexture(256, '#4a3421'));
+    standWood.repeat.set(3, 1);
+    const standMat = this._track(
+      new THREE.MeshStandardMaterial({ map: standWood, roughness: 0.9, metalness: 0 })
+    );
+    const standTop = TUB.rimY - TUB.depth - 0.01;
+    for (const sx of [-0.62, 0.62]) {
+      const beam = new THREE.Mesh(this._track(new THREE.BoxGeometry(0.13, 0.05, 1.5)), standMat);
+      beam.position.set(sx, standTop - 0.03, 0);
+      g.add(beam);
+      for (const sz of [-0.52, 0.52]) {
+        const leg = new THREE.Mesh(
+          this._track(new THREE.BoxGeometry(0.085, Math.abs(GROUND_Y - standTop), 0.085)),
+          standMat
+        );
+        leg.position.set(sx, (GROUND_Y + standTop) * 0.5 - 0.02, sz);
+        leg.castShadow = this.settings.shadows;
+        g.add(leg);
+      }
+    }
+
     const wood = this._track(woodTexture(512, '#7d5433'));
     wood.repeat.set(6, 1);
     const woodMat = this._track(
@@ -215,9 +246,9 @@ export class Stage {
     const wetWood = this._track(
       new THREE.MeshStandardMaterial({
         map: wood,
-        roughness: 0.24,
-        metalness: 0.04,
-        color: 0x6a4526,
+        roughness: 0.34,
+        metalness: 0.03,
+        color: 0xa7754a,
       })
     );
 
@@ -228,6 +259,8 @@ export class Stage {
     );
     outer.position.y = TUB.rimY - h / 2;
     outer.receiveShadow = this.settings.shadows;
+    // The tub has to plant a real shadow on the ground, or it floats.
+    outer.castShadow = this.settings.shadows;
     g.add(outer);
 
     const inner = new THREE.Mesh(
@@ -318,12 +351,14 @@ export class Stage {
           '#include <dithering_fragment>',
           `#include <dithering_fragment>
            float depthBelow = clamp(-vWorldP.y * 5.2, 0.0, 1.0);
-           float caus = caustics(vWorldP.xz * 2.6, uTime * 1.35);
-           float rip = waterHeight(vWorldP.xz, uTime) * 55.0;
-           caus *= 0.55 + 0.9 * clamp(0.5 + rip, 0.0, 1.6);
-           gl_FragColor.rgb += vec3(1.0, 0.80, 0.55) * caus * uCaustic * 0.42 * depthBelow;
-           // the water column tints everything under it
-           gl_FragColor.rgb *= mix(vec3(1.0), vec3(0.56, 0.82, 0.78), depthBelow * 0.75);`
+           // ~4cm cells: the size real caustics make through 20cm of water
+           // (caustics() multiplies by ~4 internally, so this is not the cell size)
+           float caus = caustics(vWorldP.xz * 9.0, uTime * 1.1);
+           float rip = waterHeight(vWorldP.xz, uTime) * 46.0;
+           caus *= 0.5 + 0.8 * clamp(0.5 + rip, 0.0, 1.5);
+           gl_FragColor.rgb += vec3(1.0, 0.80, 0.52) * caus * uCaustic * 0.55 * depthBelow;
+           // the water column tints and dims everything under it
+           gl_FragColor.rgb *= mix(vec3(1.0), vec3(0.30, 0.46, 0.45), depthBelow * 0.92);`
         );
     };
     material.customProgramCacheKey = () => `caustic-${strength}`;
@@ -370,11 +405,11 @@ export class Stage {
     // The water in the bowl: a small disc with the same trick as the tub.
     const wmat = this._track(
       new THREE.MeshStandardMaterial({
-        color: 0x1c3a36,
-        roughness: 0.03,
-        metalness: 0.25,
+        color: 0x2e5f57,
+        roughness: 0.04,
+        metalness: 0.3,
         transparent: true,
-        opacity: 0.72,
+        opacity: 0.7,
       })
     );
     const w = new THREE.Mesh(this._track(new THREE.CircleGeometry(0.0755, 32)), wmat);
@@ -384,11 +419,32 @@ export class Stage {
     g.add(w);
     this.bowlWater = w;
     this.bowlWaterY = 0.052;
+
+    // Two crates to stand it on, so the bowl is at the same working height as
+    // the tub instead of hovering.
+    const crateTex = this._track(woodTexture(256, '#5c4128'));
+    crateTex.repeat.set(2, 2);
+    const crateMat = this._track(
+      new THREE.MeshStandardMaterial({ map: crateTex, roughness: 0.88, metalness: 0 })
+    );
+    this.bowlStand = new THREE.Group();
+    const hTotal = 0.7;
+    for (let i = 0; i < 2; i++) {
+      const hh = hTotal / 2;
+      const box = new THREE.Mesh(this._track(new THREE.BoxGeometry(0.2, hh - 0.01, 0.22)), crateMat);
+      box.position.set(i === 0 ? 0 : 0.016, -hh * (i + 0.5), i === 0 ? 0 : -0.014);
+      box.rotation.y = i === 0 ? 0.08 : -0.05;
+      box.castShadow = this.settings.shadows;
+      box.receiveShadow = this.settings.shadows;
+      this.bowlStand.add(box);
+    }
+    this.root.add(this.bowlStand);
   }
 
   setBowlPosition(x, y, z) {
     this.bowlGroup.position.set(x, y, z);
     this.bowlPoint = new THREE.Vector3(x, y + this.bowlWaterY, z);
+    if (this.bowlStand) this.bowlStand.position.set(x, y, z);
   }
 
   // ----------------------------------------------------------------- stall
@@ -401,20 +457,33 @@ export class Stage {
     );
 
     // Counter plank behind the tub.
-    const counter = new THREE.Mesh(this._track(new THREE.BoxGeometry(3.1, 0.055, 0.42)), mat);
-    counter.position.set(0.1, 0.16, -1.05);
+    const counter = new THREE.Mesh(this._track(new THREE.BoxGeometry(3.4, 0.06, 0.46)), mat);
+    counter.position.set(0.1, 0.15, -1.12);
     counter.castShadow = this.settings.shadows;
     counter.receiveShadow = this.settings.shadows;
     this.root.add(counter);
 
-    for (const x of [-1.25, 1.45]) {
-      const leg = new THREE.Mesh(this._track(new THREE.BoxGeometry(0.07, 0.4, 0.07)), mat);
-      leg.position.set(x, -0.04, -1.02);
+    for (const x of [-1.3, 1.5]) {
+      const leg = new THREE.Mesh(
+        this._track(new THREE.BoxGeometry(0.075, Math.abs(GROUND_Y - 0.12), 0.075)),
+        mat
+      );
+      leg.position.set(x, (GROUND_Y + 0.12) * 0.5, -1.09);
       this.root.add(leg);
-      const post = new THREE.Mesh(this._track(new THREE.CylinderGeometry(0.035, 0.04, 2.3, 8)), mat);
-      post.position.set(x, 1.1, -1.15);
+      const post = new THREE.Mesh(
+        this._track(new THREE.CylinderGeometry(0.032, 0.038, 1.95, 8)),
+        mat
+      );
+      post.position.set(x, 0.66, -1.24);
       this.root.add(post);
     }
+    const crossbar = new THREE.Mesh(
+      this._track(new THREE.CylinderGeometry(0.026, 0.026, 3.0, 8)),
+      mat
+    );
+    crossbar.rotation.z = Math.PI / 2;
+    crossbar.position.set(0.1, 0.58, -1.38);
+    this.root.add(crossbar);
 
     // A frame of noren above the counter.
     const cloth = this._track(clothTexture(256));
@@ -427,8 +496,8 @@ export class Stage {
         side: THREE.DoubleSide,
       })
     );
-    const noren = new THREE.Mesh(this._track(new THREE.PlaneGeometry(2.8, 0.66, 24, 4)), clothMat);
-    noren.position.set(0.1, 1.62, -1.2);
+    const noren = new THREE.Mesh(this._track(new THREE.PlaneGeometry(2.9, 0.62, 24, 4)), clothMat);
+    noren.position.set(0.1, 0.9, -1.8);
     this.root.add(noren);
     this.noren = noren;
     this._norenBase = noren.geometry.attributes.position.array.slice();
@@ -444,7 +513,7 @@ export class Stage {
         stackMat
       );
       ring.rotation.x = -Math.PI / 2 + 0.06;
-      ring.position.set(0.62 + i * 0.004, 0.192 + i * 0.008, -1.02);
+      ring.position.set(0.62 + i * 0.004, 0.185 + i * 0.008, -1.09);
       this.root.add(ring);
     }
   }
@@ -456,15 +525,22 @@ export class Stage {
     const glow = this._track(glowTexture(128, 'rgba(255,206,142,1)', 'rgba(255,120,40,0)'));
     this.lanterns = [];
 
+    // A low string of small lanterns along the front of the stall, then two
+    // deeper ranks for the street. The front row is deliberately not far off
+    // the water: it has to sit inside the frame in landscape as well as
+    // portrait, where a camera looking down at a tub sees very little sky.
     const place = [
-      [-1.62, 1.5, -1.78, 0.115],
-      [-0.82, 1.58, -1.82, 0.1],
-      [0.05, 1.54, -1.86, 0.11],
-      [0.86, 1.6, -1.8, 0.1],
-      [1.48, 1.52, -1.76, 0.118],
-      [-2.4, 1.72, -2.6, 0.13],
-      [2.3, 1.66, -2.5, 0.125],
-      [0.12, 2.05, 0.9, 0.09],
+      [-1.5, 0.4, -1.36, 0.072],
+      [-1.0, 0.37, -1.36, 0.07],
+      [-0.5, 0.41, -1.38, 0.066],
+      [0.02, 0.38, -1.36, 0.07],
+      [0.55, 0.42, -1.38, 0.066],
+      [1.08, 0.37, -1.36, 0.072],
+      [1.62, 0.4, -1.38, 0.068],
+      [-2.35, 0.78, -2.9, 0.125],
+      [2.25, 0.72, -2.75, 0.12],
+      [-3.3, 0.88, -4.2, 0.14],
+      [3.2, 0.84, -4.0, 0.135],
     ];
 
     place.forEach((p, i) => {
@@ -474,10 +550,10 @@ export class Stage {
         new THREE.MeshStandardMaterial({
           map: tex,
           emissiveMap: tex,
-          emissive: 0xffb267,
-          emissiveIntensity: 2.6,
+          emissive: 0xff9a45,
+          emissiveIntensity: 2.4,
           roughness: 0.85,
-          color: 0x552d16,
+          color: 0x6b3a1c,
         })
       );
       const body = new THREE.Mesh(
@@ -489,18 +565,28 @@ export class Stage {
       grp.position.set(x, y, z);
       grp.add(body);
 
+      // the cord it hangs from
+      const cord = new THREE.Mesh(
+        this._track(new THREE.CylinderGeometry(0.0035, 0.0035, 0.3, 5)),
+        this._track(new THREE.MeshBasicMaterial({ color: 0x1a1210 }))
+      );
+      cord.position.y = r * 1.32 + 0.1;
+      grp.add(cord);
+
       const halo = new THREE.Mesh(
-        this._track(new THREE.PlaneGeometry(r * 9, r * 9)),
+        this._track(new THREE.PlaneGeometry(r * 13, r * 13)),
         this._track(
           new THREE.MeshBasicMaterial({
             map: glow,
             transparent: true,
             blending: THREE.AdditiveBlending,
             depthWrite: false,
-            opacity: 0.34,
+            fog: false,
+            opacity: 0.5,
           })
         )
       );
+      halo.renderOrder = -20;
       grp.add(halo);
       this.root.add(grp);
       this.lanterns.push({ group: grp, halo, base: new THREE.Vector3(x, y, z), phase: this.rng.range(0, 6.28) });
@@ -511,36 +597,60 @@ export class Stage {
 
   _crowd() {
     const tex = this._track(crowdTexture(512, 256));
-    const geo = this._track(new THREE.PlaneGeometry(0.62, 1.5));
+    const geo = this._track(new THREE.PlaneGeometry(0.8, 1.62));
+    const CELLS = 4;
     const mat = this._track(
       new THREE.MeshBasicMaterial({
         map: tex,
         transparent: true,
         depthWrite: false,
-        color: 0x1a1416,
-        opacity: 0.96,
+        fog: true,
+        color: 0x50372c,
+        opacity: 0.82,
       })
     );
+    // The texture holds four different people. Without a per-instance cell
+    // offset every plane draws all four, and a crowd turns into a fence.
+    mat.onBeforeCompile = (shader) => {
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nattribute float aCell;')
+        .replace(
+          '#include <uv_vertex>',
+          `#include <uv_vertex>
+           #ifdef USE_MAP
+             vMapUv = vMapUv * vec2(${(1 / CELLS).toFixed(4)}, 1.0)
+                    + vec2(aCell * ${(1 / CELLS).toFixed(4)}, 0.0);
+           #endif`
+        );
+    };
+    mat.customProgramCacheKey = () => 'crowd-cell';
+
     const n = this.settings.crowd;
     const inst = new THREE.InstancedMesh(geo, mat, n);
     inst.frustumCulled = false;
     inst.renderOrder = -50;
+    const cells = new Float32Array(n);
     const m = new THREE.Matrix4();
     const q = new THREE.Quaternion();
     const p = new THREE.Vector3();
-    const s = new THREE.Vector3();
+    const sc = new THREE.Vector3();
     this.crowdData = [];
     for (let i = 0; i < n; i++) {
       const side = i % 2 === 0 ? -1 : 1;
-      const x = side * this.rng.range(0.7, 4.2) + this.rng.sym(0.5);
-      const z = -this.rng.range(1.9, 5.2);
-      const sc = this.rng.range(0.92, 1.22) * (1 + (-z - 2) * 0.06);
-      p.set(x, this.groundY + 0.75 * sc, z);
-      s.set(sc, sc, 1);
-      m.compose(p, q, s);
+      // Two ranks: people at the counter, and a thinning crowd in the street
+      // behind them. Nobody stands where they would cover the tub.
+      const front = i % 3 === 0;
+      const x = side * this.rng.range(front ? 0.5 : 1.5, front ? 1.7 : 5.4);
+      const z = front ? -this.rng.range(4.0, 5.2) : -this.rng.range(5.4, 8.5);
+      const s = this.rng.range(0.94, 1.22);
+      cells[i] = this.rng.int(CELLS);
+      p.set(x, this.groundY + 0.8 * s, z);
+      sc.set(s, s, 1);
+      m.compose(p, q, sc);
       inst.setMatrixAt(i, m);
-      this.crowdData.push({ p: p.clone(), s: sc, phase: this.rng.range(0, 6.28) });
+      this.crowdData.push({ p: p.clone(), s, phase: this.rng.range(0, 6.28) });
     }
+    inst.geometry.setAttribute('aCell', new THREE.InstancedBufferAttribute(cells, 1));
     inst.instanceMatrix.needsUpdate = true;
     this.crowd = inst;
     this.root.add(inst);
@@ -618,7 +728,7 @@ export class Stage {
       const sway = Math.sin(t * 0.55 + l.phase) * 0.014;
       l.group.position.set(l.base.x + sway, l.base.y + Math.sin(t * 0.8 + l.phase) * 0.004, l.base.z);
       l.group.rotation.z = sway * 0.5;
-      l.halo.material.opacity = 0.3 + Math.sin(t * 1.7 + l.phase) * 0.035;
+      l.halo.material.opacity = 0.46 + Math.sin(t * 1.7 + l.phase) * 0.05;
       if (camera) l.halo.quaternion.copy(camera.quaternion);
     }
     for (let i = 0; i < this.lampLights.length; i++) {

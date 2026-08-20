@@ -13,16 +13,16 @@
 import * as THREE from 'three';
 
 export const LIGHT = {
-  keyDir: new THREE.Vector3(0.42, 0.85, 0.31).normalize(),
+  keyDir: new THREE.Vector3(0.3, 1.05, 0.22).normalize(),
   keyColor: new THREE.Color(0xffd2a1),
-  keyIntensity: 2.35,
+  keyIntensity: 3.6,
   skyColor: new THREE.Color(0x2b3f63),
   groundColor: new THREE.Color(0x2a1a12),
-  ambientIntensity: 0.95,
+  ambientIntensity: 1.5,
   lanterns: [
-    { pos: new THREE.Vector3(-1.62, 1.5, -1.75), color: new THREE.Color(0xff9d4d), power: 1.0 },
-    { pos: new THREE.Vector3(1.44, 1.68, -1.5), color: new THREE.Color(0xffb066), power: 0.78 },
-    { pos: new THREE.Vector3(0.12, 2.05, 0.85), color: new THREE.Color(0xffc98a), power: 0.6 },
+    { pos: new THREE.Vector3(-1.0, 0.37, -1.36), color: new THREE.Color(0xff9d4d), power: 1.35 },
+    { pos: new THREE.Vector3(1.08, 0.37, -1.36), color: new THREE.Color(0xffb066), power: 1.1 },
+    { pos: new THREE.Vector3(0.1, 1.45, 0.4), color: new THREE.Color(0xffc98a), power: 0.8 },
   ],
 };
 
@@ -79,7 +79,9 @@ vec3 lampContribution(vec4 lamp, vec3 worldPos, vec3 n) {
   vec3 d = lamp.xyz - worldPos;
   float dist2 = max(dot(d, d), 0.02);
   vec3 l = d * inversesqrt(dist2);
-  return uLampColor * lamp.w * max(dot(n, l), 0.0) / (1.0 + dist2 * 0.55);
+  // Wrapped diffuse: a paper lantern is a big soft source, not a point.
+  float ndl = max(dot(n, l) * 0.72 + 0.28, 0.0);
+  return uLampColor * lamp.w * ndl / (1.0 + dist2 * 0.42);
 }
 
 vec3 allLamps(vec3 worldPos, vec3 n) {

@@ -14,7 +14,7 @@
  */
 
 import * as THREE from 'three';
-import { MAX_RIPPLES, RIPPLE_GLSL, FILMIC_GLSL } from './glsl/shared.js';
+import { MAX_RIPPLES, RIPPLE_GLSL } from './glsl/shared.js';
 import { clamp } from '../core/Rng.js';
 
 const RIPPLE_LIFE = 3.1;
@@ -79,13 +79,13 @@ export class Water {
       uSwell: { value: 1 },
       uRipples: { value: ripples },
       uNormalMap: { value: normalMap },
-      uLantern0: { value: new THREE.Vector4(-1.5, 1.55, -1.9, 1.0) },
-      uLantern1: { value: new THREE.Vector4(1.35, 1.75, -1.6, 0.8) },
-      uLantern2: { value: new THREE.Vector4(0.15, 2.15, 0.9, 0.55) },
-      uKeyDir: { value: new THREE.Vector3(0.35, 0.86, 0.36).normalize() },
-      uDeep: { value: new THREE.Color(0x10201e) },
-      uShallow: { value: new THREE.Color(0x1d3a34) },
-      uTint: { value: 0.34 },
+      uLantern0: { value: new THREE.Vector4(-1.0, 0.37, -1.36, 1.05) },
+      uLantern1: { value: new THREE.Vector4(1.08, 0.37, -1.36, 0.9) },
+      uLantern2: { value: new THREE.Vector4(0.1, 1.45, 0.4, 0.45) },
+      uKeyDir: { value: new THREE.Vector3(0.3, 1.05, 0.22).normalize() },
+      uDeep: { value: new THREE.Color(0x081513) },
+      uShallow: { value: new THREE.Color(0x14322c) },
+      uTint: { value: 0.38 },
       uBounds: { value: new THREE.Vector2(1, 1) },
       uDetail: { value: settings.waterSegments > 60 ? 1 : 0.55 },
     };
@@ -118,7 +118,6 @@ export class Water {
       `,
       fragmentShader: /* glsl */ `
         ${RIPPLE_GLSL}
-        ${FILMIC_GLSL}
         uniform sampler2D uNormalMap;
         uniform vec4 uLantern0;
         uniform vec4 uLantern1;
@@ -133,13 +132,21 @@ export class Water {
         varying vec3 vNormalW;
         varying vec2 vUv;
 
-        vec3 nightSky(vec3 d) {
+        /**
+         * What is actually above a tub at a festival stall is not the sky: it
+         * is a lit awning, cloth, lanterns and people. So the environment this
+         * water reflects stays warm right up to a steep angle, and only goes
+         * blue near straight up. Getting this wrong makes the surface vanish.
+         */
+        vec3 stallEnvironment(vec3 d) {
           float up = clamp(d.y, -1.0, 1.0);
-          vec3 zenith = vec3(0.030, 0.038, 0.070);
-          vec3 horizon = vec3(0.330, 0.165, 0.086);
-          vec3 c = mix(horizon, zenith, pow(clamp(up, 0.0, 1.0), 0.52));
-          float band = exp(-pow((up - 0.04) * 6.5, 2.0));
-          c += vec3(0.50, 0.235, 0.085) * band * 0.62;
+          vec3 zenith = vec3(0.055, 0.068, 0.125);
+          vec3 warm = vec3(0.68, 0.34, 0.155);
+          vec3 c = mix(warm, zenith, smoothstep(0.25, 0.9, up));
+          // the broad glow of the stall front, wide enough to be seen at the
+          // angle a child actually looks at the water from
+          float band = exp(-pow((up - 0.12) * 2.4, 2.0));
+          c += vec3(0.92, 0.46, 0.19) * band * 0.55;
           return c;
         }
 
@@ -161,34 +168,51 @@ export class Water {
           vec3 d1 = texture2D(uNormalMap, p * 1.55 + vec2(uTime * 0.020, uTime * 0.013)).xyz * 2.0 - 1.0;
           vec3 d2 = texture2D(uNormalMap, p * 3.10 - vec2(uTime * 0.031, uTime * 0.017)).xyz * 2.0 - 1.0;
           vec3 detail = normalize(vec3(d1.x + d2.x * 0.6, 2.6 / uDetail, d1.y + d2.y * 0.6));
-          n = normalize(mix(n, normalize(n + detail * 0.5), 0.55 * uDetail));
+          n = normalize(mix(n, normalize(n + detail * 0.5), 0.72 * uDetail));
 
           vec3 v = normalize(cameraPosition - vWorld);
           float fres = pow(1.0 - clamp(dot(n, v), 0.0, 1.0), 3.4);
-          fres = clamp(0.035 + fres * 0.965, 0.0, 1.0);
-
-          vec3 refl = nightSky(reflect(-v, n));
-          float spec = 0.0;
-          spec += lampSpec(n, v, uLantern0, 220.0);
-          spec += lampSpec(n, v, uLantern1, 180.0);
-          spec += lampSpec(n, v, uLantern2, 320.0);
-          float keySpec = pow(max(dot(n, normalize(uKeyDir + v)), 0.0), 90.0) * 0.5;
+          // Schlick with a small floor. Enough that the surface is never
+          // invisible, not so much that the tub turns into a mirror of milk.
+          fres = clamp(0.05 + fres * 0.95, 0.0, 1.0);
 
           // How far this bit of water is from the rim, in normalised tub units.
           vec2 e = vec2(vWorld.x / uBounds.x, vWorld.z / uBounds.y);
           float edge = clamp(length(e), 0.0, 1.0);
-          float meniscus = smoothstep(0.86, 1.0, edge);
+          float meniscus = smoothstep(0.93, 1.0, edge);
+
+          vec3 refl = stallEnvironment(reflect(-v, n));
+          float spec = 0.0;
+          spec += lampSpec(n, v, uLantern0, 95.0);
+          spec += lampSpec(n, v, uLantern1, 78.0);
+          spec += lampSpec(n, v, uLantern2, 140.0);
+          // A second, much wider lobe per lantern: the soft pool of light a
+          // paper lantern lays on water, which is what the eye reads as a
+          // surface before it ever notices the sharp glints.
+          float wide = 0.0;
+          wide += lampSpec(n, v, uLantern0, 38.0);
+          wide += lampSpec(n, v, uLantern1, 32.0);
+          wide += lampSpec(n, v, uLantern2, 48.0);
+          float keySpec = pow(max(dot(n, normalize(uKeyDir + v)), 0.0), 90.0) * 0.5;
+
+          // Right at the staves there is no open sky to mirror — the wall is
+          // in the way — so the reflection has to fade out or the far rim
+          // turns into a band of grey chrome.
+          fres *= mix(1.0, 0.42, smoothstep(0.72, 1.0, edge));
+          refl *= mix(1.0, 0.6, meniscus);
 
           vec3 tint = mix(uShallow, uDeep, smoothstep(0.1, 0.9, 1.0 - edge));
           vec3 col = mix(tint, refl, fres);
-          col += vec3(1.0, 0.72, 0.45) * spec * 1.5;
-          col += vec3(1.0, 0.85, 0.68) * keySpec;
-          col += vec3(0.9, 0.62, 0.36) * meniscus * 0.22;
+          col += vec3(1.0, 0.66, 0.36) * spec * 2.4;
+          col += vec3(1.0, 0.60, 0.30) * wide * 0.3;
+          col += vec3(1.0, 0.85, 0.68) * keySpec * 1.6;
+          // a bright lip where the water climbs the staves
+          col += vec3(1.0, 0.70, 0.42) * meniscus * 0.3;
 
-          float alpha = mix(uTint, 0.94, fres);
-          alpha = clamp(alpha + spec * 0.5 + meniscus * 0.24, 0.0, 1.0);
+          float alpha = mix(uTint, 0.97, fres);
+          alpha = clamp(alpha + spec * 0.45 + wide * 0.1 + meniscus * 0.22, 0.0, 1.0);
 
-          gl_FragColor = vec4(filmicKnee(col), alpha);
+          gl_FragColor = vec4(col, alpha);
           #include <colorspace_fragment>
         }
       `,
@@ -230,10 +254,11 @@ export class Water {
     const t = this.time;
     const s = this.uniforms.uSwell.value;
     return (
-      (Math.sin(x * 3.1 + t * 0.75) * 0.0042 +
-        Math.sin(z * 2.55 - t * 0.61) * 0.0038 +
-        Math.sin((x + z) * 7.3 + t * 1.6) * 0.0014 +
-        Math.sin((x - z * 1.4) * 12.1 - t * 2.1) * 0.0008) *
+      (Math.sin(x * 3.1 + t * 0.75) * 0.0062 +
+        Math.sin(z * 2.55 - t * 0.61) * 0.0055 +
+        Math.sin((x + z) * 7.3 + t * 1.6) * 0.0024 +
+        Math.sin((x - z * 1.4) * 12.1 - t * 2.1) * 0.0013 +
+        Math.sin((x * 1.7 + z * 2.2) * 19.0 + t * 2.8) * 0.0006) *
       s
     );
   }

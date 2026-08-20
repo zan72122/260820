@@ -18,25 +18,37 @@ import { clamp, damp, lerp } from '../core/Rng.js';
 const DEG = Math.PI / 180;
 
 export const FRAMING = {
+  /**
+   * Portrait uses the screen's long axis for depth: a tub that is deeper than
+   * it is wide, with the stall and its lanterns stacked above it.
+   */
   portrait: {
-    fov: 58,
-    elevation: 36 * DEG,
-    azimuth: 7 * DEG,
-    distance: 1.72,
-    target: new THREE.Vector3(0, -0.02, 0.02),
-    bounds: { rx: 0.44, rz: 0.6 },
-    bowl: new THREE.Vector3(0.4, -0.016, 0.6),
-    poiRest: new THREE.Vector3(-0.06, 0.03, 0.63),
+    /** metres of tub that must fit across the screen; the lens follows from it */
+    frameWidth: 1.02,
+    elevation: 34 * DEG,
+    azimuth: 6 * DEG,
+    distance: 2.15,
+    target: new THREE.Vector3(0, -0.02, 0.06),
+    /** tilts the shot up so the lanterns sit in the top of the frame */
+    lookOffsetY: 0.2,
+    bounds: { rx: 0.34, rz: 0.74 },
+    bowl: new THREE.Vector3(0.4, -0.016, -0.24),
+    poiRest: new THREE.Vector3(-0.08, 0.03, 0.76),
   },
+  /** Landscape spends the long axis on width, so the fish gain room sideways. */
   landscape: {
-    fov: 41,
+    // The tub only takes half the width here. That is deliberate: a 2:1
+    // screen fitted tightly across gives a vertical field of view so narrow
+    // that the stall disappears, and the shot stops being a place.
+    frameWidth: 2.05,
     elevation: 31 * DEG,
-    azimuth: -6 * DEG,
-    distance: 1.14,
-    target: new THREE.Vector3(0, -0.02, 0.0),
-    bounds: { rx: 0.7, rz: 0.42 },
-    bowl: new THREE.Vector3(0.72, -0.016, 0.36),
-    poiRest: new THREE.Vector3(-0.3, 0.03, 0.47),
+    azimuth: -5 * DEG,
+    distance: 1.25,
+    target: new THREE.Vector3(0, -0.02, -0.02),
+    lookOffsetY: 0.19,
+    bounds: { rx: 0.52, rz: 0.34 },
+    bowl: new THREE.Vector3(0.64, -0.016, 0.1),
+    poiRest: new THREE.Vector3(-0.26, 0.03, 0.36),
   },
 };
 
@@ -48,7 +60,7 @@ export class CameraRig {
     this.cfg = { ...FRAMING.portrait };
     this.target = FRAMING.portrait.target.clone();
     this.lookAt = this.target.clone();
-    this.fov = this.cfg.fov;
+    this.fov = 50;
     this.elevation = this.cfg.elevation;
     this.azimuth = this.cfg.azimuth;
     this.distance = this.cfg.distance;
@@ -70,8 +82,6 @@ export class CameraRig {
   setViewport(w, h) {
     const mode = w >= h ? 'landscape' : 'portrait';
     this.camera.aspect = w / Math.max(h, 1);
-    // A very tall phone needs a wider lens or the tub will not fit across.
-    this._aspectPad = clamp(0.62 / Math.max(w / Math.max(h, 1), 0.001), 0.9, 1.3);
     if (mode !== this.mode) {
       this.mode = mode;
       this.transition = 0;
@@ -124,8 +134,13 @@ export class CameraRig {
     if (this._punchTimer <= 0) this.punch = damp(this.punch, 0, 2.0, dt);
 
     const lean = clamp(tension, 0, 1);
-    const wantFov = cfg.fov * this._aspectPad - this.punch * 3.4 - lean * 1.2;
-    const wantDist = cfg.distance * (1 - this.punch * 0.085 - lean * 0.02);
+    // The lens is chosen so a fixed width of tub always fits across the screen,
+    // whatever shape the phone is. Framing stays composed; it never crops.
+    const aspect = Math.max(this.camera.aspect, 0.001);
+    const baseFov =
+      (2 * Math.atan(cfg.frameWidth * 0.5 / (aspect * cfg.distance))) / DEG;
+    const wantFov = clamp(baseFov, 26, 68) - this.punch * 4.2 - lean * 1.0;
+    const wantDist = cfg.distance * (1 - this.punch * 0.1 - lean * 0.02);
     const wantElev = cfg.elevation + this.punch * 1.6 * DEG - lean * 1.2 * DEG;
 
     this.fov = damp(this.fov, wantFov, speed, dt);
@@ -147,7 +162,7 @@ export class CameraRig {
       this.target.z + ca * ce * this.distance
     );
     this.lookAt.copy(this.target);
-    this.lookAt.y += 0.012;
+    this.lookAt.y += cfg.lookOffsetY;
     this.camera.lookAt(this.lookAt);
     if (Math.abs(this.camera.fov - this.fov) > 1e-3) {
       this.camera.fov = this.fov;

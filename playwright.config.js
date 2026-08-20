@@ -1,7 +1,13 @@
+import fs from 'node:fs';
 import { defineConfig, devices } from '@playwright/test';
 
 // Cloud / CI profile per CLAUDE.md: chromium only, 1 worker, tight budgets.
 const CLOUD = process.env.CLAUDE_CODE_REMOTE === 'true' || !!process.env.CI;
+
+// Sandboxes ship a pre-installed Chromium that may not match the version this
+// Playwright would download. Use it when it is there rather than fetching.
+const PREINSTALLED = process.env.PW_CHROMIUM_PATH || '/opt/pw-browsers/chromium';
+const executablePath = fs.existsSync(PREINSTALLED) ? PREINSTALLED : undefined;
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -19,6 +25,7 @@ export default defineConfig({
     trace: 'on-first-retry',
     viewport: { width: 390, height: 720 },
     launchOptions: {
+      executablePath,
       args: [
         '--use-gl=swiftshader',
         '--enable-unsafe-swiftshader',

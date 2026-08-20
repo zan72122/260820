@@ -127,7 +127,11 @@ const PAPER_FRAG = /* glsl */ `
     // --- where the sheet has gone --------------------------------------
     float hd = holeDepth(vDisc) + (fibreN - 0.5) * 0.028;
     if (hd > 0.0) discard;
+    // Torn washi does not end in a clean line: it frays into loose fibres
+    // that stay pale and catch the light, with a damp shadow just behind.
     float rim = smoothstep(-0.055, 0.0, hd);
+    float fray = smoothstep(-0.022, 0.0, hd);
+    float bruise = smoothstep(-0.075, -0.03, hd) * (1.0 - fray);
 
     // --- how wet it is here --------------------------------------------
     float frontR = uWetFront * 2.6;
@@ -148,7 +152,8 @@ const PAPER_FRAG = /* glsl */ `
     vec3 dry = texture2D(uFibre, uv * 1.35).rgb * vec3(1.02, 1.0, 0.96);
     vec3 soaked = dry * vec3(0.74, 0.72, 0.70);
     vec3 albedo = mix(dry, soaked, wet);
-    albedo = mix(albedo, vec3(0.40, 0.32, 0.24), rim * 0.75);
+    albedo = mix(albedo, vec3(0.30, 0.24, 0.18), bruise * 0.8);
+    albedo = mix(albedo, vec3(1.0, 0.94, 0.84), fray * 0.75 * (0.4 + fibreN));
     albedo = mix(albedo, vec3(0.46, 0.40, 0.33), crackMask * 0.6);
 
     vec3 n = normalize(vNormalW);
@@ -161,21 +166,26 @@ const PAPER_FRAG = /* glsl */ `
 
     // Thin paper glows where light passes through it, and more so when wet.
     float through = max(dot(-n, uKeyDir), 0.0);
-    lit += albedo * uKeyColor * through * (0.28 + 0.42 * wet) * (1.0 - rim);
+    lit += albedo * uKeyColor * through * (0.28 + 0.42 * wet) * (1.0 - bruise * 0.6);
 
     // Surface tension leaves a thin film that catches the lamps.
     vec3 h = normalize(uKeyDir + v);
     float gloss = mix(24.0, 190.0, wet);
-    float sheen = pow(max(dot(n, h), 0.0), gloss) * (0.05 + 0.85 * wet);
-    float fres = pow(1.0 - clamp(dot(n, v), 0.0, 1.0), 3.0);
-    lit += (uKeyColor * 0.5 + uLampColor * 0.5) * (sheen + fres * wet * 0.34);
+    float sheen = pow(max(dot(n, h), 0.0), gloss) * (0.08 + 1.5 * wet);
+    float fres = pow(1.0 - clamp(dot(n, v), 0.0, 1.0), 2.6);
+    lit += (uKeyColor * 0.6 + uLampColor * 0.55) * (sheen + fres * wet * 0.6);
+    // lantern light skimming across the wet film
+    vec3 hl = normalize(normalize(uLampA.xyz - vWorld) + v);
+    lit += uLampColor * pow(max(dot(n, hl), 0.0), gloss) * wet * 1.1;
 
     // --- under the surface ----------------------------------------------
     lit = mix(lit, lit * uWaterTint, clamp(uSubmerge, 0.0, 1.0) * 0.62);
 
     // --- how much of it you can see through ------------------------------
-    float alpha = mix(0.97, 0.40, wet);
-    alpha *= mix(1.0, 0.45, rim);
+    // Wet washi goes translucent, but it must never stop being a sheet: the
+    // child has to keep seeing what they are holding the fish on.
+    float alpha = mix(0.98, 0.66, wet);
+    alpha *= mix(1.0, 0.35, fray);
     alpha *= mix(1.0, 0.62, crackMask);
     alpha = clamp(alpha * uOpacity, 0.0, 1.0);
 
@@ -478,7 +488,7 @@ export class Poi {
     u.uLoadR.value = damp(u.uLoadR.value, loadR, 8, dt);
 
     // Wet paper hangs; dry paper is nearly flat.
-    const sagTarget = 0.035 + p.wetness * 0.3 + p.damage * 0.12;
+    const sagTarget = 0.045 + p.wetness * 0.46 + p.damage * 0.2;
     u.uSag.value = damp(u.uSag.value, sagTarget, 5, dt);
 
     const arr = u.uTears.value;

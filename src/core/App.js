@@ -56,11 +56,12 @@ export class App {
       return;
     }
 
-    // Tone mapping is deliberately off: the water and the paper do their own
-    // highlight roll-off, and leaving the pipeline linear keeps every custom
-    // shader in the same numeric space as the standard materials.
+    // A festival at dusk is a high dynamic range subject: bare bulbs and
+    // lantern paper against a nearly black ground. ACES keeps the highlights
+    // from clipping to flat white while letting the warm mid-tones bloom.
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
-    this.renderer.toneMapping = THREE.NoToneMapping;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.5;
     this.renderer.setClearColor(0x0b0708, 1);
     this.renderer.shadowMap.enabled = this.settings.shadows;
     this.renderer.shadowMap.type = this.settings.softShadow
@@ -76,7 +77,7 @@ export class App {
     }
 
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.FogExp2(0x100a0c, 0.075);
+    this.scene.fog = new THREE.FogExp2(0x241209, 0.088);
     this.camera = new THREE.PerspectiveCamera(52, 1, 0.05, 60);
 
     this.input = new Input(canvas);

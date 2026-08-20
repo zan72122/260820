@@ -321,7 +321,11 @@ export function applySwim(material, uniforms, key = 'fish') {
       `#include <dithering_fragment>
        // A wet rim: light wrapping round a body that has just left the water.
        float rimF = pow(1.0 - clamp(dot(normalize(vNormal), normalize(vViewPosition)), 0.0, 1.0), 3.0);
-       gl_FragColor.rgb += vec3(1.0, 0.72, 0.44) * rimF * 0.30;`
+       gl_FragColor.rgb += vec3(1.0, 0.72, 0.44) * rimF * 0.16;
+       // Goldfish are the one saturated thing in a brown evening. Ambient
+       // light drains them; put the colour back.
+       float lum = dot(gl_FragColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+       gl_FragColor.rgb = mix(vec3(lum), gl_FragColor.rgb, 1.42);`
     );
   };
   material.customProgramCacheKey = () => `fish-swim-${key}`;
