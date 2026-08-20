@@ -2,6 +2,7 @@
 // screenshots. Usage: node scripts/play.mjs <device> [outDir]
 import { chromium, devices } from 'playwright';
 import fs from 'node:fs';
+import { seekLocator } from './lib.mjs';
 
 const PROFILES = {
   'iphone-portrait': { width: 390, height: 844, dsf: 2 },
@@ -92,53 +93,14 @@ while (Date.now() < deadline && guard++ < 4000) {
     if (!seen.has(key)) {
       seen.add(key);
       // let the camera settle so the frame shows the real composition
-      await page.waitForTimeout(1400);
+      await page.waitForTimeout(2600);
       await shot(`${String(seen.size).padStart(2, '0')}-s${s.site}-${s.phase}`);
       if (stopAfter && seen.size >= stopAfter) break;
     }
   }
 
   if (s.phase === 'detect') {
-    // sweep the band, remember where the locator answered loudest, go back
-    const y0 = s.finger.y;
-    const x0 = s.finger.x;
-    await press(x0, y0);
-    const sweep = async (from, to, y, steps) => {
-      let bestX = from;
-      let bestY = y;
-      let bestS = -1;
-      for (let i = 0; i <= steps; i++) {
-        const x = from + ((to - from) * i) / steps;
-        await page.mouse.move(x, y);
-        await page.waitForTimeout(60);
-        const cur = await state();
-        if (cur.phase !== 'detect') return null;
-        if (cur.signal > bestS) {
-          bestS = cur.signal;
-          bestX = x;
-          bestY = y;
-        }
-      }
-      return { bestX, bestY, bestS };
-    };
-    let r = await sweep(x0 - profile.width * 0.3, x0 + profile.width * 0.3, y0, 22);
-    if (r) {
-      let best = r;
-      for (const dy of [-profile.height * 0.06, profile.height * 0.06]) {
-        const r2 = await sweep(best.bestX - 40, best.bestX + 40, y0 + dy, 8);
-        if (r2 && r2.bestS > best.bestS) best = r2;
-      }
-      const fine = await sweep(best.bestX - 26, best.bestX + 26, best.bestY, 14);
-      if (fine) best = fine.bestS > best.bestS ? fine : best;
-      await page.mouse.move(best.bestX, best.bestY);
-      for (let i = 0; i < 40; i++) {
-        const cur = await state();
-        if (cur.phase !== 'detect') break;
-        await page.mouse.move(best.bestX + (i % 2 ? 0.5 : -0.5), best.bestY);
-        await page.waitForTimeout(60);
-      }
-    }
-    await release();
+    await seekLocator(page, state, profile.width, profile.height);
   } else if (s.phase === 'water') {
     // wet the ground along the run so the suction has something to lift
     await press(s.finger.x, s.finger.y);

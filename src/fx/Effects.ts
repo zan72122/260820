@@ -263,8 +263,8 @@ export class WaterJet {
 
   update(dt: number, from: THREE.Vector3, to: THREE.Vector3, on: boolean, camera: THREE.Camera) {
     this.strength += ((on ? 1 : 0) - this.strength) * Math.min(1, dt * 12);
-    this.mat.opacity = this.strength * 0.62;
-    this.splashMat.opacity = this.strength * 0.5;
+    this.mat.opacity = this.strength * 0.88;
+    this.splashMat.opacity = this.strength * 0.2;
     this.tex.offset.y -= dt * 3.4;
     if (this.strength < 0.01) return;
 
@@ -280,7 +280,7 @@ export class WaterJet {
       const t = i / seg;
       p.copy(from).addScaledVector(dir, t);
       p.y -= Math.sin(t * Math.PI) * 0.02;
-      const w = (0.012 + t * 0.05) * (0.7 + this.strength * 0.3);
+      const w = (0.016 + t * 0.075) * (0.7 + this.strength * 0.3);
       arr[i * 6] = p.x - side.x * w;
       arr[i * 6 + 1] = p.y - side.y * w;
       arr[i * 6 + 2] = p.z - side.z * w;
@@ -292,7 +292,7 @@ export class WaterJet {
     this.geo.boundingSphere = null;
     this.splash.position.set(to.x, to.y + 0.006, to.z);
     const pulse = 1 + Math.sin(performance.now() * 0.02) * 0.08;
-    this.splash.scale.setScalar(pulse * (0.7 + this.strength * 0.5));
+    this.splash.scale.setScalar(pulse * (0.34 + this.strength * 0.26));
   }
 }
 

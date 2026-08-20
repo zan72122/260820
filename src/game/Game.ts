@@ -92,7 +92,7 @@ export class Game {
   private handL = new THREE.Vector3();
   private handR = new THREE.Vector3();
   private soilColor = new THREE.Color();
-  private waterColor = new THREE.Color(0.72, 0.84, 0.9);
+  private waterColor = new THREE.Color(1, 1, 1);
   private projected = new THREE.Vector3();
   private boomTarget = new THREE.Vector3();
   private anchorA = new THREE.Vector3();
@@ -187,12 +187,12 @@ export class Game {
     const grain = new THREE.IcosahedronGeometry(0.5, 0);
     this.soilFx = new ParticlePool(
       grain,
-      new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0, flatShading: true }),
+      new THREE.MeshStandardMaterial({ color: 0x6d5941, roughness: 1, metalness: 0, flatShading: true }),
       260
     );
     this.dropFx = new ParticlePool(
       grain,
-      new THREE.MeshStandardMaterial({ roughness: 0.22, metalness: 0, flatShading: true }),
+      new THREE.MeshStandardMaterial({ color: 0x9cc2d6, roughness: 0.22, metalness: 0, flatShading: true }),
       110
     );
     this.scene.add(this.soilFx.mesh, this.dropFx.mesh);
@@ -540,7 +540,7 @@ export class Game {
       }
       case 'handoff': {
         const next = SITES[Math.min(this.siteIndex + 1, SITES.length - 1)];
-        this.tmp.copy(SITES[this.siteIndex].origin).lerp(next.origin, 0.55);
+        this.tmp.copy(SITES[this.siteIndex].origin).lerp(next.origin, 0.72);
         this.director.setShot(SHOTS.handoff(), this.tmp);
         break;
       }
@@ -668,7 +668,7 @@ export class Game {
     this.audio.setWater(on, impact);
 
     if (on) {
-      dig.applyWater(impact.x, impact.z, 0.2, dt);
+      dig.applyWater(impact.x, impact.z, 0.235, dt);
       this.waterHeld += dt;
       this.spawnDroplets(impact, dt);
     }
@@ -881,9 +881,9 @@ export class Game {
     const working =
       this.phase === 'vacuum' || this.phase === 'reveal' || this.phase === 'water' || this.phase === 'depth';
     this.boomTarget.copy(working ? this.workPoint : SITES[this.siteIndex].origin);
-    this.boomTarget.x += working ? 0.4 : 1.5;
-    this.boomTarget.z += working ? 0.95 : 1.9;
-    this.truck.aimAt(this.boomTarget, working ? 2.45 : 2.8);
+    this.boomTarget.x += working ? 1.05 : 1.6;
+    this.boomTarget.z += working ? 0.85 : 1.9;
+    this.truck.aimAt(this.boomTarget, working ? 2.55 : 2.85);
     this.truck.update(dt);
 
     const reel = this.truck.reelWorld(this.anchorA);
@@ -914,11 +914,9 @@ export class Game {
       const x = this.workPoint.x + Math.cos(a) * r;
       const z = this.workPoint.z + Math.sin(a) * r;
       const y = this.groundHeight(x, z) + 0.01;
-      this.soilColor.setRGB(
-        lerp(0.5, 0.24, mud) + Math.random() * 0.09,
-        lerp(0.42, 0.19, mud) + Math.random() * 0.07,
-        lerp(0.3, 0.13, mud) + Math.random() * 0.05
-      );
+      // multiplier over the pool's soil colour: wet spoil comes out darker
+      const v = lerp(1.05, 0.45, mud) + (Math.random() - 0.5) * 0.22;
+      this.soilColor.setRGB(v, v * 0.98, v * 0.92);
       this.soilFx.spawn(
         x,
         y,
@@ -934,7 +932,7 @@ export class Game {
     }
     // a little spatter is thrown clear of the mouth rather than vanishing
     if (Math.random() < dt * 12 * this.particleScale) {
-      this.dropFx.spawn(
+      this.soilFx.spawn(
         this.workPoint.x,
         gy + 0.04,
         this.workPoint.z,

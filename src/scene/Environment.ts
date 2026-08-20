@@ -272,8 +272,8 @@ export class Environment {
     const spots: Array<[number, number, number]> = [
       [-6.6, -0.4, 0.6],
       [7.0, 1.1, 0.52],
-      [-2.2, -4.6, 0.4],
-      [5.6, -4.2, 0.44],
+      [-8.6, -3.2, 0.44],
+      [8.8, -2.4, 0.46],
     ];
     const im = new THREE.InstancedMesh(geo, mat, spots.length);
     im.castShadow = true;

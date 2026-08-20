@@ -160,7 +160,7 @@ export const SHOTS = {
   /** First wetting: low and close, so the colour change is unmistakable. */
   water: (): Shot => ({
     dir: new THREE.Vector3(-0.24, 0.66, -0.72).normalize(),
-    distance: 2.9,
+    distance: 3.3,
     fov: 42,
     ndcY: 0.15,
     raise: 0.24,
@@ -171,7 +171,7 @@ export const SHOTS = {
   /** Suction: mid shot, wet patch and hose both in frame. */
   vacuum: (): Shot => ({
     dir: new THREE.Vector3(-0.3, 0.82, -0.56).normalize(),
-    distance: 3.9,
+    distance: 4.7,
     fov: 42,
     ndcY: 0.14,
     raise: 0.3,
@@ -182,9 +182,9 @@ export const SHOTS = {
   /** The moment a made thing appears in the dirt. */
   macro: (): Shot => ({
     dir: new THREE.Vector3(-0.16, 0.92, -0.42).normalize(),
-    distance: 1.7,
+    distance: 1.65,
     fov: 38,
-    ndcY: 0.1,
+    ndcY: 0.02,
     raise: 0.08,
     portraitDistance: 1.18,
     portraitFov: 46,
@@ -193,7 +193,7 @@ export const SHOTS = {
   /** Working around the pipe. */
   expose: (): Shot => ({
     dir: new THREE.Vector3(-0.34, 0.86, -0.5).normalize(),
-    distance: 3.5,
+    distance: 4.3,
     fov: 42,
     ndcY: 0.14,
     raise: 0.28,

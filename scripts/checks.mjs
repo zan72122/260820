@@ -1,5 +1,6 @@
 // Targeted robustness checks: orientation persistence, input abuse, WebGL health.
 import { chromium, devices } from 'playwright';
+import { seekLocator } from './lib.mjs';
 
 const base = process.env.BASE_URL || 'http://127.0.0.1:4173/';
 const browser = await chromium.launch({
@@ -62,19 +63,19 @@ check(
   `phase=${afterSpam.phase}`
 );
 
-// 3. locator response must be monotone in position, not random
-await page.waitForFunction(() => window.__dig.phase() === 'detect', null, { timeout: 40000 });
+// 3. locator response must track position: one clear peak, and repeatable
+await page.waitForFunction(() => window.__dig.phase() === 'detect', null, { timeout: 60000 });
 const samples = [];
 const y0 = (await state()).finger.y;
-await page.mouse.move(60, y0);
+await page.mouse.move(50, y0);
 await page.mouse.down();
-for (let x = 60; x <= 330; x += 15) {
+await page.waitForTimeout(600);
+for (let x = 50; x <= 340; x += 18) {
   await page.mouse.move(x, y0);
-  await page.waitForTimeout(90);
-  const s = await state();
-  samples.push([x, s.signal]);
+  await page.waitForTimeout(340);
+  samples.push([x, (await state()).signal]);
 }
-let peak = 0;
+let peak = -1;
 let peakX = 0;
 samples.forEach(([x, v]) => {
   if (v > peak) {
@@ -82,21 +83,25 @@ samples.forEach(([x, v]) => {
     peakX = x;
   }
 });
-const beforePeak = samples.filter(([x]) => x < peakX);
-const afterPeak = samples.filter(([x]) => x > peakX);
-const rising = beforePeak.every((s, i) => i === 0 || s[1] >= beforePeak[i - 1][1] - 0.02);
-const falling = afterPeak.every((s, i) => i === 0 || s[1] <= afterPeak[i - 1][1] + 0.02);
-check('locator signal rises and falls with position', peak > 0.8 && rising && falling, `peak=${peak.toFixed(2)}`);
-
-// hold on the strongest response until the operator marks the ground
-await page.mouse.move(peakX, y0);
-for (let i = 0; i < 200; i++) {
-  const cur = await state();
-  if (cur.phase !== 'detect') break;
-  await page.mouse.move(peakX + (i % 2 ? 0.5 : -0.5), y0);
-  await page.waitForTimeout(80);
+const low = Math.min(...samples.map((s2) => s2[1]));
+// one hump: the smoothed series may change direction at most twice
+let turns = 0;
+for (let i = 2; i < samples.length; i++) {
+  const a = samples[i - 1][1] - samples[i - 2][1];
+  const b = samples[i][1] - samples[i - 1][1];
+  if (Math.abs(a) > 0.03 && Math.abs(b) > 0.03 && Math.sign(a) !== Math.sign(b)) turns++;
 }
+await page.mouse.move(peakX, y0);
+await page.waitForTimeout(700);
+const repeat = (await state()).signal;
+check(
+  'locator response tracks position with one clear peak',
+  peak > 0.85 && low < 0.4 && turns <= 2 && Math.abs(repeat - peak) < 0.15,
+  `peak=${peak.toFixed(2)} low=${low.toFixed(2)} turns=${turns} repeat=${repeat.toFixed(2)}`
+);
+
 await page.mouse.up();
+await seekLocator(page, state, 390, 844);
 
 // 4. dry ground resists the nozzle; wet ground yields
 await page.waitForFunction(() => window.__dig.phase() === 'water', null, { timeout: 120000 });

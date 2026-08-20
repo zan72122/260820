@@ -48,7 +48,7 @@ function resize() {
   game.director.setViewport(w, h);
   hud.resize();
   // portrait leaves more room below the work point, so the finger sits lower
-  input.lift = h > w ? 0.155 : 0.115;
+  input.lift = h > w ? 0.155 : 0.15;
 }
 
 window.addEventListener('resize', resize);
@@ -119,6 +119,7 @@ declare global {
       signal: () => number;
       finger: () => { x: number; y: number };
       route: () => Array<{ x: number; y: number }>;
+      wet: () => number;
     };
   }
 }
@@ -132,4 +133,5 @@ window.__dig = {
   signal: () => game.detectSignal,
   finger: () => game.fingerTargetScreen(window.innerWidth, window.innerHeight, input.lift),
   route: () => game.routeScreen(window.innerWidth, window.innerHeight, input.lift),
+  wet: () => game.activeSite.peakWet(),
 };

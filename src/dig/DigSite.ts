@@ -76,6 +76,8 @@ export interface SuctionReport {
 const PIPE_MARGIN = 0.022;
 const MAX_DEPTH = 0.72;
 const MAX_WALL_STEP = 0.042;
+/** How close to the buried surface soil starts lifting off rather than digging. */
+const CUT_BAND = 0.075;
 
 export class DigSite {
   readonly group = new THREE.Group();
@@ -337,24 +339,24 @@ export class DigSite {
         const yield_ = 0.06 + 0.94 * Math.pow(w, 1.25);
         const take = rate * f * yield_;
         const room = this.cap[i] - this.depth[i];
-        if (room > 0.0004) {
-          const dug = Math.min(take, room);
+        const dug = Math.min(take, Math.max(0, room));
+        if (dug > 0) {
           this.depth[i] += dug;
-          this.wet[i] = Math.max(0, w - dug * 2.6);
           volume += dug;
+          if (this.depth[i] > deepest) deepest = this.depth[i];
+        }
+        // Close to buried plant the suction stops driving the hole deeper and
+        // starts lifting the last skin of soil off the surface instead. The
+        // band means a whole arc of the crown bares, not a hairline.
+        if (this.cap[i] < MAX_DEPTH - 0.01 && room < CUT_BAND && this.cut[i] < 1) {
+          const nearness = 1 - Math.max(0, room) / CUT_BAND;
+          this.cut[i] = Math.min(1, this.cut[i] + take * 13 * nearness);
+          volume += take * 0.35 * nearness;
+        }
+        if (dug > 0 || this.cut[i] > 0) {
+          this.wet[i] = Math.max(0, w - take * 2.4);
           wetSum += w;
           wetCount++;
-          if (this.depth[i] > deepest) deepest = this.depth[i];
-        } else if (this.cap[i] < MAX_DEPTH - 0.01 && this.cut[i] < 1) {
-          // bottomed out on buried plant: from here the suction lifts the last
-          // skin of soil off the surface instead of driving the hole deeper.
-          this.depth[i] = this.cap[i];
-          this.cut[i] = Math.min(1, this.cut[i] + take * 13);
-          this.wet[i] = Math.max(0, w - take * 2.0);
-          volume += take * 0.45;
-          wetSum += w;
-          wetCount++;
-          if (this.depth[i] > deepest) deepest = this.depth[i];
         }
       }
     }
@@ -538,6 +540,13 @@ export class DigSite {
     }
   }
 
+  /** Highest wetness anywhere on the patch; used by the automated checks. */
+  peakWet(): number {
+    let m = 0;
+    for (let i = 0; i < this.wet.length; i++) if (this.wet[i] > m) m = this.wet[i];
+    return m;
+  }
+
   /** Total moisture held in a disc of soil; drives the water/suction rhythm. */
   wetAround(worldX: number, worldZ: number, radius: number): number {
     const [gx, gz] = this.toGrid(worldX, worldZ);
@@ -652,7 +661,7 @@ varying vec3 vWNrm;`
         `void main() {
   // ragged, position-stable dissolve rather than a clean circular cut
   float grit = fract(sin(dot(floor(vGrit), vec2(12.9898, 78.233))) * 43758.5453);
-  if (vCut > 0.22 + grit * 0.42) discard;`
+  if (vCut > 0.28 + grit * 0.34) discard;`
       )
       .replace(
         '#include <map_fragment>',
@@ -666,7 +675,7 @@ varying vec3 vWNrm;`
       texture2D(map, vec2(vWPos.x, vWPos.y) * uSoilScale) * tw.z;
     diffuseColor *= soil;
   }
-  diffuseColor.rgb *= mix(1.0, 0.44, clamp(vWet, 0.0, 1.0));
+  diffuseColor.rgb *= mix(1.0, 0.36, clamp(vWet, 0.0, 1.0));
   diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.92, 0.95, 1.03), clamp(vWet, 0.0, 1.0));`
       )
       .replace(

@@ -78,7 +78,7 @@ export const SITES: SiteConfig[] = [
     scanHalf: new THREE.Vector2(0.84, 0.66),
     scanStart: new THREE.Vector2(0.74, 0.46),
     markings: [{ x: 0.18, z: 0.78, rot: 0.6, length: 1.0, color: '#8f8a3f', dashed: true }],
-    requiredExposure: 0.44,
+    requiredExposure: 0.38,
     workerOffset: new THREE.Vector2(0.56, 0.54),
   },
   {
