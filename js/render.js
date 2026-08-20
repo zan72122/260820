@@ -409,7 +409,7 @@
     ctx.save();
     if (!_waterPath) { ctx.restore(); return; }
     ctx.clip(_waterPath);
-    smear(reflC, S, 0.52 * (0.6 + 0.4 * (1 - S.dusk)), 'lighter', 0.85);
+    smear(reflC, S, 0.46 * (0.6 + 0.4 * (1 - S.dusk)), 'lighter', 0.62);
     ctx.globalAlpha = 1;
     /* さざなみ */
     ctx.globalCompositeOperation = 'lighter';
@@ -430,11 +430,11 @@
   var PAL = [];
   function buildPalette(S) {
     var base = [
-      U.lerp(23, 74, S.dusk), U.lerp(26, 82, S.dusk), U.lerp(33, 94, S.dusk)
+      U.lerp(29, 76, S.dusk), U.lerp(32, 84, S.dusk), U.lerp(40, 96, S.dusk)
     ];
     for (var i = 0; i < 14; i++) {
       var L = i / 13;
-      var r = base[0] + 258 * Math.pow(L, 0.72);
+      var r = base[0] + 262 * Math.pow(L, 0.86);
       var gg = base[1] + 148 * Math.pow(L, 0.98);
       var bb = base[2] + 54 * Math.pow(L, 1.5);
       PAL[i] = U.css([Math.min(255, r), Math.min(255, gg), Math.min(255, bb)]);
@@ -450,7 +450,7 @@
       if (dd < 90) L += 1.25 * Math.exp(-dd / 26) * vert;
     }
     /* 街灯のわずかな照り返し */
-    L += (1 - S.dusk) * 0.055 * U.clamp(1 - Math.abs(y - W.DECK_Y) * 0.13, 0, 1);
+    L += (1 - S.dusk) * 0.042 * U.clamp(1 - Math.abs(y - W.DECK_Y) * 0.13, 0, 1);
     return U.clamp(L, 0, 1);
   }
 
@@ -774,10 +774,10 @@
       var pw = Math.abs(b.x - a.x);
       if (pw < 2.5 * S_) continue;
       var A = ig * alphaMul * U.clamp(pw / (14 * S_), 0, 1) * (a.z > 380 ? Math.max(0.20, 1.24 - a.z / 1200) : 1);
-      gr.addColorStop(0, 'rgba(255,236,190,' + (0.30 * A).toFixed(3) + ')');
-      gr.addColorStop(0.16, 'rgba(255,199,112,' + (0.22 * A).toFixed(3) + ')');
-      gr.addColorStop(0.48, 'rgba(255,154,56,' + (0.13 * A).toFixed(3) + ')');
-      gr.addColorStop(0.86, 'rgba(255,118,30,' + (0.05 * A).toFixed(3) + ')');
+      gr.addColorStop(0, 'rgba(255,238,196,' + (0.46 * A).toFixed(3) + ')');
+      gr.addColorStop(0.16, 'rgba(255,201,116,' + (0.34 * A).toFixed(3) + ')');
+      gr.addColorStop(0.48, 'rgba(255,156,58,' + (0.20 * A).toFixed(3) + ')');
+      gr.addColorStop(0.86, 'rgba(255,118,30,' + (0.075 * A).toFixed(3) + ')');
       gr.addColorStop(1, 'rgba(255,110,26,0)');
       cx.beginPath();
       cx.moveTo(a.x, a.y); cx.lineTo(b.x, b.y); cx.lineTo(c.x, c.y); cx.lineTo(d.x, d.y);
@@ -993,7 +993,7 @@
     reflX.save();
     reflX.scale(0.5, 0.5);
     drawCurtain(reflX, cam, S, true, 1.0);
-    FX.draw(reflX, cam, true, 3, 1.15);
+    FX.draw(reflX, cam, true, 2, 0.95);
     drawFuseHead(reflX, cam, S, true, 0.7);
     reflectLights(reflX, cam, S);
     reflX.restore();

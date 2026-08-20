@@ -90,9 +90,9 @@
     for (var c = 0; c < count; c++) {
       /* 点火済みの区間から選ぶ */
       var seg = -1;
-      for (var t = 0; t < 4; t++) {
+      for (var t = 0; t < 9; t++) {
         var r = (Math.random() * W.SEG) | 0;
-        if (Math.random() < ign[r]) { seg = r; break; }
+        if (Math.random() < ign[r] * (S.segW[r] / S.segWMax)) { seg = r; break; }
       }
       if (seg < 0) continue;
       var x = W.segX(seg) + (Math.random() - 0.5) * W.SEG_L;
@@ -205,7 +205,7 @@
       if (P.age[i] < 0.06) fade *= P.age[i] / 0.06;
       if (fade <= 0.012) continue;
 
-      var w = P.sz[i] * o.s * 2.5;
+      var w = P.sz[i] * o.s * (mirror ? 1.8 : 2.5);
       if (w < 2.0) w = 2.0; else if (w > 34) w = 34;
       /* 落下速度で縦に伸ばす = 火の筋に見える */
       var stretch = 1 + Math.min(3.1, Math.abs(P.vy[i]) * 0.115);

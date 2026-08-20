@@ -17,8 +17,25 @@
     time: 0, dusk: 1, fire: 0, ign: new Float32Array(W.SEG),
     fuseX: W.X0, fuseV: 0, fuseOn: false,
     barrier: 0, cars: [], smokeA: 0, wind: 1.4, crowd: 0, bulb: 0,
-    quality: 1, ignTotal: 0
+    quality: 1, ignTotal: 0,
+    segW: new Float32Array(W.SEG), segWMax: 1
   };
+
+  /* 画面に映っている区間へ火の粉を寄せる (遠景では自然に散る) */
+  var _o = { x: 0, y: 0, s: 1, z: 1, vis: false };
+  function updateSegWeights() {
+    var maxw = 0.0001, i, j;
+    for (i = 0; i < W.SEG; i += 4) {
+      cam.pr(W.segX(i), W.LOW_Y - 2.5, W.CURTAIN_Z, _o);
+      var w = 0;
+      if (_o.vis && _o.x > -0.2 * vw && _o.x < 1.2 * vw && _o.y > -0.4 * vh && _o.y < 1.4 * vh) {
+        w = Math.min(7, _o.s);
+      }
+      for (j = 0; j < 4 && i + j < W.SEG; j++) S.segW[i + j] = w;
+      if (w > maxw) maxw = w;
+    }
+    S.segWMax = maxw;
+  }
 
   var st = 'evening', stT = 0, waiting = true;
   var portrait = false;
@@ -26,6 +43,15 @@
 
   /* ---------- カメラ割り ---------- */
   function shotEvening() {
+    if (portrait) {
+      /* 縦画面は橋に寄って、鋼材と橋脚と水面で「ふつうの橋」を見せる */
+      return {
+        pos: [112, 4.6, 88], tgt: [190, 10, -2],
+        pts: [[146, -9, 0], [214, W.DECK_Y + W.ARCH_H + 1, 0],
+        [214, -9, 0], [146, W.DECK_Y + W.ARCH_H + 1, 0]],
+        mx: 0.95, my: 0.92
+      };
+    }
     return {
       pos: [100, 4.4, 74], tgt: [560, 11, -14],
       pts: [[W.X0 + 150, 0.2, 0],
@@ -46,13 +72,21 @@
     };
   }
   function shotReady() {
+    if (portrait) {
+      return {
+        pos: [92, 5.0, 108], tgt: [230, 10.5, -4],
+        pts: [[178, -10, 0], [276, W.DECK_Y + W.ARCH_H + 1, 0],
+        [276, -10, 0], [178, W.DECK_Y + W.ARCH_H + 1, 0]],
+        mx: 0.95, my: 0.92
+      };
+    }
     return {
-      pos: [-118, 8.5, 44], tgt: [330, 13.5, 0],
-      pts: [[W.X0 - 60, W.GROUND, 3],
-      [W.X0 + 420, W.DECK_Y + W.ARCH_H + 2, 0],
-      [W.X0 + 420, 0.5, 0],
-      [W.X0 - 60, W.DECK_Y + W.ARCH_H + 2, 3]],
-      mx: 0.94, my: 0.88
+      pos: [104, 5.4, 92], tgt: [560, 11, -12],
+      pts: [[W.X0 + 120, -6, 0],
+      [W.X0 + 700, W.DECK_Y + W.ARCH_H + 2, 0],
+      [W.X0 + 700, -6, 0],
+      [W.X0 + 120, W.DECK_Y + W.ARCH_H + 2, 0]],
+      mx: 0.95, my: 0.88
     };
   }
   function shotFuse() {
@@ -200,7 +234,7 @@
     } else if (s === 'fuse') {
       waiting = false; hideBtn();
       S.fuseOn = true; S.fuseX = W.X0; S.fuseV = 118;
-      goShot(shotFuse, 1.1);
+      goShot(shotFuse, 0.01);
       cueEl.hidden = false;
       AU.whoosh();
     } else if (s === 'niagara') {
@@ -306,6 +340,7 @@
     }
     FX.update(dt, S);
     applyCamera(dt);
+    updateSegWeights();
   }
 
   /* ---------- ループ ---------- */

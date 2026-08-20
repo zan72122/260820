@@ -123,10 +123,13 @@ body{
 /* ------- rotate hint ------- */
 #rotate{
   position:absolute;
-  left:50%;top:50%;
+  left:50%;top:62%;
   transform:translate(-50%,-50%);
-  display:flex;align-items:center;gap:.3em;
-  font-size:clamp(30px,9vmin,64px);
+  display:flex;align-items:center;gap:.25em;
+  padding:.35em .6em;
+  border-radius:999px;
+  background:rgba(0,0,0,.34);
+  font-size:clamp(26px,7.5vmin,52px);
   opacity:.9;
   filter:drop-shadow(0 3px 12px rgba(0,0,0,.8));
   animation:tiltp 2.4s ease-in-out infinite;
@@ -134,10 +137,11 @@ body{
 }
 #rotate[hidden]{display:none;}
 #rotate .ph{display:inline-block;transform:rotate(90deg);}
+#rotate .ar{font-weight:700;}
 #rotate .ar{font-size:.7em;color:#ffca6a;}
 @keyframes tiltp{
-  0%,100%{transform:translate(-50%,-50%) rotate(0deg);opacity:.35;}
-  50%{transform:translate(-50%,-50%) rotate(-16deg);opacity:.95;}
+  0%,100%{transform:translate(-50%,-50%) rotate(0deg);opacity:.45;}
+  50%{transform:translate(-50%,-50%) rotate(-14deg);opacity:1;}
 }
 
 /* ------- drag cue ------- */
