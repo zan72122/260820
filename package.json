@@ -1,0 +1,16 @@
+{
+  "name": "nagaoka-climax",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Nagaoka Fireworks - Final Chapter: Bridge Niagara + Sho-sanshakudama",
+  "type": "module",
+  "scripts": {
+    "start": "node scripts/serve.js",
+    "serve": "node scripts/serve.js",
+    "test:e2e": "playwright test",
+    "test:smoke": "E2E_FAST=1 playwright test tests/smoke.spec.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0"
+  }
+}

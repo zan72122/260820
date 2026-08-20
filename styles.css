@@ -1,0 +1,123 @@
+:root{
+  --ink:#f4f7ff;
+  --gold:#ffc45a;
+  --gold-hot:#fff0c0;
+  --river:#05080f;
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+  font-family: system-ui, -apple-system, "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;height:100%;overflow:hidden;background:#05080f;color:var(--ink)}
+body{overscroll-behavior:none;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+
+#stage{position:fixed;inset:0;overflow:hidden}
+#scene{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+
+/* ---------- 場内アナウンス ---------- */
+.announce{
+  position:absolute;left:50%;transform:translateX(-50%);
+  top:calc(var(--safe-t) + 14px);
+  max-width:min(92vw,760px);text-align:center;
+  font-size:clamp(13px,3.4vw,20px);letter-spacing:.06em;line-height:1.5;
+  color:#ffeccd;text-shadow:0 0 14px rgba(255,170,60,.55),0 2px 8px rgba(0,0,0,.9);
+  opacity:0;transition:opacity .5s ease;pointer-events:none;z-index:6;
+  padding:.5em .9em;border-radius:999px;
+  background:linear-gradient(180deg,rgba(8,12,20,.45),rgba(8,12,20,.12));
+  backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);
+}
+.announce.show{opacity:1}
+/* 決定的な一枚を邪魔しないよう、クライマックス中は下に逃がす */
+.announce.caption{top:auto;bottom:calc(var(--safe-b) + 10px);font-size:clamp(11px,2.8vw,15px);
+  background:none;backdrop-filter:none;-webkit-backdrop-filter:none;letter-spacing:.1em}
+
+/* ---------- オーバーレイ ---------- */
+.overlay{
+  position:absolute;inset:0;display:grid;place-items:center;z-index:10;
+  padding:calc(var(--safe-t) + 16px) 16px calc(var(--safe-b) + 16px);
+  background:radial-gradient(120% 80% at 50% 60%, rgba(3,6,12,.30) 0%, rgba(3,6,12,.78) 70%, rgba(3,6,12,.92) 100%);
+  transition:opacity .6s ease, visibility .6s;
+}
+.overlay[hidden]{display:none}
+.overlay.fade-out{opacity:0;pointer-events:none}
+
+.title-inner,.result-inner{text-align:center;max-width:min(90vw,560px)}
+.kicker{margin:0 0 .4em;font-size:clamp(11px,2.9vw,15px);letter-spacing:.34em;color:#9fb4d6;text-indent:.34em}
+h1{margin:0 0 .5em;font-size:clamp(30px,9vw,64px);font-weight:800;letter-spacing:.1em;line-height:1.05;
+   background:linear-gradient(180deg,#fff8e6,#ffc45a 55%,#ff8a3d);
+   -webkit-background-clip:text;background-clip:text;color:transparent;
+   filter:drop-shadow(0 0 22px rgba(255,160,50,.35))}
+h1 .sub{display:block;margin-top:.35em;font-size:clamp(14px,4.2vw,24px);font-weight:600;letter-spacing:.16em;
+   background:linear-gradient(180deg,#eaf1ff,#a9c0e4);-webkit-background-clip:text;background-clip:text;color:transparent;filter:none}
+.lede{margin:0 0 1.6em;font-size:clamp(15px,4.2vw,21px);line-height:1.85;color:#dce6f7;letter-spacing:.06em}
+.hint{margin:1.1em 0 0;font-size:clamp(10px,2.8vw,13px);color:#7f93b3;letter-spacing:.08em}
+
+.result-card{background:radial-gradient(120% 80% at 50% 55%, rgba(3,6,12,.10) 0%, rgba(3,6,12,.55) 60%, rgba(3,6,12,.86) 100%)}
+.stars{margin:0 0 .1em;font-size:clamp(32px,10vw,62px);letter-spacing:.12em;color:var(--gold);
+  text-shadow:0 0 26px rgba(255,190,80,.75)}
+h2{margin:0 0 .35em;font-size:clamp(24px,7.4vw,44px);font-weight:800;letter-spacing:.1em;color:#fff4dd;
+  text-shadow:0 0 22px rgba(255,170,60,.45)}
+.result-body{margin:0 0 1.5em;font-size:clamp(14px,3.9vw,19px);line-height:1.8;color:#d6e2f5;letter-spacing:.05em}
+
+/* ---------- 大きなボタン（4歳児向け） ---------- */
+.big-btn{
+  display:flex;align-items:center;justify-content:center;gap:.55em;
+  font-family:inherit;font-weight:800;letter-spacing:.08em;color:#1a1206;
+  border:0;border-radius:999px;cursor:pointer;
+  min-height:76px;padding:.7em 1.5em;font-size:clamp(17px,4.8vw,24px);
+  background:linear-gradient(180deg,#fff3cf,#ffc45a 55%,#ff9b2e);
+  box-shadow:0 0 0 3px rgba(255,220,150,.35),0 10px 34px rgba(255,150,40,.42),0 2px 0 rgba(255,255,255,.6) inset;
+  transition:transform .12s ease, filter .12s ease, opacity .35s ease;
+}
+.big-btn:active{transform:scale(.965);filter:brightness(1.12)}
+.big-btn .ico{font-size:1.15em;line-height:1}
+.big-btn .sublbl{display:none}
+
+.big-btn.action{
+  position:absolute;left:50%;transform:translateX(-50%);
+  bottom:calc(var(--safe-b) + 22px);
+  z-index:8;flex-direction:column;gap:.15em;
+  min-width:min(84vw,430px);min-height:104px;padding:.85em 1.4em;
+  animation:breathe 2.4s ease-in-out infinite;
+}
+.big-btn.action .sublbl{display:block;font-size:.62em;font-weight:700;letter-spacing:.14em;opacity:.72}
+.big-btn.action:active{transform:translateX(-50%) scale(.965)}
+.big-btn.action[hidden]{display:none}
+.big-btn.action.enter{animation:popIn .45s cubic-bezier(.2,1.5,.4,1) 1, breathe 2.4s ease-in-out 0.45s infinite}
+.big-btn.step2{
+  background:linear-gradient(180deg,#ffe9ef,#ff8fa8 52%,#ff4f6d);
+  color:#2a0510;
+  box-shadow:0 0 0 3px rgba(255,190,205,.35),0 10px 38px rgba(255,70,110,.45),0 2px 0 rgba(255,255,255,.55) inset;
+}
+@keyframes breathe{0%,100%{filter:brightness(1)}50%{filter:brightness(1.14)}}
+@keyframes popIn{from{transform:translateX(-50%) scale(.6);opacity:0}to{transform:translateX(-50%) scale(1);opacity:1}}
+
+/* アイコン（絵で分かるように） */
+.ico-svg{width:1.9em;height:1.35em;display:block;color:currentColor;flex:0 0 auto}
+.big-btn.action .ico-svg{width:2.2em;height:1.6em;margin-bottom:.05em}
+
+/* ---------- 小さいチップ（音） ---------- */
+.chip{
+  position:absolute;z-index:9;right:calc(12px + env(safe-area-inset-right,0px));
+  top:calc(var(--safe-t) + 12px);
+  width:44px;height:44px;border-radius:50%;border:1px solid rgba(255,255,255,.18);
+  background:rgba(10,16,26,.55);color:#e9f0ff;font-size:18px;line-height:1;cursor:pointer;
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+  display:grid;place-items:center;transition:opacity .4s ease;
+}
+.chip.dim{opacity:.22}
+
+.loading{
+  position:absolute;inset:0;display:grid;place-items:center;z-index:20;
+  background:#05080f;color:#7f93b3;font-size:14px;letter-spacing:.2em;
+  transition:opacity .5s ease;
+}
+.loading.gone{opacity:0;pointer-events:none}
+
+/* 余韻中は UI を消して、絵だけを見せる */
+body.cinema .chip{opacity:.12}
+body.cinema .announce{opacity:.62}
+
+@media (prefers-reduced-motion: reduce){
+  .big-btn.action{animation:none}
+}

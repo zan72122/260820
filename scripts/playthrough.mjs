@@ -1,0 +1,27 @@
+// 実時間で通しプレイして、要所を撮る（ボタン表示・カメラの動きの確認）
+import { chromium } from 'playwright';
+import { mkdirSync } from 'node:fs';
+const OUT = '/tmp/shots/rt';
+mkdirSync(OUT, { recursive: true });
+const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--no-sandbox', '--disable-dev-shm-usage'] });
+const p = await b.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+p.on('pageerror', (e) => console.error('ERR', e.message));
+await p.goto('http://localhost:5173/?q=mid');
+await p.waitForFunction(() => !!window.__nagaoka);
+const shot = async (n) => { await p.screenshot({ path: `${OUT}/${n}.png` }); console.log(n, JSON.stringify(await p.evaluate(() => window.__nagaoka.state())).slice(0, 190)); };
+await p.waitForTimeout(600); await shot('00-title');
+await p.locator('#btnStart').tap();
+await p.waitForTimeout(1500); await shot('01-establish');
+await p.waitForTimeout(1800); await shot('02-wait');
+await p.locator('#btnNiagara').tap();
+await p.waitForTimeout(1600); await shot('03-niagara');
+await p.waitForTimeout(2200); await shot('04-cue');
+await p.locator('#btnShell').tap();
+await p.waitForTimeout(1800); await shot('05-rise');
+await p.waitForTimeout(2200); await shot('06-burst');
+await p.waitForTimeout(2000); await shot('07-wide');
+await p.waitForTimeout(4000); await shot('08-afterglow');
+await p.waitForTimeout(7000); await shot('09-result');
+await p.locator('#btnReplay').tap();
+await p.waitForTimeout(1200); await shot('10-replay');
+await b.close();
