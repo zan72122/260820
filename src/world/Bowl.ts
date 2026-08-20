@@ -58,8 +58,8 @@ const tsuyuFrag = /* glsl */ `
     float r = length(vLocal);
     vec2 g = vec2(0.0);
     // Idle shimmer. Even still tsuyu is never a perfect mirror.
-    g += vec2(cos(vLocal.x * 260.0 + uTime * 1.9), cos(vLocal.y * 230.0 - uTime * 1.5)) * 0.055;
-    g += vec2(cos(vLocal.y * 91.0 - uTime * 0.9), cos(vLocal.x * 77.0 + uTime * 1.1)) * 0.028;
+    g += vec2(cos(vLocal.x * 260.0 + uTime * 1.9), cos(vLocal.y * 230.0 - uTime * 1.5)) * 0.032;
+    g += vec2(cos(vLocal.y * 91.0 - uTime * 0.9), cos(vLocal.x * 77.0 + uTime * 1.1)) * 0.018;
     for (int i = 0; i < ${MAX_RIPPLES}; i++) {
       vec4 rp = uRipples[i];
       if (rp.w <= 0.0) continue;
@@ -70,7 +70,7 @@ const tsuyuFrag = /* glsl */ `
       float front = age * 0.16;
       float env = exp(-age * 1.5) * smoothstep(front + 0.01, front - 0.05, d);
       float k = 260.0;
-      g += (dv / d) * cos(d * k - age * 26.0) * rp.w * 0.0009 * env * k;
+      g += (dv / d) * cos(d * k - age * 26.0) * rp.w * 0.00048 * env * k;
     }
     // meniscus climbing the bowl wall
     float edge = smoothstep(uRadius * 0.80, uRadius, r);
@@ -81,8 +81,8 @@ const tsuyuFrag = /* glsl */ `
     float F = 0.03 + 0.97 * pow(1.0 - max(dot(N, V), 0.0), 5.0);
     vec3 refl = skyColor(reflect(-V, N));
     vec3 H = normalize(V + uSunDir);
-    float spec = pow(max(dot(N, H), 0.0), 1600.0) * 2.4 + pow(max(dot(N, H), 0.0), 300.0) * 0.10;
-    vec3 col = mix(uLiquid, refl * 0.75, clamp(F, 0.0, 0.6)) + uSunColor * spec;
+    float spec = pow(max(dot(N, H), 0.0), 1600.0) * 1.1 + pow(max(dot(N, H), 0.0), 300.0) * 0.07;
+    vec3 col = mix(uLiquid, refl * 0.5, clamp(F, 0.0, 0.5)) + uSunColor * spec;
     gl_FragColor = vec4(col, 1.0);
     #include <colorspace_fragment>
   }
@@ -208,7 +208,7 @@ export class Bowl {
     const r = this.ripples[this.cursor]
     this.cursor = (this.cursor + 1) % MAX_RIPPLES
     r.set(dx, -dz, time, strength)
-    this.levelTarget += 0.0016 * strength
+    this.levelTarget += 0.0005 * strength
   }
 
   private readonly _centre = new Vector3(BOWL.x, BOWL.liquidY, BOWL.z)

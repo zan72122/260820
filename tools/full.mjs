@@ -47,7 +47,13 @@ console.log('caught?', caught)
 await shot('h2-catch')
 await frames(8); await shot('h3-lift')
 await frames(12); await shot('h4-carry')
-await frames(14); await shot('h5-bowl')
+for (let i = 0; i < 40; i++) {
+  await frames(1)
+  const st = await info()
+  if (st.bundles.some(b => b.s === 'soaking')) break
+}
+await shot('h5a-splash')
+await frames(4); await shot('h5-bowl')
 await frames(10); await shot('h6-soak')
 await page.mouse.up()
 await frames(24); await shot('h7-back')

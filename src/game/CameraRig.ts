@@ -165,7 +165,7 @@ export class CameraRig {
 
     // Ease in after a change of shot, then tighten up.
     const since = time - this.shotAt
-    const t = tau * (1 + 2.4 * Math.exp(-since * 1.5))
+    const t = tau * (1 + 1.4 * Math.exp(-since * 2.2))
     const k = 1 - Math.exp(-dt / Math.max(0.02, t))
 
     this.pos.x += (wantX + bx - this.pos.x) * k

@@ -79,7 +79,6 @@ const FINAL_FRAG = /* glsl */ `
   uniform float uBlurNear;
   uniform float uBlurFar;
   uniform float uVignette;
-  uniform float uAberration;
   uniform float uDofEnabled;
   uniform float uSaturation;
   uniform float uContrast;
@@ -113,15 +112,6 @@ const FINAL_FRAG = /* glsl */ `
       col += texture2D(tScene, uv + r * vec2(-1.30, -1.05) * 0.62).rgb * 0.1166;
     } else {
       col = texture2D(tScene, uv).rgb;
-    }
-
-    // --- a whisper of lateral colour fringing at the frame edge ------------
-    if (uAberration > 0.0) {
-      vec2 d = uv - 0.5;
-      float r2 = dot(d, d);
-      vec2 off = d * r2 * uAberration;
-      col.r = texture2D(tScene, uv + off).r;
-      col.b = texture2D(tScene, uv - off).b;
     }
 
     col += texture2D(tBloom, uv).rgb * uBloom;
@@ -177,7 +167,7 @@ export class Post {
       uniforms: {
         tSrc: { value: null },
         tex: { value: new Vector2() },
-        uThreshold: { value: this.hdr ? 1.35 : 0.80 },
+        uThreshold: { value: this.hdr ? 1.75 : 0.86 },
         uKnee: { value: 0.7 },
       },
     })
@@ -205,7 +195,6 @@ export class Post {
         uBlurNear: { value: 2.1 },
         uBlurFar: { value: 1.7 },
         uVignette: { value: 0.30 },
-        uAberration: { value: 0.0008 },
         uDofEnabled: { value: 1 },
         uSaturation: { value: 1.16 },
         uContrast: { value: 1.14 },

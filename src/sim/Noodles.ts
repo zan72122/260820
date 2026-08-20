@@ -411,9 +411,12 @@ export class Bundle {
         const dzB = z - bowl.z
         if (dxB * dxB + dzB * dzB < bowlR * bowlR && y < bowl.y + 0.006) {
           inLiquid = Math.max(inLiquid, Math.min(1, (bowl.y + 0.006 - y) / 0.012))
-          targetY = bowl.y - 0.004
-          targetX = bowl.x + (x - bowl.x) * 0.96
-          flowZ = 0
+          // Ride at the surface: white somen on dark tsuyu is the whole point.
+          targetY = bowl.y + 0.0048
+          // Coil it into the middle of the bowl rather than leaving it
+          // draped against the far wall.
+          targetX = bowl.x + (x - bowl.x) * 0.42
+          flowZ = (bowl.z - z) * 1.15
         }
 
         let vx = this.vel[i]
@@ -440,8 +443,8 @@ export class Bundle {
           // Falling towards the tsuyu: guide it in. A four-year-old should
           // never watch their catch land on the grass.
           if (this.state === 'dropping') {
-            vx += (bowl.x - x) * 3.2 * dt
-            vz += (bowl.z - z) * 3.2 * dt
+            vx += (bowl.x - x) * 5.5 * dt
+            vz += (bowl.z - z) * 5.5 * dt
           }
         }
 
@@ -479,7 +482,7 @@ export class Bundle {
         }
       }
       this.clampToTrough()
-      if (this.state === 'dropping' || this.state === 'soaking') this.clampToBowl(bowl, bowlR)
+      if (this.state === 'dropping' || this.state === 'soaking') this.clampToBowl(bowl, bowlR * 0.82)
     }
     // Gauss-Seidel alone cannot keep up with a chopstick tip crossing half a
     // metre in a second, so a held bundle finishes with an exact
@@ -497,8 +500,8 @@ export class Bundle {
 
     if (this.state === 'soaking') {
       const age = time - this.stateAt
-      if (age > 0.7) {
-        this.fade = Math.max(0, 1 - (age - 0.7) / 0.8)
+      if (age > 1.2) {
+        this.fade = Math.max(0, 1 - (age - 1.2) / 1.0)
         this.material.transparent = true
         this.material.uniforms.uFade.value = this.fade
         if (this.fade <= 0.001) this.kill()
@@ -573,7 +576,7 @@ export class Bundle {
    * is longer than the bowl is wide.
    */
   private clampToBowl(bowl: Vector3, r: number): void {
-    const floor = bowl.y - 0.026
+    const floor = bowl.y + 0.0012
     for (let s = 0; s < this.strandCount; s++) {
       for (let j = 0; j < NODES; j++) {
         const i = (s * NODES + j) * 3

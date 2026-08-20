@@ -559,7 +559,7 @@ export class Game {
     if (this.hold === 'follow') {
       // Even a child who does not lift gets the somen out of the water.
       const age = t - this.holdAt
-      wantH = Math.max(wantH, 0.02 + Math.min(0.20, age * 0.42))
+      wantH = Math.max(wantH, 0.02 + Math.min(0.22, age * 0.40))
     }
 
     // Speed limit + critically damped follow: fast swipes stay graceful.
@@ -580,7 +580,7 @@ export class Game {
     // --- carry: the reward beat plays out on its own ----------------------
     if (this.hold === 'carry' || this.hold === 'release') {
       const age = t - this.holdAt
-      const k = Math.min(1, (age - 0.62) / 1.15)
+      const k = Math.min(1, (age - 0.85) / 1.25)
       const e = k * k * (3 - 2 * k)
       this.tmp2.set(BOWL.x, BOWL.liquidY + 0.155, BOWL.z)
       this.tip.lerp(this.tmp2, e)
@@ -750,12 +750,12 @@ export class Game {
       this.rig.setSubject(this.tipSmooth)
     }
 
-    if (this.hold === 'follow' && age > 0.62) {
+    if (this.hold === 'follow' && age > 0.85) {
       this.hold = 'carry'
     }
     if (this.hold === 'carry') {
-      if (age > 1.15 && this.rig.current !== 'bowl') this.rig.cut('bowl', t)
-      if (age > 1.90) {
+      if (age > 1.55 && this.rig.current !== 'bowl') this.rig.cut('bowl', t)
+      if (age > 2.15) {
         this.hold = 'release'
         b.release(t)
         this.sticks.closedness = 0
@@ -766,9 +766,9 @@ export class Game {
       b.centre(this.tmp)
       if (this.tmp.y < BOWL.liquidY + 0.012) {
         b.soak(t)
-        this.bowl.splash(this.tmp.x - BOWL.x, this.tmp.z - BOWL.z, 1.5, t)
+        this.bowl.splash(this.tmp.x - BOWL.x, this.tmp.z - BOWL.z, 2.2, t)
         this.audio.chapun(this.panOf(this.tmp))
-        this.drops.burst(this.tmp.x, BOWL.liquidY, this.tmp.z, 7, 0.35, this.rng)
+        this.drops.burst(this.tmp.x, BOWL.liquidY, this.tmp.z, 16, 0.42, this.rng)
         this.hold = 'none'
         this.held = null
         this.rig.cut('play', t)
