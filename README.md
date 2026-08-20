@@ -32,6 +32,10 @@ npm run build      # typecheck + production bundle into dist/
 npm run preview    # serve the built bundle
 ```
 
+`dist/` is a plain static bundle with relative paths (`base: './'`), so it can
+be dropped on any static host — GitHub Pages, Netlify, an S3 bucket — and
+opened on the device directly.
+
 There are no binary assets. Every texture (bamboo skin inside and out, ground,
 foliage, wood) is baked procedurally at load, and every sound is synthesised
 with the Web Audio API, so the download is just the code.
