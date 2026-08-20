@@ -446,6 +446,11 @@ export class Game {
         carryReach.setLength(1.7)
         gripTarget.set(this.worker.stance.x + carryReach.x, gripTarget.y, this.worker.stance.z + carryReach.z)
       }
+      const fromCentre = new THREE.Vector3().subVectors(gripTarget, plot.spec.center).setY(0)
+      if (fromCentre.length() > 2.7) {
+        fromCentre.setLength(2.7)
+        gripTarget.set(plot.spec.center.x + fromCentre.x, gripTarget.y, plot.spec.center.z + fromCentre.z)
+      }
       this.holdPoint.lerp(gripTarget, 1 - Math.exp(-dt * 14))
       const away = this.camAz() + Math.PI
       const side = new THREE.Vector3(Math.cos(away), 0, Math.sin(away))
@@ -556,6 +561,13 @@ export class Game {
     const wa = this.camAz() + 2.5
     const carryNow = this.phase === 'lift' || this.phase === 'hold'
     this.worker.moveToward(workPoint, dt, new THREE.Vector3(Math.cos(wa), 0, Math.sin(wa)), carryNow ? 3.4 : 4.2)
+    // the worker is harvesting this plot and never wanders off it, however
+    // wildly the finger is dragged
+    const fromPlot = new THREE.Vector3().subVectors(this.worker.stance, plot.spec.center).setY(0)
+    if (fromPlot.length() > 2.3) {
+      fromPlot.setLength(2.3)
+      this.worker.stance.set(plot.spec.center.x + fromPlot.x, BED_Y, plot.spec.center.z + fromPlot.z)
+    }
     const support = this.supportPoint()
     const gazeTarget = this.phase === 'idle' && this.plotTimer > 6 && !this.interacted ? this.gaze : null
     let handPos = this.grip
