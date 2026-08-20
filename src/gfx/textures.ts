@@ -99,26 +99,47 @@ export interface TextureSet {
 
 const P = 16; // noise period in cells -> perfectly tiling
 
-function sandGrain(x: number, y: number, size: number) {
+interface SandFields {
+  macro: Float32Array;
+  med: Float32Array;
+  fine: Float32Array;
+  fine2: Float32Array;
+}
+
+/** The noise is evaluated once and shared by the colour, normal and ORM maps. */
+function sandFields(size: number): SandFields {
+  const n = size * size;
+  const f: SandFields = {
+    macro: new Float32Array(n),
+    med: new Float32Array(n),
+    fine: new Float32Array(n),
+    fine2: new Float32Array(n),
+  };
   const s = P / size;
-  // three scales: macro patches, medium clumps, fine grain
-  const macro = fbmTile(x * s * 0.5, y * s * 0.5, P * 0.5, 3, 11);
-  const med = fbmTile(x * s * 3, y * s * 3, P * 3, 3, 71);
-  const fine = tileNoise2(x * s * 26, y * s * 26, P * 26, 131);
-  const fine2 = tileNoise2(x * s * 53, y * s * 53, P * 53, 17);
-  return { macro, med, fine, fine2 };
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const i = y * size + x;
+      f.macro[i] = fbmTile(x * s * 0.5, y * s * 0.5, P * 0.5, 3, 11);
+      f.med[i] = fbmTile(x * s * 3, y * s * 3, P * 3, 3, 71);
+      f.fine[i] = tileNoise2(x * s * 26, y * s * 26, P * 26, 131);
+      f.fine2[i] = tileNoise2(x * s * 53, y * s * 53, P * 53, 17);
+    }
+  }
+  return f;
 }
 
 function buildSand(size: number) {
+  const f = sandFields(size);
+
   const color = paint(size, (x, y) => {
-    const g = sandGrain(x, y, size);
+    const i = y * size + x;
     // Damp morning sand: warm grey-ochre, not saturated yellow.
-    const t = g.macro * 0.55 + g.med * 0.45;
+    const t = f.macro[i] * 0.55 + f.med[i] * 0.45;
     let r = 0.40 + t * 0.15;
     let gg = 0.338 + t * 0.135;
     let b = 0.248 + t * 0.115;
     // individual grains: quartz specks (light) + dark mineral specks
-    const sp = g.fine;
+    const sp = f.fine[i];
     if (sp > 0.86) {
       const k = (sp - 0.86) / 0.14;
       r += 0.15 * k;
@@ -131,8 +152,7 @@ function buildSand(size: number) {
       b -= 0.12 * k;
     }
     // sparse tiny pebbles
-    const pb = g.fine2;
-    if (pb > 0.955) {
+    if (f.fine2[i] > 0.955) {
       r = r * 0.72 + 0.2;
       gg = gg * 0.72 + 0.19;
       b = b * 0.72 + 0.17;
@@ -141,16 +161,16 @@ function buildSand(size: number) {
   });
 
   const normal = normalFromHeight(size, 4.6, (x, y) => {
-    const g = sandGrain(x, y, size);
-    return g.med * 0.4 + g.fine * 0.5 + g.fine2 * 0.28 + g.macro * 0.18;
+    const i = y * size + x;
+    return f.med[i] * 0.4 + f.fine[i] * 0.5 + f.fine2[i] * 0.28 + f.macro[i] * 0.18;
   });
 
   const orm = paint(size, (x, y) => {
-    const g = sandGrain(x, y, size);
+    const i = y * size + x;
     // AO: crevices between grain clumps
-    const ao = clamp(0.72 + g.med * 0.28 + g.fine * 0.12 - 0.1, 0, 1);
+    const ao = clamp(0.72 + f.med[i] * 0.28 + f.fine[i] * 0.12 - 0.1, 0, 1);
     // roughness: very high, but grain-size dependent (coarse grains scatter more)
-    const rough = clamp(0.88 + g.fine * 0.1 - g.macro * 0.06, 0.6, 1);
+    const rough = clamp(0.88 + f.fine[i] * 0.1 - f.macro[i] * 0.06, 0.6, 1);
     return [ao, rough, 0];
   });
 
@@ -161,30 +181,41 @@ function buildSand(size: number) {
 /* wood                                                                */
 /* ------------------------------------------------------------------ */
 
-function woodField(x: number, y: number, size: number) {
+function woodFields(size: number) {
+  const n = size * size;
+  const rings = new Float32Array(n);
+  const fibre = new Float32Array(n);
+  const dirt = new Float32Array(n);
   const s = P / size;
-  // grain runs along +y; rings from a warped distance field
-  const warp = fbmTile(x * s * 1.4, y * s * 0.35, P, 3, 5) - 0.5;
-  const g = (x * s * 5.5 + warp * 2.2) % P;
-  const rings = Math.abs(Math.sin(g * 2.15));
-  const fibre = fbmTile(x * s * 24, y * s * 2.2, P * 24, 2, 41);
-  const dirt = fbmTile(x * s * 2.2, y * s * 2.2, P * 2, 4, 909);
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const i = y * size + x;
+      // grain runs along +y; rings from a warped distance field
+      const warp = fbmTile(x * s * 1.4, y * s * 0.35, P, 3, 5) - 0.5;
+      const g = (x * s * 5.5 + warp * 2.2) % P;
+      rings[i] = Math.abs(Math.sin(g * 2.15));
+      fibre[i] = fbmTile(x * s * 24, y * s * 2.2, P * 24, 2, 41);
+      dirt[i] = fbmTile(x * s * 2.2, y * s * 2.2, P * 2, 4, 909);
+    }
+  }
   return { rings, fibre, dirt };
 }
 
 function buildWood(size: number) {
+  const f = woodFields(size);
+
   const color = paint(size, (x, y) => {
-    const w = woodField(x, y, size);
-    const t = w.rings * 0.72 + w.fibre * 0.28;
+    const i = y * size + x;
+    const t = f.rings[i] * 0.72 + f.fibre[i] * 0.28;
     let r = 0.34 - t * 0.15;
     let g = 0.255 - t * 0.125;
     let b = 0.17 - t * 0.095;
     // weathered greying + mud staining near the lower edge
-    const grey = smoothstep(0.45, 0.85, w.dirt) * 0.35;
+    const grey = smoothstep(0.45, 0.85, f.dirt[i]) * 0.35;
     r = r * (1 - grey) + 0.3 * grey;
     g = g * (1 - grey) + 0.285 * grey;
     b = b * (1 - grey) + 0.26 * grey;
-    const mud = smoothstep(0.62, 1.0, w.dirt) * smoothstep(0.35, 0.95, y / size);
+    const mud = smoothstep(0.62, 1.0, f.dirt[i]) * smoothstep(0.35, 0.95, y / size);
     r = r * (1 - mud) + 0.21 * mud;
     g = g * (1 - mud) + 0.16 * mud;
     b = b * (1 - mud) + 0.115 * mud;
@@ -192,15 +223,15 @@ function buildWood(size: number) {
   });
 
   const normal = normalFromHeight(size, 2.6, (x, y) => {
-    const w = woodField(x, y, size);
-    return w.rings * 0.55 + w.fibre * 0.45;
+    const i = y * size + x;
+    return f.rings[i] * 0.55 + f.fibre[i] * 0.45;
   });
 
   const orm = paint(size, (x, y) => {
-    const w = woodField(x, y, size);
-    const ao = clamp(0.78 + w.rings * 0.22 - 0.06, 0, 1);
+    const i = y * size + x;
+    const ao = clamp(0.78 + f.rings[i] * 0.22 - 0.06, 0, 1);
     // late-wood is harder & smoother; weathered patches are rougher
-    const rough = clamp(0.58 + (1 - w.rings) * 0.24 + w.dirt * 0.16, 0.3, 1);
+    const rough = clamp(0.58 + (1 - f.rings[i]) * 0.24 + f.dirt[i] * 0.16, 0.3, 1);
     return [ao, rough, 0];
   });
 
@@ -391,7 +422,7 @@ function buildDroplet(size: number) {
 /* ------------------------------------------------------------------ */
 
 const SAND = 512;
-const WOOD = 512;
+const WOOD = 384;
 const SMALL = 256;
 
 /** Build every procedural texture, yielding to the browser between steps. */

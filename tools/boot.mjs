@@ -1,0 +1,11 @@
+import { chromium } from 'playwright';
+const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
+const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+const page = await ctx.newPage();
+page.on('pageerror', (e) => console.log('ERR', e.message));
+const t0 = Date.now();
+await page.goto('http://localhost:4173/', { waitUntil: 'load' });
+const tLoad = Date.now();
+await page.waitForFunction(() => document.querySelector('#start-btn')?.classList.contains('ready'), null, { timeout: 90000 });
+console.log('load ms', tLoad - t0, 'ready ms', Date.now() - t0);
+await browser.close();

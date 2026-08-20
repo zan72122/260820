@@ -481,7 +481,20 @@ export class Game {
   }
 
   private updateHints(dt: number) {
-    if (!this.hintsEnabled || this.phase !== 'mystery') return;
+    if (this.phase !== 'mystery') {
+      // On a repeat run the child already knows: no voice, no hand, just the
+      // handle moving on its own if the gate has been left shut a long time.
+      if (this.phase === 'play' && this.gate.open < 0.04 && !this.arrived) {
+        this.idleTime += dt;
+        if (this.idleTime > 15) {
+          this.idleTime = 0;
+          this.gate.nudgeHandle();
+          this.audio.creak(0.3);
+        }
+      }
+      return;
+    }
+    if (!this.hintsEnabled) return;
     this.idleTime += dt;
     // 1) the handle simply moves once, on its own
     if (this.hintStage === 0 && this.idleTime > 6.5) {
@@ -788,7 +801,11 @@ export class Game {
   /** Developer probe, exposed only under ?debug=1. Never sends anything. */
   probe() {
     let dug = 0;
-    for (let i = 0; i < this.baseHeight.length; i++) if (this.baseHeight[i] - this.terrain.height[i] > 0.02) dug++;
+    let mud = 0;
+    for (let i = 0; i < this.baseHeight.length; i++) {
+      if (this.baseHeight[i] - this.terrain.height[i] > 0.02) dug++;
+      if (this.terrain.mud[i] > 0.3) mud++;
+    }
     return {
       phase: this.phase,
       layout: this.layoutId,
@@ -798,6 +815,8 @@ export class Game {
       pondDepth: +this.water.pondDepth.toFixed(4),
       wetCells: this.water.wetArea,
       dugCells: dug,
+      mudCells: mud,
+      tool: this.tool,
       arrived: this.arrived,
       boatAfloat: this.boat.afloat,
       fps: +this.engine.metrics.fps.toFixed(1),

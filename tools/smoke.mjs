@@ -81,6 +81,22 @@ async function run(page, name) {
   await page.waitForTimeout(2500);
   await shot(page, name, '08-pond');
 
+  // patch a bank with mud: pick the mud tool, then press and hold
+  await page.click('#tool-mud');
+  const mudAt = await page.evaluate(
+    ([a, b]) => window.__probe.project(a, b),
+    [0.5, 0.63],
+  );
+  await page.mouse.move(mudAt.x, mudAt.y);
+  await page.mouse.down();
+  await page.waitForTimeout(1400);
+  await page.mouse.move(mudAt.x + 12, mudAt.y - 8);
+  await page.waitForTimeout(900);
+  await page.mouse.up();
+  await page.waitForTimeout(900);
+  await shot(page, name, '08b-mud');
+  await page.click('#tool-dig');
+
   // rotate the device mid-play: terrain, water and repairs must survive
   const before = await state(page);
   const vp = page.viewportSize();
