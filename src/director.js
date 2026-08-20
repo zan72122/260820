@@ -16,6 +16,7 @@ import { MarblePhysics } from './marblePhysics.js';
 import { BASIN, CUP, PourStream } from './world.js';
 import { MOUTH_Y, MARBLE_R, POP_VENT_VOLUME } from './profile.js';
 import { makeGlow } from './textures.js';
+import { SUN_DIR } from './env.js';
 
 const SEAT_Y = 0.1892;          // 栓をしているときのビー玉中心
 const PRESS_DEPTH = 0.0058;     // 押し込まれるビー玉の移動量
@@ -86,7 +87,9 @@ export class Director {
     this.wasSealing = false;
 
     // カメラ
-    this.cam = { tx: 0, ty: 0.125, tz: 0, az: -0.55, el: 0.22, dist: 0.46 };
+    this.aimFrac = 0.62;
+    this.aimSide = 1;
+    this.cam = { tx: BASIN.x, ty: 0.125, tz: BASIN.z, az: -0.58, el: 0.28, dist: 0.44 };
     this.camGoal = { ...this.cam };
     this.shake = 0;
     this.applyCamera(1);
@@ -132,12 +135,25 @@ export class Director {
     switch (this.state) {
       case 'aim':
       case 'press':
-      case 'pop':
+      case 'pop': {
+        // 開栓の瞬間が指の下に隠れては意味がない。
+        // 指は下へ動くので、縦にずらすだけでは追いつかれる。触れた側と反対の
+        // 横へ瓶首を寄せて、画面幅の 3 割ほど離す。押し具・ビー玉・瓶の内側は
+        // 同じ画面に保ったまま、指だけが避ける。
+        const az = -0.50, el = 0.10;
+        const dist = portrait ? 0.196 : 0.182;
+        const vH = 2 * dist * Math.tan((this.camera.fov * Math.PI / 180) / 2);
+        const vW = vH * Math.max(this.aspect, 0.4);
+        const fy = THREE.MathUtils.clamp(this.aimFrac - 0.22, 0.34, 0.48);
+        const fx = this.aimSide > 0 ? 0.735 : 0.265;
+        const sy = BASIN.bottleBaseY + 0.1900;
         return {
-          tx: BASIN.x, ty: BASIN.bottleBaseY + MOUTH_Y - 0.0135 - (portrait ? 0.008 : 0),
-          tz: BASIN.z, az: -0.50, el: 0.10,
-          dist: portrait ? 0.190 : 0.176,
+          tx: BASIN.x - (fx - 0.5) * vW * Math.cos(az),
+          ty: sy - (0.5 - fy) * vH,
+          tz: BASIN.z + (fx - 0.5) * vW * Math.sin(az),
+          az, el, dist,
         };
+      }
       case 'settle':
       case 'play':
       case 'refill':
@@ -220,8 +236,9 @@ export class Director {
   ambientLife(dt) {
     this.nextIce -= dt;
     if (this.nextIce <= 0) {
-      this.nextIce = 3.5 + Math.random() * 5;
-      if (this.state === 'idle' || this.state === 'aim') this.audio.ice();
+      const near = this.state === 'idle' || this.state === 'aim';
+      this.nextIce = (near ? 3.5 : 7.0) + Math.random() * 5;
+      this.audio.ice();
     }
     this.nextChime -= dt;
     if (this.nextChime <= 0) {
@@ -242,13 +259,23 @@ export class Director {
 
   updateIdle(dt) {
     this.hintBob = 0;
+    this.bottle.clingFade = 1;
     this.snap = damp(this.snap, 0, 6, dt);
     this.press = damp(this.press, 0, 8, dt);
     this.pusherLift = damp(this.pusherLift, 0, 4, dt);
     this.placePusher();
 
     this.idleQuiet += dt;
-    if (this.input.downFlag) { this.idleQuiet = 0; this.setState('aim'); }
+    if (this.input.downFlag) {
+      this.idleQuiet = 0;
+      // 触れた位置を覚えておいて、瓶首がその指より上に来るように画作りする
+      const el = this.input.el;
+      const h = Math.max(1, el.clientHeight);
+      const w = Math.max(1, el.clientWidth);
+      this.aimFrac = THREE.MathUtils.clamp(this.input.startY / h, 0.10, 0.95);
+      this.aimSide = this.input.startX / w < 0.5 ? 1 : -1; // 触れた側と反対へ寄せる
+      this.setState('aim');
+    }
 
     // 4.5 秒さわらなければ、押し具がそっと弾んで光が瓶口を示す（文字は出さない）
     const hint = Math.max(0, this.idleQuiet - 4.5);
@@ -277,6 +304,7 @@ export class Director {
       const byHold = Math.max(0, inp.holdTime - 0.12) * 0.62;
       const want = Math.min(1.25, byDrag + byHold);
       this.press = damp(this.press, want, 22, dt);
+      this.bottle.clingFade = 1 + Math.min(this.press, 1) * 1.6;
       this.audio.setPress(Math.min(1, Math.abs(inp.dy) * 0.10 + Math.abs(this.press - (this._lastPress || 0)) * 12), this.press);
       this._lastPress = this.press;
       if (this.press >= 0.985) { this.doPop(); return; }
@@ -436,6 +464,16 @@ export class Director {
     const sc = 1 + h * 1.6;
     sh.scale.set(sc, sc, 1);
     sh.visible = sh.material.opacity > 0.01;
+
+    // ガラスを透けた光が木面に作る青緑の斑。太陽と反対側へずれる。
+    const ca = this.world.caustic;
+    if (ca) {
+      ca.position.set(p.x - SUN_DIR.x * (h + 0.02) * 1.5, 0.0020, p.z - SUN_DIR.z * (h + 0.02) * 1.5);
+      ca.material.opacity = 0.30 * k;
+      const cs = 0.7 + h * 1.2;
+      ca.scale.set(cs, cs, 1);
+      ca.visible = ca.material.opacity > 0.01;
+    }
   }
 
   cupHeight() {

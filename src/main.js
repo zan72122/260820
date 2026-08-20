@@ -5,7 +5,7 @@ import * as THREE from '../vendor/three/three.module.min.js';
 import { Q, FAST, MANUAL, makeAdaptiveScaler } from './quality.js';
 import { buildEnvironment } from './env.js';
 import { buildWorld } from './world.js';
-import { Audio } from './audio.js';
+import { RamuneAudio } from './audio.js';
 import { Input } from './input.js';
 import { Director } from './director.js';
 
@@ -34,7 +34,7 @@ const camera = new THREE.PerspectiveCamera(40, 1, 0.02, 14);
 scene.environment = buildEnvironment(renderer);
 
 const world = buildWorld(scene, Q);
-const audio = new Audio();
+const audio = new RamuneAudio();
 const input = new Input(canvas);
 input.onFirstInput = () => audio.unlock();
 const director = new Director(scene, camera, audio, input, Q, world);

@@ -209,6 +209,18 @@ export function buildWorld(scene, quality) {
   mkShadow(0.18, BASIN.x + 0.026, BASIN.z + 0.018, 0.55);
   mkShadow(0.062, CUP.x + 0.012, CUP.z + 0.012, 0.5);
   const bottleShadow = mkShadow(0.075, 0, 0, 0.0);
+  // 厚いガラスを通った夏の光が木面に落とす、青緑の明るい斑
+  const caustic = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.12, 0.12),
+    new THREE.MeshBasicMaterial({
+      map: shadowTex, transparent: true, opacity: 0, depthWrite: false,
+      blending: THREE.AdditiveBlending, color: 0x6fd8c8, fog: false,
+    }),
+  );
+  caustic.rotation.x = -Math.PI / 2;
+  caustic.position.y = 0.0020;
+  caustic.renderOrder = 1;
+  scene.add(caustic);
 
   // --- 光 -----------------------------------------------------------------
   const sun = new THREE.DirectionalLight(0xfff0d4, 2.8);
@@ -234,9 +246,8 @@ export function buildWorld(scene, quality) {
   scene.fog = new THREE.Fog(0xd3e3ea, 1.3, 5.2);
 
   return {
-    bench, basin, water, ice: iceGroup, cup, cupLiquid, cupFoam, backdrop, sun, bottleShadow,
-    iceMat, materials: [bench.material, basin.material, water.material, iceMat,
-      cupBack.material, cupFront.material, cupLiquid.material],
+    bench, basin, water, ice: iceGroup, cup, cupLiquid, cupFoam,
+    backdrop, sun, bottleShadow, caustic,
   };
 }
 

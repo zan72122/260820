@@ -4,7 +4,7 @@
 // 1 本の SE にまとめず、すべて独立したトリガとして持つ。
 // ---------------------------------------------------------------------------
 
-export class Audio {
+export class RamuneAudio {
   constructor() {
     this.ctx = null;
     this.ready = false;

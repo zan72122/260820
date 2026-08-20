@@ -263,7 +263,6 @@ export class Bottle {
     );
     shell.renderOrder = 5;
     this.marble = new THREE.Group();
-    this.marbleCore = core;
     core.renderOrder = 4;
     this.marble.add(core, shell);
     this.marble.position.set(0, 0.1892, 0);
@@ -448,14 +447,23 @@ export class Bottle {
   }
 
   dispose() {
+    const seen = new Set();
     this.group.traverse((o) => {
       if (o.geometry) o.geometry.dispose();
-      if (o.material) {
-        const list = Array.isArray(o.material) ? o.material : [o.material];
-        for (const m of list) {
-          for (const k of ['map', 'alphaMap', 'roughnessMap']) if (m[k]) m[k].dispose();
-          m.dispose();
+      if (!o.material) return;
+      const list = Array.isArray(o.material) ? o.material : [o.material];
+      for (const m of list) {
+        for (const k of ['map', 'alphaMap', 'roughnessMap']) {
+          if (m[k] && !seen.has(m[k])) { seen.add(m[k]); m[k].dispose(); }
         }
+        // ShaderMaterial は uniform にテクスチャを持っているので取りこぼさない
+        if (m.uniforms) {
+          for (const u of Object.values(m.uniforms)) {
+            const v = u && u.value;
+            if (v && v.isTexture && !seen.has(v)) { seen.add(v); v.dispose(); }
+          }
+        }
+        m.dispose();
       }
     });
   }

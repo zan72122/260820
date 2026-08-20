@@ -23,8 +23,8 @@ const tier = params.get('tier') || detectTier();
 
 const TABLE = {
   low:  { pixelRatio: 1.0,  bubbles: 420,  shadow: 0,    droplets: 48,  ice: 12,  lathe: 32, shadowMap: 512 },
-  mid:  { pixelRatio: 1.75, bubbles: 1100, shadow: 1024, droplets: 110, ice: 18, lathe: 44, shadowMap: 1024 },
-  high: { pixelRatio: 2.0,  bubbles: 1800, shadow: 1024, droplets: 170, ice: 24, lathe: 56, shadowMap: 1024 },
+  mid:  { pixelRatio: 1.6,  bubbles: 1000, shadow: 1024, droplets: 100, ice: 14, lathe: 44, shadowMap: 768 },
+  high: { pixelRatio: 1.8,  bubbles: 1700, shadow: 1024, droplets: 150, ice: 18, lathe: 56, shadowMap: 1024 },
 };
 
 export const Q = { tier, ...TABLE[tier], fast: FAST };
