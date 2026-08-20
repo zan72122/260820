@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#0e1512" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>Mango Hammock</title>
+    <style>
+      :root {
+        --safe-t: env(safe-area-inset-top, 0px);
+        --safe-b: env(safe-area-inset-bottom, 0px);
+        --safe-l: env(safe-area-inset-left, 0px);
+        --safe-r: env(safe-area-inset-right, 0px);
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #0b110f;
+        overscroll-behavior: none;
+        touch-action: none;
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      #stage {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+      }
+      #view {
+        display: block;
+        width: 100%;
+        height: 100%;
+        touch-action: none;
+      }
+      /* Soft optical vignette; never blurs the causal trio, only darkens far edges. */
+      #vignette {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        background:
+          radial-gradient(122% 78% at 50% 44%, rgba(0, 0, 0, 0) 52%, rgba(6, 12, 10, 0.42) 100%);
+        mix-blend-mode: multiply;
+      }
+      #boot {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: #0b110f;
+        transition: opacity 700ms ease;
+        pointer-events: none;
+      }
+      #boot.gone { opacity: 0; }
+      #boot .seed {
+        width: 46px;
+        height: 46px;
+        border-radius: 52% 48% 44% 56% / 58% 42% 58% 42%;
+        background: radial-gradient(60% 60% at 38% 32%, #9dbc63, #5f8a3c 60%, #3d5f2a);
+        animation: swell 2.4s ease-in-out infinite;
+        opacity: 0.9;
+      }
+      @keyframes swell {
+        0%, 100% { transform: scale(0.86) rotate(-3deg); }
+        50% { transform: scale(1.02) rotate(3deg); }
+      }
+      #lost {
+        position: fixed;
+        inset: 0;
+        display: none;
+        place-items: center;
+        background: rgba(11, 17, 15, 0.9);
+      }
+      #lost.on { display: grid; }
+      #lost .seed {
+        width: 44px; height: 44px;
+        border-radius: 52% 48% 44% 56% / 58% 42% 58% 42%;
+        background: radial-gradient(60% 60% at 38% 32%, #d8a24a, #b4712a 60%, #7c4a1c);
+        animation: swell 1.6s ease-in-out infinite;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="stage">
+      <canvas id="view"></canvas>
+    </div>
+    <div id="vignette"></div>
+    <div id="boot"><div class="seed"></div></div>
+    <div id="lost"><div class="seed"></div></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
