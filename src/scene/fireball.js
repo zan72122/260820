@@ -229,8 +229,15 @@ export class Fireball {
       this.position.add(this._tmp);
     } else {
       this.fallTime += dt;
-      this.velocity.y -= 9.81 * dt;
-      this.velocity.multiplyScalar(Math.exp(-1.4 * dt));
+      // Two liberties, both deliberate. The pull is well under g, and it eases
+      // in over the first fraction of a second. At true gravity a bead this
+      // small crosses a macro frame in about a tenth of a second -- accurate,
+      // and completely unreadable. This way it hesitates, stretches, and then
+      // goes: "sutto", the way the real thing looks to someone watching it.
+      const release = Math.min(1, this.fallTime / 0.16);
+      const eased = release * release * (3 - 2 * release);
+      this.velocity.y -= 3.0 * eased * dt;
+      this.velocity.multiplyScalar(Math.exp(-1.1 * dt));
       this.position.addScaledVector(this.velocity, dt);
     }
 
@@ -249,7 +256,7 @@ export class Fireball {
 
     if (this.detached) {
       // Falling: it cools fast and the light goes with it.
-      const f = Math.min(1, this.fallTime / 1.5);
+      const f = Math.min(1, this.fallTime / 1.8);
       temp = params.emberTemp * (1 - f * 0.85);
       emissive = (3.0 + temp * 16.0) * (1 - f * 0.7);
       radius = params.emberRadius * (1 - f * 0.25);
@@ -267,7 +274,11 @@ export class Fireball {
     // Smear the bead along its own motion, capped so violent shaking deforms it
     // rather than tearing it apart.
     const sv = this._smoothVel;
-    const smear = Math.min(0.42, sv.length() * 0.55);
+    let smear = Math.min(0.42, sv.length() * 0.55);
+    if (this.detached) {
+      // It necks down before it goes, because it is a drop of molten liquid.
+      smear = Math.max(smear, 0.36 * Math.exp(-Math.pow((this.fallTime - 0.10) / 0.12, 2)));
+    }
     u.uStretch.value.copy(sv).normalize().multiplyScalar(smear);
 
     const powerScale = this.detached ? this.visibleFactor : 1;

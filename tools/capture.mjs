@@ -71,7 +71,7 @@ async function settle(steps, dt = 1 / 60) {
 
 for (const shot of shots) {
   const t0 = Date.now();
-  if (shot === 'fall' || shot === 'quiet' || shot === 'offer') {
+  if (shot === 'drop' || shot === 'fall' || shot === 'quiet' || shot === 'offer') {
     // Let the closing framing converge before letting go, the way it does when
     // the sparkler actually runs its course.
     await page.evaluate(() => {
@@ -81,7 +81,8 @@ for (const shot of shots) {
     });
     await settle(260);
     await page.evaluate(() => globalThis.__senko.session._detach());
-    if (shot === 'fall') await settle(48);
+    if (shot === 'drop') await settle(11);
+    else if (shot === 'fall') await settle(48);
     else if (shot === 'quiet') await settle(200, 1 / 40);
     else await settle(150, 1 / 14);
   } else {

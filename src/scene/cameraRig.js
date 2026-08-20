@@ -94,15 +94,15 @@ export class CameraRig {
     this.aim.lerp(this._tmp, aimRate);
 
     let targetH = k.h;
-    if (falling > 0) targetH = k.h * (1 + falling * 0.30);
+    if (falling > 0) targetH = k.h * (1 + falling * 0.45);
     this.frameHeightSmooth += (targetH - this.frameHeightSmooth) * (1 - Math.exp(-dt * 0.55));
 
     // Follow the fall a little way down and no further. The brief asks for a
     // slight tilt, and it is right: if the camera keeps up with the bead, the
     // bead never appears to fall.
     const followTarget =
-      falling > 0 ? Math.max(-0.052, Math.min(0, bead.y - this.aim.y + 0.03)) * 0.9 : 0;
-    this.followSmooth += (followTarget - this.followSmooth) * (1 - Math.exp(-dt * 1.7));
+      falling > 0 ? Math.max(-0.080, Math.min(0, bead.y - this.aim.y + 0.03)) * 0.9 : 0;
+    this.followSmooth += (followTarget - this.followSmooth) * (1 - Math.exp(-dt * 2.6));
 
     this.lateralSmooth += (this.lateral - this.lateralSmooth) * (1 - Math.exp(-dt * 1.6));
 
