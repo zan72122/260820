@@ -714,7 +714,7 @@ export class Game {
       const reachedHollow = this.hollowDepth() > 0.012;
       if ((reachedHollow && this.phaseTime > 1.6) || this.phaseTime > 12) {
         this.applyFraming(this.fFlowLow());
-        this.lowShotHold = 4.2;
+        this.lowShotHold = 6.5;
         this.phase = 'play';
         this.phaseTime = 0;
       }
