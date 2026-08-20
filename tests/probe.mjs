@@ -1,0 +1,21 @@
+import { chromium } from 'playwright';
+const b = await chromium.launch({ args: ['--use-angle=swiftshader','--enable-unsafe-swiftshader','--disable-dev-shm-usage'] });
+const p = await b.newPage({ viewport: { width: 900, height: 600 } });
+await p.goto('http://localhost:5173/?fast=1');
+await p.waitForFunction(() => !!window.__imo);
+await p.waitForTimeout(2500);
+const bench = () => p.evaluate(() => new Promise((res) => {
+  let n = 0; const t0 = performance.now();
+  const tick = () => { n++; if (n < 20) requestAnimationFrame(tick); else res(+(n / ((performance.now() - t0)/1000)).toFixed(1)); };
+  requestAnimationFrame(tick);
+}));
+console.log('baseline           ', await bench());
+await p.evaluate(() => { window.__imo.engine.renderer.shadowMap.enabled = false; window.__imo.scene.traverse(o => { if (o.material) { const m = Array.isArray(o.material)?o.material:[o.material]; m.forEach(x=>x.needsUpdate=true);} }); });
+console.log('no shadows         ', await bench());
+await p.evaluate(() => { window.__imo.scene.traverse(o => { if (o.isInstancedMesh) o.visible = false; }); });
+console.log('no instanced meshes', await bench());
+await p.evaluate(() => { window.__imo.scene.traverse(o => { if (o.name === 'terrain') o.visible = false; }); });
+console.log('no terrain         ', await bench());
+await p.evaluate(() => { window.__imo.scene.traverse(o => { o.visible = false; }); });
+console.log('empty              ', await bench());
+await b.close();

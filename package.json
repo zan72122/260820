@@ -1,0 +1,21 @@
+{
+  "name": "satsumaimo-hori",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview --host"
+  },
+  "dependencies": {
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.180.0",
+    "playwright": "^1.56.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.6"
+  }
+}

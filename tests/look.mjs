@@ -1,0 +1,10 @@
+import { open } from './harness.mjs';
+const size = process.argv[2] || 'desk';
+const app = await open(size, { fast: false, dpr: 1 });
+await app.sim(1.2);
+await app.shot(`look-${size}-open`);
+await app.sim(6);
+await app.shot(`look-${size}-hint`);
+console.log(JSON.stringify(await app.state()).slice(0, 260));
+console.log(app.logs.slice(0, 6).join('\n') || 'clean');
+await app.close();

@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <title>さつまいも ほり</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no"
+    />
+    <meta name="theme-color" content="#8a7150" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="icon" href="data:," />
+    <style>
+      :root {
+        --safe-t: env(safe-area-inset-top, 0px);
+        --safe-b: env(safe-area-inset-bottom, 0px);
+        --safe-l: env(safe-area-inset-left, 0px);
+        --safe-r: env(safe-area-inset-right, 0px);
+      }
+      * { box-sizing: border-box; }
+      html, body {
+        margin: 0; padding: 0; width: 100%; height: 100%;
+        overflow: hidden; background: #14100c;
+        -webkit-user-select: none; user-select: none;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-text-size-adjust: 100%;
+        overscroll-behavior: none;
+        touch-action: none;
+        font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      }
+      #app { position: fixed; inset: 0; }
+      canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+      #ui { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
+
+      /* soft vignette so the field reads as a lens, not a sticker */
+      #vignette {
+        position: absolute; inset: 0; pointer-events: none;
+        background: radial-gradient(ellipse at 50% 46%, rgba(0,0,0,0) 52%, rgba(20,14,8,0.30) 100%);
+      }
+
+      #gearBtn {
+        position: absolute;
+        top: calc(var(--safe-t) + 10px); right: calc(var(--safe-r) + 10px);
+        width: 46px; height: 46px; border-radius: 50%;
+        background: rgba(28,22,15,0.42); border: 1px solid rgba(255,240,210,0.22);
+        backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+        pointer-events: auto; display: grid; place-items: center;
+        opacity: 0.55; transition: opacity .2s ease;
+      }
+      #gearBtn:active { opacity: 1; }
+      #gearBtn svg { width: 24px; height: 24px; fill: #f3e6cd; }
+
+      #panel {
+        position: absolute;
+        top: calc(var(--safe-t) + 62px); right: calc(var(--safe-r) + 10px);
+        width: min(74vw, 260px);
+        padding: 14px 16px 16px;
+        border-radius: 16px;
+        background: rgba(30,23,16,0.86);
+        border: 1px solid rgba(255,240,210,0.18);
+        backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+        color: #f4e9d6; pointer-events: auto;
+        display: none; gap: 12px; flex-direction: column;
+        box-shadow: 0 10px 30px rgba(0,0,0,.4);
+      }
+      #panel.open { display: flex; }
+      #panel .row { display: flex; flex-direction: column; gap: 7px; }
+      #panel label { font-size: 13px; letter-spacing: .04em; opacity: .9; }
+      #panel input[type="range"] {
+        -webkit-appearance: none; appearance: none; width: 100%; height: 26px; background: transparent;
+      }
+      #panel input[type="range"]::-webkit-slider-runnable-track {
+        height: 6px; border-radius: 3px; background: rgba(255,236,205,0.28);
+      }
+      #panel input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none; width: 22px; height: 22px; margin-top: -8px;
+        border-radius: 50%; background: #e8d6b4; border: none;
+      }
+      #panel input[type="range"]::-moz-range-track { height: 6px; border-radius: 3px; background: rgba(255,236,205,0.28); }
+      #panel input[type="range"]::-moz-range-thumb { width: 22px; height: 22px; border: none; border-radius: 50%; background: #e8d6b4; }
+      .toggle {
+        display: flex; align-items: center; justify-content: space-between; gap: 10px;
+        padding: 8px 10px; border-radius: 11px; background: rgba(255,238,206,0.08);
+      }
+      .switch { width: 46px; height: 27px; border-radius: 14px; background: rgba(255,238,206,0.2); position: relative; transition: background .18s ease; flex: none; }
+      .switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 21px; height: 21px; border-radius: 50%; background: #e8d6b4; transition: transform .18s ease; }
+      .switch.on { background: #7fa05a; }
+      .switch.on::after { transform: translateX(19px); }
+
+      /* finger / hand hint drawn in DOM so it always sits above the 3D layer */
+      #finger {
+        position: absolute; width: 62px; height: 62px; margin: -31px 0 0 -31px;
+        left: 0; top: 0; opacity: 0; pointer-events: none;
+        transition: opacity .35s ease;
+      }
+      #finger .ring { position: absolute; inset: 0; border-radius: 50%; border: 2.5px solid rgba(255,248,232,0.92); }
+      #finger .dot { position: absolute; inset: 34%; border-radius: 50%; background: rgba(255,248,232,0.85); }
+      #trail { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .4s ease; }
+
+      #boot {
+        position: absolute; left: 50%; bottom: calc(var(--safe-b) + 14px); transform: translateX(-50%);
+        color: #fdf3e0; font-size: 13px; letter-spacing: .08em; opacity: 0;
+        text-shadow: 0 2px 8px rgba(0,0,0,.75); transition: opacity .5s ease; pointer-events: none;
+      }
+      #loading {
+        position: fixed; inset: 0; z-index: 40; display: grid; place-items: center;
+        background: #191309; color: #e7d8bb; letter-spacing: .3em; font-size: 13px;
+        transition: opacity .6s ease;
+      }
+      #loading.hide { opacity: 0; pointer-events: none; }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="ui">
+      <div id="vignette"></div>
+      <svg id="trail" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div id="finger"><div class="ring"></div><div class="dot"></div></div>
+      <div id="boot"></div>
+      <button id="gearBtn" aria-label="settings">
+        <svg viewBox="0 0 24 24"><path d="M19.4 13a7.7 7.7 0 0 0 0-2l2-1.6a.5.5 0 0 0 .1-.6l-1.9-3.2a.5.5 0 0 0-.6-.2l-2.3.9a7.6 7.6 0 0 0-1.7-1l-.4-2.5a.5.5 0 0 0-.5-.4h-3.8a.5.5 0 0 0-.5.4l-.4 2.5c-.6.2-1.2.6-1.7 1l-2.3-.9a.5.5 0 0 0-.6.2L2.5 8.8a.5.5 0 0 0 .1.6L4.6 11a7.7 7.7 0 0 0 0 2l-2 1.6a.5.5 0 0 0-.1.6l1.9 3.2c.1.2.4.3.6.2l2.3-.9c.5.4 1.1.8 1.7 1l.4 2.5c0 .3.2.4.5.4h3.8c.3 0 .5-.1.5-.4l.4-2.5c.6-.2 1.2-.6 1.7-1l2.3.9c.2.1.5 0 .6-.2l1.9-3.2a.5.5 0 0 0-.1-.6l-2-1.6ZM12 15.5A3.5 3.5 0 1 1 15.5 12 3.5 3.5 0 0 1 12 15.5Z"/></svg>
+      </button>
+      <div id="panel">
+        <div class="row">
+          <label for="vol">おと</label>
+          <input id="vol" type="range" min="0" max="100" value="70" />
+        </div>
+        <div class="toggle" id="motionToggle">
+          <label>うごきを よわく</label>
+          <div class="switch" id="motionSwitch"></div>
+        </div>
+        <div class="toggle" id="hapticToggle">
+          <label>ぶるっと</label>
+          <div class="switch on" id="hapticSwitch"></div>
+        </div>
+      </div>
+    </div>
+    <div id="loading">はたけへ</div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
