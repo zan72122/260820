@@ -897,15 +897,16 @@ export class Game {
    */
   private computeFallShot(): Shot {
     this.netSim.lowestRestPoint(this.restLow)
-    const top = this.fruitSim.state.y + this.fruitRadius + 0.075
-    const bottom = this.restLow.y - 0.155
+    const top = this.fruitSim.state.y + this.fruitRadius + 0.06
+    const bottom = this.restLow.y - 0.135
     const cy = (top + bottom) / 2
     const hh = (top - bottom) / 2 + 0.015
     const span = this.currentSpan()
     return {
       name: 'fall',
       target: [0, cy, 0],
-      halfW: clamp(span * 0.33 + 0.13, 0.26, 0.42),
+      // Just wide enough for the cradle this hanging makes, plus a margin.
+      halfW: clamp(span * 0.4 + 0.045, 0.21, 0.36),
       halfH: Math.max(0.24, hh),
       focal: 60,
       yaw: 0.13,
