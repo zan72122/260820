@@ -1,0 +1,10 @@
+{
+  "name": "nagaoka-sanshakudama",
+  "version": "1.0.0",
+  "private": true,
+  "description": "長岡花火『正三尺玉』— 4歳児向けモバイルwebゲームの1チャプター",
+  "scripts": {
+    "start": "node serve.mjs 8080",
+    "dev": "node serve.mjs 8080"
+  }
+}

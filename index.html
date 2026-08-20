@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<title>長岡花火 正三尺玉</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#05070d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="description" content="長岡花火の正三尺玉を、サイレン・上昇・間・大開花の一連の体験として遊ぶ1チャプター。">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="stage">
+    <canvas id="view"></canvas>
+
+    <!-- 見上げる字幕。ゲーム進行に合わせて出し入れする -->
+    <div id="caption" class="caption" aria-live="polite"></div>
+
+    <!-- 大きな点火操作。画面のどこを押しても発火するが、押す場所の目印として置く -->
+    <button id="fire" class="fire hidden" type="button" aria-label="うちあげる">
+      <span class="fire-ring"></span>
+      <span class="fire-core">
+        <span class="fire-icon">🔥</span>
+        <span class="fire-label">うちあげ</span>
+      </span>
+    </button>
+
+    <button id="open" class="open hidden" type="button" aria-label="ひらけ">ひらけ！</button>
+
+    <button id="replay" class="replay hidden" type="button">もういちど</button>
+
+    <button id="sound" class="sound" type="button" aria-label="おと">🔊</button>
+
+    <!-- 起動直後の1タップ。iOS の音声解禁をここで確実に行う -->
+    <div id="boot" class="boot">
+      <div class="boot-inner">
+        <div class="boot-title">ながおか はなび</div>
+        <div class="boot-sub">せい さんじゃくだま</div>
+        <div class="boot-tap">がめんを ポン！</div>
+      </div>
+    </div>
+
+    <div id="rotate" class="rotate">たてむきだと もっと たかく みえるよ</div>
+  </div>
+
+  <script src="js/audio.js"></script>
+  <script src="js/scene.js"></script>
+  <script src="js/fireworks.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>

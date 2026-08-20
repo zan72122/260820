@@ -1,0 +1,122 @@
+:root{
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+  --ink: #f4ead6;
+}
+*{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html,body{
+  margin:0; padding:0; height:100%; width:100%;
+  background:#04060b; color:var(--ink);
+  overflow:hidden; position:fixed; overscroll-behavior:none; touch-action:none;
+  font-family:"Hiragino Maru Gothic ProN","ヒラギノ丸ゴ ProN","Hiragino Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  -webkit-user-select:none; user-select:none;
+}
+#stage{ position:fixed; inset:0; overflow:hidden; }
+#view{ position:absolute; inset:0; width:100%; height:100%; display:block; }
+
+/* ---- 字幕 ---- */
+.caption{
+  position:absolute; left:50%; transform:translateX(-50%);
+  top:calc(var(--safe-t) + 3.2vh);
+  max-width:88vw; text-align:center; pointer-events:none;
+  font-size:clamp(17px, 5.2vw, 30px); font-weight:700; letter-spacing:.06em;
+  color:#fdf6e6; text-shadow:0 2px 14px rgba(0,0,0,.85), 0 0 26px rgba(255,190,110,.35);
+  opacity:0; transition:opacity .5s ease;
+}
+.caption.show{ opacity:1; }
+.caption.small{ font-size:clamp(14px, 4vw, 22px); opacity:.85; }
+
+/* ---- 点火ボタン ---- */
+.fire{
+  position:absolute; left:50%; transform:translateX(-50%);
+  bottom:calc(var(--safe-b) + 5.5vh);
+  width:min(46vw, 168px); height:min(46vw, 168px);
+  border:0; padding:0; background:none; cursor:pointer;
+  display:grid; place-items:center;
+  animation:fire-pop .45s cubic-bezier(.2,1.5,.4,1) both;
+}
+.fire-core{
+  position:relative; z-index:2;
+  width:100%; height:100%; border-radius:50%;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+  background:radial-gradient(circle at 50% 34%, #fff3c9 0%, #ffbe4d 30%, #f4622a 66%, #a41f14 100%);
+  box-shadow:0 0 42px rgba(255,150,60,.62), inset 0 -10px 24px rgba(120,20,0,.5), inset 0 8px 18px rgba(255,255,255,.35);
+  animation:fire-breath 1.25s ease-in-out infinite;
+}
+.fire-icon{ font-size:min(13vw,46px); line-height:1; filter:drop-shadow(0 2px 5px rgba(90,20,0,.6)); }
+.fire-label{
+  font-size:min(5.6vw,21px); font-weight:800; color:#4a1103; letter-spacing:.1em;
+  text-shadow:0 1px 0 rgba(255,240,200,.6);
+}
+.fire-ring{
+  position:absolute; z-index:1; width:100%; height:100%; border-radius:50%;
+  border:3px solid rgba(255,206,120,.8); animation:fire-ring 1.6s ease-out infinite;
+}
+.fire:active .fire-core{ transform:scale(.93); }
+@keyframes fire-breath{ 0%,100%{ transform:scale(1);} 50%{ transform:scale(1.055);} }
+@keyframes fire-ring{ 0%{ transform:scale(1); opacity:.85;} 100%{ transform:scale(1.62); opacity:0;} }
+@keyframes fire-pop{ from{ transform:translateX(-50%) scale(.4); opacity:0;} to{ transform:translateX(-50%) scale(1); opacity:1;} }
+
+/* ---- 「ひらけ！」 ---- */
+.open{
+  position:absolute; left:50%; transform:translateX(-50%);
+  bottom:calc(var(--safe-b) + 8vh);
+  border:0; border-radius:999px; cursor:pointer;
+  padding:min(3.4vw,16px) min(9vw,40px);
+  font-size:min(6.6vw,28px); font-weight:800; letter-spacing:.12em;
+  color:#3a1600; background:linear-gradient(180deg,#fff3c4,#ffcf63 55%,#f7a52c);
+  box-shadow:0 0 34px rgba(255,205,110,.7);
+  animation:open-pulse .58s ease-in-out infinite alternate;
+}
+@keyframes open-pulse{ from{ transform:translateX(-50%) scale(1);} to{ transform:translateX(-50%) scale(1.09);} }
+
+/* ---- リプレイ ---- */
+.replay{
+  position:absolute; left:50%; transform:translateX(-50%);
+  bottom:calc(var(--safe-b) + 6vh);
+  border:0; border-radius:999px; cursor:pointer;
+  padding:min(3.4vw,15px) min(8vw,34px);
+  font-size:min(5.6vw,24px); font-weight:800; letter-spacing:.12em;
+  color:#20303f; background:linear-gradient(180deg,#ffffff,#cfe2f2);
+  box-shadow:0 6px 22px rgba(0,0,0,.5);
+  animation:fire-pop .4s cubic-bezier(.2,1.5,.4,1) both;
+}
+.replay:active{ transform:translateX(-50%) scale(.95); }
+
+/* ---- 音トグル ---- */
+.sound{
+  position:absolute; right:calc(env(safe-area-inset-right,0px) + 12px);
+  top:calc(var(--safe-t) + 12px);
+  width:44px; height:44px; border-radius:50%; border:0; cursor:pointer;
+  background:rgba(255,255,255,.10); color:#fff; font-size:20px; line-height:1;
+  backdrop-filter:blur(4px); opacity:.55;
+}
+.sound:active{ opacity:1; }
+
+/* ---- 起動オーバーレイ ---- */
+.boot{
+  position:absolute; inset:0; z-index:10; display:grid; place-items:center;
+  background:radial-gradient(circle at 50% 62%, rgba(18,26,42,.72), rgba(3,5,10,.96));
+  transition:opacity .55s ease;
+}
+.boot.gone{ opacity:0; pointer-events:none; }
+.boot-inner{ text-align:center; padding:0 6vw; }
+.boot-title{ font-size:clamp(26px,9vw,54px); font-weight:800; letter-spacing:.14em; text-shadow:0 0 30px rgba(255,180,90,.45); }
+.boot-sub{ margin-top:.5em; font-size:clamp(15px,4.6vw,24px); letter-spacing:.2em; color:#ffd79a; }
+.boot-tap{ margin-top:2.2em; font-size:clamp(15px,4.6vw,24px); opacity:.9; animation:fire-breath 1.3s ease-in-out infinite; }
+
+/* ---- 横画面ヒント（ブロックしない） ---- */
+.rotate{
+  position:absolute; left:50%; transform:translateX(-50%);
+  bottom:calc(var(--safe-b) + 2px); z-index:9;
+  font-size:12px; letter-spacing:.1em; color:rgba(255,255,255,.5);
+  padding:4px 12px; border-radius:999px; background:rgba(0,0,0,.35);
+  opacity:0; transition:opacity .6s ease; pointer-events:none;
+}
+.rotate.show{ opacity:1; }
+
+.hidden{ display:none !important; }
+
+@media (prefers-reduced-motion: reduce){
+  .fire-core,.fire-ring,.open,.boot-tap{ animation:none; }
+}
