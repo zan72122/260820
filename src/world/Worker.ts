@@ -121,8 +121,8 @@ export class Worker {
   }
 
   /** Keep the worker a believable arm's length from where the water is going. */
-  moveToward(target: THREE.Vector3, dt: number, preferDir?: THREE.Vector3) {
-    const desiredDist = 0.98
+  moveToward(target: THREE.Vector3, dt: number, preferDir?: THREE.Vector3, rate = 2.2) {
+    const desiredDist = 0.55
     const away = new THREE.Vector3().subVectors(this.stance, target).setY(0)
     if (away.lengthSq() < 1e-5) away.set(0, 0, 1)
     away.normalize()
@@ -130,7 +130,7 @@ export class Worker {
     if (preferDir) away.lerp(preferDir, 0.9).normalize()
     const want = target.clone().addScaledVector(away, desiredDist)
     want.y = this.bedY
-    const k = 1 - Math.exp(-dt * 2.2)
+    const k = 1 - Math.exp(-dt * rate)
     this.stance.lerp(want, k)
     const f = Math.atan2(target.x - this.stance.x, target.z - this.stance.z)
     let d = f - this.facing
@@ -139,23 +139,32 @@ export class Worker {
     this.facing += d * (1 - Math.exp(-dt * 3))
   }
 
-  get shoulderR() {
-    const s = new THREE.Vector3(0.19, 0.86, 0)
+  private crouchNow = 0
+
+  private shoulder(side: number) {
+    const drop = this.crouchNow * 0.34
+    const s = new THREE.Vector3(0.19 * side, 0, 0)
     s.applyAxisAngle(UP, this.facing)
-    return s.add(this.stance).setY(this.bedY + 1.34)
+    s.x += Math.sin(this.facing) * drop * 0.85
+    s.z += Math.cos(this.facing) * drop * 0.85
+    return s.add(this.stance).setY(this.bedY + 1.34 - drop * 0.95)
+  }
+  get shoulderR() {
+    return this.shoulder(1)
   }
   get shoulderL() {
-    const s = new THREE.Vector3(-0.19, 0.86, 0)
-    s.applyAxisAngle(UP, this.facing)
-    return s.add(this.stance).setY(this.bedY + 1.34)
+    return this.shoulder(-1)
   }
 
-  private solveArm(shoulder: THREE.Vector3, hand: THREE.Vector3, bones: THREE.Mesh[], sign: number) {
-    const upperLen = 0.31
-    const foreLen = 0.30
-    const d = new THREE.Vector3().subVectors(hand, shoulder)
-    const dist = Math.min(upperLen + foreLen - 0.005, Math.max(0.06, d.length()))
+  private solveArm(shoulder: THREE.Vector3, handTarget: THREE.Vector3, bones: THREE.Mesh[], sign: number) {
+    const upperLen = 0.34
+    const foreLen = 0.34
+    const d = new THREE.Vector3().subVectors(handTarget, shoulder)
+    const raw = d.length()
+    const dist = Math.min(upperLen + foreLen - 0.005, Math.max(0.06, raw))
     d.normalize()
+    // the forearm must end where the arm can actually reach, never stretch to it
+    const hand = shoulder.clone().addScaledVector(d, dist)
     const a = (upperLen * upperLen - foreLen * foreLen + dist * dist) / (2 * dist)
     const h = Math.sqrt(Math.max(0, upperLen * upperLen - a * a))
     const mid = shoulder.clone().addScaledVector(d, a)
@@ -168,15 +177,25 @@ export class Worker {
     const elbow = mid.addScaledVector(bend, h)
     orient(bones[0], shoulder, elbow)
     orient(bones[1], elbow, hand)
+    return hand
   }
 
   update(
     dt: number,
-    o: { handPos: THREE.Vector3; aim: THREE.Vector3; support: THREE.Vector3 | null; gaze: THREE.Vector3 | null },
+    o: {
+      handPos: THREE.Vector3
+      aim: THREE.Vector3
+      support: THREE.Vector3 | null
+      gaze: THREE.Vector3 | null
+      /** 0 upright, 1 bent right down to the water to feel under a stalk */
+      crouch?: number
+    },
   ) {
-    void dt
     const feet = this.stance
-    const hipY = this.bedY + 0.86
+    const crouch = o.crouch ?? 0
+    this.crouchNow += (crouch - this.crouchNow) * Math.min(1, dt * 4)
+    const drop = this.crouchNow * 0.34
+    const hipY = this.bedY + 0.86 - drop * 0.35
     // legs, slightly bent, planted apart
     for (let i = 0; i < 2; i++) {
       const side = i === 0 ? 1 : -1
@@ -188,25 +207,30 @@ export class Worker {
     }
     this.hip.position.set(feet.x, hipY, feet.z)
     this.hip.rotation.y = this.facing
-    this.torso.position.set(feet.x, this.bedY + 1.12, feet.z)
-    this.torso.rotation.set(0.14, this.facing, 0)
-    const headPos = new THREE.Vector3(0, this.bedY + 1.5, 0).add(feet)
-    headPos.x += Math.sin(this.facing) * 0.06
-    headPos.z += Math.cos(this.facing) * 0.06
+    const lean = 0.14 + crouch * 0.62
+    this.torso.position.set(
+      feet.x + Math.sin(this.facing) * drop * 0.5,
+      this.bedY + 1.12 - drop * 0.7,
+      feet.z + Math.cos(this.facing) * drop * 0.5,
+    )
+    this.torso.rotation.set(lean, this.facing, 0)
+    const headPos = new THREE.Vector3(0, this.bedY + 1.5 - drop * 1.05, 0).add(feet)
+    headPos.x += Math.sin(this.facing) * (0.06 + drop * 0.85)
+    headPos.z += Math.cos(this.facing) * (0.06 + drop * 0.85)
     this.head.position.copy(headPos)
     const look = o.gaze ?? o.aim
     this.head.lookAt(look.x, look.y - 0.05, look.z)
 
-    this.solveArm(this.shoulderR, o.handPos, this.armR, 1)
-    this.hoseHand.position.copy(o.handPos)
+    const heldR = this.solveArm(this.shoulderR, o.handPos, this.armR, 1)
+    this.hoseHand.position.copy(heldR)
     this.hoseHand.lookAt(o.aim)
 
     if (o.support) {
       this.supportHand.visible = true
-      this.supportHand.position.copy(o.support)
-      this.supportHand.lookAt(o.aim.x, o.support.y, o.aim.z)
+      const heldL = this.solveArm(this.shoulderL, o.support, this.armL, -1)
+      this.supportHand.position.copy(heldL)
+      this.supportHand.lookAt(o.aim.x, heldL.y, o.aim.z)
       this.supportHand.rotateX(-0.9)
-      this.solveArm(this.shoulderL, o.support, this.armL, -1)
       for (const b of this.armL) b.visible = true
     } else {
       this.supportHand.visible = false

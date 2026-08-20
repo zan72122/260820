@@ -107,12 +107,12 @@ export class Hose {
     const nozzleMat = new THREE.MeshStandardMaterial({ color: 0x9a8f78, roughness: 0.32, metalness: 0.75 })
     const body = new THREE.Mesh(new THREE.CylinderGeometry(0.021, 0.026, 0.16, 12), nozzleMat)
     body.rotation.x = Math.PI / 2
-    body.position.z = -0.08
+    body.position.z = 0.02
     const tip = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.019, 0.09, 12), nozzleMat)
     tip.rotation.x = Math.PI / 2
-    tip.position.z = -0.20
+    tip.position.z = 0.14
     const collar = new THREE.Mesh(new THREE.TorusGeometry(0.024, 0.006, 6, 14), nozzleMat)
-    collar.position.z = -0.155
+    collar.position.z = 0.095
     body.castShadow = tip.castShadow = true
     this.nozzle.add(body, tip, collar)
     this.group.add(this.nozzle)
@@ -225,7 +225,7 @@ export class Hose {
     pts[3].copy(o.behind)
     pts[3].y = -0.04 + Math.sin(t * 0.7 + 1.0) * 0.012
     const back = new THREE.Vector3().subVectors(o.grip, o.impact).setY(0).normalize()
-    pts[4].copy(o.grip).addScaledVector(back, 0.30).setY(o.grip.y - 0.06)
+    pts[4].copy(o.grip).addScaledVector(back, 0.26).setY(o.grip.y - 0.12)
     pts[5].copy(o.grip)
     this.curve.updateArcLengths()
     this.tube.update(this.curve)
@@ -235,7 +235,7 @@ export class Hose {
     this.nozzle.lookAt(o.impact)
 
     const aim = new THREE.Vector3().subVectors(o.impact, o.grip)
-    const nozzleTip = o.grip.clone().addScaledVector(aim.clone().normalize(), 0.2)
+    const nozzleTip = o.grip.clone().addScaledVector(aim.clone().normalize(), 0.19)
 
     const on = o.active && o.pressure > 0.02
     this.jetMesh.visible = on
@@ -248,7 +248,7 @@ export class Hose {
       ;(u.uCtrl.value as THREE.Vector3).copy(ctrl)
       ;(u.uCam.value as THREE.Vector3).copy(o.camPos)
       u.uTime.value = t
-      u.uWidth.value = 0.013 + 0.020 * o.pressure
+      u.uWidth.value = 0.011 + 0.016 * o.pressure
       u.uOpacity.value = 0.55 + 0.45 * o.pressure
 
       const want = Math.min(6, Math.round(2 + o.pressure * 4))

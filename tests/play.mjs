@@ -139,11 +139,12 @@ for (const vp of list) {
     const boat = await page.evaluate(() => window.__renkon.game.__boatPoint())
     if (boat) {
       await page.mouse.move(boat.x, boat.y, { steps: 22 })
-      await page.waitForTimeout(400)
-      await page.mouse.up()
-    } else {
-      await page.mouse.up()
+      await page.waitForTimeout(1200)
+      const boat2 = await page.evaluate(() => window.__renkon.game.__boatPoint())
+      if (boat2) await page.mouse.move(boat2.x, boat2.y, { steps: 8 })
+      await page.waitForTimeout(700)
     }
+    await page.mouse.up()
     await page.waitForTimeout(2200)
   }
   await shot('07-stored')

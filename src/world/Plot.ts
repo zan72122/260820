@@ -48,6 +48,8 @@ export class Plot {
   private uniforms: Record<string, THREE.IUniform>
   /** removal fraction, mirrored on the CPU for gameplay queries */
   private removal: Float32Array
+  /** texel bounds ever touched, so the per-frame decay stays cheap */
+  private touched = { i0: MASK_RES, i1: -1, j0: MASK_RES, j1: -1 }
 
   constructor(spec: PlotSpec, murkColor: THREE.Color, private onClodBreak: (p: THREE.Vector3) => void) {
     this.spec = spec
@@ -213,13 +215,14 @@ export class Plot {
       }
       // the marked stalk stands a little taller: the only thing in the opening
       // frame that can catch a child's eye without a word of text
-      const above = (i === 0 ? 0.26 : 0.1) + r() * 0.16
+      const above = (i === 0 ? 0.34 : 0.09) + r() * (i === 0 ? 0.06 : 0.14)
       const h = waterDepth + above
-      const g = new THREE.CylinderGeometry(0.0068 + r() * 0.003, 0.0105 + r() * 0.004, h, 6, 1, false)
+      const thick = i === 0 ? 1.35 : 1.0
+      const g = new THREE.CylinderGeometry((0.0068 + r() * 0.003) * thick, (0.0105 + r() * 0.004) * thick, h, 6, 1, false)
       g.translate(0, h / 2, 0)
       const mesh = new THREE.Mesh(g, mat)
       // a pale cut face on top, the way a harvested stalk is trimmed
-      const cut = new THREE.Mesh(new THREE.CircleGeometry(0.0072 + r() * 0.003, 6), cutMat)
+      const cut = new THREE.Mesh(new THREE.CircleGeometry((0.0072 + r() * 0.003) * thick, 6), cutMat)
       cut.rotation.x = -Math.PI / 2 + 0.35
       cut.position.y = h
       mesh.add(cut)
@@ -306,6 +309,10 @@ export class Plot {
       }
     }
     this.dirty = true
+    this.touched.i0 = Math.min(this.touched.i0, i0)
+    this.touched.i1 = Math.max(this.touched.i1, i1)
+    this.touched.j0 = Math.min(this.touched.j0, j0)
+    this.touched.j1 = Math.max(this.touched.j1, j1)
     return work
   }
 
@@ -371,17 +378,21 @@ export class Plot {
   update(dt: number) {
     // cleanliness settles back as silt drifts in; removal is permanent
     let changed = false
-    for (let i = 0; i < MASK_RES * MASK_RES; i++) {
-      const o = i * 4
-      if (this.data[o + 1] > 0) {
-        const c = this.data[o + 1] / 255
-        const nc = Math.max(0.85 * (this.removal[i] > 0.08 ? 1 : 0), c - dt * 0.2)
-        this.data[o + 1] = (nc * 255) | 0
-        changed = true
-      }
-      if (this.data[o + 2] > 0) {
-        this.data[o + 2] = Math.max(0, this.data[o + 2] - dt * 420) | 0
-        changed = true
+    const t = this.touched
+    for (let j = Math.max(0, t.j0); j <= t.j1; j++) {
+      for (let i = Math.max(0, t.i0); i <= t.i1; i++) {
+        const idx = j * MASK_RES + i
+        const o = idx * 4
+        if (this.data[o + 1] > 0) {
+          const c = this.data[o + 1] / 255
+          const nc = Math.max(0.85 * (this.removal[idx] > 0.08 ? 1 : 0), c - dt * 0.2)
+          this.data[o + 1] = (nc * 255) | 0
+          changed = true
+        }
+        if (this.data[o + 2] > 0) {
+          this.data[o + 2] = Math.max(0, this.data[o + 2] - dt * 420) | 0
+          changed = true
+        }
       }
     }
     if (this.dirty || changed) {
@@ -421,7 +432,8 @@ export class Plot {
       let extra = 0
       if (p.marked && hint > 0) {
         // pulled from below: a slow, uneven tug, never a glow or an arrow
-        extra = hint * (0.055 * Math.sin(t * 1.7) + 0.03 * Math.sin(t * 3.3 + 1.0))
+        extra = hint * (0.115 * Math.sin(t * 1.5) + 0.05 * Math.sin(t * 3.3 + 1.0))
+        p.mesh.position.y = -0.012 * hint * (0.5 + 0.5 * Math.sin(t * 1.5))
       }
       const dir = p.phase
       p.mesh.rotation.x = Math.cos(dir) * p.tilt + sway + extra

@@ -20,6 +20,10 @@ export const WATER_Y = 0
 export const BED_Y = -0.5
 /** the jet lands this far above the finger so the hand never covers the find */
 const FINGER_OFFSET_PX = 66
+/** the nozzle is held at waist height; the stream arcs down into the water */
+const HAND_Y = 0.72
+/** a lifted root is carried just clear of the surface so it can be sluiced */
+const CARRY_Y = 0.34
 
 const MURK = new THREE.Color(0x5d5747)
 
@@ -121,6 +125,7 @@ export class Game {
   private gaze = new THREE.Vector3()
   private hintTilt = 0
   private trailAcc = 0
+  private tugAcc = 0
   private lastLotusGeometry: THREE.BufferGeometry | null = null
   private storeAnim = 0
   private storeFrom = new THREE.Vector3()
@@ -147,7 +152,7 @@ export class Game {
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping
     this.renderer.toneMappingExposure = 1.14
     this.renderer.shadowMap.enabled = true
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
+    this.renderer.shadowMap.type = THREE.PCFShadowMap
     this.renderer.localClippingEnabled = true
     this.renderer.autoClear = true
 
@@ -193,7 +198,7 @@ export class Game {
   private applyQuality() {
     const q = this.quality.state
     const calm = this.settings.data.calmVisuals
-    this.renderer.shadowMap.enabled = q.shadows && !calm ? true : q.shadows
+    this.renderer.shadowMap.enabled = q.shadows
     this.sky.sun.castShadow = q.shadows
     if (this.sky.sun.shadow.mapSize.width !== q.shadowSize) {
       this.sky.sun.shadow.mapSize.set(q.shadowSize, q.shadowSize)
@@ -308,6 +313,8 @@ export class Game {
     this.phaseTimer = 0
     this.interacted = false
     this.hintTilt = 0
+    this.firstRevealAt = -99
+    this.firstRevealPos = null
     // keep only a couple of dug plots alive
     if (this.plots.length > 4) {
       const old = this.plots.shift()!
@@ -409,8 +416,9 @@ export class Game {
     // ---- pointer -> hand and jet impact, with the impact placed above the finger
     const gripTarget = new THREE.Vector3()
     const impactTarget = new THREE.Vector3()
+    const carrying = this.phase === 'lift' || this.phase === 'hold'
     if (this.input.down) {
-      this.rayToY(this.input.x, this.input.y, 0.11, gripTarget)
+      this.rayToY(this.input.x, this.input.y, carrying ? CARRY_Y : HAND_Y, gripTarget)
       // the jet lands above the finger so the hand never hides the discovery
       this.rayToY(this.input.x, Math.max(4, this.input.y - FINGER_OFFSET_PX), WATER_Y, impactTarget)
     } else {
@@ -418,16 +426,15 @@ export class Game {
       const toPlot = new THREE.Vector3().subVectors(plot.spec.center, this.worker.stance).setY(0)
       if (toPlot.lengthSq() < 1e-4) toPlot.set(0, 0, 1)
       toPlot.normalize()
-      gripTarget.copy(this.worker.stance).addScaledVector(toPlot, 0.45).setY(0.16)
+      gripTarget.copy(this.worker.stance).addScaledVector(toPlot, 0.36).setY(HAND_Y * 0.85)
       impactTarget.copy(plot.spec.center).addScaledVector(toPlot, -0.25).setY(WATER_Y)
     }
-    const carrying = this.phase === 'lift' || this.phase === 'hold'
     if (carrying) {
       // the hose is laid down in the water; both hands are on the rhizome
       this.holdPoint.lerp(gripTarget, 1 - Math.exp(-dt * 14))
       const away = this.camAz() + Math.PI
       const side = new THREE.Vector3(Math.cos(away), 0, Math.sin(away))
-      gripTarget.copy(this.worker.stance).addScaledVector(side, 0.55).setY(0.02)
+      gripTarget.copy(this.worker.stance).addScaledVector(side, 0.55).setY(0.03)
       impactTarget.copy(gripTarget).addScaledVector(side, 0.6).setY(WATER_Y)
     } else {
       this.holdPoint.copy(gripTarget)
@@ -448,8 +455,8 @@ export class Game {
     // never let the arm reach further than a person can
     const reach = new THREE.Vector3().subVectors(gripTarget, this.worker.stance)
     reach.y = 0
-    if (reach.length() > 1.1) {
-      reach.setLength(1.1)
+    if (reach.length() > 0.95) {
+      reach.setLength(0.95)
       gripTarget.set(this.worker.stance.x + reach.x, gripTarget.y, this.worker.stance.z + reach.z)
     }
 
@@ -528,11 +535,12 @@ export class Game {
     }
 
     // ---- actors
-    const workPoint = this.phase === 'hold' || this.phase === 'lift' ? this.holdPoint.clone().setY(0) : this.impact
+    const workPoint = carrying ? this.holdPoint.clone().setY(0) : this.grip.clone().setY(0)
     // The worker stands almost directly beyond the work point, so the reaching
     // arm arrives from behind the find rather than across it.
-    const wa = this.camAz() + 2.7
-    this.worker.moveToward(workPoint, dt, new THREE.Vector3(Math.cos(wa), 0, Math.sin(wa)))
+    const wa = this.camAz() + 2.3
+    const carryNow = this.phase === 'lift' || this.phase === 'hold'
+    this.worker.moveToward(workPoint, dt, new THREE.Vector3(Math.cos(wa), 0, Math.sin(wa)), carryNow ? 3.4 : 4.2)
     const support = this.supportPoint()
     const gazeTarget = this.phase === 'idle' && this.plotTimer > 6 && !this.interacted ? this.gaze : null
     let handPos = this.grip
@@ -546,15 +554,25 @@ export class Game {
       handPos.y -= 0.055
       handAim = this.holdPoint.clone().addScaledVector(along, 0.4)
     }
-    this.worker.update(dt, { handPos, aim: handAim, support, gaze: gazeTarget })
+    // working posture: a constant slight bend over the water, a deep one while
+    // feeling under a stalk
+    const crouch =
+      this.phase === 'probe'
+        ? 0.25 +
+          0.75 *
+            THREE.MathUtils.clamp((this.phaseTimer - 0.1) / 0.5, 0, 1) *
+            (1 - THREE.MathUtils.clamp((this.phaseTimer - 1.3) / 0.5, 0, 1))
+        : 0.24
+    this.worker.update(dt, { handPos, aim: handAim, support, gaze: gazeTarget, crouch })
     const workerOut = new THREE.Vector3().subVectors(this.worker.stance, plot.spec.center).setY(0)
     if (workerOut.lengthSq() < 1e-4) workerOut.set(1, 0, 0)
     workerOut.normalize()
     const behind = this.worker.stance.clone().addScaledVector(workerOut, 0.55).setY(-0.02)
     this.field.setPumpPosition(plot.spec.center.clone().addScaledVector(workerOut, 9).setY(0.02))
     this.hose.setAnchor(this.field.pumpPos.clone().setY(0.3))
+    // the nozzle rides in the glove wherever the arm can actually hold it
     this.hose.update(dt, this.time, {
-      grip: this.grip,
+      grip: this.worker.hoseHand.position,
       impact: this.impact,
       pressure,
       active: this.jetOn,
@@ -610,6 +628,15 @@ export class Game {
     const t = this.plotTimer
     const tiltAt = first ? 3 : 2
     this.hintTilt = Math.min(1, Math.max(0, (t - tiltAt) / 1.2)) * (first ? 1 : 0.7)
+    // the tug disturbs the surface around the stalk: a real consequence, not a marker
+    if (this.hintTilt > 0.4) {
+      this.tugAcc += dt
+      if (this.tugAcc > 1.1) {
+        this.tugAcc = 0
+        const b = this.cur.plot.petioles[0].base
+        this.water.addRipple(b.x, b.z, 0.32)
+      }
+    }
     if (t > (first ? 9 : 6)) {
       // a short ripple trail from the petiole to the spot beside it
       this.trailAcc += dt
@@ -644,7 +671,7 @@ export class Game {
       const p = cur.plot.petioles[0].base
       const t = Math.min(1, this.phaseTimer / 0.5)
       const out = Math.max(0, (this.phaseTimer - 1.2) / 0.6)
-      const y = THREE.MathUtils.lerp(0.15, -0.62, Math.min(1, t) * (1 - Math.min(1, out)))
+      const y = THREE.MathUtils.lerp(0.18, -0.3, Math.min(1, t) * (1 - Math.min(1, out)))
       return new THREE.Vector3(p.x + 0.03, y, p.z + 0.03)
     }
     if ((this.phase === 'lift' || this.phase === 'hold') && cur.liftT > 0.04) {
@@ -865,7 +892,7 @@ export class Game {
       cur.holdOffset.lerp(want, 1 - Math.exp(-dt * 12))
       // sluicing it side to side in the water takes the last of the clay off
       const lowest = anchor.y + cur.holdOffset.y
-      if (lowest < 0.2 && this.input.speed > 130) {
+      if (lowest < 0.46 && this.input.speed > 130) {
         const amount = dt * Math.min(1.2, this.input.speed / 700) * 1.6
         for (let i = 0; i < PROFILE_SIZE; i++) cur.dirt[i] = Math.max(0, cur.dirt[i] - amount * 0.7)
         for (let i = 0; i < PROFILE_SIZE; i++) cur.wet[i] = Math.min(1, cur.wet[i] + dt * 2)
@@ -887,7 +914,7 @@ export class Game {
     anchor.y += cur.rise
     const world = anchor.clone().add(cur.holdOffset)
     const b = this.boat.group.position
-    if (Math.hypot(world.x - b.x, world.z - b.z) < 0.95) {
+    if (Math.hypot(world.x - b.x, world.z - b.z) < 1.2) {
       this.storeFrom.copy(cur.holdOffset)
       this.storeAnim = 0.55
     }
@@ -1000,7 +1027,7 @@ export class Game {
         speed: 1.0,
         minEyeY: 1.3,
       }
-    } else if (this.time - this.firstRevealAt < 2.2 && this.firstRevealPos) {
+    } else if (this.time - this.firstRevealAt < (this.plotIndex === 0 ? 2.2 : 1.4) && this.firstRevealPos) {
       // the close look at the first pale surface — same azimuth as the working
       // shot, so the mud being cut never leaves the frame
       must.push(this.firstRevealPos.clone(), this.impact.clone())
@@ -1059,8 +1086,8 @@ export class Game {
     } else {
       // the working shot: petiole, nozzle tip and mud all at once
       addExposed()
-      // the nozzle only has to be in frame while water is actually running
-      if (this.input.down) must.push(this.impact.clone())
+      // while water is running, both the nozzle and where it lands stay framed
+      if (this.input.down) must.push(this.impact.clone(), this.grip.clone())
       // The frame is anchored to the plot, never to the finger: if the ground
       // slid under the hose the child could not aim at anything.
       const waiting = this.phase === 'idle' || this.phase === 'probe'
@@ -1167,6 +1194,7 @@ export class Game {
       exposedFrac: +(expo / PROFILE_SIZE).toFixed(2),
       washedFrac: +(n / PROFILE_SIZE).toFixed(2),
       dirtMean: +(this.cur.dirt.reduce((a, b) => a + b, 0) / PROFILE_SIZE).toFixed(2),
+      boatDist: +this.holdPoint.distanceTo(this.boat.group.position).toFixed(2),
       duqSum: +removed.toFixed(1),
       orientation: this.director.orientation,
     }

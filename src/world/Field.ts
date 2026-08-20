@@ -156,7 +156,7 @@ export class Field {
       for (let tries = 0; tries < 8; tries++) {
         x = (r() - 0.5) * 58
         z = (r() - 0.5) * 54
-        if (Math.hypot(x - 1.0, z - 1.6) > 5.2) break
+        if (Math.hypot(x - 1.0, z - 1.6) > 3.6) break
       }
       const h = 0.25 + r() * 0.75
       pv.set(x, h, z)
