@@ -127,15 +127,15 @@ export class Game {
     this.sun.castShadow = true
     this.sun.shadow.mapSize.set(2048, 2048)
     const sc = this.sun.shadow.camera
-    sc.left = -4.4
-    sc.right = 4.4
-    sc.top = 4.4
-    sc.bottom = -4.4
+    sc.left = -4.0
+    sc.right = 4.0
+    sc.top = 4.0
+    sc.bottom = -4.0
     sc.near = 4
     sc.far = 28
     sc.updateProjectionMatrix()
-    this.sun.shadow.bias = -0.0004
-    this.sun.shadow.normalBias = 0.018
+    this.sun.shadow.bias = -0.00022
+    this.sun.shadow.normalBias = 0.006
     this.scene.add(this.sun, this.sun.target)
 
     this.flume = new Flume()
@@ -172,6 +172,7 @@ export class Game {
 
     this.input.attach(this.renderer.domElement, () => this.audio.unlock())
     window.addEventListener('resize', () => this.resize())
+    window.visualViewport?.addEventListener('resize', () => this.resize())
     window.addEventListener('orientationchange', () => setTimeout(() => this.resize(), 250))
     this.resize()
   }
@@ -271,6 +272,11 @@ export class Game {
           Math.round((p.x * 0.5 + 0.5) * this.width),
           Math.round((-p.y * 0.5 + 0.5) * this.height),
         ]
+      },
+      sfx: (name: string) => {
+        const a = this.audio as unknown as Record<string, (p?: number, q?: number) => void>
+        if (typeof a[name] === 'function') a[name](0, 1)
+        return this.audio.ready
       },
       post: (bloom: boolean, dof: boolean) => {
         this.post.options.bloom = bloom

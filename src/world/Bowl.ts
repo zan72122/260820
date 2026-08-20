@@ -211,8 +211,9 @@ export class Bowl {
     this.levelTarget += 0.0016 * strength
   }
 
+  private readonly _centre = new Vector3(BOWL.x, BOWL.liquidY, BOWL.z)
   get centre(): Vector3 {
-    return new Vector3(BOWL.x, BOWL.liquidY, BOWL.z)
+    return this._centre
   }
 
   update(time: number, dt: number): void {

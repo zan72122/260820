@@ -207,8 +207,8 @@ export class Post {
         uVignette: { value: 0.30 },
         uAberration: { value: 0.0016 },
         uDofEnabled: { value: 1 },
-        uSaturation: { value: 1.12 },
-        uContrast: { value: 1.10 },
+        uSaturation: { value: 1.16 },
+        uContrast: { value: 1.14 },
         uLift: { value: new Vector3(0.012, 0.010, 0.004) },
       },
     })

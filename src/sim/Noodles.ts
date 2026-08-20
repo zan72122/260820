@@ -652,8 +652,12 @@ export class NoodlePool {
     return null
   }
 
+  private readonly activeList: Bundle[] = []
+  /** Reused array — do not hold on to it across frames. */
   get active(): Bundle[] {
-    return this.bundles.filter((b) => b.state !== 'off')
+    this.activeList.length = 0
+    for (const b of this.bundles) if (b.state !== 'off') this.activeList.push(b)
+    return this.activeList
   }
 }
 

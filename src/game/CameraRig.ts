@@ -23,7 +23,7 @@ const SHOTS: Record<ShotName, ShotDef> = {
   establish: {
     relative: false,
     land: { pos: [0.30, 1.45, 0.14], target: [0.0, 0.840, -1.30], fov: 46, tau: 1.5 },
-    port: { pos: [0.28, 1.42, 0.20], target: [0.0, 0.845, -1.35], fov: 62, tau: 1.5 },
+    port: { pos: [0.30, 1.40, 0.18], target: [0.08, 0.848, -1.40], fov: 60, tau: 1.5 },
   },
   // Running alongside a bundle, right down at the surface of the water.
   travel: {
@@ -35,7 +35,7 @@ const SHOTS: Record<ShotName, ShotDef> = {
   play: {
     relative: false,
     land: { pos: [0.30, 1.18, -0.04], target: [0.0, 0.840, -1.10], fov: 43, tau: 0.85 },
-    port: { pos: [0.27, 1.20, 0.02], target: [0.0, 0.845, -1.30], fov: 60, tau: 0.85 },
+    port: { pos: [0.29, 1.19, -0.02], target: [0.10, 0.848, -1.28], fov: 59, tau: 0.85 },
   },
   // Following the catch upwards. Never cut here — the causality must hold.
   lift: {

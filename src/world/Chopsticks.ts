@@ -10,6 +10,12 @@ import {
 } from 'three'
 
 const UP = new Vector3(0, 1, 0)
+const _dir = new Vector3()
+const _perp = new Vector3()
+const _tipP = new Vector3()
+const _backP = new Vector3()
+const _axis = new Vector3()
+const _q = new Quaternion()
 
 /**
  * A pair of lacquered chopsticks held just off-screen. The player never sees
@@ -36,7 +42,7 @@ export class Chopsticks {
   constructor() {
     this.lacquer = new MeshPhysicalMaterial({
       color: new Color(0x5d2b1e),
-      roughness: 0.22,
+      roughness: 0.16,
       metalness: 0,
       clearcoat: 1.0,
       clearcoatRoughness: 0.06,
@@ -113,32 +119,31 @@ export class Chopsticks {
    */
   place(tip: Vector3, hand: Vector3): void {
     this.tip.copy(tip)
-    const dir = new Vector3().subVectors(tip, hand)
-    const len = Math.max(0.20, Math.min(0.33, dir.length() * 1.04))
-    dir.normalize()
-    this.forward.copy(dir)
+    _dir.subVectors(tip, hand)
+    const len = Math.max(0.20, Math.min(0.33, _dir.length() * 1.04))
+    _dir.normalize()
+    this.forward.copy(_dir)
 
     // A perpendicular that stays roughly horizontal so the sticks open
     // sideways on screen rather than towards the camera.
-    const perp = new Vector3().crossVectors(dir, UP)
-    if (perp.lengthSq() < 1e-6) perp.set(1, 0, 0)
-    perp.normalize()
+    _perp.crossVectors(_dir, UP)
+    if (_perp.lengthSq() < 1e-6) _perp.set(1, 0, 0)
+    _perp.normalize()
 
     const gap = 0.0018 + (1 - this.closedness) * 0.0125
     const backSpread = 0.0042
 
-    const q = new Quaternion()
     for (let i = 0; i < 2; i++) {
       const sign = i === 0 ? -1 : 1
-      const tipP = new Vector3().copy(tip).addScaledVector(perp, sign * gap)
-      const backP = new Vector3().copy(tip).addScaledVector(dir, -len).addScaledVector(perp, sign * backSpread)
-      const axis = new Vector3().subVectors(tipP, backP)
-      const l = axis.length()
-      axis.normalize()
-      q.setFromUnitVectors(UP, axis)
+      _tipP.copy(tip).addScaledVector(_perp, sign * gap)
+      _backP.copy(tip).addScaledVector(_dir, -len).addScaledVector(_perp, sign * backSpread)
+      _axis.subVectors(_tipP, _backP)
+      const l = _axis.length()
+      _axis.normalize()
+      _q.setFromUnitVectors(UP, _axis)
       const s = this.sticks[i]
-      s.position.copy(backP)
-      s.quaternion.copy(q)
+      s.position.copy(_backP)
+      s.quaternion.copy(_q)
       s.scale.set(1, l, 1)
     }
   }
@@ -148,7 +153,7 @@ export class Chopsticks {
     if (age >= 0 && age < this.glintDur) {
       const t = age / this.glintDur
       this.glintPos.value = -0.12 + t * 1.30
-      this.glintAmt.value = Math.sin(t * Math.PI) ** 2 * 1.25
+      this.glintAmt.value = Math.sin(t * Math.PI) ** 2 * 0.85
     } else {
       this.glintAmt.value = 0
     }
