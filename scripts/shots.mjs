@@ -7,7 +7,8 @@ import { chromium } from '@playwright/test';
 import fs from 'node:fs';
 
 const BASE = process.argv[2] || 'http://127.0.0.1:4173';
-const OUT = 'test-results/shots';
+// not under test-results/: Playwright wipes that directory on every run
+const OUT = 'shots';
 fs.mkdirSync(OUT, { recursive: true });
 
 const browser = await chromium.launch({

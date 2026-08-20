@@ -126,7 +126,7 @@ npm run build && npm run preview
 ```bash
 npm run lint
 npm run test:e2e   # Chromium smoke run
-node scripts/shots.mjs   # writes the key frames to test-results/shots/
+node scripts/shots.mjs   # writes the key frames to shots/
 ```
 
 `?e2e=1` switches on the deterministic profile: fixed seed, device pixel ratio
