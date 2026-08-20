@@ -23,7 +23,7 @@
 
   var FX = NB.FX = {
     P: P, SM: SM, MAX: MAX,
-    cap: 2600,
+    cap: 1500,
     sprites: null, smokes: null,
     splash: 0
   };
@@ -82,7 +82,7 @@
     if (total <= 0.001) return;
     S.ignTotal = total / W.SEG;
 
-    var rate = 1180 * (total / W.SEG) * S.fire;
+    var rate = 2000 * (total / W.SEG) * S.fire;
     emitAcc += rate * dt;
     var count = emitAcc | 0; emitAcc -= count;
     if (count > 260) count = 260;
@@ -201,12 +201,12 @@
       if (o.x < -60 || o.x > cam.w + 60 || o.y < -60 || o.y > cam.h + 60) continue;
 
       var st = (r * 5.999) | 0;
-      var fade = (1 - r * r) * alphaMul;
+      var fade = (1 - r * r) * alphaMul * (o.z > 420 ? Math.max(0.22, 1.28 - o.z / 1500) : 1);
       if (P.age[i] < 0.06) fade *= P.age[i] / 0.06;
       if (fade <= 0.012) continue;
 
-      var w = P.sz[i] * o.s * 3.4;
-      if (w < 1.5) w = 1.5; else if (w > 46) w = 46;
+      var w = P.sz[i] * o.s * 2.5;
+      if (w < 2.0) w = 2.0; else if (w > 34) w = 34;
       /* 落下速度で縦に伸ばす = 火の筋に見える */
       var stretch = 1 + Math.min(3.1, Math.abs(P.vy[i]) * 0.115);
       var h = w * stretch;

@@ -9,6 +9,7 @@
     this.fov = 42 * Math.PI / 180;
     this.w = 1; this.h = 1;
     this.fit = 1;
+    this.roll = 0;
     this.f = [0, 0, -1]; this.r = [1, 0, 0]; this.u = [0, 1, 0];
     this.k = 1;
     this._o = { x: 0, y: 0, s: 1, z: 1, vis: false };
@@ -27,6 +28,12 @@
     rx /= rl; ry /= rl; rz /= rl;
     /* up = r x f */
     var ux = ry * fz - rz * fy, uy = rz * fx - rx * fz, uz = rx * fy - ry * fx;
+    if (this.roll) {
+      var cs = Math.cos(this.roll), sn = Math.sin(this.roll);
+      var nrx = rx * cs + ux * sn, nry = ry * cs + uy * sn, nrz = rz * cs + uz * sn;
+      ux = ux * cs - rx * sn; uy = uy * cs - ry * sn; uz = uz * cs - rz * sn;
+      rx = nrx; ry = nry; rz = nrz;
+    }
     this.f[0] = fx; this.f[1] = fy; this.f[2] = fz;
     this.r[0] = rx; this.r[1] = ry; this.r[2] = rz;
     this.u[0] = ux; this.u[1] = uy; this.u[2] = uz;

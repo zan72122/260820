@@ -17,7 +17,7 @@
     GROUND: 2.6,       /* 河川敷の高さ */
     RAMP: 210,         /* 取付道路の長さ */
     /* 川幅 */
-    BANK_L: 205,
+    BANK_L: 120,
     BANK_R: 795
   };
   W.X1 = W.X0 + W.SPAN_N * W.SPAN_L;
@@ -27,10 +27,11 @@
 
   /* 川岸。手前ほど右へ寄り、上流はやや狭まる = 川が曲がって見える */
   W.bankL = function (z) {
-    return W.BANK_L + 0.30 * Math.max(0, z - 120) + 0.05 * Math.max(0, -z - 260);
+    /* 下流に向かって川が広がる = 手前から水面が見える */
+    return W.BANK_L - 0.85 * Math.max(0, z - 80) + 0.05 * Math.max(0, -z - 260);
   };
   W.bankR = function (z) {
-    return W.BANK_R + 0.13 * Math.max(0, z - 120) - 0.05 * Math.max(0, -z - 260);
+    return W.BANK_R + 0.34 * Math.max(0, z - 80) - 0.05 * Math.max(0, -z - 260);
   };
 
   /* 路面の高さ: 取付道路でなだらかに地面へ降りる */

@@ -4,9 +4,10 @@
   var NB = g.NB, U = NB.U, W = NB.W, FX = NB.FX;
 
   var R = NB.R = {};
+  R.off = {};
   var ctx, cvs, fireC, fireX, glowC, glowX, reflC, reflX, darkC, darkX;
   var Wp = 1, Hp = 1, S_ = 1;
-  var noise = null;
+  var noise = null, noiseFull = null;
 
   /* 再利用する射影結果 */
   var a = { x: 0, y: 0, s: 1, z: 1, vis: false }, b = { x: 0, y: 0, s: 1, z: 1, vis: false },
@@ -28,6 +29,7 @@
   var LB = {
     keys: [], map: Object.create(null),
     add: function (x1, y1, x2, y2, ci, wpx) {
+      if (wpx > 26 * S_) wpx = 26 * S_;
       var wi = Math.round(Math.log(Math.max(wpx, 0.45)) / Math.LN2 * 2);
       if (wi < -2) wi = -2; else if (wi > 11) wi = 11;
       var key = ci * 100 + (wi + 10);
@@ -93,7 +95,7 @@
     R.cloudSp = [R.cloudDark];
     R.crowd = [];
     rnd = U.rng(1234);
-    for (i = 0; i < 26; i++) R.crowd.push([rnd(), rnd(), rnd(), rnd()]);
+    for (i = 0; i < 42; i++) R.crowd.push([rnd(), rnd(), rnd(), rnd()]);
   };
 
   R.resize = function (wpx, hpx, scale) {
@@ -105,6 +107,13 @@
     darkC.width = fw; darkC.height = fh;
     glowC.width = Math.max(2, Math.round(wpx * 0.12));
     glowC.height = Math.max(2, Math.round(hpx * 0.12));
+    /* 粒子は一枚絵にしておく */
+    var nw = Math.max(2, Math.round(wpx * 0.5)), nh = Math.max(2, Math.round(hpx * 0.5));
+    noiseFull = U.canvas(nw, nh);
+    var nx = noiseFull.getContext('2d');
+    for (var x = 0; x < nw; x += noise.width) {
+      for (var y = 0; y < nh; y += noise.height) nx.drawImage(noise, x, y);
+    }
   };
 
   /* ---------- 小物 ---------- */
@@ -233,76 +242,90 @@
   }
 
   /* ---------- 地面と川 ---------- */
-  function waterPath(cam) {
-    var zs = [], z;
-    for (z = -2400; z < -200; z += 300) zs.push(z);
-    for (z = -200; z < cam.pos[2] - 14; z += Math.max(8, (cam.pos[2] - z) * 0.16)) zs.push(z);
-    zs.push(cam.pos[2] - 12);
-    ctx.beginPath();
-    var started = false, i;
-    for (i = 0; i < zs.length; i++) {
-      z = zs[i];
-      cam.pr(W.bankL(z), 0, z, a);
-      if (!a.vis) continue;
-      if (!started) { ctx.moveTo(a.x, a.y); started = true; } else ctx.lineTo(a.x, a.y);
-    }
-    for (i = zs.length - 1; i >= 0; i--) {
-      z = zs[i];
-      cam.pr(W.bankR(z), 0, z, a);
-      if (!a.vis) continue;
-      if (!started) { ctx.moveTo(a.x, a.y); started = true; } else ctx.lineTo(a.x, a.y);
-    }
-    ctx.closePath();
-    return started;
-  }
-
   /* 岸のきわ: 草むらと濡れぎわ。ここが無いと川が「板」に見える */
   function bankSamples(cam) {
     var zs = [], z;
-    for (z = -2400; z < -200; z += 300) zs.push(z);
-    for (z = -200; z < cam.pos[2] - 14; z += Math.max(9, (cam.pos[2] - z) * 0.17)) zs.push(z);
-    zs.push(cam.pos[2] - 12);
+    for (z = -2600; z < -200; z += 300) zs.push(z);
+    for (z = -200; z < cam.pos[2] + 700; z += 26) zs.push(z);
     return zs;
   }
 
+  /* 手前でカメラの後ろに回り込む線を near 面で切って画面外まで伸ばす */
+  var _pv = [0, 0, 0];
+  function viewZ(cam, x, y, z) {
+    var p = cam.pos, f = cam.f;
+    return (x - p[0]) * f[0] + (y - p[1]) * f[1] + (z - p[2]) * f[2];
+  }
+  function bankPoly(cam, fn, y, out) {
+    out.length = 0;
+    var zs = bankSamples(cam), i;
+    var px = 0, py = 0, pz = 0, pv = 0, has = false;
+    for (i = 0; i < zs.length; i++) {
+      var z = zs[i], x = fn(z);
+      var v = viewZ(cam, x, y, z);
+      if (v >= 1) {
+        if (has && pv < 1) {
+          var t = (1 - pv) / (v - pv);
+          cam.pr(px + (x - px) * t, y, pz + (z - pz) * t, a);
+          if (a.vis) out.push(a.x, a.y);
+        }
+        cam.pr(x, y, z, a);
+        if (a.vis) out.push(a.x, a.y);
+      } else if (has && pv >= 1) {
+        var t2 = (pv - 1) / (pv - v);
+        cam.pr(px + (x - px) * t2, y, pz + (z - pz) * t2, a);
+        if (a.vis) out.push(a.x, a.y);
+      }
+      px = x; py = y; pz = z; pv = v; has = true;
+    }
+    return out;
+  }
+
+  var _sa = [], _sb = [];
   function drawShore(cam, S) {
-    var zs = bankSamples(cam);
     var col = U.css([9 + 13 * S.dusk, 11 + 14 * S.dusk, 10 + 11 * S.dusk]);
     for (var side = 0; side < 2; side++) {
       var fn = side === 0 ? W.bankL : W.bankR;
-      var pts = [], i, z, hgt;
-      for (i = 0; i < zs.length; i++) {
-        z = zs[i];
-        hgt = 1.0 + 1.5 * (0.5 + 0.5 * Math.sin(z * 0.043 + side * 2.1)) * (0.6 + 0.4 * Math.sin(z * 0.011));
-        cam.pr(fn(z), hgt, z, a);
-        if (a.vis) pts.push([a.x, a.y]);
-      }
-      if (pts.length < 2) continue;
+      var top = bankPoly(cam, fn, 3.4, _sa);
+      var bot = bankPoly(cam, fn, -0.3, _sb);
+      if (top.length < 4 || bot.length < 4) continue;
       ctx.beginPath();
-      ctx.moveTo(pts[0][0], pts[0][1]);
-      for (i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0], pts[i][1]);
-      for (i = zs.length - 1; i >= 0; i--) {
-        cam.pr(fn(zs[i]), -0.3, zs[i], a);
-        if (a.vis) ctx.lineTo(a.x, a.y);
-      }
+      ctx.moveTo(top[0], top[1]);
+      var i;
+      for (i = 2; i < top.length; i += 2) ctx.lineTo(top[i], top[i + 1]);
+      for (i = bot.length - 2; i >= 0; i -= 2) ctx.lineTo(bot[i], bot[i + 1]);
       ctx.closePath();
       ctx.fillStyle = col;
       ctx.fill();
-      /* 濡れぎわの反射 */
-      ctx.globalCompositeOperation = 'lighter';
-      ctx.strokeStyle = 'rgba(150,160,180,' + (0.10 + 0.10 * S.dusk).toFixed(3) + ')';
-      ctx.lineWidth = Math.max(1, 1.6 * S_);
-      ctx.beginPath();
-      var started = false;
-      for (i = 0; i < zs.length; i++) {
-        cam.pr(fn(zs[i]), 0, zs[i], a);
-        if (!a.vis) continue;
-        if (!started) { ctx.moveTo(a.x, a.y); started = true; } else ctx.lineTo(a.x, a.y);
+      /* 濡れぎわ */
+      var edge = bankPoly(cam, fn, 0, _sb);
+      if (edge.length >= 4) {
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.strokeStyle = 'rgba(150,160,180,' + (0.035 + 0.10 * S.dusk).toFixed(3) + ')';
+        ctx.lineWidth = Math.max(1, 1.2 * S_);
+        ctx.beginPath();
+        ctx.moveTo(edge[0], edge[1]);
+        for (i = 2; i < edge.length; i += 2) ctx.lineTo(edge[i], edge[i + 1]);
+        ctx.stroke();
+        ctx.globalCompositeOperation = 'source-over';
       }
-      ctx.stroke();
-      ctx.globalCompositeOperation = 'source-over';
     }
   }
+
+  var _wl = [], _wr = [], _waterPath = null;
+  function buildWater(cam) {
+    var L = bankPoly(cam, W.bankL, 0, _wl);
+    var Rr = bankPoly(cam, W.bankR, 0, _wr);
+    if (L.length < 4 || Rr.length < 4) { _waterPath = null; return; }
+    var pth = new Path2D();
+    pth.moveTo(L[0], L[1]);
+    var i;
+    for (i = 2; i < L.length; i += 2) pth.lineTo(L[i], L[i + 1]);
+    for (i = Rr.length - 2; i >= 0; i -= 2) pth.lineTo(Rr[i], Rr[i + 1]);
+    pth.closePath();
+    _waterPath = pth;
+  }
+  function waterPath() { return !!_waterPath; }
 
   function drawGroundAndWater(cam, S) {
     var hz = cam.horizonY();
@@ -318,8 +341,8 @@
 
     /* 川面 */
     ctx.save();
-    if (waterPath(cam)) {
-      ctx.clip();
+    if (_waterPath) {
+      ctx.clip(_waterPath);
       var span = (Hp - hz) * U.clamp(11 / Math.max(2, cam.pos[1]), 0.30, 1.05);
       var wg = ctx.createLinearGradient(0, hz, 0, hz + Math.max(24, span));
       skyAt(0.985, S.dusk, tmpc);
@@ -346,33 +369,52 @@
     ctx.restore();
   }
 
-  /* 水面の映り込みを帯ごとにずらして合成する */
+  /* 奥ほど薄くなるよう映り込みバッファを削る */
+  function fadeBuffer(bx, buf, cam, strength) {
+    var hz = Math.max(0, cam.horizonY()) * 0.5, bh = buf.height;
+    if (hz >= bh) return;
+    bx.setTransform(1, 0, 0, 1, 0, 0);
+    bx.globalCompositeOperation = 'destination-out';
+    var gr = bx.createLinearGradient(0, hz, 0, bh);
+    gr.addColorStop(0, 'rgba(0,0,0,0)');
+    gr.addColorStop(0.35, 'rgba(0,0,0,' + (strength * 0.45).toFixed(3) + ')');
+    gr.addColorStop(1, 'rgba(0,0,0,' + strength.toFixed(3) + ')');
+    bx.fillStyle = gr;
+    bx.fillRect(0, hz, buf.width, bh - hz);
+    bx.globalCompositeOperation = 'source-over';
+  }
+
+  /* 縦に滲ませて水面に置く */
+  function smear(buf, S, alpha, mode, spread) {
+    if (alpha < 0.02 || R.off.smear) return;
+    ctx.globalCompositeOperation = mode;
+    var steps = 4;
+    for (var k = 0; k < steps; k++) {
+      var f = k / (steps - 1);
+      var yo = f * spread * 9 * S_;
+      var xo = Math.sin(S.time * 1.5 + k * 1.3) * (1.2 + k * 1.5) * S_
+        + Math.sin(S.time * 0.63 + k * 2.7) * (0.8 + k * 0.9) * S_;
+      ctx.globalAlpha = alpha * (1 - f * 0.62) / steps * 1.75;
+      ctx.drawImage(buf, xo, yo, Wp, Hp);
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  /* 水面の映り込み */
   function drawReflection(cam, S) {
     var hz = cam.horizonY();
     var top = Math.max(0, hz);
     if (top >= Hp) return;
     ctx.save();
-    if (!waterPath(cam)) { ctx.restore(); return; }
-    ctx.clip();
-    ctx.globalCompositeOperation = 'lighter';
-    var bands = 34;
-    var bh = (Hp - top) / bands;
-    for (var i = 0; i < bands; i++) {
-      var dy = top + i * bh;
-      var f = i / bands;
-      var amp = (1.2 + f * 9) * S_;
-      var off = Math.sin(S.time * 1.7 + i * 0.85) * amp + Math.sin(S.time * 0.7 + i * 2.1) * amp * 0.5;
-      var al = (0.82 - f * 0.45) * (0.55 + 0.45 * (1 - S.dusk));
-      ctx.globalAlpha = U.clamp(al, 0, 1);
-      ctx.drawImage(reflC,
-        0, dy * 0.5, reflC.width, Math.max(1, bh * 0.5) + 1,
-        off, dy, Wp, bh + 1);
-    }
+    if (!_waterPath) { ctx.restore(); return; }
+    ctx.clip(_waterPath);
+    smear(reflC, S, 0.52 * (0.6 + 0.4 * (1 - S.dusk)), 'lighter', 0.85);
     ctx.globalAlpha = 1;
     /* さざなみ */
     ctx.globalCompositeOperation = 'lighter';
     var rr = U.rng(9);
-    for (i = 0; i < 70; i++) {
+    for (var i = 0; i < 70; i++) {
       var t = rr();
       var yy = top + Math.pow(rr(), 1.7) * (Hp - top);
       var ln = (6 + rr() * 46) * S_ * (0.4 + (yy - top) / Math.max(1, Hp - top));
@@ -392,16 +434,16 @@
     ];
     for (var i = 0; i < 14; i++) {
       var L = i / 13;
-      var r = base[0] + 250 * L * L * 0.92 + 30 * L;
-      var gg = base[1] + 150 * L * L * 0.92 + 22 * L;
-      var bb = base[2] + 52 * L * L * 0.92 + 14 * L;
+      var r = base[0] + 258 * Math.pow(L, 0.72);
+      var gg = base[1] + 148 * Math.pow(L, 0.98);
+      var bb = base[2] + 54 * Math.pow(L, 1.5);
       PAL[i] = U.css([Math.min(255, r), Math.min(255, gg), Math.min(255, bb)]);
     }
   }
   function lightAt(S, x, y) {
     var si = ((x - W.X0) / W.SEG_L) | 0;
     var ig = (si >= 0 && si < W.SEG) ? S.ign[si] : 0;
-    var vert = 0.95 / (1 + Math.max(0, y - W.LOW_Y + 1.5) * 0.155);
+    var vert = 1.0 / (1 + Math.max(0, y - W.LOW_Y + 1.5) * 0.088);
     var L = ig * S.fire * vert * 0.92;
     if (S.fuseOn) {
       var dd = Math.abs(x - S.fuseX);
@@ -502,22 +544,24 @@
   }
 
   function drawDeck(cam, S) {
-    var below = cam.pos[1] < W.DECK_Y + 1;
-    for (var k = 0; k < W.SPAN_N + 2; k++) {
+    var RN = 6;
+    for (var k = 0; k < W.SPAN_N + RN * 2; k++) {
       var x0, x1;
-      if (k === 0) { x0 = W.RX0; x1 = W.X0; }
-      else if (k === W.SPAN_N + 1) { x0 = W.X1; x1 = W.RX1; }
-      else { x0 = W.X0 + (k - 1) * W.SPAN_L; x1 = x0 + W.SPAN_L; }
+      if (k < RN) { x0 = W.RX0 + k * (W.RAMP / RN); x1 = x0 + W.RAMP / RN; }
+      else if (k >= W.SPAN_N + RN) {
+        x0 = W.X1 + (k - W.SPAN_N - RN) * (W.RAMP / RN); x1 = x0 + W.RAMP / RN;
+      } else { x0 = W.X0 + (k - RN) * W.SPAN_L; x1 = x0 + W.SPAN_L; }
       var y0 = W.roadY(x0), y1 = W.roadY(x1);
+      var below = cam.pos[1] < (y0 + y1) * 0.5 + 0.6;
       var L = lightAt(S, (x0 + x1) * 0.5, W.DECK_Y - 1);
       var roadC;
       if (below) roadC = U.css([8 + 110 * L, 9 + 66 * L, 11 + 26 * L]);
-      else roadC = U.css([14 + 16 * S.dusk + 90 * L, 15 + 17 * S.dusk + 56 * L, 18 + 20 * S.dusk + 24 * L]);
+      else roadC = U.css([23 + 26 * S.dusk + 90 * L, 24 + 27 * S.dusk + 56 * L, 28 + 30 * S.dusk + 24 * L]);
       quad(ctx, cam,
         [x0, y0, -W.ROAD_HW], [x1, y1, -W.ROAD_HW],
         [x1, y1, W.ROAD_HW], [x0, y0, W.ROAD_HW], roadC);
       /* 下流側の桁面: ここから火が落ちる */
-      var fc = U.css([10 + 150 * L, 11 + 88 * L, 13 + 32 * L]);
+      var fc = U.css([10 + 230 * Math.pow(L, 0.7), 11 + 130 * L, 13 + 40 * L]);
       quad(ctx, cam,
         [x0, y0 - 1.15, W.HW], [x1, y1 - 1.15, W.HW],
         [x1, y1, W.HW], [x0, y0, W.HW], fc);
@@ -527,11 +571,12 @@
         [x1, y1, -W.HW], [x0, y0, -W.HW], fc2);
     }
     /* センターライン */
-    if (!below) {
+    {
       ctx.globalAlpha = 0.5;
       for (k = 0; k < 40; k++) {
         var xx = W.RX0 + k * 42, xe = xx + 20;
         if (xx > W.RX1) break;
+        if (cam.pos[1] < W.roadY(xx) + 0.6) continue;
         quad(ctx, cam, [xx, W.roadY(xx) + 0.02, -0.16], [xe, W.roadY(xe) + 0.02, -0.16],
           [xe, W.roadY(xe) + 0.02, 0.16], [xx, W.roadY(xx) + 0.02, 0.16], 'rgba(200,196,180,0.55)');
       }
@@ -566,10 +611,16 @@
       LB.add(a.x, a.y, b.x, b.y, ci, Math.max(0.5 * S_, 0.12 * a.s));
       LB.add(b.x, b.y, b.x + 1.1 * b.s, b.y - 0.15 * b.s, ci, Math.max(0.5 * S_, 0.11 * b.s));
       /* あかり */
-      var gw = Math.max(6 * S_, 3.2 * b.s) * (1 + S.bulb * 0.1);
+      var gw = Math.min(Math.max(11 * S_, 5.4 * b.s), 62 * S_) * (1 + S.bulb * 0.06);
       ctx.globalCompositeOperation = 'lighter';
-      ctx.globalAlpha = 0.55 * on;
+      ctx.globalAlpha = 0.80 * on;
       ctx.drawImage(FX.lampGlow, b.x + 1.1 * b.s - gw * 0.5, b.y - gw * 0.5, gw, gw);
+      cam.pr(lp.x, lp.y + 0.06, lp.z + 3.0, c);
+      if (c.vis) {
+        var pw = Math.min(Math.max(10 * S_, 2.6 * c.s), 90 * S_);
+        ctx.globalAlpha = 0.30 * on;
+        ctx.drawImage(FX.lampGlow, c.x - pw * 0.9, c.y - pw * 0.16, pw * 1.8, pw * 0.32);
+      }
       ctx.globalAlpha = 1;
       ctx.globalCompositeOperation = 'source-over';
     }
@@ -695,17 +746,9 @@
     var top = Math.max(0, hz);
     if (top >= Hp) return;
     ctx.save();
-    if (!waterPath(cam)) { ctx.restore(); return; }
-    ctx.clip();
-    var bands = 30, bh = (Hp - top) / bands;
-    for (var i = 0; i < bands; i++) {
-      var dy = top + i * bh, f = i / bands;
-      var amp = (1.0 + f * 8) * S_;
-      var off = Math.sin(S.time * 1.5 + i * 0.9) * amp + Math.sin(S.time * 0.6 + i * 1.9) * amp * 0.5;
-      ctx.globalAlpha = U.clamp((0.72 - f * 0.55), 0, 1);
-      ctx.drawImage(darkC, 0, dy * 0.5, darkC.width, Math.max(1, bh * 0.5) + 1,
-        off, dy, Wp, bh + 1);
-    }
+    if (!_waterPath) { ctx.restore(); return; }
+    ctx.clip(_waterPath);
+    smear(darkC, S, 0.72 * (1 - 0.82 * U.clamp(S.fire * S.ignTotal, 0, 1)), 'source-over', 0.7);
     ctx.globalAlpha = 1;
     ctx.restore();
   }
@@ -714,13 +757,13 @@
   function drawCurtain(cx, cam, S, mirror, alphaMul) {
     var my = mirror ? -1 : 1;
     cx.globalCompositeOperation = 'lighter';
-    var step = 4;
+    var step = 8;
     for (var i = 0; i < W.SEG; i += step) {
       var ig = 0;
       for (var j = 0; j < step && i + j < W.SEG; j++) ig = Math.max(ig, S.ign[i + j]);
       ig *= S.fire;
       if (ig < 0.02) continue;
-      var x0 = W.segX(i) - W.SEG_L * 0.5, x1 = W.segX(Math.min(W.SEG - 1, i + step - 1)) + W.SEG_L * 0.5;
+      var x0 = W.segX(i) - W.SEG_L * 0.55, x1 = W.segX(Math.min(W.SEG - 1, i + step - 1)) + W.SEG_L * 0.55;
       var yTop = W.LOW_Y - 0.3, yBot = 0.4;
       cam.pr(x0, yTop * my, W.CURTAIN_Z, a); if (!a.vis) continue;
       cam.pr(x1, yTop * my, W.CURTAIN_Z, b); if (!b.vis) continue;
@@ -728,15 +771,24 @@
       cam.pr(x0, yBot * my, W.CURTAIN_Z, d); if (!d.vis) continue;
       if ((a.x < -40 && b.x < -40) || (a.x > cam.w + 40 && b.x > cam.w + 40)) continue;
       var gr = cx.createLinearGradient((a.x + b.x) * 0.5, (a.y + b.y) * 0.5, (c.x + d.x) * 0.5, (c.y + d.y) * 0.5);
-      var A = ig * alphaMul;
-      gr.addColorStop(0, 'rgba(255,236,190,' + (0.44 * A).toFixed(3) + ')');
-      gr.addColorStop(0.18, 'rgba(255,198,110,' + (0.30 * A).toFixed(3) + ')');
-      gr.addColorStop(0.55, 'rgba(255,150,52,' + (0.15 * A).toFixed(3) + ')');
+      var pw = Math.abs(b.x - a.x);
+      if (pw < 2.5 * S_) continue;
+      var A = ig * alphaMul * U.clamp(pw / (14 * S_), 0, 1) * (a.z > 380 ? Math.max(0.20, 1.24 - a.z / 1200) : 1);
+      gr.addColorStop(0, 'rgba(255,236,190,' + (0.30 * A).toFixed(3) + ')');
+      gr.addColorStop(0.16, 'rgba(255,199,112,' + (0.22 * A).toFixed(3) + ')');
+      gr.addColorStop(0.48, 'rgba(255,154,56,' + (0.13 * A).toFixed(3) + ')');
+      gr.addColorStop(0.86, 'rgba(255,118,30,' + (0.05 * A).toFixed(3) + ')');
       gr.addColorStop(1, 'rgba(255,110,26,0)');
       cx.beginPath();
       cx.moveTo(a.x, a.y); cx.lineTo(b.x, b.y); cx.lineTo(c.x, c.y); cx.lineTo(d.x, d.y);
       cx.closePath();
       cx.fillStyle = gr; cx.fill();
+      /* 滝つぼの光 */
+      var wx = (c.x + d.x) * 0.5, wy = (c.y + d.y) * 0.5;
+      var ww = Math.abs(c.x - d.x) * 2.2 + 12;
+      cx.globalAlpha = 0.16 * A;
+      cx.drawImage(FX.halo, wx - ww * 0.5, wy - ww * 0.16, ww, ww * 0.32);
+      cx.globalAlpha = 1;
       /* 桁の下端の光の線 */
       cx.strokeStyle = 'rgba(255,242,214,' + (0.55 * A).toFixed(3) + ')';
       cx.lineWidth = Math.max(1, 0.30 * a.s);
@@ -750,14 +802,62 @@
     var my = mirror ? -1 : 1;
     cam.pr(S.fuseX, (W.LOW_Y + 0.2) * my, W.CURTAIN_Z, a);
     if (!a.vis) return;
-    var gw = Math.max(28, 9 * a.s) * (0.85 + 0.15 * Math.sin(S.time * 30));
+    var gw = Math.max(64, 26 * a.s) * (0.88 + 0.12 * Math.sin(S.time * 30));
     cx.globalCompositeOperation = 'lighter';
-    cx.globalAlpha = 0.95 * alphaMul;
+    cx.globalAlpha = 0.9 * alphaMul;
     cx.drawImage(FX.halo, a.x - gw * 0.5, a.y - gw * 0.5, gw, gw);
-    cx.globalAlpha = 0.5 * alphaMul;
-    cx.drawImage(FX.halo, a.x - gw * 1.6, a.y - gw * 0.35, gw * 3.2, gw * 0.7);
+    cx.globalAlpha = 0.75 * alphaMul;
+    cx.drawImage(FX.halo, a.x - gw * 0.22, a.y - gw * 0.22, gw * 0.44, gw * 0.44);
+    /* 尾を引く */
+    cx.globalAlpha = 0.42 * alphaMul;
+    cx.drawImage(FX.halo, a.x - gw * 2.6, a.y - gw * 0.30, gw * 3.1, gw * 0.60);
+    cx.globalAlpha = 0.30 * alphaMul;
+    cx.drawImage(FX.halo, a.x - gw * 0.55, a.y - gw * 1.5, gw * 1.1, gw * 3.0);
     cx.globalAlpha = 1;
     cx.globalCompositeOperation = 'source-over';
+  }
+
+  /* 水面にのびる光の道。ここが夜景の主役になる */
+  function drawGlitter(cam, S) {
+    if (S.fire < 0.02 || R.off.glitter) return;
+    var hz = cam.horizonY();
+    cam.pr(W.MID, 0, 0, e);
+    var y0 = e.vis ? e.y : hz;
+    if (y0 > Hp) return;
+    cam.pr(W.X0, 0, 0, a); cam.pr(W.X1, 0, 0, b);
+    var xa = a.vis ? a.x : 0, xb = b.vis ? b.x : Wp;
+    if (xa > xb) { var t0 = xa; xa = xb; xb = t0; }
+    var amt = U.clamp(S.ignTotal, 0, 1) * S.fire;
+    ctx.save();
+    if (!_waterPath) { ctx.restore(); return; }
+    ctx.clip(_waterPath);
+    ctx.globalCompositeOperation = 'lighter';
+    /* 広がる光の帯 */
+    var gr = ctx.createLinearGradient(0, y0, 0, Hp);
+    gr.addColorStop(0, 'rgba(255,206,124,0)');
+    gr.addColorStop(0.06, 'rgba(255,196,110,' + (0.085 * amt).toFixed(3) + ')');
+    gr.addColorStop(0.32, 'rgba(255,166,74,' + (0.046 * amt).toFixed(3) + ')');
+    gr.addColorStop(0.74, 'rgba(255,140,50,' + (0.016 * amt).toFixed(3) + ')');
+    gr.addColorStop(1, 'rgba(255,130,40,0)');
+    ctx.fillStyle = gr;
+    ctx.fillRect(0, y0, Wp, Hp - y0);
+    /* きらめき */
+    var rr = U.rng(4711);
+    var n = S.quality > 0 ? 220 : 120;
+    for (var i = 0; i < n; i++) {
+      var u = rr(), v = rr(), w0 = rr(), ph = rr();
+      var yy = y0 + Math.pow(v, 1.35) * (Hp - y0);
+      var depth = (yy - y0) / Math.max(1, Hp - y0);
+      var xx = U.lerp(xa - Wp * 0.25, xb + Wp * 0.25, u) + (w0 - 0.5) * Wp * 0.22 * depth;
+      var fl = 0.5 + 0.5 * Math.sin(S.time * (2.2 + ph * 5) + i * 1.7);
+      var al = amt * fl * (0.5 - depth * 0.34);
+      if (al <= 0.01) continue;
+      var lw = (2 + w0 * 16) * S_ * (0.35 + depth * 2.2);
+      ctx.fillStyle = 'rgba(255,' + (190 - (depth * 55) | 0) + ',' + (110 - (depth * 55) | 0) + ',' + al.toFixed(3) + ')';
+      ctx.fillRect(xx - lw * 0.5, yy, lw, Math.max(1, 1.3 * S_ * (0.5 + depth)));
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.restore();
   }
 
   /* ---------- 前景 ---------- */
@@ -775,6 +875,19 @@
       ctx.fillRect(gv[0] * Wp, yy, sz, sz * 0.7);
     }
     ctx.globalAlpha = 1;
+    /* 火が河川敷を照らす */
+    if (S.fire > 0.02) {
+      var lg2 = ctx.createLinearGradient(0, Math.max(0, hz), 0, Hp);
+      var la = 0.075 * S.fire * U.clamp(S.ignTotal, 0, 1);
+      lg2.addColorStop(0, 'rgba(255,168,86,' + la.toFixed(3) + ')');
+      lg2.addColorStop(0.45, 'rgba(255,140,60,' + (la * 0.45).toFixed(3) + ')');
+      lg2.addColorStop(1, 'rgba(255,120,50,0)');
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.fillStyle = lg2;
+      ctx.fillRect(0, Math.max(0, hz), Wp, Hp - Math.max(0, hz));
+      ctx.globalCompositeOperation = 'source-over';
+    }
+
     /* 手前の草むら */
     if (cam.pos[1] < 14) {
       var bh = Hp * (0.055 + 0.05 * U.clamp(1 - cam.pos[1] / 14, 0, 1));
@@ -797,18 +910,30 @@
     if (S.crowd > 0.01) {
       for (i = 0; i < R.crowd.length; i++) {
         var cw = R.crowd[i];
-        var x = W.MID + (cw[0] - 0.5) * 720;
-        var z = cam.pos[2] - 22 - cw[1] * 60;
+        /* 岸に沿って並ぶ */
+        var z = cam.pos[2] + 18 - cw[1] * 330;
+        var x = W.bankL(z) - 2 - cw[0] * 52 - cw[3] * 18;
+        if (x > W.bankL(z)) continue;
         cam.pr(x, 0, z, a); if (!a.vis) continue;
         var hgt = (1.15 + cw[2] * 0.62) * a.s;
-        var wd = hgt * 0.26;
-        if (a.y - hgt > Hp || a.x < -wd || a.x > Wp + wd) continue;
+        var wd = hgt * 0.30;
+        if (a.y - hgt > Hp || a.x < -wd * 2 || a.x > Wp + wd * 2) continue;
         ctx.globalAlpha = S.crowd;
         ctx.fillStyle = 'rgb(2,2,4)';
+        /* 頭 */
         ctx.beginPath();
-        ctx.ellipse(a.x, a.y - hgt * 0.86, wd * 0.42, hgt * 0.15, 0, 0, 6.284);
+        ctx.ellipse(a.x, a.y - hgt * 0.88, wd * 0.30, hgt * 0.115, 0, 0, 6.284);
         ctx.fill();
-        ctx.fillRect(a.x - wd * 0.5, a.y - hgt * 0.74, wd, hgt * 0.74);
+        /* 肩から下 */
+        ctx.beginPath();
+        ctx.moveTo(a.x - wd * 0.30, a.y - hgt * 0.78);
+        ctx.quadraticCurveTo(a.x - wd * 0.62, a.y - hgt * 0.70, a.x - wd * 0.56, a.y - hgt * 0.40);
+        ctx.lineTo(a.x - wd * 0.48, a.y);
+        ctx.lineTo(a.x + wd * 0.48, a.y);
+        ctx.lineTo(a.x + wd * 0.56, a.y - hgt * 0.40);
+        ctx.quadraticCurveTo(a.x + wd * 0.62, a.y - hgt * 0.70, a.x + wd * 0.30, a.y - hgt * 0.78);
+        ctx.closePath();
+        ctx.fill();
         ctx.globalAlpha = 1;
       }
     }
@@ -823,15 +948,12 @@
     vg.addColorStop(1, 'rgba(0,0,0,0.62)');
     ctx.fillStyle = vg; ctx.fillRect(0, 0, Wp, Hp);
     /* 粒子 */
-    if (S.quality > 0) {
+    if (S.quality > 0 && !R.off.grain) {
       ctx.globalAlpha = 0.045;
       ctx.globalCompositeOperation = 'overlay';
       var t = (S.time * 7) | 0;
-      var tw = noise.width * 2.6, th = noise.height * 2.6;
-      var ox = (t % 5) * 37, oy = (t % 7) * 29;
-      for (var x = -ox; x < Wp; x += tw) {
-        for (var y = -oy; y < Hp; y += th) ctx.drawImage(noise, x, y, tw, th);
-      }
+      var ox = (t % 5) * 23, oy = (t % 7) * 17;
+      ctx.drawImage(noiseFull, -ox, -oy, Wp + 40, Hp + 40);
       ctx.globalCompositeOperation = 'source-over';
       ctx.globalAlpha = 1;
     }
@@ -846,30 +968,36 @@
     ctx.fillStyle = '#04060b';
     ctx.fillRect(0, 0, Wp, Hp);
 
+    buildWater(cam);
     drawSky(cam, S);
     drawFarShore(cam, S);
     drawGroundAndWater(cam, S);
     drawShore(cam, S);
 
     /* 水に映る橋の影 */
+    var darkA = 0.72 * (1 - 0.82 * U.clamp(S.fire * S.ignTotal, 0, 1));
+    if (darkA > 0.03) {
     darkX.setTransform(1, 0, 0, 1, 0, 0);
     darkX.clearRect(0, 0, darkC.width, darkC.height);
     darkX.save();
     darkX.scale(0.5, 0.5);
     drawSilhouette(darkX, cam, S);
     darkX.restore();
+    fadeBuffer(darkX, darkC, cam, 0.92);
     compositeDark(cam, S);
+    }
 
     /* 映り込み用のバッファ */
     reflX.setTransform(1, 0, 0, 1, 0, 0);
     reflX.clearRect(0, 0, reflC.width, reflC.height);
     reflX.save();
     reflX.scale(0.5, 0.5);
-    drawCurtain(reflX, cam, S, true, 0.85);
-    FX.draw(reflX, cam, true, 2, 0.62);
+    drawCurtain(reflX, cam, S, true, 1.0);
+    FX.draw(reflX, cam, true, 3, 1.15);
     drawFuseHead(reflX, cam, S, true, 0.7);
     reflectLights(reflX, cam, S);
     reflX.restore();
+    fadeBuffer(reflX, reflC, cam, 0.88);
     drawReflection(cam, S);
 
     /* 橋 */
@@ -881,13 +1009,13 @@
       cam.pr(sp.x0, W.DECK_Y, 0, a); cam.pr(sp.x1, W.DECK_Y, 0, b);
       lods[k] = (a.vis && b.vis) ? Math.abs(b.x - a.x) : 0;
     }
-    for (k = 0; k < W.SPAN_N; k++) {
+    if (!R.off.truss) for (k = 0; k < W.SPAN_N; k++) {
       if (lods[k] > 26) drawMembers(cam, S, W.spans[k].det, -1, lods[k]);
       drawMembers(cam, S, W.spans[k].main, -1, lods[k]);
     }
     LB.flush(ctx, PAL);
     drawDeck(cam, S);
-    for (k = 0; k < W.SPAN_N; k++) {
+    if (!R.off.truss) for (k = 0; k < W.SPAN_N; k++) {
       if (lods[k] > 26) {
         drawMembers(cam, S, W.spans[k].det, 1, lods[k]);
         drawMembers(cam, S, W.spans[k].det, 0, lods[k]);
@@ -904,27 +1032,30 @@
     /* 火 */
     fireX.setTransform(1, 0, 0, 1, 0, 0);
     fireX.clearRect(0, 0, fireC.width, fireC.height);
-    fireX.save();
-    fireX.scale(0.5, 0.5);
-    drawCurtain(fireX, cam, S, false, 1);
-    FX.draw(fireX, cam, false, 1, 1);
-    drawFuseHead(fireX, cam, S, false, 1);
-    fireX.restore();
+    if (!R.off.fire) {
+      fireX.save();
+      fireX.scale(0.5, 0.5);
+      drawCurtain(fireX, cam, S, false, 1);
+      FX.draw(fireX, cam, false, 1, 1);
+      drawFuseHead(fireX, cam, S, false, 1);
+      fireX.restore();
+    }
 
     ctx.globalCompositeOperation = 'lighter';
-    ctx.drawImage(fireC, 0, 0, Wp, Hp);
+    if (!R.off.fire) ctx.drawImage(fireC, 0, 0, Wp, Hp);
 
     /* にじみ */
+    if (!R.off.bloom) {
     glowX.setTransform(1, 0, 0, 1, 0, 0);
     glowX.clearRect(0, 0, glowC.width, glowC.height);
     glowX.drawImage(fireC, 0, 0, glowC.width, glowC.height);
-    ctx.globalAlpha = 0.62;
-    ctx.drawImage(glowC, 0, 0, Wp, Hp);
-    ctx.globalAlpha = 0.30;
-    ctx.drawImage(glowC, -Wp * 0.03, -Hp * 0.03, Wp * 1.06, Hp * 1.06);
+    ctx.globalAlpha = 0.78;
+    ctx.drawImage(glowC, -Wp * 0.018, -Hp * 0.018, Wp * 1.036, Hp * 1.036);
+    }
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
 
+    drawGlitter(cam, S);
     FX.drawSmoke(ctx, cam, S);
     drawForeground(cam, S);
     drawGrade(cam, S);
