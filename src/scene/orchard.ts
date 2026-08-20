@@ -40,8 +40,10 @@ export function layoutForRound(round: number): RoundLayout {
   const yaw = round === 0 ? 0 : (rng() - 0.5) * 0.85
   const px = round === 0 ? 0 : (rng() - 0.5) * 0.36
   const pz = round === 0 ? 0 : (rng() - 0.5) * 0.22
-  const py = 1.0 + (round === 0 ? 0.02 : rng() * 0.1)
-  const dir = new THREE.Vector3(-1, 0, -0.34 + (round === 0 ? 0 : (rng() - 0.5) * 0.4)).normalize()
+  const py = 0.84 + (round === 0 ? 0.02 : rng() * 0.09)
+  // The sheet runs across the frame rather than straight away from the
+  // camera, so its spread and its position stay readable.
+  const dir = new THREE.Vector3(-1, 0, 0.06 + (round === 0 ? 0 : (rng() - 0.5) * 0.36)).normalize()
   return {
     peachSeed: 1000 + round * 137,
     bagSeed: 2000 + round * 311,
@@ -50,10 +52,10 @@ export function layoutForRound(round: number): RoundLayout {
     peachPos: new THREE.Vector3(px, py, pz),
     branchYaw: yaw,
     branchLift: round === 0 ? 0 : (rng() - 0.5) * 0.08,
-    sheetOrigin: new THREE.Vector3(px + 0.78, 0, pz + 0.28),
+    sheetOrigin: new THREE.Vector3(px + 0.72, 0, pz - 0.02),
     sheetDir: dir,
-    sheetLength: 1.5 + (round === 0 ? 0.05 : rng() * 0.35),
-    sheetWidth: 0.56 + (round === 0 ? 0.06 : rng() * 0.22),
+    sheetLength: 1.4 + (round === 0 ? 0.04 : rng() * 0.3),
+    sheetWidth: 0.46 + (round === 0 ? 0.05 : rng() * 0.18),
   }
 }
 
@@ -123,7 +125,7 @@ export class Orchard {
             // puts a faint green-white on their undersides.
             vec3 wn = normalize(vMomoWNrm);
             float back = max(0.0, dot(-wn, uSunDir));
-            reflectedLight.indirectDiffuse += diffuseColor.rgb * back * uSunStrength * 0.55;
+            reflectedLight.indirectDiffuse += diffuseColor.rgb * pow(back, 1.6) * uSunStrength * 0.38;
             float bnc = momoLeafBounce() * uBounceGain;
             reflectedLight.indirectDiffuse += uSheetTint * bnc * 0.7 * diffuseColor.rgb;
           }
@@ -144,11 +146,11 @@ export class Orchard {
     const tex = makeGroundTextures(51)
     this.disposables.push(tex)
     for (const t of [tex.map, tex.normalMap, tex.roughnessMap]) {
-      t.repeat.set(9, 9)
+      t.repeat.set(42, 42)
       t.anisotropy = this.q.anisotropy
     }
-    const size = 16
-    const seg = this.q.tier === 'low' ? 90 : 150
+    const size = 64
+    const seg = this.q.tier === 'low' ? 140 : 220
     const geo = new THREE.PlaneGeometry(size, size, seg, seg)
     geo.rotateX(-Math.PI / 2)
     const pos = geo.attributes.position as THREE.BufferAttribute
@@ -169,6 +171,14 @@ export class Orchard {
       }),
       this.rig,
       {
+        afterMap: /* glsl */ `
+          {
+            // Macro breakup: the same soil sampled far larger kills the tiling
+            // that a repeated texture would otherwise print across the orchard.
+            vec3 macro = texture2D(map, vMapUv * 0.077).rgb;
+            diffuseColor.rgb *= mix(vec3(1.0), macro * 1.9, 0.4);
+          }
+        `,
         afterLights: /* glsl */ `
           {
             float bnc = momoBounce(vMomoWPos, normalize(vMomoWNrm), uQ0, uQ1, uQ2, uQ3,
@@ -189,8 +199,8 @@ export class Orchard {
     const grass = makeGrassTexture(88)
     this.disposables.push(grass.map, grass.alphaMap)
     grass.map.anisotropy = this.q.anisotropy
-    const bladeGeo = new THREE.PlaneGeometry(0.13, 0.13, 1, 1)
-    bladeGeo.translate(0, 0.065, 0)
+    const bladeGeo = new THREE.PlaneGeometry(0.17, 0.17, 1, 1)
+    bladeGeo.translate(0, 0.085, 0)
     const grassMat = new THREE.MeshPhysicalMaterial({
       map: grass.map,
       alphaMap: grass.alphaMap,
@@ -211,9 +221,11 @@ export class Orchard {
       let x = 0
       let z = 0
       for (let tries = 0; tries < 8; tries++) {
-        x = (rng() - 0.5) * 11
-        z = (rng() - 0.5) * 11
-        if (Math.hypot(x - 0.2, z + 0.1) > 1.5) break
+        const a = rng() * Math.PI * 2
+        const r = 0.9 + Math.pow(rng(), 0.7) * 5.4
+        x = Math.cos(a) * r + 0.2
+        z = Math.sin(a) * r - 0.1
+        if (Math.hypot(x - 0.1, z + 0.05) > 1.35) break
       }
       const y = groundHeight(x, z)
       const s = 0.6 + rng() * 0.9
@@ -231,8 +243,14 @@ export class Orchard {
     this.group.add(grassMesh)
     this.disposables.push(bladeGeo, grassMat)
 
-    const pebbleGeo = new THREE.IcosahedronGeometry(0.02, 0)
-    const pebbleMat = new THREE.MeshPhysicalMaterial({ color: 0x9a9184, roughness: 0.86, metalness: 0 })
+    const pebbleGeo = new THREE.IcosahedronGeometry(0.013, 0)
+    const pebbleMat = new THREE.MeshPhysicalMaterial({
+      color: 0x8d8478,
+      roughness: 0.96,
+      metalness: 0,
+      envMapIntensity: 0.18,
+      flatShading: true,
+    })
     const pebbles = new THREE.InstancedMesh(pebbleGeo, pebbleMat, this.q.groundPebbles)
     for (let i = 0; i < this.q.groundPebbles; i++) {
       const a = rng() * Math.PI * 2
@@ -285,7 +303,7 @@ export class Orchard {
     const rng = makeRng(1717)
     const canopy = makeCanopyTexture(303)
     this.disposables.push(canopy.map, canopy.alphaMap)
-    const canopyGeo = new THREE.PlaneGeometry(2.6, 2.2)
+    const canopyGeo = new THREE.PlaneGeometry(1.7, 1.5)
     const canopyMat = new THREE.MeshBasicMaterial({
       map: canopy.map,
       alphaMap: canopy.alphaMap,
@@ -293,36 +311,55 @@ export class Orchard {
       side: THREE.DoubleSide,
       fog: true,
     })
-    const trunkGeo = new THREE.CylinderGeometry(0.07, 0.11, 1.5, 6, 1)
+    const trunkGeo = new THREE.CylinderGeometry(0.11, 0.19, 1.7, 6, 1)
     const trunkMat = new THREE.MeshPhysicalMaterial({
       map: this.barkTex.map,
       normalMap: this.barkTex.normalMap,
       roughness: 0.95,
       metalness: 0,
     })
-    const count = this.q.backgroundTrees
-    const canopies = new THREE.InstancedMesh(canopyGeo, canopyMat, count * 3)
+    const count = this.q.backgroundTrees * 4
+    const clumps = 9
+    const canopies = new THREE.InstancedMesh(canopyGeo, canopyMat, count * clumps)
     const trunks = new THREE.InstancedMesh(trunkGeo, trunkMat, count)
     const m = new THREE.Matrix4()
     const qt = new THREE.Quaternion()
     const up = new THREE.Vector3(0, 1, 0)
+    const pos = new THREE.Vector3()
+    // The camera always looks roughly this way; keep that wedge of the horizon
+    // clear so nothing grows out of the fruit's head.
+    const viewAz = Math.atan2(-0.72, -0.69)
     let ci = 0
+    let ti = 0
     for (let i = 0; i < count; i++) {
-      const a = (i / count) * Math.PI * 2 + rng() * 0.4
-      const r = 5.5 + rng() * 5
+      // Half the trees form a far row that may stand anywhere; the near ones
+      // must keep out of the wedge the camera shoots through.
+      const far = i % 3 !== 0
+      let a = 0
+      let r = 0
+      for (let tries = 0; tries < 12; tries++) {
+        a = rng() * Math.PI * 2
+        r = far ? 17 + rng() * 11 : 10 + rng() * 6
+        const d = Math.abs((((a - viewAz) % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) - Math.PI)
+        if (far || d > 0.3) break
+      }
       const x = Math.cos(a) * r
-      const z = Math.sin(a) * r - 1.5
+      const z = Math.sin(a) * r
       const y = groundHeight(x, z)
-      const s = 0.8 + rng() * 0.6
+      const s = 0.9 + rng() * 0.7
       qt.setFromAxisAngle(up, rng() * 6.28)
-      m.compose(new THREE.Vector3(x, y + 0.75 * s, z), qt, new THREE.Vector3(s, s, s))
-      trunks.setMatrixAt(i, m)
-      for (let k = 0; k < 3; k++) {
-        // Three quads at different yaws so a canopy never reads as one plane.
-        qt.setFromEuler(new THREE.Euler((rng() - 0.5) * 0.3, (k / 3) * Math.PI + rng() * 0.5, (rng() - 0.5) * 0.25))
-        const cs = s * (0.75 + rng() * 0.5)
+      m.compose(pos.set(x, y + 0.85 * s, z), qt, new THREE.Vector3(s, s, s))
+      trunks.setMatrixAt(ti++, m)
+      for (let k = 0; k < clumps; k++) {
+        // Several small clumps, never one big blob: a canopy has to have edges.
+        qt.setFromEuler(new THREE.Euler((rng() - 0.5) * 0.5, rng() * 6.28, (rng() - 0.5) * 0.4))
+        const cs = s * (0.55 + rng() * 0.6)
         m.compose(
-          new THREE.Vector3(x + (rng() - 0.5) * 0.5, y + 1.5 * s + (rng() - 0.5) * 0.4, z + (rng() - 0.5) * 0.5),
+          pos.set(
+            x + (rng() - 0.5) * 3.0 * s,
+            y + (1.15 + rng() * 1.7) * s,
+            z + (rng() - 0.5) * 3.0 * s,
+          ),
           qt,
           new THREE.Vector3(cs, cs, cs),
         )
@@ -330,6 +367,7 @@ export class Orchard {
       }
     }
     canopies.count = ci
+    trunks.count = ti
     canopies.instanceMatrix.needsUpdate = true
     trunks.instanceMatrix.needsUpdate = true
     this.group.add(canopies)
@@ -347,13 +385,14 @@ export class Orchard {
             const dx = (x + 0.5) / s - 0.5
             const dy = (y + 0.5) / s - 0.5
             const r = Math.hypot(dx, dy) * 2
-            const core = Math.max(0, 1 - Math.pow(r / 0.42, 6))
-            const halo = Math.pow(Math.max(0, 1 - r), 3.2) * 0.55
+            const core = Math.max(0, 1 - Math.pow(r / 0.13, 4))
+            const halo = Math.pow(Math.max(0, 1 - r), 1.9) * 0.4
             const a = Math.min(1, core + halo)
+            const warm = 1 - Math.min(1, r * 1.6)
             const i = (y * s + x) * 4
             d[i] = 255
-            d[i + 1] = 248
-            d[i + 2] = 226
+            d[i + 1] = 236 + warm * 19
+            d[i + 2] = 186 + warm * 60
             d[i + 3] = a * 255
           }
         }
@@ -367,6 +406,7 @@ export class Orchard {
     canvasTex.needsUpdate = true
     const mat = new THREE.SpriteMaterial({
       map: canvasTex,
+      fog: false,
       transparent: true,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
@@ -374,7 +414,7 @@ export class Orchard {
       toneMapped: false,
     })
     const sprite = new THREE.Sprite(mat)
-    sprite.scale.setScalar(1.5)
+    sprite.scale.setScalar(3.2)
     sprite.renderOrder = -1
     this.disposables.push(canvasTex, mat)
     return sprite
@@ -395,13 +435,14 @@ export class Orchard {
     this.branchGroup.position.set(0, layout.branchLift, 0)
 
     const anchor = layout.peachPos
+    const y0 = anchor.y + 0.185
     const pts = [
-      new THREE.Vector3(-1.55, 1.5, -0.55),
-      new THREE.Vector3(-0.85, 1.36, -0.3),
-      new THREE.Vector3(-0.3, 1.24, -0.06),
-      new THREE.Vector3(anchor.x, anchor.y + 0.185, anchor.z + 0.02),
-      new THREE.Vector3(anchor.x + 0.5, anchor.y + 0.2, anchor.z + 0.12),
-      new THREE.Vector3(anchor.x + 1.15, anchor.y + 0.31, anchor.z + 0.02),
+      new THREE.Vector3(anchor.x - 1.55, y0 + 0.5, anchor.z - 0.57),
+      new THREE.Vector3(anchor.x - 0.85, y0 + 0.28, anchor.z - 0.32),
+      new THREE.Vector3(anchor.x - 0.3, y0 + 0.09, anchor.z - 0.08),
+      new THREE.Vector3(anchor.x, y0, anchor.z + 0.02),
+      new THREE.Vector3(anchor.x + 0.5, y0 + 0.03, anchor.z + 0.12),
+      new THREE.Vector3(anchor.x + 1.15, y0 + 0.16, anchor.z + 0.02),
     ]
     const curve = new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.4)
     const seg = this.q.tier === 'low' ? 44 : 80
@@ -458,8 +499,8 @@ export class Orchard {
   private buildLeaves(curve: THREE.CatmullRomCurve3, layout: RoundLayout): void {
     const rng = makeRng(layout.leafSeed)
     const per = this.q.leavesPerBranch
-    const geo = new THREE.PlaneGeometry(0.062, 0.155)
-    geo.translate(0, 0.072, 0)
+    const geo = new THREE.PlaneGeometry(0.085, 0.21)
+    geo.translate(0, 0.098, 0)
     const total = per * 4
     const mesh = new THREE.InstancedMesh(geo, this.leafMaterial, total)
     const m = new THREE.Matrix4()
@@ -493,6 +534,14 @@ export class Orchard {
     }
     mesh.count = n
     mesh.instanceMatrix.needsUpdate = true
+    // No two leaves the same tone: a repeated plane reads instantly as fake.
+    const tint = new THREE.Color()
+    for (let i = 0; i < n; i++) {
+      const k = makeRng(layout.leafSeed + i * 31)
+      tint.setHSL(0.22 + k() * 0.05, 0.34 + k() * 0.18, 0.42 + k() * 0.24)
+      mesh.setColorAt(i, tint)
+    }
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
     mesh.castShadow = true
     mesh.receiveShadow = true
     this.branchGroup.add(mesh)
@@ -522,8 +571,8 @@ export class Orchard {
       from.clone().lerp(to, 0.4).add(new THREE.Vector3(0.012, 0.004, 0.008)),
       to,
     ])
-    const geo = new THREE.TubeGeometry(curve, 12, 0.0055, 6, false)
-    const mat = new THREE.MeshPhysicalMaterial({ color: 0x6f7a3c, roughness: 0.78, metalness: 0 })
+    const geo = new THREE.TubeGeometry(curve, 12, 0.0042, 6, false)
+    const mat = new THREE.MeshPhysicalMaterial({ color: 0x7d7440, roughness: 0.82, metalness: 0 })
     this.pedicel = new THREE.Mesh(geo, mat)
     this.pedicel.castShadow = true
     this.branchGroup.add(this.pedicel)
@@ -550,11 +599,11 @@ export class Orchard {
   }
 
   updateSun(rig: LightRig): void {
-    this.sunSprite.position.copy(rig.sunDir).multiplyScalar(11).add(new THREE.Vector3(0, 0.6, 0))
-    const noon = Math.max(0.25, rig.sunDir.y)
-    this.sunSprite.scale.setScalar(1.1 + (1 - noon) * 0.9)
+    this.sunSprite.position.copy(rig.sunDir).multiplyScalar(14).add(new THREE.Vector3(0, 0.5, 0))
+    const noon = Math.max(0.2, rig.sunDir.y)
+    this.sunSprite.scale.setScalar(3.0 + (1 - noon) * 1.6)
     const mat = this.sunSprite.material as THREE.SpriteMaterial
-    mat.opacity = 0.55 + noon * 0.3
+    mat.opacity = 0.42 + noon * 0.3
   }
 
   setQuality(q: QualitySettings): void {

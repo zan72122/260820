@@ -89,7 +89,12 @@ export interface PeachTextures {
   dispose(): void
 }
 
-export function makePeachTextures(seed: number, size = 512): PeachTextures {
+export function makePeachTextures(seed: number, sutureU = 0, size = 512): PeachTextures {
+  // Distance in u to the suture, wrapped.
+  const sutureDist = (u: number) => {
+    const d = Math.abs(((u - sutureU) % 1 + 1.5) % 1 - 0.5)
+    return d
+  }
   // Fine pores plus a few dozen shallow lenticel specks - never a clean sphere.
   const pores = (u: number, v: number) => fbmWrapU(u, v, 46, 4, seed) * 0.6 + fbmWrapU(u, v, 130, 2, seed + 7) * 0.4
   const speck = (u: number, v: number) => {
@@ -104,24 +109,31 @@ export function makePeachTextures(seed: number, size = 512): PeachTextures {
       // down. The pink is not painted here - the blush mask adds it later.
       const green = smoothstep(0.75, 1.0, v) * 0.5
       const warm = fbmWrapU(u, v, 6, 3, seed + 3)
-      let r = mix(0.955, 0.9, green) + (warm - 0.5) * 0.05
-      let g = mix(0.93, 0.93, green) + (warm - 0.5) * 0.04
-      let b = mix(0.79, 0.75, green) + (warm - 0.5) * 0.05
+      let r = mix(0.79, 0.64, green) + (warm - 0.5) * 0.07
+      let g = mix(0.78, 0.72, green) + (warm - 0.5) * 0.06
+      let b = mix(0.5, 0.4, green) + (warm - 0.5) * 0.06
       const sp = speck(u, v)
-      r = mix(r, 0.99, sp * 0.55)
-      g = mix(g, 0.96, sp * 0.55)
-      b = mix(b, 0.86, sp * 0.55)
+      r = mix(r, 0.93, sp * 0.5)
+      g = mix(g, 0.9, sp * 0.5)
+      b = mix(b, 0.72, sp * 0.5)
       const p = pores(u, v)
       const shade = 1 - (p - 0.5) * 0.09
-      out[0] = r * shade
-      out[1] = g * shade
-      out[2] = b * shade
+      // The suture holds shadow and a little more colour than the cheeks.
+      const su = (1 - smoothstep(0.006, 0.05, sutureDist(u))) * Math.pow(Math.sin(v * Math.PI), 0.5)
+      const groove = 1 - su * 0.3
+      out[0] = r * shade * groove
+      out[1] = g * shade * groove * (1 - su * 0.06)
+      out[2] = b * shade * groove * (1 - su * 0.08)
       out[3] = 1
     },
     true,
   )
 
-  const normalMap = normalFromHeight(size, (u, v) => pores(u, v) * 0.7 + speck(u, v) * 0.5, 1.5)
+  const normalMap = normalFromHeight(
+    size,
+    (u, v) => pores(u, v) * 0.7 + speck(u, v) * 0.5 - (1 - smoothstep(0.004, 0.045, sutureDist(u))) * 1.6,
+    1.5,
+  )
 
   const roughnessMap = makeTexture(
     size,
@@ -166,16 +178,25 @@ export function makeFuzzShellAlpha(seed: number, size = 256): THREE.DataTexture 
   return makeTexture(
     size,
     (u, v, out) => {
-      const cell = 78
+      // Cells must stay several texels wide, or every hair tip is lost to the
+      // mip chain and the down silently disappears.
+      const cell = 26
       const cx = Math.floor(u * cell)
       const cy = Math.floor(v * cell)
-      const jx = hash2(cx, cy, seed)
-      const jy = hash2(cx, cy, seed + 1)
-      const px = (u * cell - cx - jx) / 1
-      const py = (v * cell - cy - jy) / 1
-      const d = Math.hypot(px, py)
-      const keep = hash2(cx, cy, seed + 2) > 0.34 ? 1 : 0
-      const a = keep * (1 - smoothstep(0.06, 0.2, d))
+      let a = 0
+      for (let oy = -1; oy <= 1; oy++) {
+        for (let ox = -1; ox <= 1; ox++) {
+          const gx = cx + ox
+          const gy = cy + oy
+          if (hash2(gx, gy, seed + 2) < 0.28) continue
+          const jx = 0.2 + hash2(gx, gy, seed) * 0.6
+          const jy = 0.2 + hash2(gx, gy, seed + 1) * 0.6
+          const px = u * cell - gx - jx
+          const py = v * cell - gy - jy
+          const d = Math.hypot(px, py * 0.55)
+          a = Math.max(a, (1 - smoothstep(0.08, 0.34, d)) * (0.55 + hash2(gx, gy, seed + 5) * 0.45))
+        }
+      }
       out[0] = out[1] = out[2] = 1
       out[3] = a
     },
@@ -279,9 +300,9 @@ export function makeSheetTextures(seed: number, size = 512): SurfaceTextures {
       // Bright, but a fabric white - never a mirror, never pure 1.0.
       const c = crumple(u, v)
       const d = dirt(u, v)
-      let r = 0.9 + (c - 0.5) * 0.08
-      let g = 0.905 + (c - 0.5) * 0.08
-      let b = 0.885 + (c - 0.5) * 0.08
+      let r = 0.83 + (c - 0.5) * 0.1
+      let g = 0.82 + (c - 0.5) * 0.1
+      let b = 0.78 + (c - 0.5) * 0.1
       r = mix(r, 0.55, d * 0.55)
       g = mix(g, 0.5, d * 0.55)
       b = mix(b, 0.42, d * 0.55)
@@ -302,7 +323,7 @@ export function makeSheetTextures(seed: number, size = 512): SurfaceTextures {
     (u, v, out) => {
       // Patchy sheen: the plastic weave catches light unevenly.
       const gloss = smoothstep(0.45, 0.85, fbm2(u * 12, v * 11, 3, seed + 61))
-      const r = mix(0.78, 0.42, gloss) + dirt(u, v) * 0.14
+      const r = mix(0.9, 0.68, gloss) + dirt(u, v) * 0.08
       out[0] = out[1] = out[2] = clamp01(r)
       out[3] = 1
     },
@@ -338,9 +359,9 @@ export function makeLeafTextures(seed: number, size = 256): LeafTextures {
     (u, v, out) => {
       const mottle = fbm2(u * 7, v * 7, 3, seed + 3)
       const edge = smoothstep(0.32, 0.46, Math.abs(u - 0.5))
-      let r = 0.19 + mottle * 0.12
-      let g = 0.36 + mottle * 0.18
-      let b = 0.13 + mottle * 0.09
+      let r = 0.28 + mottle * 0.16
+      let g = 0.44 + mottle * 0.2
+      let b = 0.19 + mottle * 0.11
       r = mix(r, 0.35, edge * 0.5)
       g = mix(g, 0.42, edge * 0.3)
       b = mix(b, 0.16, edge * 0.4)
@@ -382,19 +403,20 @@ export function makeLeafTextures(seed: number, size = 256): LeafTextures {
 
 export function makeGroundTextures(seed: number, size = 512): SurfaceTextures {
   const soil = (u: number, v: number) => fbm2(u * 16, v * 16, 5, seed + 2)
-  const litter = (u: number, v: number) => smoothstep(0.66, 0.86, fbm2(u * 34, v * 31, 3, seed + 6))
-  const grass = (u: number, v: number) => smoothstep(0.5, 0.78, fbm2(u * 9, v * 9, 4, seed + 12))
+  const litter = (u: number, v: number) => smoothstep(0.7, 0.9, fbm2(u * 40, v * 37, 3, seed + 6))
+  const grass = (u: number, v: number) => smoothstep(0.52, 0.86, fbm2(u * 26, v * 24, 4, seed + 12))
   const map = makeTexture(
     size,
     (u, v, out) => {
+      // Mown orchard floor: grass with soil showing through, not bare desert.
       const s = soil(u, v)
-      let r = 0.29 + s * 0.16
-      let g = 0.23 + s * 0.15
-      let b = 0.16 + s * 0.09
-      const gr = grass(u, v)
-      r = mix(r, 0.27 + s * 0.1, gr)
-      g = mix(g, 0.4 + s * 0.16, gr)
-      b = mix(b, 0.17 + s * 0.08, gr)
+      let r = 0.2 + s * 0.12
+      let g = 0.27 + s * 0.17
+      let b = 0.12 + s * 0.07
+      const bare = smoothstep(0.55, 0.86, fbm2(u * 5.5, v * 5.2, 4, seed + 33))
+      r = mix(r, 0.3 + s * 0.16, bare * 0.85)
+      g = mix(g, 0.24 + s * 0.14, bare * 0.85)
+      b = mix(b, 0.16 + s * 0.08, bare * 0.85)
       const li = litter(u, v)
       r = mix(r, 0.44, li * 0.5)
       g = mix(g, 0.32, li * 0.5)
@@ -427,7 +449,8 @@ export function makeSkyTexture(size = 256): THREE.DataTexture {
   const data = new Uint8Array(w * h * 4)
   for (let y = 0; y < h; y++) {
     const v = (y + 0.5) / h
-    const el = Math.cos(v * Math.PI) // +1 zenith .. -1 nadir
+    // Row 0 of the data ends up at the bottom of the sphere, so v runs up.
+    const el = -Math.cos(v * Math.PI) // +1 zenith .. -1 nadir
     for (let x = 0; x < w; x++) {
       const u = (x + 0.5) / w
       let r: number, g: number, b: number
@@ -488,7 +511,7 @@ export function makeGrassTexture(seed: number, size = 128): { map: THREE.DataTex
   const blades = Array.from({ length: 11 }, () => ({
     x: 0.12 + rng() * 0.76,
     lean: (rng() - 0.5) * 0.34,
-    w: 0.012 + rng() * 0.016,
+    w: 0.022 + rng() * 0.026,
     h: 0.45 + rng() * 0.5,
     tone: rng(),
   }))
@@ -513,10 +536,10 @@ export function makeGrassTexture(seed: number, size = 128): { map: THREE.DataTex
     size,
     (u, v, out) => {
       const { tone } = cover(u, v)
-      const shade = 0.6 + v * 0.5
-      out[0] = (0.16 + tone * 0.14) * shade
-      out[1] = (0.32 + tone * 0.22) * shade
-      out[2] = (0.11 + tone * 0.09) * shade
+      const shade = 0.62 + v * 0.55
+      out[0] = (0.24 + tone * 0.18) * shade
+      out[1] = (0.42 + tone * 0.24) * shade
+      out[2] = (0.15 + tone * 0.1) * shade
       out[3] = 1
     },
     true,

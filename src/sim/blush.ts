@@ -19,7 +19,7 @@ export interface Occluder {
 /** Pure growth law, exported so the balance can be unit-tested. */
 export function growthRate(sun: number, bounce: number, variation: number, mask: number): number {
   const drive = sun * 0.45 + bounce * 3.2
-  return drive * variation * (1 - 0.55 * mask) * 0.12
+  return drive * variation * (1 - 0.55 * mask) * 0.26
 }
 
 export const BLUSH_RES_U = 96

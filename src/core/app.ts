@@ -26,7 +26,7 @@ import { PointerInput, type PointerSample } from './input'
 import { Sound } from './audio'
 import { loadSnapshot, saveSnapshot, snapshotMask } from './storage'
 import { LightRig } from '../scene/lightRig'
-import { CameraRig, type Shot } from '../scene/cameraRig'
+import { CameraRig, type Framing, type Shot } from '../scene/cameraRig'
 import { Orchard, layoutForRound, type RoundLayout } from '../scene/orchard'
 import { Peach } from '../scene/peach'
 import { PaperBag, makeBagShape } from '../scene/bag'
@@ -49,8 +49,10 @@ interface Shots {
   play: Shot
 }
 
+type GrabId = Target | 'look'
+
 interface Grab {
-  id: Target
+  id: GrabId
   /** Value the control had when the finger went down. */
   base: number
   offset: THREE.Vector3
@@ -73,6 +75,7 @@ export class Game {
   private governor: LoadGovernor
   private q: QualitySettings
   private tier: Tier
+  private fast = false
 
   private state: GameState
   private layout: RoundLayout
@@ -94,7 +97,6 @@ export class Game {
   private framingBias = 0
   private framingBiasGoal = 0
   private maxAlong = 0
-  private bagFall = 0
   private bagRest = new THREE.Vector3()
   private nextBag: PaperBag | null = null
   private nextBagPos = new THREE.Vector3()
@@ -122,17 +124,26 @@ export class Game {
     this.renderer = new THREE.WebGLRenderer({ canvas, context: gl, antialias: true })
     this.renderer.outputColorSpace = THREE.SRGBColorSpace
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping
-    this.renderer.toneMappingExposure = 1.02
+    this.renderer.toneMappingExposure = 0.88
     this.renderer.shadowMap.enabled = true
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
 
-    this.tier = detectTier(gl)
+    // Deterministic, GPU-light mode for automated runs (E2E_FAST / ?fast=1).
+    const params = new URLSearchParams(location.search)
+    const fast = params.has('fast')
+    const forced = params.get('tier')
+    this.fast = fast
+    this.tier =
+      forced === 'low' || forced === 'balanced' || forced === 'high' ? forced : fast ? 'low' : detectTier(gl)
     this.q = settingsFor(this.tier)
+    if (fast) {
+      this.q = { ...this.q, dprCap: 1, moteCount: Math.min(this.q.moteCount, 14), shadowMapSize: 1024 }
+    }
     this.governor = new LoadGovernor((t) => this.applyTier(t), this.tier)
 
     this.sky = makeSkyTexture()
     this.scene.background = this.sky
-    this.scene.fog = new THREE.Fog(0xa8c4dd, 7, 26)
+    this.scene.fog = new THREE.Fog(0xbdd2e4, 14, 40)
     this.pmrem = new THREE.PMREMGenerator(this.renderer)
     this.envRT = this.pmrem.fromEquirectangular(this.sky)
     this.scene.environment = this.envRT.texture
@@ -199,7 +210,7 @@ export class Game {
     this.orchard.branchGroup.updateMatrixWorld(true)
     this.peachWorld.copy(localPeach).applyMatrix4(this.orchard.branchGroup.matrixWorld)
 
-    this.sheetBase.set(this.peachWorld.x + 0.8, 0, this.peachWorld.z + 0.3)
+    this.sheetBase.set(this.peachWorld.x + 0.72, 0, this.peachWorld.z - 0.02)
     this.sheet.reseed({
       seed: layout.sheetSeed,
       length: layout.sheetLength,
@@ -212,37 +223,52 @@ export class Game {
     this.peach.syncTransform()
     this.motes.setCenter(new THREE.Vector3(this.peachWorld.x, 0.5, this.peachWorld.z))
     this.shots = this.buildShots()
-    this.bagFall = 0
-    this.bagRest.set(this.peachWorld.x - 0.24, 0, this.peachWorld.z + 0.3)
+    this.bagRest.set(this.peachWorld.x - 0.38, 0, this.peachWorld.z + 0.42)
     if (!initial) this.cam.moveTo(this.shots.wide, 1.2)
   }
 
   private buildShots(): Shots {
     const P = this.peachWorld
-    const work = new THREE.Vector3(P.x + 0.08, 0.55, P.z + 0.06)
+    const at = (dx: number, dy: number, dz: number) => new THREE.Vector3(P.x + dx, P.y + dy, P.z + dz)
+    const f = (fov: number, w: number, h: number, dir: THREE.Vector3, lift = 0): Framing => ({ fov, w, h, dir, lift })
+
     return {
-      wide: { fov: 30, target: work.clone(), radius: 0.98, dir: v(0.34, 0.4, 1.0) },
-      bag: { fov: 19, target: P.clone(), radius: 0.2, dir: v(0.26, 0.13, 1.0) },
+      // Bagged fruit, rolled sheet and soil all in one read.
+      wide: {
+        target: at(0.3, -0.4, 0.02),
+        landscape: f(42, 1.4, 1.12, v(0.64, 0.12, 0.76), 0.1),
+        portrait: f(48, 0.95, 1.45, v(0.7, 0.13, 0.71), 0.14),
+      },
+      // Closer for the bag, but the whole fruit and the hem stay in frame.
+      bag: {
+        target: at(0, -0.02, 0),
+        landscape: f(24, 0.36, 0.3, v(0.42, 0.1, 0.9)),
+        portrait: f(26, 0.26, 0.42, v(0.42, 0.1, 0.9)),
+      },
+      // Down near the soil: the roll turning, the sheet spreading and the fruit
+      // above it live in one depth.
       sheet: {
-        fov: 33,
-        target: new THREE.Vector3(P.x + 0.1, 0.42, P.z + 0.06),
-        radius: 0.95,
-        dir: v(0.44, 0.14, 1.0),
-        lookLift: 0.2,
+        target: at(0.2, -0.52, 0.02),
+        landscape: f(46, 1.45, 1.15, v(0.66, 0.04, 0.75), 0.1),
+        portrait: f(52, 0.86, 1.5, v(0.74, 0.03, 0.67), 0.2),
       },
+      // The causal frame: sun above, sheet below, fruit between them.
       causal: {
-        fov: 34,
-        target: new THREE.Vector3(P.x - 0.02, 0.58, P.z + 0.02),
-        radius: 0.82,
-        dir: v(0.5, 0.26, 0.95),
-        lookLift: 0.24,
+        target: at(0.06, -0.51, 0.0),
+        landscape: f(48, 1.4, 1.2, v(0.64, 0.02, 0.77), 0.1),
+        portrait: f(56, 0.85, 1.55, v(0.72, 0.01, 0.69), 0.24),
       },
-      blush: { fov: 15, target: new THREE.Vector3(P.x, P.y - 0.012, P.z), radius: 0.108, dir: v(0.3, -0.05, 1.0) },
+      // Close enough for the down and the colour gradient, no closer.
+      blush: {
+        target: at(0, -0.014, 0),
+        landscape: f(20, 0.21, 0.18, v(0.36, -0.05, 0.93)),
+        portrait: f(22, 0.155, 0.23, v(0.36, -0.05, 0.93)),
+      },
+      // Free placement: sheet and fruit must both stay readable.
       play: {
-        fov: 30,
-        target: new THREE.Vector3(P.x + 0.04, 0.52, P.z + 0.04),
-        radius: 0.99,
-        dir: v(0.38, 0.3, 1.0),
+        target: at(0.16, -0.46, 0.02),
+        landscape: f(44, 1.4, 1.15, v(0.62, 0.08, 0.78), 0.1),
+        portrait: f(50, 0.85, 1.5, v(0.72, 0.06, 0.69), 0.18),
       },
     }
   }
@@ -313,7 +339,7 @@ export class Game {
     const h = this.canvas.clientHeight
     const base = Math.min(w, h) * 0.2
     const screen = { x: 0, y: 0 }
-    let best: { id: Target; d: number } | null = null
+    let best: { id: GrabId; d: number } | null = null
     for (const a of this.anchors()) {
       const visible = this.screenOf(a.pos, screen)
       if (!visible) continue
@@ -327,6 +353,8 @@ export class Game {
       else if (can.has('sheetBody') && p.y > h * 0.5) best = { id: 'sheetBody', d: 1 }
       else if (can.has('sheet') && p.y > h * 0.5) best = { id: 'sheet', d: 1 }
       else if (can.has('bag')) best = { id: 'bag', d: 1 }
+      // Otherwise the finger just turns the head a little.
+      else best = { id: 'look', d: 1 }
     }
     if (!best) return
 
@@ -364,6 +392,11 @@ export class Game {
     const w = this.canvas.clientWidth
     noteActivity(this.state)
 
+    if (g.id === 'look') {
+      // A small, bounded look around the fruit. Never a free orbit.
+      this.cam.nudgeYaw(-p.dx / w * 0.5)
+      return
+    }
     if (g.id === 'bag') {
       const want = g.base + p.totalY / (h * 0.3)
       pullBag(this.state, want - this.state.bagPull)
@@ -389,19 +422,19 @@ export class Game {
       const L = this.layout.sheetLength
 
       if (g.id === 'sheetBody') {
-        placeSheet(this.state, { lateral: side / 0.26 })
+        placeSheet(this.state, { lateral: side / 0.34 })
       } else {
         const wantAlong = Math.max(0, along)
         this.maxAlong = Math.max(this.maxAlong, Math.min(L * 0.97, wantAlong))
+        const unrolling =
+          this.state.phase === 'sheetIdle' || this.state.phase === 'unrolling' || this.state.phase === 'observing'
         if (wantAlong >= this.maxAlong - 0.005) {
-          const deploy = Math.min(1, wantAlong / (L * 0.82))
-          const reach = Math.max(0, (wantAlong - L * 0.82) / (L * 0.15))
-          if (this.state.phase === 'sheetIdle' || this.state.phase === 'unrolling' || this.state.phase === 'observing') {
-            pullSheet(this.state, deploy - this.state.sheetDeploy)
-          } else {
-            placeSheet(this.state, { deploy, reach: Math.min(1, reach), fold: 0 })
-          }
-        } else if (this.state.phase !== 'sheetIdle' && this.state.phase !== 'unrolling' && this.state.phase !== 'observing') {
+          const { deploy, reach } = ReflectorSheet.solveFromAlong(wantAlong, L)
+          if (unrolling) pullSheet(this.state, deploy - this.state.sheetDeploy)
+          else placeSheet(this.state, { deploy, reach, fold: 0 })
+        } else if (!unrolling) {
+          // Dragging the free end back towards the roll folds the sheet over on
+          // itself - you cannot push a sheet back onto a roll.
           const foldMax = 0.64 * L
           placeSheet(this.state, { fold: Math.min(1, (this.maxAlong - wantAlong) / foldMax) })
         }
@@ -452,24 +485,40 @@ export class Game {
     if (target === 'sun' && strong > 0.001) this.sound.breeze(strong * 0.3)
   }
 
+  /**
+   * The bag's pose is derived from game state, never from a private timer, so
+   * a rotation, a reload or a skipped frame can never leave it hanging in
+   * mid-air over a fruit that is already bare.
+   */
   private updateBag(dt: number): void {
     const s = this.state
+    const OFF: Record<string, boolean> = {
+      observing: true,
+      sheetIdle: true,
+      unrolling: true,
+      firstLight: true,
+      ripening: true,
+      freeplay: true,
+      handoff: true,
+    }
     if (s.phase === 'bagged' || s.phase === 'intro') {
-      this.bag.pull = Math.max(this.bag.pull * 0, s.bagPull)
+      this.bag.pull = s.bagPull
       if (this.preMoveT > 0.001 && hintTarget(s) === 'bag') this.bag.pull = s.bagPull + this.preMoveT * 0.09
-      this.bag.group.visible = true
-    } else if (s.phase === 'unbagging') {
-      this.bag.pull = Math.min(1, this.bag.pull + dt * 0.75)
-      this.bagFall = Math.min(1, this.bagFall + dt * 0.62)
-      const e = this.bagFall
-      const local = this.bag.group.position
-      const startY = this.layout.peachPos.y + 0.012
+      this.bagLanded = false
+      this.bag.group.position.set(this.layout.peachPos.x, this.layout.peachPos.y + 0.012, this.layout.peachPos.z)
+      this.bag.group.rotation.set(0, 0, 0)
+    } else {
+      this.bag.pull = 1
+      const e = OFF[s.phase] ? 1 : Math.min(1, s.phaseTimer / 1.55)
       const restLocal = this.orchard.branchGroup.worldToLocal(
-        new THREE.Vector3(this.bagRest.x, groundHeight(this.bagRest.x, this.bagRest.z) + 0.035, this.bagRest.z),
+        this.tmpV.set(this.bagRest.x, groundHeight(this.bagRest.x, this.bagRest.z) + 0.03, this.bagRest.z),
       )
-      local.lerpVectors(new THREE.Vector3(this.layout.peachPos.x, startY, this.layout.peachPos.z), restLocal, e * e)
-      local.y += Math.sin(e * Math.PI) * 0.05
-      this.bag.group.rotation.set(e * 1.5, e * 0.9, e * 1.1)
+      this.bag.group.position
+        .set(this.layout.peachPos.x, this.layout.peachPos.y + 0.012, this.layout.peachPos.z)
+        .lerp(restLocal, e * e)
+      this.bag.group.position.y += Math.sin(e * Math.PI) * 0.06
+      // Lands on its side, mouth toward the camera, so the inside stays visible.
+      this.bag.group.rotation.set(e * 1.5, e * 0.7, e * 0.22)
       this.bag.fall = e
       if (e >= 1 && !this.bagLanded) {
         this.bagLanded = true
@@ -489,7 +538,7 @@ export class Game {
     pose.reach = s.sheetReach
     // Before the first bounce the leading flap is still folded over itself; the
     // act of pulling is what opens it.
-    pose.fold = s.sawFirstLight ? s.sheetFold : Math.max(0, 0.52 - s.sheetDeploy * 2.4)
+    pose.fold = s.sawFirstLight ? s.sheetFold : Math.max(0, 0.34 - s.sheetDeploy * 1.5)
   }
 
   private onFirstLight(): void {
@@ -539,7 +588,6 @@ export class Game {
     const shape = makePeachShape(this.layout.peachSeed, this.state.round)
     this.peach.reshape(shape)
     this.bag.reshape(makeBagShape(this.layout.bagSeed), shape)
-    this.bagFall = 0
     this.bagLanded = false
     this.bag.group.rotation.set(0, 0, 0)
     this.firstLightDone = false
@@ -548,17 +596,8 @@ export class Game {
     this.cam.cut(this.shotForPhase())
   }
 
-  private loop = (t: number): void => {
-    requestAnimationFrame(this.loop)
-    if (!this.running || this.contextLost) {
-      this.clockPrev = t
-      return
-    }
-    const frameStart = performance.now()
-    const dt = Math.min(MAX_DT, Math.max(0, (t - this.clockPrev) / 1000))
-    this.clockPrev = t
-    this.time += dt
-
+  /** One simulation step, with no rendering. Shared by the loop and by tests. */
+  private stepSim(dt: number): void {
     const prevPhase = this.state.phase
     tick(this.state, dt)
     if (prevPhase !== 'firstLight' && this.state.phase === 'firstLight') this.onFirstLight()
@@ -582,13 +621,29 @@ export class Game {
     this.framingBias += (this.framingBiasGoal - this.framingBias) * Math.min(1, dt * 4)
     const shot = this.shotForPhase()
     if (shot !== this.cam.goalShot) this.cam.moveTo(shot, shot === this.shots.blush ? 2.4 : 1.7)
-    shot.lookLift = (shot === this.shots.bag ? 0 : (shot.lookLift ?? 0)) + this.framingBias
+    // While a finger is on the ground the subject slides up out from under it.
+    shot.bias = this.framingBias
     this.cam.update(dt)
+  }
 
+  private loop = (t: number): void => {
+    requestAnimationFrame(this.loop)
+    if (!this.running || this.contextLost) {
+      this.clockPrev = t
+      return
+    }
+    const frameStart = performance.now()
+    const dt = Math.min(MAX_DT, Math.max(0, (t - this.clockPrev) / 1000))
+    this.clockPrev = t
+    this.time += dt
+
+    this.stepSim(dt)
     this.renderer.render(this.scene, this.cam.camera)
 
-    this.governor.update(performance.now() - frameStart, dt)
-    this.applyRenderScale()
+    if (!this.fast) {
+      this.governor.update(performance.now() - frameStart, dt)
+      this.applyRenderScale()
+    }
 
     this.saveAccum += dt
     if (this.saveAccum > 2.5) {
@@ -670,6 +725,16 @@ export class Game {
       fold: Number(this.state.sheetFold.toFixed(3)),
       sunT: Number(this.state.sunT.toFixed(3)),
       bagPull: Number(this.state.bagPull.toFixed(3)),
+      camX: Number(this.cam.camera.position.x.toFixed(3)),
+      camY: Number(this.cam.camera.position.y.toFixed(3)),
+      camZ: Number(this.cam.camera.position.z.toFixed(3)),
+      camFov: Number(this.cam.camera.fov.toFixed(1)),
+      camPitch: Number(
+        ((Math.asin(
+          new THREE.Vector3(0, 0, -1).applyQuaternion(this.cam.camera.quaternion).y,
+        ) * 180) / Math.PI).toFixed(1),
+      ),
+      aspect: Number(this.cam.camera.aspect.toFixed(3)),
       tier: this.tier,
       renderScale: Number(this.governor.renderScale.toFixed(3)),
       hintLevel: this.state.hintLevel,
@@ -687,10 +752,13 @@ export class Game {
       sun: (amount: number) => moveSun(this.state, amount),
       skip: (seconds: number) => {
         for (let i = 0; i < Math.round(seconds / 0.05); i++) {
-          tick(this.state, 0.05)
-          this.peach.update(0.05, 0, this.orchard.occluders)
-          reportCoverage(this.state, this.peach.blush.coverage)
+          this.time += 0.05
+          this.stepSim(0.05)
         }
+      },
+      next: () => {
+        this.pendingSwap = true
+        this.swapT = 0
       },
       ripen: (steps: number) => {
         this.updateSheetPose()

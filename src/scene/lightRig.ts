@@ -54,7 +54,7 @@ export class LightRig {
     this.sun.target = this.target
     this.target.position.set(0, 0.75, 0)
 
-    this.hemi = new THREE.HemisphereLight(0xbcd6f2, 0x6f6242, 0.55)
+    this.hemi = new THREE.HemisphereLight(0xa9c6e6, 0x77694a, 0.42)
     scene.add(this.hemi)
 
     this.uniforms = {
@@ -68,7 +68,7 @@ export class LightRig {
       uSheetAlbedo: { value: 0.74 },
       uSunStrength: { value: 1 },
       uSheetDeployed: { value: 0 },
-      uBounceGain: { value: 1 },
+      uBounceGain: { value: 1.8 },
       uTime: { value: 0 },
     }
 
@@ -96,17 +96,19 @@ export class LightRig {
 
   /** t: 0 = morning low east, 1 = late afternoon. */
   setSunT(t: number): void {
-    const az = (-152 + 112 * t) * DEG
-    const el = (13 + 34 * Math.sin(Math.PI * Math.min(1, Math.max(0, t)))) * DEG
+    // Kept near the camera axis so sun, sheet and fruit share one frame.
+    const az = (-156 + 42 * t) * DEG
+    // A late-summer arc that stays low enough to sit in frame above the sheet.
+    const el = (9 + 14 * Math.sin(Math.PI * Math.min(1, Math.max(0, t)))) * DEG
     const ce = Math.cos(el)
     this.sunDir.set(Math.sin(az) * ce, Math.sin(el), Math.cos(az) * ce).normalize()
     this.sun.position.copy(this.sunDir).multiplyScalar(5.2).add(this.target.position)
 
     // Warmer and weaker near the ends of the arc.
     const noon = Math.sin(Math.PI * t)
-    this.sun.intensity = 1.9 + noon * 1.5
+    this.sun.intensity = 1.6 + noon * 1.1
     this.sun.color.setHSL(0.1 - noon * 0.02, 0.42 - noon * 0.2, 0.62 + noon * 0.06)
-    this.hemi.intensity = 0.42 + noon * 0.25
+    this.hemi.intensity = 0.3 + noon * 0.16
     this.uniforms.uSunDir.value.copy(this.sunDir)
     this.uniforms.uSunStrength.value = 0.62 + noon * 0.38
   }

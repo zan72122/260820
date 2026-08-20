@@ -23,10 +23,10 @@ export function makeBagShape(seed: number): BagShape {
   const rng = makeRng((seed * 40503) | 0)
   return {
     seed,
-    radius: 0.084 + rng() * 0.012,
-    height: 0.2 + rng() * 0.03,
+    radius: 0.078 + rng() * 0.012,
+    height: 0.26 + rng() * 0.05,
     facets: 4 + Math.floor(rng() * 3),
-    facetAmp: 0.05 + rng() * 0.035,
+    facetAmp: 0.09 + rng() * 0.06,
     facetPhase: rng() * Math.PI * 2,
     hemWave: 0.5 + rng() * 0.6,
   }
@@ -102,14 +102,14 @@ export class PaperBag {
       map: this.textures.map,
       normalMap: this.textures.normalMap,
       roughnessMap: this.textures.roughnessMap,
-      normalScale: new THREE.Vector2(1.0, 1.0),
+      normalScale: new THREE.Vector2(0.7, 0.7),
       roughness: 1,
       metalness: 0,
       side: THREE.DoubleSide,
-      sheen: 0.25,
+      sheen: 0.1,
       sheenColor: new THREE.Color(0xfff0d8),
-      sheenRoughness: 0.9,
-      envMapIntensity: 0.6,
+      sheenRoughness: 0.95,
+      envMapIntensity: 0.2,
     })
     this.material.onBeforeCompile = (shader) => {
       shader.fragmentShader = shader.fragmentShader.replace(
@@ -162,7 +162,7 @@ export class PaperBag {
     // Paper stretches a little before it releases, then it simply slides.
     const stretch = 1 + smoothstep(0, 0.4, pull) * 0.22 * (1 - smoothstep(0.45, 0.85, pull))
     const slide = Math.pow(pull, 1.35) * (s.height * 0.62 + this.peach.radius * 2.1)
-    const crumple = smoothstep(0, 0.35, pull) * (1 - smoothstep(0.75, 1, pull)) * 1.0 + this.fall * 1.2
+    const crumple = smoothstep(0, 0.35, pull) * (1 - smoothstep(0.75, 1, pull)) * 0.8 + this.fall * 0.7
     const openTop = smoothstep(0.3, 0.75, pull)
 
     const top = s.height * 0.5
@@ -181,10 +181,10 @@ export class PaperBag {
         R *= 0.13 + 0.87 * gather
         // Once the tie lets go the throat opens up.
         R *= 1 + openTop * (1 - gather) * 5.4
-        R *= 1 + smoothstep(0.86, 1, v) * 0.09
+        R *= 1 + smoothstep(0.82, 1, v) * 0.16
 
         // Flat-pack panel folds - the bag is not a cylinder of revolution.
-        R *= 1 + s.facetAmp * Math.cos(s.facets * phi + s.facetPhase)
+        R *= 1 + s.facetAmp * Math.cos(s.facets * phi + s.facetPhase) + s.facetAmp * 0.45 * Math.cos(s.facets * 2 * phi + s.facetPhase * 1.7)
 
         // Crumple, which only really appears while the paper is being worked.
         const cn = fbm2(Math.cos(phi) * 3.4 + 7, Math.sin(phi) * 3.4 + v * 6.2, 3, s.seed + 5) - 0.5
@@ -203,9 +203,9 @@ export class PaperBag {
         // Crinkled hem, plus the single wind flutter used as a first-time hint.
         if (v > 0.9) {
           const hemT = (v - 0.9) / 0.1
-          const wave = Math.sin(phi * 7 + s.hemWave * 6) * 0.5 + Math.sin(phi * 13 + 1.7) * 0.25
-          y += wave * 0.006 * hemT
-          R *= 1 + wave * 0.035 * hemT
+          const wave = Math.sin(phi * 5 + s.hemWave * 6) * 0.6 + Math.sin(phi * 11 + 1.7) * 0.32
+          y += wave * 0.013 * hemT
+          R *= 1 + wave * 0.06 * hemT
           const flutter = this.hemHint * Math.sin(phi * 2.0 + t * 3.4) * 0.5 + this.hemHint * 0.5
           R *= 1 + flutter * 0.1 * hemT
           y += flutter * 0.012 * hemT

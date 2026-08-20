@@ -113,14 +113,14 @@ export class ReflectorSheet {
         map: this.textures.map,
         normalMap: this.textures.normalMap,
         roughnessMap: this.textures.roughnessMap,
-        normalScale: new THREE.Vector2(0.85, 0.85),
+        normalScale: new THREE.Vector2(1.25, 1.25),
         roughness: 1,
         metalness: 0,
         side: THREE.DoubleSide,
-        sheen: 0.35,
+        sheen: 0.12,
         sheenColor: new THREE.Color(0xffffff),
-        sheenRoughness: 0.85,
-        envMapIntensity: 0.55,
+        sheenRoughness: 0.92,
+        envMapIntensity: 0.26,
       }),
       rig,
       {
@@ -208,17 +208,35 @@ export class ReflectorSheet {
     return Math.max(0.014, Math.sqrt(Math.max(0, remaining) * THICKNESS * 1.9) / Math.sqrt(Math.PI) + 0.012)
   }
 
+  /** A length of sheet is already lying on the ground before anyone touches it. */
+  static readonly LAID = 0.28
+  static readonly BY_PULL = 0.62
+  static readonly BY_REACH = 0.12
+
   private deployedLength(): number {
     const p = this.pose
-    return Math.min(this.cfg.length * 0.97, this.cfg.length * (p.deploy * 0.82 + p.reach * 0.15))
+    return Math.min(
+      this.cfg.length * 0.97,
+      this.cfg.length * (ReflectorSheet.LAID + p.deploy * ReflectorSheet.BY_PULL + p.reach * ReflectorSheet.BY_REACH),
+    )
+  }
+
+  /** Inverse of the above: what deploy / reach put the free end at `along`? */
+  static solveFromAlong(along: number, length: number): { deploy: number; reach: number } {
+    const t = along / Math.max(0.01, length) - ReflectorSheet.LAID
+    const deploy = Math.min(1, Math.max(0, t / ReflectorSheet.BY_PULL))
+    const reach = Math.min(1, Math.max(0, (t - ReflectorSheet.BY_PULL) / ReflectorSheet.BY_REACH))
+    return { deploy, reach }
   }
 
   private updateFrame(): void {
     const p = this.pose
-    const angle = p.lateral * 0.26
+    // Sideways placement mostly swings the far end round the roll, which is
+    // both what a person would actually do and what reads on a small screen.
+    const angle = p.lateral * 0.45
     this.dirV.copy(this.cfg.pullDir).setY(0).normalize().applyAxisAngle(new THREE.Vector3(0, 1, 0), angle)
     this.perpV.set(-this.dirV.z, 0, this.dirV.x)
-    this.originV.copy(this.cfg.origin).addScaledVector(this.perpV, p.lateral * 0.26)
+    this.originV.copy(this.cfg.origin).addScaledVector(this.perpV, p.lateral * 0.16)
   }
 
   private creaseHeight(sNorm: number): number {
@@ -267,7 +285,9 @@ export class ReflectorSheet {
       }
       for (let i = 0; i <= this.nw; i++) {
         const wT = i / this.nw
-        const w = (wT - 0.5) * W
+        // The roll was never cut perfectly straight.
+        const widthJitter = 1 + Math.sin(sNorm * 21.7 + this.cfg.seed) * 0.018 + Math.sin(sNorm * 7.3) * 0.012
+        const w = (wT - 0.5) * W * widthJitter
         const k = (j * (this.nw + 1) + i) * 3
         const edge = Math.max(0, (Math.abs(wT - 0.5) * 2 - 0.5) / 0.5)
 
@@ -279,7 +299,7 @@ export class ReflectorSheet {
           y += this.creaseHeight(sEff / L)
           // Wind riffle at the free edges, stronger while the sheet is still moving.
           const flap = Math.sin(along * 5.3 + t * 2.1 + w * 3.1) * 0.5 + 0.5
-          y += edge * edge * (0.004 + 0.016 * unsettled) * flap
+          y += edge * edge * (0.013 + 0.016 * unsettled) * flap
           // The whole span breathes for a moment after it is dragged.
           y += unsettled * 0.014 * Math.sin(along * 6.2 - t * 3.6) * Math.sin(Math.PI * Math.min(1, along / Math.max(0.001, D)))
           // A single scripted lift of the leading corner: the game's only nudge.

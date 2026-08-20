@@ -1,81 +1,106 @@
 /**
- * Scripted camera. No free orbit: each beat has a framing chosen so the thing
- * that explains the causality is visible, and the rig fits its subject to
- * whichever way the device is held.
+ * Scripted camera. No free orbit.
+ *
+ * A phone held upright and a tablet held sideways are genuinely different
+ * frames, so every beat carries two compositions: in portrait the camera looks
+ * along the sheet, stacking roll -> sheet -> fruit -> sun vertically; in
+ * landscape it steps round to a three-quarter view. The rig then fits an
+ * explicit metre-sized frame box rather than a sphere, so nothing important
+ * ever falls off the short edge.
  */
 import * as THREE from 'three'
 
-export interface Shot {
-  /** Vertical field of view in degrees. Roughly: 30 ~ 45mm, 19 ~ 72mm, 15 ~ 90mm. */
+export interface Framing {
   fov: number
-  /** Point the camera looks at. */
-  target: THREE.Vector3
-  /** Sphere radius around the target that must stay inside the frame. */
-  radius: number
-  /** Unit direction from target towards the camera. */
+  /** Metres that must fit across the frame. */
+  w: number
+  /** Metres that must fit down the frame. */
+  h: number
+  /** Unit direction from the target towards the camera. */
   dir: THREE.Vector3
-  /** Extra vertical offset applied to the look-at point. */
-  lookLift?: number
+  /** Look-at is raised by this many metres, tilting the camera up. */
+  lift: number
 }
 
+export interface Shot {
+  target: THREE.Vector3
+  landscape: Framing
+  portrait: Framing
+  /** Extra look-at lift applied at runtime (keeps fingers off the subject). */
+  bias?: number
+}
+
+const UP = new THREE.Vector3(0, 1, 0)
 const tmpA = new THREE.Vector3()
 const tmpB = new THREE.Vector3()
 
+const smoothstep = (e0: number, e1: number, x: number) => {
+  const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)))
+  return t * t * (3 - 2 * t)
+}
+
+interface Resolved {
+  fov: number
+  w: number
+  h: number
+  dir: THREE.Vector3
+  lift: number
+  target: THREE.Vector3
+}
+
 export class CameraRig {
   readonly camera: THREE.PerspectiveCamera
-  /** Player's limited left/right look, in radians. */
   yawOffset = 0
-  readonly maxYaw = 0.24
+  readonly maxYaw = 0.22
 
-  private cur: Shot
+  private from: Resolved
   private goal: Shot
+  private cur: Resolved
   private blend = 1
   private blendSpeed = 0.6
-  private curFov: number
-  private readonly curTarget = new THREE.Vector3()
-  private readonly curDir = new THREE.Vector3()
-  private curRadius: number
 
   constructor(shot: Shot, aspect: number) {
-    this.cur = shot
+    this.camera = new THREE.PerspectiveCamera(40, aspect, 0.05, 60)
     this.goal = shot
-    this.curFov = shot.fov
-    this.curTarget.copy(shot.target)
-    this.curDir.copy(shot.dir).normalize()
-    this.curRadius = shot.radius
-    this.camera = new THREE.PerspectiveCamera(shot.fov, aspect, 0.05, 60)
+    this.cur = this.resolve(shot)
+    this.from = { ...this.cur, dir: this.cur.dir.clone(), target: this.cur.target.clone() }
     this.apply()
   }
 
-  /** Distance that fits `radius` in the narrower of the two frame axes. */
-  private fitDistance(radius: number, fovDeg: number): number {
-    const vfov = (fovDeg * Math.PI) / 180
-    const aspect = this.camera.aspect
-    const hfov = 2 * Math.atan(Math.tan(vfov / 2) * aspect)
-    const half = Math.min(vfov, hfov) / 2
-    return radius / Math.max(0.08, Math.sin(half))
+  /** Blend the two compositions by how tall the viewport is. */
+  private resolve(shot: Shot): Resolved {
+    const p = smoothstep(1.3, 0.72, this.camera.aspect)
+    const l = shot.landscape
+    const q = shot.portrait
+    return {
+      fov: THREE.MathUtils.lerp(l.fov, q.fov, p),
+      w: THREE.MathUtils.lerp(l.w, q.w, p),
+      h: THREE.MathUtils.lerp(l.h, q.h, p),
+      lift: THREE.MathUtils.lerp(l.lift, q.lift, p),
+      dir: tmpA.copy(l.dir).lerp(q.dir, p).normalize().clone(),
+      target: shot.target.clone(),
+    }
+  }
+
+  private fitDistance(r: Resolved): number {
+    const vHalf = (r.fov * Math.PI) / 360
+    const hHalf = Math.atan(Math.tan(vHalf) * this.camera.aspect)
+    const dv = r.h * 0.5 / Math.max(0.02, Math.tan(vHalf))
+    const dh = r.w * 0.5 / Math.max(0.02, Math.tan(hHalf))
+    return Math.max(dv, dh)
   }
 
   cut(shot: Shot): void {
-    this.cur = shot
     this.goal = shot
+    this.cur = this.resolve(shot)
+    this.from = { ...this.cur, dir: this.cur.dir.clone(), target: this.cur.target.clone() }
     this.blend = 1
-    this.curFov = shot.fov
-    this.curTarget.copy(shot.target)
-    this.curDir.copy(shot.dir).normalize()
-    this.curRadius = shot.radius
     this.apply()
   }
 
   moveTo(shot: Shot, seconds = 1.6): void {
     if (this.goal === shot) return
-    this.cur = {
-      fov: this.curFov,
-      target: this.curTarget.clone(),
-      radius: this.curRadius,
-      dir: this.curDir.clone(),
-      lookLift: this.goal.lookLift,
-    }
+    this.from = { ...this.cur, dir: this.cur.dir.clone(), target: this.cur.target.clone() }
     this.goal = shot
     this.blend = 0
     this.blendSpeed = 1 / Math.max(0.2, seconds)
@@ -86,35 +111,42 @@ export class CameraRig {
   }
 
   update(dt: number): void {
-    if (this.blend < 1) {
-      this.blend = Math.min(1, this.blend + dt * this.blendSpeed)
-    }
+    if (this.blend < 1) this.blend = Math.min(1, this.blend + dt * this.blendSpeed)
+    const target = this.resolve(this.goal)
     const t = this.blend
     const e = t * t * (3 - 2 * t)
-    this.curFov = THREE.MathUtils.lerp(this.cur.fov, this.goal.fov, e)
-    this.curRadius = THREE.MathUtils.lerp(this.cur.radius, this.goal.radius, e)
-    this.curTarget.copy(this.cur.target).lerp(this.goal.target, e)
-    tmpA.copy(this.cur.dir).normalize()
-    tmpB.copy(this.goal.dir).normalize()
-    this.curDir.copy(tmpA).lerp(tmpB, e).normalize()
+    this.cur.fov = THREE.MathUtils.lerp(this.from.fov, target.fov, e)
+    this.cur.w = THREE.MathUtils.lerp(this.from.w, target.w, e)
+    this.cur.h = THREE.MathUtils.lerp(this.from.h, target.h, e)
+    this.cur.lift = THREE.MathUtils.lerp(this.from.lift, target.lift, e)
+    this.cur.dir.copy(this.from.dir).lerp(target.dir, e).normalize()
+    this.cur.target.copy(this.from.target).lerp(target.target, e)
     this.apply()
   }
 
   private apply(): void {
     const cam = this.camera
-    cam.fov = this.curFov
-    const dist = this.fitDistance(this.curRadius, this.curFov)
-    tmpA.copy(this.curDir).applyAxisAngle(new THREE.Vector3(0, 1, 0), this.yawOffset)
-    cam.position.copy(this.curTarget).addScaledVector(tmpA, dist)
-    const lift = THREE.MathUtils.lerp(this.cur.lookLift ?? 0, this.goal.lookLift ?? 0, this.blend)
-    tmpB.copy(this.curTarget)
-    tmpB.y += lift
-    cam.lookAt(tmpB)
+    const r = this.cur
+    cam.fov = r.fov
+    const dist = this.fitDistance(r)
+    tmpB.copy(r.dir).applyAxisAngle(UP, this.yawOffset)
+    cam.position.copy(r.target).addScaledVector(tmpB, dist)
+    // Never let the camera drop below the soil it is standing on.
+    cam.position.y = Math.max(cam.position.y, 0.09)
+    const look = tmpA.copy(r.target)
+    look.y += r.lift + (this.goal.bias ?? 0)
+    cam.lookAt(look)
     cam.updateProjectionMatrix()
   }
 
   setAspect(aspect: number): void {
     this.camera.aspect = aspect
+    // Re-resolve because the composition itself depends on orientation.
+    const target = this.resolve(this.goal)
+    if (this.blend >= 1) {
+      this.cur = target
+      this.from = { ...target, dir: target.dir.clone(), target: target.target.clone() }
+    }
     this.apply()
   }
 

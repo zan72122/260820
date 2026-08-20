@@ -102,7 +102,7 @@ varying vec3 vShellV;
 ${GLSL_BOUNCE}
 
 void main() {
-  vec2 tuv = vShellUv * vec2(3.0, 2.0);
+  vec2 tuv = vShellUv * vec2(7.0, 4.0);
   float tip = texture2D(uShellAlpha, tuv).a;
   float dens = texture2D(uFuzzMap, vShellUv).r;
   float layerT = uLayer / max(1.0, uLayers);
@@ -112,7 +112,9 @@ void main() {
   vec3 V = normalize(vShellV);
   float rim = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), 1.7);
 
-  float a = tip * dens * uDensity * fall * (0.28 + 0.72 * rim);
+  // Down reads at the silhouette. Across the face it must stay almost nothing,
+  // or the shells simply repaint the fruit white.
+  float a = tip * dens * uDensity * fall * (0.05 + 0.95 * rim);
   if (a < 0.004) discard;
 
   vec3 wn = normalize(vShellWN);
@@ -123,10 +125,11 @@ void main() {
   float trans = pow(max(0.0, dot(-wn, uSunDir)) * 0.5 + 0.5, 3.0) * uSunStrength * 0.25;
 
   float blush = texture2D(uBlushMap, vShellUv).r;
-  vec3 base = mix(uDownColor, uDownColor * vec3(1.04, 0.94, 0.92), blush);
+  // Down over a ripening cheek picks up the colour underneath it.
+  vec3 base = mix(uDownColor, uDownColor * vec3(1.02, 0.76, 0.72), smoothstep(0.15, 0.9, blush));
   vec3 lit = base * (0.22 + sun * 0.62 + trans) * uSunColor + uSheetTint * bnc * 1.5;
 
-  gl_FragColor = vec4(lit, clamp(a, 0.0, 0.62));
+  gl_FragColor = vec4(lit, clamp(a, 0.0, 0.34));
   #include <tonemapping_fragment>
   #include <colorspace_fragment>
 }
@@ -153,7 +156,7 @@ export class Peach {
     shape: PeachShape,
   ) {
     this.shape = shape
-    this.textures = makePeachTextures(shape.seed)
+    this.textures = makePeachTextures(shape.seed, shape.sutureA / (Math.PI * 2))
     this.shellAlpha = makeFuzzShellAlpha(shape.seed + 3)
     this.blush = new BlushField(shape)
     this.geometry = buildPeachGeometry(shape, q.peachSegments, Math.round(q.peachSegments * 0.72))
@@ -174,13 +177,15 @@ export class Peach {
       map: t.map,
       normalMap: t.normalMap,
       roughnessMap: t.roughnessMap,
-      normalScale: new THREE.Vector2(0.5, 0.5),
+      normalScale: new THREE.Vector2(0.85, 0.85),
       roughness: 1,
       metalness: 0,
-      sheen: 1,
-      sheenColor: new THREE.Color(0xffe6d6),
-      sheenRoughness: 0.62,
-      envMapIntensity: 0.7,
+      // Sheen is what makes skin look downy - but at full strength it lays a
+      // white coat over the fruit and every trace of colour disappears.
+      sheen: 0.4,
+      sheenColor: new THREE.Color(0xc9a493),
+      sheenRoughness: 0.8,
+      envMapIntensity: 0.22,
     })
     return withBounce(mat, this.rig, {
       uniforms: {
@@ -205,13 +210,14 @@ export class Peach {
           float raw = texture2D(uBlushMap, vMapUv).r;
           float mottle = texture2D(uFuzzMap, vMapUv * 2.3).g;
           float m = clamp(raw * 1.12 + (mottle - 0.5) * 0.3 * smoothstep(0.02, 0.6, raw), 0.0, 1.0);
-          float soft = smoothstep(0.04, 0.62, m);
-          float deep = smoothstep(0.5, 1.0, m);
-          vec3 warm = vec3(0.96, 0.66, 0.55);
-          vec3 rose = vec3(0.83, 0.28, 0.28);
-          vec3 blushCol = mix(warm, rose, deep);
-          vec3 tinted = diffuseColor.rgb * mix(vec3(1.0), blushCol, 0.86);
-          diffuseColor.rgb = mix(diffuseColor.rgb, tinted, soft * 0.92);
+          // Straw -> apricot -> the deep crimson cheek, in two stages, so the
+          // middle of the range still looks like a half-ripened peach.
+          vec3 unripe = diffuseColor.rgb;
+          vec3 apricot = unripe * vec3(1.24, 0.82, 0.5);
+          vec3 crimson = vec3(0.62, 0.11, 0.1);
+          vec3 col = mix(unripe, apricot, smoothstep(0.02, 0.34, m));
+          col = mix(col, crimson, smoothstep(0.3, 0.96, m));
+          diffuseColor.rgb = col;
         }
       `,
       afterLights: /* glsl */ `
@@ -232,7 +238,7 @@ export class Peach {
           float sun = max(0.0, dot(wn, uSunDir)) * uSunStrength;
           float back = pow(max(0.0, dot(-wn, uSunDir)) * 0.5 + 0.5, 3.5) * uSunStrength * 0.3;
           vec3 downLight = uSunColor * (sun * 0.5 + back) + uSheetTint * bnc * 2.1 + vec3(0.1);
-          gl_FragColor.rgb += uFuzzColor * downLight * rim * dens * 0.5 * uFuzzStrength;
+          gl_FragColor.rgb += uFuzzColor * downLight * rim * dens * 0.85 * uFuzzStrength;
         }
       `,
     })
@@ -295,7 +301,7 @@ export class Peach {
   }
 
   syncTransform(): void {
-    this.group.updateWorldMatrix(true, false)
+    this.group.updateWorldMatrix(true, true)
     this.blush.setTransform(this.mesh.matrixWorld)
   }
 
@@ -308,7 +314,7 @@ export class Peach {
   reshape(shape: PeachShape): void {
     this.shape = shape
     this.textures.dispose()
-    this.textures = makePeachTextures(shape.seed)
+    this.textures = makePeachTextures(shape.seed, shape.sutureA / (Math.PI * 2))
     this.shellAlpha.dispose()
     this.shellAlpha = makeFuzzShellAlpha(shape.seed + 3)
     this.geometry.dispose()
