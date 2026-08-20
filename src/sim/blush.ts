@@ -90,7 +90,7 @@ export class BlushField {
 
         // A fruit under a bag is not blank: the shoulder already caught light.
         const up = Math.max(0, this.localNrm[k * 3 + 1])
-        this.mask[k] = clamp01(Math.pow(up, 1.8) * 0.3 * (0.6 + n1 * 0.8))
+        this.mask[k] = clamp01(Math.pow(up, 1.6) * 0.38 * (0.6 + n1 * 0.8))
       }
     }
     this.dirty = true

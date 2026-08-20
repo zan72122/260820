@@ -168,7 +168,7 @@ export class Orchard {
         normalScale: new THREE.Vector2(0.55, 0.55),
         roughness: 1,
         metalness: 0,
-        envMapIntensity: 0.42,
+        envMapIntensity: 0.24,
       }),
       this.rig,
       {

@@ -20,6 +20,8 @@ const STEPS = [
   ['05-ripening', async (p) => { await t(p, 'skip', 3.2); await t(p, 'ripen', 12); await t(p, 'skip', 3) }],
   ['06-ripened', async (p) => { await t(p, 'ripen', 24); await t(p, 'skip', 6) }],
   ['07-freeplay', async (p) => { await t(p, 'skip', 8); await t(p, 'lateral', -0.8); await t(p, 'fold', 0.5); await t(p, 'ripen', 20); await t(p, 'skip', 2) }],
+  ['08-handoff', async (p) => { await t(p, 'lateral', 0.3); await t(p, 'fold', 0); await t(p, 'ripen', 30); await t(p, 'skip', 26) }],
+  ['09-second-fruit', async (p) => { await p.evaluate(() => window.momo.test.next()); await t(p, 'skip', 3) }],
 ]
 
 const t = (page, fn, ...args) =>

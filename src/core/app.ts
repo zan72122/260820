@@ -225,7 +225,7 @@ export class Game {
     this.peach.syncTransform()
     this.motes.setCenter(new THREE.Vector3(this.peachWorld.x, 0.5, this.peachWorld.z))
     this.shots = this.buildShots()
-    this.bagRest.set(this.peachWorld.x - 0.26, 0, this.peachWorld.z - 0.56)
+    this.bagRest.set(this.peachWorld.x - 0.16, 0, this.peachWorld.z - 0.44)
     if (!initial) this.cam.moveTo(this.shots.wide, 1.2)
   }
 

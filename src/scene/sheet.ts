@@ -128,8 +128,9 @@ export class ReflectorSheet {
         fragmentCommon: 'uniform float uSheetGlow;',
         afterMap: /* glsl */ `
           if (!gl_FrontFacing) {
-            // Woven backing: grey, matt, clearly the wrong side of the material.
-            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.30, 0.31, 0.29), 0.74);
+            // Woven backing: duller and greyer, clearly the wrong side of the
+            // material - but still the same material, not a black hole.
+            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.44, 0.44, 0.41), 0.66);
           }
         `,
         afterOpaque: /* glsl */ `

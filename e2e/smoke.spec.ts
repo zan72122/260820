@@ -101,20 +101,25 @@ test.describe('モモの光のじゅうたん', () => {
     await call(page, 'sheet', 1)
     await call(page, 'skip', 3.2)
 
+    const start = (await debug(page)).blushShift
     await call(page, 'lateral', -1)
     await call(page, 'ripen', 30)
-    const left = await debug(page)
-
+    const swungOneWay = await debug(page)
     await call(page, 'lateral', 1)
     await call(page, 'ripen', 30)
-    const right = await debug(page)
+    const swungBack = await debug(page)
 
-    // Same fruit, same sun, same amount of ripening time: only the sheet moved,
-    // and the centre of colour followed it.
-    expect(right.blushShift).toBeGreaterThan(left.blushShift)
-    expect(right.coverage).toBeGreaterThan(left.coverage)
+    // Same fruit, same sun, same amount of ripening: only the sheet moved. The
+    // centre of colour has to follow it, and follow it back the other way.
+    const first = swungOneWay.blushShift - start
+    const second = swungBack.blushShift - swungOneWay.blushShift
+    expect(Math.abs(first)).toBeGreaterThan(0.0015)
+    expect(Math.abs(second)).toBeGreaterThan(0.0015)
+    expect(Math.sign(second)).toBe(-Math.sign(first))
+
+    expect(swungBack.coverage).toBeGreaterThan(swungOneWay.coverage)
     // And nothing anywhere counts as a mistake.
-    expect(right.phase === 'ripening' || right.phase === 'freeplay').toBe(true)
+    expect(swungBack.phase === 'ripening' || swungBack.phase === 'freeplay').toBe(true)
   })
 
   test('nothing breaks under mashing, reversed drags or rotation', async ({ page }) => {
@@ -147,7 +152,21 @@ test.describe('モモの光のじゅうたん', () => {
     await page.setViewportSize({ width: 844, height: 390 })
     await page.waitForTimeout(600)
     const after = await debug(page)
-    expect(after.phase).toBe(before.phase)
+    // The clock keeps running across a rotation, so the phase may legitimately
+    // have moved on - what must not happen is losing progress.
+    const ORDER = [
+      'intro',
+      'bagged',
+      'unbagging',
+      'observing',
+      'sheetIdle',
+      'unrolling',
+      'firstLight',
+      'ripening',
+      'freeplay',
+      'handoff',
+    ]
+    expect(ORDER.indexOf(after.phase)).toBeGreaterThanOrEqual(ORDER.indexOf(before.phase))
     expect(after.coverage).toBeGreaterThanOrEqual(before.coverage - 0.001)
     expect(after.sunT).toBeCloseTo(before.sunT, 5)
     expect(after.deploy).toBeCloseTo(before.deploy, 5)
@@ -169,6 +188,32 @@ test.describe('モモの光のじゅうたん', () => {
     await page.mouse.up()
     await page.waitForTimeout(200)
     expect((await debug(page)).bagPull).toBeGreaterThan(0.5)
+  })
+
+  test('a real finger can drag the sheet out from its roll', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 })
+    await boot(page)
+    await call(page, 'skip', 2)
+    await call(page, 'bag', 1)
+    await call(page, 'skip', 6)
+    const before = await debug(page)
+    expect(before.phase).toBe('sheetIdle')
+
+    const box = (await page.locator('#scene').boundingBox())!
+    // Start low on the screen, where the roll sits, and pull up-screen towards
+    // the branch. Hit areas are generous, so exact contact is not required.
+    await page.mouse.move(box.x + box.width * 0.62, box.y + box.height * 0.9)
+    await page.mouse.down()
+    for (let i = 1; i <= 12; i++) {
+      await page.mouse.move(box.x + box.width * (0.62 - 0.02 * i), box.y + box.height * (0.9 - 0.03 * i), {
+        steps: 2,
+      })
+    }
+    await page.mouse.up()
+    await page.waitForTimeout(200)
+    const after = await debug(page)
+    expect(after.deploy).toBeGreaterThan(before.deploy)
+    expect(after.bounce).toBeGreaterThan(before.bounce)
   })
 
   test('the second fruit starts straight away, with no repeat of the opening', async ({ page }) => {
