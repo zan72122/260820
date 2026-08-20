@@ -90,12 +90,23 @@ describe('fruit catch', () => {
     expect(lowest).toBeGreaterThan(restY - 0.2)
   })
 
-  it('settles back to the same rest height after a nudge', () => {
+  it('bobs slowly under a nudge and returns to the same rest height', () => {
     const r = drop(0.4, 0.2)
     const before = r.sim.state.y
-    r.sim.addImpulse(0.1, 0.55, 0)
-    expect(r.sim.state.phase).toBe('cradling')
-    for (let i = 0; i < 1400; i++) r.sim.update(1 / 240, 0.4)
+    r.sim.addImpulse(0.1, 0.35, 0)
+    // The bob has to be big enough to see and slow enough to follow.
+    let peak = before
+    let peakAt = 0
+    for (let i = 0; i < 240; i++) {
+      r.sim.update(1 / 240, 0.4)
+      if (r.sim.state.y > peak) {
+        peak = r.sim.state.y
+        peakAt = i / 240
+      }
+    }
+    expect(peak - before).toBeGreaterThan(0.015)
+    expect(peakAt).toBeGreaterThan(0.1)
+    for (let i = 0; i < 2000; i++) r.sim.update(1 / 240, 0.4)
     expect(Math.abs(r.sim.state.y - before)).toBeLessThan(0.004)
     expect(r.sim.state.phase).toBe('resting')
   })

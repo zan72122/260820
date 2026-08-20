@@ -4,6 +4,8 @@ import {
   BoxGeometry,
   BufferAttribute,
   BufferGeometry,
+  CylinderGeometry,
+  IcosahedronGeometry,
   Euler,
   Matrix4,
   Quaternion,
@@ -153,9 +155,9 @@ export class Greenhouse {
 
     // ---- structure -------------------------------------------------------
     const steel = new MeshStandardMaterial({
-      color: new Color(0.42, 0.44, 0.43),
-      roughness: 0.55,
-      metalness: 0.6,
+      color: new Color(0.21, 0.23, 0.225),
+      roughness: 0.62,
+      metalness: 0.55,
     })
     // Kept clear of the centre line: nothing structural crosses the fruit.
     for (const px of [-1.55, 1.55, -3.1, 3.1]) {
@@ -210,6 +212,29 @@ export class Greenhouse {
     // Foliage well behind the branch: depth, and something for the light to
     // bounce off, merged down to one draw call per clump.
     this.group.add(makeBackdropFoliage(q, seed))
+
+    // A few leaves that came down before this one. Merged, static, and just
+    // enough to stop the floor reading as an empty plane.
+    const litter = makeClump(
+      new Rng(seed ^ 0x11ee),
+      new MeshStandardMaterial({
+        color: new Color(0.19, 0.2, 0.1),
+        roughness: 0.9,
+        metalness: 0,
+        side: DoubleSide,
+      }),
+      q.tier === 'low' ? 6 : 14,
+      0.75,
+      0.004,
+      [0.85, 1.25],
+      false,
+    )
+    if (litter) {
+      litter.position.set(-0.15, 0.006, 0.55)
+      litter.rotation.x = -Math.PI / 2
+      litter.receiveShadow = true
+      this.group.add(litter)
+    }
 
     // ---- window light patch on the floor ---------------------------------
     this.patch = new Mesh(
@@ -300,7 +325,7 @@ export class Greenhouse {
     this.fill.position.set(-1.6, 1.1, 1.9)
     this.group.add(this.fill)
 
-    scene.fog = new Fog(0x5d6d52, 4.6, 15)
+    scene.fog = new Fog(0x5d6d52, 5.5, 18)
     this.setTimeOfDay(0.28)
   }
 
@@ -378,46 +403,115 @@ export class Greenhouse {
 }
 
 /**
- * Two clumps of foliage set back in the house. They never move and never take
- * focus; they exist so the branch is not floating in an empty room.
+ * A plant: a dark rounded mass with leaves growing out of it, merged into one
+ * draw call. The mass is what stops a scatter of blades reading as leaves
+ * hanging in mid air.
+ */
+function makeClump(
+  rng: Rng,
+  material: MeshStandardMaterial,
+  count: number,
+  spread: number,
+  rise: number,
+  leafScale: [number, number],
+  withMass = true,
+): Group | null {
+  const group = new Group()
+  const parts: BufferGeometry[] = []
+  const centre = new Vector3(0, rise * 0.45, 0)
+  const out = new Vector3()
+  for (let i = 0; i < count; i++) {
+    const p = makeLeafParams(rng)
+    const geo = buildLeafGeometry(p, 6, 3)
+    // Leaves sprout outwards and downwards from the body of the plant.
+    const phi = rng.range(0, Math.PI * 2)
+    const lift = rng.range(-0.35, 0.9)
+    out.set(Math.cos(phi), lift, Math.sin(phi)).normalize()
+    const rot = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), out)
+    rot.multiply(new Quaternion().setFromEuler(new Euler(0, rng.range(0, Math.PI * 2), 0)))
+    const scale = rng.range(leafScale[0], leafScale[1])
+    geo.applyMatrix4(
+      new Matrix4().compose(
+        new Vector3(
+          centre.x + out.x * spread * rng.range(0.15, 0.8),
+          centre.y + out.y * rise * rng.range(0.1, 0.7),
+          centre.z + out.z * spread * rng.range(0.15, 0.8),
+        ),
+        rot,
+        new Vector3(scale, scale, scale),
+      ),
+    )
+    parts.push(geo)
+  }
+  const merged = mergeGeometries(parts, false)
+  for (const part of parts) part.dispose()
+  if (!merged) return null
+  group.add(new Mesh(merged, material))
+  if (withMass) {
+    const mass = new Mesh(
+      new IcosahedronGeometry(0.5, 1),
+      new MeshStandardMaterial({
+        color: new Color(0.045, 0.075, 0.03),
+        roughness: 0.95,
+        metalness: 0,
+      }),
+    )
+    mass.scale.set(spread * 0.95, rise * 0.75, spread * 0.85)
+    mass.position.copy(centre)
+    group.add(mass)
+
+    // A pot. Nothing grounds a plant like something for it to grow out of.
+    const pot = new Mesh(
+      new CylinderGeometry(spread * 0.62, spread * 0.46, spread * 0.9, 10),
+      new MeshStandardMaterial({
+        color: new Color(0.28, 0.145, 0.085),
+        roughness: 0.92,
+        metalness: 0,
+      }),
+    )
+    pot.position.y = spread * 0.45
+    pot.castShadow = true
+    pot.receiveShadow = true
+    group.add(pot)
+  }
+  return group
+}
+
+/**
+ * The rest of the nursery: potted growth standing on the far benches and a
+ * couple of larger plants on the floor behind them. They never move and never
+ * take focus; they exist so the branch is not arching through an empty room.
  */
 function makeBackdropFoliage(q: QualitySettings, seed: number): Group {
   const g = new Group()
   const rng = new Rng(seed ^ 0x5ee1)
   const material = new MeshStandardMaterial({
-    color: new Color(0.10, 0.155, 0.07),
-    roughness: 0.78,
+    color: new Color(0.085, 0.135, 0.055),
+    roughness: 0.8,
     metalness: 0,
     side: DoubleSide,
   })
-  const clumps = q.tier === 'low' ? 3 : 5
-  const perClump = q.tier === 'low' ? 22 : 46
-  for (let c = 0; c < clumps; c++) {
-    const parts: BufferGeometry[] = []
-    for (let i = 0; i < perClump; i++) {
-      const p = makeLeafParams(rng)
-      const geo = buildLeafGeometry(p, 6, 3)
-      const q1 = new Quaternion().setFromEuler(
-        new Euler(rng.range(-1.6, 0.4), rng.range(0, Math.PI * 2), rng.range(-0.9, 0.9)),
-      )
-      const scale = rng.range(1.1, 2.3)
-      geo.applyMatrix4(
-        new Matrix4().compose(
-          new Vector3(rng.jitter(0.9), rng.range(-0.35, 0.95), rng.jitter(0.7)),
-          q1,
-          new Vector3(scale, scale, scale),
-        ),
-      )
-      parts.push(geo)
-    }
-    const merged = mergeGeometries(parts, false)
-    for (const part of parts) part.dispose()
-    if (!merged) continue
-    const mesh = new Mesh(merged, material)
-    // Standing on the floor, not floating: they read as plants in the house.
-    mesh.position.set(rng.range(-4.5, 4.5), rng.range(0.15, 0.5), rng.range(-7.5, -4.5))
-    mesh.receiveShadow = false
-    g.add(mesh)
+  const dense = q.tier === 'low' ? 0.45 : 1
+  // On the two far benches.
+  for (const [bx, bz] of [
+    [-1.62, -1.1],
+    [-1.02, -1.15],
+    [1.12, -1.25],
+    [1.78, -1.2],
+  ] as const) {
+    const m = makeClump(rng, material, Math.round(46 * dense), 0.22, 0.4, [0.6, 1.05])
+    if (!m) continue
+    m.position.set(bx + rng.jitter(0.1), 0.335, bz + rng.jitter(0.08))
+    g.add(m)
+  }
+  // A low run of growth along the back of the house, kept small enough that
+  // it never competes with the branch for attention.
+  // Kept off the centre line so nothing stands directly behind the net.
+  for (const bx of [-3.1, -2.0, 2.0, 3.1]) {
+    const m = makeClump(rng, material, Math.round(46 * dense), 0.3, 0.55, [0.7, 1.15])
+    if (!m) continue
+    m.position.set(bx + rng.jitter(0.25), 0.0, rng.range(-4.6, -3.4))
+    g.add(m)
   }
   return g
 }

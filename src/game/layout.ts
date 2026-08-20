@@ -108,7 +108,5 @@ export function tautnessForSpan(span: number): number {
 
 /** Generous pick radius in CSS pixels for the two net ends. */
 export const HANDLE_PICK_PX = 78
-/** The grip is drawn above the finger so a fingertip never covers it. */
+/** The grip rises above the finger so a fingertip never covers it. */
 export const HANDLE_FINGER_OFFSET_PX = 46
-/** How close a hook has to be, in metres, before it takes the cord end. */
-export const HOOK_SNAP_RADIUS = 0.135

@@ -118,10 +118,24 @@ export function detectQuality(gl?: WebGLRenderingContext | WebGL2RenderingContex
   const settings = { ...PRESETS[tier] }
 
   // Deterministic capture mode: smallest practical cost, identical every run.
-  if (typeof location !== 'undefined' && new URLSearchParams(location.search).has('e2e')) {
+  if (isE2E()) {
     settings.pixelRatioCap = 1
     settings.dust = 0
     settings.shadowMapSize = Math.min(settings.shadowMapSize, 1024)
+  }
+  // Fast mode, for software rasterisers and for smoke runs: the fruit, the net
+  // and the catch are untouched; only what costs pixels is cut.
+  if (fastMode()) {
+    Object.assign(settings, PRESETS.low)
+    settings.pixelRatioCap = 1
+    settings.shadows = false
+    settings.dust = 0
+    settings.leafCount = 8
+    settings.mangoTex = 256
+    settings.leafTex = 128
+    settings.barkTex = 128
+    settings.floorTex = 128
+    settings.envSize = 32
   }
   return settings
 }

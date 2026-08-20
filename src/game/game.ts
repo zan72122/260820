@@ -18,7 +18,6 @@ import {
   FRUIT,
   HANDLE_FINGER_OFFSET_PX,
   HANDLE_PICK_PX,
-  HOOK_SNAP_RADIUS,
   NET_GEOMETRY,
   STEM,
   tautnessForSpan,
@@ -116,16 +115,20 @@ export class Game {
   private dragSide: Side = 'left'
   private dragPlane = new Plane()
   private dragOffset = new Vector3()
+  private dragOffsetDecay = 0
   private dragTarget = new Vector3()
   private dragStart = new Vector3()
   private dragDetached = false
   private magnetHook = -1
   private pushPoint = new Vector3()
   private lastPushWorld = new Vector3()
+  private pushDelta = new Vector3()
   private timeAccumForTick = 0
 
   private readonly ray = new Raycaster()
   private readonly ndc = new Vector2()
+  private readonly screenA = new Vector2()
+  private readonly screenB = new Vector2()
   private readonly tmpA = new Vector3()
   private readonly tmpB = new Vector3()
   private readonly tmpC = new Vector3()
@@ -321,23 +324,45 @@ export class Game {
         this.setDragPlaneAt(this.tmpB)
         this.dragStart.copy(this.tmpB)
         if (this.screenToPlane(s.x, s.y - HANDLE_FINGER_OFFSET_PX, this.tmpA)) {
+          // Grab without a jump, then let the cord end rise clear of the
+          // fingertip over the next moment so the finger never covers it.
           this.dragOffset.subVectors(this.tmpB, this.tmpA)
+          this.dragOffsetDecay = 1
         } else {
           this.dragOffset.set(0, 0, 0)
+          this.dragOffsetDecay = 0
         }
         this.dragTarget.copy(this.tmpB)
         return
       }
     }
 
-    // 2. The net itself, once there is a fruit resting in it.
-    if (this.state.canPushNet && this.netView.fine) {
-      this.ndc.set((s.x / this.viewportW) * 2 - 1, -((s.y / this.viewportH) * 2 - 1))
-      this.ray.setFromCamera(this.ndc, this.director.camera)
-      const hits = this.ray.intersectObject(this.netView.fine, false)
-      if (hits.length > 0) {
+    // 2. The net itself, once there is a fruit resting in it. The mesh is
+    //    tried first, then a generous area around the belly of the sheet, so
+    //    a fingertip near the net always counts as touching it.
+    if (this.state.canPushNet) {
+      let hit: Vector3 | null = null
+      if (this.netView.fine) {
+        this.ndc.set((s.x / this.viewportW) * 2 - 1, -((s.y / this.viewportH) * 2 - 1))
+        this.ray.setFromCamera(this.ndc, this.director.camera)
+        const hits = this.ray.intersectObject(this.netView.fine, false)
+        if (hits.length > 0) hit = this.tmpA.copy(hits[0].point)
+      }
+      if (!hit) {
+        const reach = this.magnetRadiusPx() * 1.7
+        for (const probe of [this.netSim.lowestPanelPoint, this.netSim.centre] as const) {
+          probe.call(this.netSim, this.lowPoint)
+          this.tmpB.set(this.lowPoint.x, this.lowPoint.y, this.lowPoint.z)
+          this.worldToScreen(this.tmpB, this.screenA)
+          if (Math.hypot(this.screenA.x - s.x, this.screenA.y - s.y) < reach) {
+            hit = this.tmpA.copy(this.tmpB)
+            break
+          }
+        }
+      }
+      if (hit) {
         this.dragMode = 'push'
-        this.pushPoint.copy(hits[0].point)
+        this.pushPoint.copy(hit)
         this.setDragPlaneAt(this.pushPoint)
         this.lastPushWorld.copy(this.pushPoint)
         this.state.notePush()
@@ -357,7 +382,7 @@ export class Game {
   private continueDrag(s: PointerSample): void {
     if (this.dragMode === 'handle') {
       if (!this.screenToPlane(s.x, s.y - HANDLE_FINGER_OFFSET_PX, this.tmpA)) return
-      this.dragTarget.copy(this.tmpA).add(this.dragOffset)
+      this.dragTarget.copy(this.tmpA).addScaledVector(this.dragOffset, this.dragOffsetDecay)
       // Keep the cord end inside the room.
       this.dragTarget.y = clamp(this.dragTarget.y, 0.05, 1.35)
       this.dragTarget.x = clamp(this.dragTarget.x, -1.0, 1.0)
@@ -395,6 +420,7 @@ export class Game {
         this.tmpB.x * 0.55, this.tmpB.y * 0.55, this.tmpB.z * 0.55,
       )
       this.pushPoint.copy(this.tmpA)
+      this.pushDelta.add(this.tmpB)
       this.deps.audio.sway(Math.min(1, move * 14))
     }
   }
@@ -447,6 +473,7 @@ export class Game {
       this.state.profile.wind *
       (this.state.inCatchWindow ? 0.22 : this.state.stage === 'idle' ? 1.0 : 0.6)
 
+    this.applyPush(dt)
     this.updateFruit(sdt)
     this.applyBreezeBias(sdt)
 
@@ -501,17 +528,25 @@ export class Game {
     const side = this.dragSide
     const node = this.handleNode(side)
     this.netSim.setPinned(node, false)
+    this.dragOffsetDecay = damp(this.dragOffsetDecay, 0, 7, dt)
 
-    // Wide, forgiving magnet: precision is never asked for.
+    // Wide, forgiving magnet, measured on screen rather than in the world:
+    // the branch sweeps in depth, so a hook that looks close to the fingertip
+    // can be a long way behind it. What the child sees is what counts.
     this.magnetHook = -1
-    let bestD = HOOK_SNAP_RADIUS
+    const radiusPx = this.magnetRadiusPx()
+    let bestPx = radiusPx
     const wanted = side === 'left' ? -1 : 1
+    this.worldToScreen(this.dragTarget, this.screenA)
     for (const h of this.branch.hooks) {
       if (h.side !== wanted) continue
       this.branch.hookPosition(h.id, this.tmpB)
-      const d = this.tmpB.distanceTo(this.dragTarget)
-      if (d < bestD) {
-        bestD = d
+      // A hook on the far side of the room must never grab the cord.
+      if (this.tmpB.distanceTo(this.dragTarget) > 0.5) continue
+      this.worldToScreen(this.tmpB, this.screenB)
+      const d = Math.hypot(this.screenA.x - this.screenB.x, this.screenA.y - this.screenB.y)
+      if (d < bestPx) {
+        bestPx = d
         this.magnetHook = h.id
       }
     }
@@ -519,8 +554,8 @@ export class Game {
     this.tmpA.copy(this.dragTarget)
     if (this.magnetHook >= 0) {
       this.branch.hookPosition(this.magnetHook, this.tmpB)
-      const pull = 1 - smoothstep(0.02, HOOK_SNAP_RADIUS, bestD)
-      this.tmpA.lerp(this.tmpB, pull * 0.85)
+      const pull = 1 - smoothstep(radiusPx * 0.12, radiusPx, bestPx)
+      this.tmpA.lerp(this.tmpB, pull * 0.9)
       this.branch.glint(this.magnetHook, Math.max(0.35, pull))
     }
 
@@ -545,6 +580,11 @@ export class Game {
         this.netSim.setPinned(node, false)
       }
     }
+  }
+
+  /** How close, on screen, a cord end has to come before a hook takes it. */
+  private magnetRadiusPx(): number {
+    return clamp(Math.min(this.viewportW, this.viewportH) * 0.22, 78, 165)
   }
 
   private currentSpan(): number {
@@ -717,6 +757,28 @@ export class Game {
       }
       this.stem.update(this.stemPts, (t) => STEM.radius * (1.5 - 0.55 * t))
     }
+  }
+
+  /**
+   * Turn this frame's fingertip travel into a slow shove on the fruit. Capped,
+   * so no amount of scrubbing can throw the fruit out of the net.
+   */
+  private applyPush(dt: number): void {
+    if (this.dragMode !== 'push' || dt <= 0) {
+      this.pushDelta.set(0, 0, 0)
+      return
+    }
+    if (this.pushDelta.lengthSq() < 1e-10) return
+    this.tmpB.copy(this.pushDelta).divideScalar(dt)
+    const speed = this.tmpB.length()
+    if (speed > 1.4) this.tmpB.multiplyScalar(1.4 / speed)
+    this.fruitSim.nudgeVelocity(
+      this.tmpB.x * 0.3,
+      this.tmpB.y * 0.3,
+      this.tmpB.z * 0.3,
+      1 - Math.exp(-4.5 * dt),
+    )
+    this.pushDelta.set(0, 0, 0)
   }
 
   private applyBreezeBias(dt: number): void {
@@ -1022,6 +1084,7 @@ export class Game {
       netLow: { ...this.lowPoint },
       gripCount: this.netSim.gripCount,
       hint: this.state.hintKind,
+      drag: this.dragMode,
       camera: {
         dist: f.dist,
         focal: f.focal,
@@ -1031,6 +1094,28 @@ export class Game {
       },
       timeScale: this.timeScale,
     }
+  }
+
+  /** Screen position of a cord end, in CSS pixels (capture and tests only). */
+  handleScreen(side: Side): { x: number; y: number } {
+    this.handleWorld(side, this.tmpB)
+    const out = new Vector2()
+    this.worldToScreen(this.tmpB, out)
+    return { x: out.x, y: out.y }
+  }
+
+  hookScreen(id: number): { x: number; y: number } {
+    this.branch.hookPosition(id, this.tmpB)
+    const out = new Vector2()
+    this.worldToScreen(this.tmpB, out)
+    return { x: out.x, y: out.y }
+  }
+
+  netScreen(): { x: number; y: number } {
+    this.netSim.centre(this.lowPoint)
+    const out = new Vector2()
+    this.worldToScreen(this.tmpB.set(this.lowPoint.x, this.lowPoint.y, this.lowPoint.z), out)
+    return { x: out.x, y: out.y }
   }
 
   /** Attach both ends without a finger, for deterministic capture. */

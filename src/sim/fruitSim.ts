@@ -28,6 +28,9 @@ export interface CatchTuning {
   /** Side-to-side sway period (s) and its damping ratio. */
   lateralPeriod: number
   lateralZeta: number
+  /** Once it is resting, the fruit bobs on this much slower spring. */
+  playPeriod: number
+  playZeta: number
 }
 
 export const DEFAULT_TUNING: CatchTuning = {
@@ -39,6 +42,8 @@ export const DEFAULT_TUNING: CatchTuning = {
   zeta1: 0.82,
   lateralPeriod: 1.15,
   lateralZeta: 0.16,
+  playPeriod: 0.78,
+  playZeta: 0.17,
 }
 
 /**
@@ -83,6 +88,13 @@ export class FruitSim {
   private k = 0
   private c = 0
   private accumulator = 0
+  /**
+   * True once the fruit has come to rest. From then on the vertical response
+   * is a slow bob about where it settled, rather than the stiff contact
+   * spring: a catch has to be crisp, being pushed about has to be lazy.
+   */
+  private settled = false
+  private staticSink = 0
 
   constructor(tuning: Partial<CatchTuning> = {}) {
     this.tuning = { ...DEFAULT_TUNING, ...tuning }
@@ -124,6 +136,8 @@ export class FruitSim {
     s.contactElapsed = 0
     s.restingFor = 0
     s.vy = Math.min(s.vy, 0)
+    this.settled = false
+    this.staticSink = 0
   }
 
   /** The net can move afterwards (free play); keep the rest height current. */
@@ -134,6 +148,21 @@ export class FruitSim {
     s.anchorZ = anchorZ
   }
 
+  /**
+   * Couple the fruit weakly to a fingertip. Weakly on purpose: the mesh gives
+   * at once under a finger, the fruit takes its time, and that difference is
+   * what a child reads as weight.
+   */
+  nudgeVelocity(vx: number, vy: number, vz: number, blend: number): void {
+    const s = this.state
+    if (s.phase !== 'cradling' && s.phase !== 'resting') return
+    const b = blend < 0 ? 0 : blend > 1 ? 1 : blend
+    s.vx += (vx - s.vx) * b
+    s.vy += (vy - s.vy) * b
+    s.vz += (vz - s.vz) * b
+    s.restingFor = 0
+  }
+
   addImpulse(ix: number, iy: number, iz: number): void {
     const s = this.state
     if (s.phase !== 'cradling' && s.phase !== 'resting') return
@@ -141,7 +170,6 @@ export class FruitSim {
     s.vy += iy
     s.vz += iz
     s.restingFor = 0
-    if (s.phase === 'resting') s.phase = 'cradling'
   }
 
   /**
@@ -204,15 +232,25 @@ export class FruitSim {
     s.sink = Math.max(0, penetration)
     if (s.sink > s.maxSink) s.maxSink = s.sink
 
-    // Reaction only exists while the net is actually loaded.
-    const support = penetration > 0 ? this.k * penetration - this.c * s.vy : 0
-    const ay = support / t.mass - t.gravity
-    s.vy += ay * dt
-    s.y += s.vy * dt
+    if (this.settled) {
+      // Free play: a slow bob about where the net holds it, so a fingertip
+      // moves the fruit visibly but never quickly.
+      const yEq = s.restY - this.staticSink + t.radius
+      const w = (Math.PI * 2) / t.playPeriod
+      const ay = -w * w * (s.y - yEq) - 2 * t.playZeta * w * s.vy
+      s.vy += ay * dt
+      s.y += s.vy * dt
+    } else {
+      // Reaction only exists while the net is actually loaded.
+      const support = penetration > 0 ? this.k * penetration - this.c * s.vy : 0
+      const ay = support / t.mass - t.gravity
+      s.vy += ay * dt
+      s.y += s.vy * dt
 
-    if (!s.rebounded && s.vy > 0 && s.contactElapsed > 0.02) {
-      s.rebounded = true
-      this.setDamping(t.zeta1)
+      if (!s.rebounded && s.vy > 0 && s.contactElapsed > 0.02) {
+        s.rebounded = true
+        this.setDamping(t.zeta1)
+      }
     }
 
     // Lateral cradle: a slow pendulum back to the deepest point of the sheet.
@@ -231,6 +269,8 @@ export class FruitSim {
     if (s.phase === 'cradling' && s.restingFor > 0.28) {
       s.phase = 'resting'
       s.phaseTime = 0
+      this.settled = true
+      this.staticSink = s.restY - (s.y - t.radius)
     }
   }
 }

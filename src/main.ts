@@ -4,6 +4,7 @@ import { buildTextures, type TextureBundle } from './gfx/textureLab'
 import { detectQuality, isE2E } from './core/quality'
 import { Audio } from './core/audio'
 import type { SafeInsets } from './game/cameraDirector'
+import { HANDLE_FINGER_OFFSET_PX } from './game/layout'
 
 const canvas = document.getElementById('view') as HTMLCanvasElement
 const boot = document.getElementById('boot') as HTMLDivElement
@@ -169,6 +170,10 @@ async function main(): Promise<void> {
     },
     render: () => game.render(),
     size: () => ({ width, height }),
+    handleScreen: (side: 'left' | 'right') => game.handleScreen(side),
+    hookScreen: (id: number) => game.hookScreen(id),
+    netScreen: () => game.netScreen(),
+    fingerOffset: HANDLE_FINGER_OFFSET_PX,
     dumpTexture: (name: string) => textures.debugCanvases?.[name]?.toDataURL('image/png') ?? null,
     dumpMangoChannel: (channel: number) => {
       const t = textures.mangoData as unknown as {

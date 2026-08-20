@@ -1,31 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-
-interface DebugState {
-  stage: string
-  round: number
-  harvested: number
-  ripeness: number
-  attach: { left: number | null; right: number | null }
-  fruit: { x: number; y: number; z: number; phase: string; sink: number; maxSink: number }
-  netLow: { x: number; y: number; z: number }
-  gripCount: number
-  camera: { dist: number; focal: number; halfW: number; halfH: number; pos: number[] }
-}
-
-declare global {
-  interface Window {
-    __mango: {
-      ready: boolean
-      state: () => DebugState
-      attach: (l: number, r: number) => void
-      scrub: (v: number) => void
-      poke: (v?: number) => void
-      step: (seconds: number, dt?: number) => void
-      render: () => void
-      size: () => { width: number; height: number }
-    }
-  }
-}
+import type { DebugState } from './mango'
 
 async function boot(page: Page, query = ''): Promise<void> {
   const errors: string[] = []
