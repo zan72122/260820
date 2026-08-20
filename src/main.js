@@ -35,17 +35,24 @@ function build() {
     else again.classList.remove('show');
   };
 
+  // A phone that loses its GL context (backgrounded, memory pressure) otherwise
+  // just goes black; asking for a restore and starting over is far better.
+  const canvas = game.renderer.domElement;
+  canvas.addEventListener('webglcontextlost', (e) => { e.preventDefault(); }, false);
+  canvas.addEventListener('webglcontextrestored', () => location.reload(), false);
+
   let last = performance.now();
   const loop = (now) => {
-    const t0 = performance.now();
+    requestAnimationFrame(loop);
     let dt = (now - last) / 1000;
     last = now;
+    if (document.hidden) return;                 // no work while backgrounded
+    const t0 = performance.now();
     if (!(dt > 0)) dt = 1 / 60;
     dt = Math.min(dt, 1 / 20);
     game.update(dt);
     game.render();
     game.measure(performance.now() - t0);
-    requestAnimationFrame(loop);
   };
   requestAnimationFrame(loop);
   window.__ready = true;

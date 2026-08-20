@@ -90,6 +90,9 @@ export class Game {
     if ('transmissionResolutionScale' in this.renderer) {
       this.renderer.transmissionResolutionScale = q.tier === 'high' ? 0.8 : 0.6;
     }
+    // every shader here is authored and tested in this repo; skipping the
+    // per-compile error check saves a real chunk of the boot on mobile
+    if (!q.fast) this.renderer.debug.checkShaderErrors = false;
     host.appendChild(this.renderer.domElement);
 
     this.scene = new Scene();

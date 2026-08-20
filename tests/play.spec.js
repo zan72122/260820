@@ -111,33 +111,40 @@ test('a full bowl moves the camera to the syrup, and pouring colours the ice', a
     const s = await state(page);
     if (s.state === 'to_syrup' || s.state === 'syrup') break;
     await crank(page, 2.0, 14);
+    await page.waitForTimeout(250);   // a hand does pause between turns
   }
   await page.waitForTimeout(2500);
   let s = await state(page);
   expect(['to_syrup', 'syrup']).toContain(s.state);
   expect(s.fill).toBeGreaterThan(0.7);
 
-  // pick up a bottle and drag it over the pile
-  const b = await page.evaluate(() => {
+  // pick up a bottle and drag it over the pile. The pour point sits above the
+  // finger on screen so a hand never covers it, so the finger must aim low.
+  const screenOf = (x, y, z) => page.evaluate(([x, y, z]) => {
     const g = window.__game;
     const V3 = g.camera.position.constructor;
-    const p = new V3().copy(g.syrup.bottles[0].group.position); p.y += 0.05;
-    p.project(g.camera);
+    const p = new V3(x, y, z); p.project(g.camera);
     return { x: (p.x * 0.5 + 0.5) * window.innerWidth, y: (-p.y * 0.5 + 0.5) * window.innerHeight };
+  }, [x, y, z]);
+
+  const bottle = await page.evaluate(() => {
+    const b = window.__game.syrup.bottles[0];
+    return [b.group.position.x, b.group.position.y + 0.05, b.group.position.z];
   });
-  await page.mouse.move(b.x, b.y);
+  const grab = await screenOf(...bottle);
+  await page.mouse.move(grab.x, grab.y);
   await page.mouse.down();
-  const cx = await page.evaluate(() => {
-    const g = window.__game;
-    const V3 = g.camera.position.constructor;
-    const p = new V3(0, g.mound.baseY + g.mound.peak, 0.05);
-    p.project(g.camera);
-    return { x: (p.x * 0.5 + 0.5) * window.innerWidth, y: (-p.y * 0.5 + 0.5) * window.innerHeight };
-  });
-  for (let i = 0; i < 26; i++) {
-    const a = (i / 26) * Math.PI * 2;
-    await page.mouse.move(cx.x + Math.cos(a) * 26, cx.y + 60 + Math.sin(a) * 14);
-    await page.waitForTimeout(45);
+  await page.waitForTimeout(120);
+  expect(await page.evaluate(() => !!window.__game.input.heldBottle)).toBe(true);
+
+  const peak = await page.evaluate(() => [0, window.__game.mound.baseY + window.__game.mound.peak + 0.055, window.__game.mound.cz]);
+  const aim = await screenOf(...peak);
+  const lift = 0.10 * page.viewportSize().height;
+  for (let i = 0; i < 30; i++) {
+    const a = (i / 30) * Math.PI * 2;
+    const grow = 0.35 + i / 42;
+    await page.mouse.move(aim.x + Math.cos(a) * 30 * grow, aim.y + lift + Math.sin(a) * 15 * grow);
+    await page.waitForTimeout(50);
   }
   await page.mouse.up();
   await page.waitForTimeout(1200);
