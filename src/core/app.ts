@@ -583,7 +583,9 @@ export class Game {
     if (this.pendingSwap) {
       this.swapT += dt
       this.veil.classList.remove('clear')
-      if (this.swapT > 0.5) {
+      // Long enough for the veil to reach near-opacity, so the branch changing
+      // direction between fruits reads as a blink, not a jump cut.
+      if (this.swapT > 0.85) {
         this.pendingSwap = false
         this.startNextRound()
         setTimeout(() => this.veil.classList.add('clear'), 60)
