@@ -120,6 +120,7 @@ npm run dev        # 開発サーバ
 npm run typecheck  # tsc --noEmit
 npm run test       # vitest（状態遷移・光学・果実形状）
 npm run build      # 型検査 + production build
+npm run verify     # typecheck + unit test + build をまとめて
 npm run preview    # dist をプレビュー
 npm run e2e        # Playwright（Chromium）
 ```

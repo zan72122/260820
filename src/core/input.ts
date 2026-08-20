@@ -27,7 +27,7 @@ export class PointerInput {
   private detach: Array<() => void> = []
 
   constructor(
-    private el: HTMLElement,
+    el: HTMLElement,
     private handlers: PointerHandlers,
   ) {
     const down = (e: PointerEvent) => {
@@ -105,6 +105,5 @@ export class PointerInput {
   dispose(): void {
     for (const d of this.detach) d()
     this.detach = []
-    void this.el
   }
 }

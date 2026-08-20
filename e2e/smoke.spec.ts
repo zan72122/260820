@@ -13,6 +13,7 @@ type Debug = {
   hintLevel: number
   blushShift: number
   bounce: number
+  beat: boolean
 }
 
 async function boot(page: Page): Promise<void> {
@@ -56,6 +57,10 @@ test.describe('モモの光のじゅうたん', () => {
     const before = (await debug(page)).coverage
     await call(page, 'sheet', 1)
     expect((await debug(page)).phase).toBe('firstLight')
+    // The local reaction beat has to actually fire, including when the phase
+    // changed from a pointer event between frames rather than from the clock.
+    await call(page, 'skip', 0.2)
+    expect((await debug(page)).beat).toBe(true)
     await call(page, 'skip', 3.2)
     expect((await debug(page)).phase).toBe('ripening')
 

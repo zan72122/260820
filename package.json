@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "e2e": "playwright test",
-    "shots": "playwright test e2e/shots.spec.ts"
+    "shots": "node tools/shoot.mjs",
+    "verify": "npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {
     "three": "^0.169.0"

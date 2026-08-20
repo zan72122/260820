@@ -243,7 +243,6 @@ export class BlushField {
     }
     this.dirty = true
     this.flush()
-    void dt
   }
 
   private pendingSim = 0

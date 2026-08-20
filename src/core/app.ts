@@ -19,6 +19,7 @@ import {
   serialize,
   tick,
   type GameState,
+  type Phase,
   type Target,
 } from './state'
 import { detectTier, LoadGovernor, settingsFor, type QualitySettings, type Tier } from './quality'
@@ -105,6 +106,7 @@ export class Game {
   private swapT = 0
   private pendingSwap = false
   private firstLightDone = false
+  private lastPhase: Phase = 'intro'
   private tmpV = new THREE.Vector3()
   private tmpV2 = new THREE.Vector3()
   private sky: THREE.DataTexture
@@ -152,6 +154,7 @@ export class Game {
 
     const restored = loadSnapshot()
     this.state = (restored && deserialize(serialize(restored.state))) ?? createState(0)
+    this.lastPhase = this.state.phase
     this.layout = layoutForRound(this.state.round)
 
     this.rig = new LightRig(this.scene, this.q)
@@ -568,7 +571,7 @@ export class Game {
     if (s.phase === 'handoff' && !this.nextBag) {
       const next = layoutForRound(s.round + 1)
       this.nextBag = new PaperBag(makeBagShape(next.bagSeed), makePeachShape(next.peachSeed, s.round + 1))
-      const local = new THREE.Vector3(this.layout.peachPos.x + 0.56, this.layout.peachPos.y + 0.05, this.layout.peachPos.z + 0.1)
+      const local = new THREE.Vector3(this.layout.peachPos.x + 0.56, this.layout.peachPos.y + 0.085, this.layout.peachPos.z + 0.1)
       this.nextBag.group.position.copy(local)
       this.orchard.branchGroup.add(this.nextBag.group)
       this.nextBagPos.copy(local).applyMatrix4(this.orchard.branchGroup.matrixWorld)
@@ -595,6 +598,7 @@ export class Game {
       this.nextBag = null
     }
     this.state = nextRound(this.state)
+    this.lastPhase = this.state.phase
     this.layout = layoutForRound(this.state.round)
     this.orchard.relayout(this.layout)
     const shape = makePeachShape(this.layout.peachSeed, this.state.round)
@@ -611,9 +615,13 @@ export class Game {
 
   /** One simulation step, with no rendering. Shared by the loop and by tests. */
   private stepSim(dt: number): void {
-    const prevPhase = this.state.phase
     tick(this.state, dt)
-    if (prevPhase !== 'firstLight' && this.state.phase === 'firstLight') this.onFirstLight()
+    // The phase can also change from a pointer event between frames, so the
+    // comparison has to be against the last phase this loop actually saw.
+    if (this.lastPhase !== this.state.phase) {
+      if (this.state.phase === 'firstLight') this.onFirstLight()
+      this.lastPhase = this.state.phase
+    }
 
     this.driveHints(dt)
     this.updateBag(dt)
@@ -770,6 +778,7 @@ export class Game {
       tier: this.tier,
       renderScale: Number(this.governor.renderScale.toFixed(3)),
       hintLevel: this.state.hintLevel,
+      beat: this.firstLightDone,
       // Where the colour actually sits on the fruit, along the axis the sheet
       // swings on. This is what has to move when the sheet moves.
       blushShift: Number(

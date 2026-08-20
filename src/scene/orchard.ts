@@ -352,9 +352,9 @@ export class Orchard {
       let r = 0
       for (let tries = 0; tries < 12; tries++) {
         a = rng() * Math.PI * 2
-        r = far ? 21 + rng() * 12 : 11 + rng() * 6
+        r = far ? 22 + rng() * 12 : 13 + rng() * 6
         const d = Math.abs((((a - viewAz) % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) - Math.PI)
-        if (far || d > 0.45) break
+        if (far || d > 0.55) break
       }
       const x = Math.cos(a) * r
       const z = Math.sin(a) * r
@@ -462,7 +462,6 @@ export class Orchard {
     const geo = new THREE.TubeGeometry(curve, seg, 0.026, this.q.tier === 'low' ? 6 : 10, false)
     // Taper: thick at the trunk end, slender at the tip.
     const pos = geo.attributes.position as THREE.BufferAttribute
-    const nrm = geo.attributes.normal as THREE.BufferAttribute
     const uv = geo.attributes.uv as THREE.BufferAttribute
     for (let i = 0; i < pos.count; i++) {
       const t = uv.getX(i)
@@ -472,7 +471,6 @@ export class Orchard {
       const py = pos.getY(i)
       const pz = pos.getZ(i)
       pos.setXYZ(i, c.x + (px - c.x) * scale, c.y + (py - c.y) * scale, c.z + (pz - c.z) * scale)
-      void nrm
     }
     geo.computeVertexNormals()
     const barkMat = withBounce(
