@@ -1,6 +1,6 @@
 import { clamp, valueNoise2 } from '../core/util';
 import type { Terrain } from './terrain';
-import { CELL, NX, NZ, type Layout } from './layout';
+import { CELL, NX, NZ, WORLD_D, WORLD_W, type Layout } from './layout';
 
 const N = NX * NZ;
 const G = 9.81;
@@ -48,7 +48,6 @@ export class Water {
   private gateUp: Int32Array = new Int32Array(0);
 
   private resRow1 = 0;
-  private resTarget = 0.2;
   private pondCells: Int32Array = new Int32Array(0);
   private pondArea = 1;
 
@@ -81,8 +80,8 @@ export class Water {
     this.pondFill = 0;
     this.gateOpen = 0;
 
-    const damRow0 = Math.round(0.165 * (NZ - 1));
-    this.resRow1 = damRow0 - 1;
+    const notchRow = layout.notchRow;
+    this.resRow1 = layout.resRow;
 
     const gx = layout.gateU * (NX - 1);
     const half = layout.gateHalfCells;
@@ -90,20 +89,20 @@ export class Water {
     const up: number[] = [];
     for (let x = Math.round(gx - half); x <= Math.round(gx + half); x++) {
       if (x < 1 || x >= NX - 1) continue;
-      down.push(damRow0 * NX + x);
-      up.push((damRow0 - 1) * NX + x);
+      down.push(notchRow * NX + x);
+      up.push(layout.resRow * NX + x);
     }
     this.gateDown = Int32Array.from(down);
     this.gateUp = Int32Array.from(up);
-    this.resTarget = layout.reservoirTargetDepth;
-    this.resFloorSurface = layout.reservoirFloor + this.resTarget;
+    this.resFloorSurface = layout.reservoirSurface;
 
     // Pre-fill the upper reservoir: the mystery is that water is already there.
     for (let z = 1; z <= this.resRow1; z++) {
       for (let x = 1; x < NX - 1; x++) {
         const i = z * NX + x;
-        const surface = layout.reservoirFloor + this.resTarget;
-        if (this.terrain.height[i] < surface) this.depth[i] = surface - this.terrain.height[i];
+        if (this.terrain.height[i] < layout.reservoirSurface) {
+          this.depth[i] = layout.reservoirSurface - this.terrain.height[i];
+        }
       }
     }
 
@@ -119,6 +118,18 @@ export class Water {
     this.pondCells = Int32Array.from(pc);
     this.pondArea = Math.max(1, pc.length);
 
+    // After rain the low ground is still damp: it reads as where water belongs.
+    for (let k = 0; k < this.pondCells.length; k++) this.terrain.wet[this.pondCells[k]] = 0.42;
+    const hx = Math.round(layout.hollowU * (NX - 1));
+    const hz = Math.round(layout.hollowV * (NZ - 1));
+    for (let z = hz - 4; z <= hz + 4; z++) {
+      for (let x = hx - 6; x <= hx + 6; x++) {
+        if (x < 0 || x >= NX || z < 0 || z >= NZ) continue;
+        const f = 1 - Math.hypot((x - hx) / 6, (z - hz) / 4);
+        if (f > 0) this.terrain.wet[z * NX + x] = Math.max(this.terrain.wet[z * NX + x], f * 0.45);
+      }
+    }
+
     // Seed the tell-tale: one damp patch under the leaking gate.
     for (let k = 0; k < this.gateDown.length; k++) {
       const i = this.gateDown[k];
@@ -132,8 +143,8 @@ export class Water {
     const i = this.gateDown[(this.gateDown.length / 2) | 0] ?? 0;
     const x = i % NX;
     const z = (i / NX) | 0;
-    out.x = (x / (NX - 1) - 0.5) * 6.0;
-    out.z = (z / (NZ - 1) - 0.5) * 8.0;
+    out.x = (x / (NX - 1) - 0.5) * WORLD_W;
+    out.z = (z / (NZ - 1) - 0.5) * WORLD_D;
     out.y = this.terrain.height[i] + this.depth[i] + 0.01;
     return out;
   }
@@ -257,7 +268,7 @@ export class Water {
     }
   }
 
-  resFloorSurface = 0.04;
+  resFloorSurface = 0.06;
 
   /** Sand drinks water; wet sand dries out slowly and creeps outward. */
   private exchangeWithSand(dt: number) {
@@ -343,9 +354,9 @@ export class Water {
     const z = (i / NX) | 0;
     this.events.push({
       type,
-      x: (x / (NX - 1) - 0.5) * 6.0,
+      x: (x / (NX - 1) - 0.5) * WORLD_W,
       y: this.terrain.height[i] + this.depth[i],
-      z: (z / (NZ - 1) - 0.5) * 8.0,
+      z: (z / (NZ - 1) - 0.5) * WORLD_D,
       power,
     });
   }

@@ -1,0 +1,17 @@
+import { chromium } from 'playwright';
+import fs from 'node:fs';
+const OUT = process.env.OUT || 'diag';
+fs.mkdirSync(OUT, { recursive: true });
+const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
+const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+const page = await ctx.newPage();
+page.on('pageerror', (e) => console.log('pageerror', e.message));
+await page.goto('http://localhost:4173/', { waitUntil: 'load' });
+await page.waitForFunction(() => document.querySelector('#boot > i')?.style.width === '100%', null, { timeout: 90000 });
+await page.locator('#start-btn').dispatchEvent('click');
+await page.waitForTimeout(2600);
+await page.screenshot({ path: `${OUT}/full-establish.png` });
+await page.waitForTimeout(4200);
+await page.screenshot({ path: `${OUT}/full-gatemid.png` });
+await page.screenshot({ path: `${OUT}/zoom-gate.png`, clip: { x: 90, y: 180, width: 220, height: 220 } });
+await browser.close();

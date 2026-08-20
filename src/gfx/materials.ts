@@ -111,8 +111,8 @@ export function makeRock(t: TextureSet) {
   nrm.repeat.set(3, 3);
   nrm.needsUpdate = true;
   return new THREE.MeshStandardMaterial({
-    color: 0x8d8880,
-    roughness: 0.82,
+    color: 0x545049,
+    roughness: 0.74,
     metalness: 0,
     normalMap: nrm,
     normalScale: new THREE.Vector2(1.4, 1.4),

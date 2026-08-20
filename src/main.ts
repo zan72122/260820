@@ -38,6 +38,18 @@ game
 
 game.bindInput(input);
 
+if (obs.enabled) {
+  // Local-only developer probe. Present only with ?debug=1.
+  (window as unknown as { __probe: unknown }).__probe = {
+    state: () => ({ ...game.probe(), ...game.layoutInfo }),
+    handleScreen: () => game.handleScreen(),
+    project: (u: number, v: number) => game.project(u, v),
+  };
+}
+
+audio.setMuted(!ui.soundOn);
+game.setHaptics(ui.hapticsOn);
+
 ui.onStart = () => {
   if (!ready || started) return;
   started = true;

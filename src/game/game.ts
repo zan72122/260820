@@ -52,6 +52,8 @@ export class Game {
   private tool: Tool = 'dig';
   private mudHeld = 0;
   private longPressArmed = false;
+  private mudPoint = new THREE.Vector3();
+  private mudActive = false;
 
   private hintStage = 0;
   private hintsEnabled = true;
@@ -106,7 +108,7 @@ export class Game {
     scene.add(dome);
     scene.fog = new THREE.Fog(0xb9b6ad, 22, 52);
 
-    this.sun = new THREE.DirectionalLight(0xfff2dd, 2.1);
+    this.sun = new THREE.DirectionalLight(0xfff1d6, 3.6);
     this.sun.position.copy(sunDir);
     this.sun.castShadow = true;
     const sc = this.sun.shadow;
@@ -118,12 +120,13 @@ export class Game {
     sc.camera.near = 0.5;
     sc.camera.far = 26;
     sc.bias = -0.0006;
-    sc.normalBias = 0.022;
+    sc.normalBias = 0.018;
+    sc.camera.updateProjectionMatrix();
     scene.add(this.sun);
     scene.add(this.sun.target);
 
     // a cool bounce from the damp ground keeps the shadows from going dead
-    const fill = new THREE.HemisphereLight(0xd8e2e8, 0x4a4036, 0.35);
+    const fill = new THREE.HemisphereLight(0xcfdde6, 0x40372c, 0.22);
     scene.add(fill);
 
     this.terrain = new Terrain(this.tex);
@@ -160,6 +163,7 @@ export class Game {
     this.gate.place(this.layout);
     this.boat.place(this.layout, this.terrain);
     this.surroundings.placeStones(this.layout, this.terrain);
+    this.surroundings.placeTools(this.terrain);
 
     this.sun.target.position.set(0, 0, 0);
     this.sun.target.updateMatrixWorld();
@@ -206,12 +210,12 @@ export class Game {
   }
 
   private fOverview(): Framing {
-    return { tx: 0, ty: 0, tz: 0.1, w: WORLD_W + 0.7, d: WORLD_D + 0.7, pitch: 47, margin: 1.05, fov: 44, ease: 0.75 };
+    return { tx: 0, ty: 0, tz: 0.05, w: WORLD_W + 0.45, d: WORLD_D + 0.5, pitch: 50, margin: 1.03, fov: 44, ease: 0.75 };
   }
 
   private fGateMid(): Framing {
     const g = this.gateWorld();
-    return { tx: g.x * 0.6, ty: 0.06, tz: g.z + 1.25, w: 3.5, d: 4.7, pitch: 33, margin: 1.05, fov: 44, ease: 0.6 };
+    return { tx: g.x * 0.55, ty: 0.05, tz: g.z + 0.95, w: 1.95, d: 3.1, pitch: 32, margin: 1.04, fov: 44, ease: 0.6 };
   }
 
   private fFlowLow(): Framing {
@@ -219,8 +223,8 @@ export class Game {
       tx: this.frontX * 0.85,
       ty: 0.02,
       tz: this.frontZ + 0.45,
-      w: 2.9,
-      d: 3.6,
+      w: 1.8,
+      d: 2.9,
       pitch: 15,
       margin: 1.04,
       fov: 47,
@@ -229,15 +233,15 @@ export class Game {
   }
 
   private fDig(): Framing {
-    return { tx: 0, ty: 0, tz: 0.3, w: WORLD_W - 0.5, d: WORLD_D - 0.8, pitch: 52, margin: 1.03, fov: 44, ease: 0.65 };
+    return { tx: 0, ty: 0, tz: 0.25, w: WORLD_W - 0.35, d: WORLD_D - 0.9, pitch: 55, margin: 1.02, fov: 44, ease: 0.65 };
   }
 
   private fBreach(x: number, z: number): Framing {
-    return { tx: x, ty: 0.0, tz: z + 0.4, w: 1.55, d: 1.9, pitch: 19, margin: 1.04, fov: 45, ease: 0.5 };
+    return { tx: x, ty: 0.0, tz: z + 0.34, w: 0.95, d: 1.55, pitch: 19, margin: 1.03, fov: 45, ease: 0.5 };
   }
 
   private fComplete(): Framing {
-    return { tx: 0, ty: 0, tz: 0.8, w: WORLD_W + 1.3, d: WORLD_D + 1.5, pitch: 38, margin: 1.06, fov: 42, ease: 0.85 };
+    return { tx: 0, ty: 0, tz: 0.55, w: WORLD_W + 1.1, d: WORLD_D + 1.4, pitch: 42, margin: 1.04, fov: 42, ease: 0.85 };
   }
 
   private applyFraming(f: Framing) {
@@ -282,7 +286,8 @@ export class Game {
         this.longPressArmed = this.tool === 'dig';
         this.mudHeld = 0;
         this.hasLastDig = false;
-        if (this.drag === 'mud') this.pressMudAt(hit, 0.5);
+        this.mudPoint.copy(hit);
+        this.mudActive = this.drag === 'mud';
       }
     };
 
@@ -298,8 +303,10 @@ export class Game {
         if (p.moved > 16) this.longPressArmed = false;
         const hit = this.pickTerrain(p.x, p.y - FINGER_LIFT_PX);
         if (!hit) return;
-        if (this.drag === 'mud') this.pressMudAt(hit, 0.6);
-        else this.digAt(hit, p.speed);
+        if (this.drag === 'mud') {
+          this.mudPoint.copy(hit);
+          this.mudActive = true;
+        } else this.digAt(hit, p.speed);
       }
     };
 
@@ -309,6 +316,7 @@ export class Game {
       }
       this.drag = 'none';
       this.longPressArmed = false;
+      this.mudActive = false;
       this.hasLastDig = false;
       this.digSpeed = 0;
       this.audio.setDigging(0, 0);
@@ -320,9 +328,21 @@ export class Game {
     return this.ndc;
   }
 
+  /**
+   * Grabbing the gate must be forgiving: anywhere on the woodwork counts, and
+   * so does anywhere near the handle on screen, whatever the camera distance.
+   */
   private hitHandle(x: number, y: number) {
+    this.gate.handleAnchor.getWorldPosition(this.projV);
+    this.projV.project(this.engine.camera);
+    if (this.projV.z < 1) {
+      const hx = (this.projV.x * 0.5 + 0.5) * window.innerWidth;
+      const hy = (-this.projV.y * 0.5 + 0.5) * window.innerHeight;
+      const near = Math.min(window.innerWidth, window.innerHeight) * 0.17;
+      if (Math.hypot(x - hx, y - hy) < Math.max(56, near)) return true;
+    }
     this.ray.setFromCamera(this.toNdc(x, y), this.engine.camera);
-    return this.ray.intersectObject(this.gate.handleHit, false).length > 0;
+    return this.ray.intersectObject(this.gate.group, true).length > 0;
   }
 
   /** Analytic march against the height field: far cheaper than mesh picking. */
@@ -397,14 +417,27 @@ export class Game {
     }
   }
 
-  private pressMudAt(p: THREE.Vector3, power: number) {
-    this.terrain.pressMud(p.x, p.z, 0.17, 0.006 * power);
-    this.mudHeld += 1;
-    if (this.mudHeld % 7 === 1) {
-      this.audio.mudPress(power);
-      this.haptic(9);
+  /** Pressing longer piles more mud, and it spreads as it is worked. */
+  private pressMud(dt: number) {
+    const t = clamp(this.mudHeld, 0, 1.4);
+    const rate = 0.055 * (1 - t / 2.2);
+    this.terrain.pressMud(this.mudPoint.x, this.mudPoint.z, 0.16 + t * 0.05, rate * dt);
+    this.mudHeld += dt;
+    this.mudBeat -= dt;
+    if (this.mudBeat <= 0) {
+      this.mudBeat = 0.28;
+      this.audio.mudPress(0.35 + Math.min(0.65, t));
+      this.particles.sand(
+        this.mudPoint.x,
+        this.terrain.heightAt(this.mudPoint.x, this.mudPoint.z),
+        this.mudPoint.z,
+        0.25,
+      );
+      this.haptic(8);
     }
   }
+
+  private mudBeat = 0;
 
   private haptic(ms: number) {
     if (!this.hapticsOn) return;
@@ -493,12 +526,15 @@ export class Game {
       if (speed > 0.05) this.audio.creak(clamp(speed * 0.9, 0.1, 1));
       this.lastGateOpen = this.gate.open;
     }
+    if (this.drag === 'mud' && this.mudActive) this.pressMud(dt);
     if (this.drag === 'dig') {
       this.digSpeed = damp(this.digSpeed, 0, 0.12, dt);
       this.audio.setDigging(this.digSpeed, 0.2);
       // holding still with the digging hand packs mud instead of carving
       if (this.longPressArmed && this.heldMs > LONG_PRESS_MS) {
         this.drag = 'mud';
+        this.mudActive = true;
+        this.mudHeld = 0;
         this.haptic(14);
         this.revealMud();
       }
@@ -506,7 +542,7 @@ export class Game {
       this.audio.setDigging(0, 0);
     }
 
-    const pressure = clamp(this.water.resFloorSurface - this.layout.sillY, 0, 0.5) * 2;
+    const pressure = clamp((this.water.resFloorSurface - this.layout.sillY) * 3, 0, 1);
     this.gate.update(dt, elapsed, pressure);
     this.terrain.update(dt);
     this.waterMesh.update(dt, elapsed);
@@ -612,7 +648,7 @@ export class Game {
 
     if (this.phase === 'mystery') {
       // the establishing shot holds, then eases in without a cut
-      if (this.phaseTime > 4.5 && this.currentFraming && this.currentFraming.pitch === 47) {
+      if (this.phaseTime > 4.5 && this.currentFraming && this.currentFraming.pitch === 50) {
         this.applyFraming(this.fGateMid());
       }
       if (this.water.gateFlow > 0.0006 || this.gate.open > 0.06) {
@@ -636,6 +672,8 @@ export class Game {
       return;
     }
 
+    if (this.phase === 'play' && !this.mudShown && this.phaseTime > 24) this.revealMud();
+
     if (this.arrived) {
       this.arrivedTime += dt;
       if (!this.menuOffered && this.arrivedTime > 32 && this.sinceInteraction > 9 && !this.ui.menuOpen) {
@@ -651,9 +689,8 @@ export class Game {
   }
 
   private hollowDepth() {
-    const u = this.layout.gateU + (this.layoutId === 1 ? 0.07 : 0);
-    const gx = Math.round(u * (NX - 1));
-    const gz = Math.round(0.372 * (NZ - 1));
+    const gx = Math.round(this.layout.hollowU * (NX - 1));
+    const gz = Math.round(this.layout.hollowV * (NZ - 1));
     let s = 0;
     let n = 0;
     for (let z = gz - 2; z <= gz + 2; z++) {
@@ -726,6 +763,58 @@ export class Game {
     this.applyFraming(this.fOverview());
     this.rig.snap();
     this.ui.showCorners(true);
+  }
+
+  /** Developer probe, exposed only under ?debug=1. Never sends anything. */
+  probe() {
+    let dug = 0;
+    for (let i = 0; i < this.baseHeight.length; i++) if (this.baseHeight[i] - this.terrain.height[i] > 0.02) dug++;
+    return {
+      phase: this.phase,
+      layout: this.layoutId,
+      gateOpen: +this.gate.open.toFixed(3),
+      gateFlow: +this.water.gateFlow.toFixed(5),
+      pondFill: +this.water.pondFill.toFixed(3),
+      pondDepth: +this.water.pondDepth.toFixed(4),
+      wetCells: this.water.wetArea,
+      dugCells: dug,
+      arrived: this.arrived,
+      boatAfloat: this.boat.afloat,
+      fps: +this.engine.metrics.fps.toFixed(1),
+      calls: this.engine.metrics.calls,
+      tris: this.engine.metrics.tris,
+      pixelRatio: +this.engine.metrics.pixelRatio.toFixed(2),
+    };
+  }
+
+  /** Grid coordinates -> screen pixels, for developer scripts. */
+  project(u: number, v: number) {
+    this.projV.set(gridToWorldX(u * (NX - 1)), 0, gridToWorldZ(v * (NZ - 1)));
+    this.projV.y = this.terrain.heightAt(this.projV.x, this.projV.z);
+    this.projV.project(this.engine.camera);
+    return {
+      x: (this.projV.x * 0.5 + 0.5) * window.innerWidth,
+      y: (-this.projV.y * 0.5 + 0.5) * window.innerHeight + FINGER_LIFT_PX,
+    };
+  }
+
+  get layoutInfo() {
+    return {
+      hollowU: this.layout.hollowU,
+      hollowV: this.layout.hollowV,
+      pondU: this.layout.pondU,
+      pondV: this.layout.pondV,
+      toolsShown: this.toolsShown,
+    };
+  }
+
+  handleScreen() {
+    this.gate.handleAnchor.getWorldPosition(this.projV);
+    this.projV.project(this.engine.camera);
+    return {
+      x: (this.projV.x * 0.5 + 0.5) * window.innerWidth,
+      y: (-this.projV.y * 0.5 + 0.5) * window.innerHeight,
+    };
   }
 
   choose(choice: MenuChoice) {

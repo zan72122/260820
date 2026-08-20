@@ -51,12 +51,31 @@ export class UI {
 
   constructor(root: HTMLElement) {
     this.root = root;
+    try {
+      this.soundOn = localStorage.getItem('doronko.sound') !== '0';
+      this.hapticsOn = localStorage.getItem('doronko.haptics') !== '0';
+    } catch {
+      /* private mode: defaults are fine */
+    }
     this.buildStart();
     this.buildDock();
     this.buildCorners();
     this.buildMenu();
     this.buildGhost();
     this.buildDebug();
+    this.applySettings();
+  }
+
+  private applySettings() {
+    drawSound(this.soundBtn.ctx, this.soundBtn.s, this.soundOn);
+    drawSound(this.soundToggle.ctx, this.soundToggle.s, this.soundOn);
+    this.soundToggle.el.classList.toggle('off', !this.soundOn);
+    const vt = this.root.querySelector('#tg-vibe') as HTMLElement | null;
+    if (vt) {
+      const c = vt.querySelector('canvas') as HTMLCanvasElement;
+      drawVibration(c.getContext('2d')!, 58, this.hapticsOn);
+      vt.classList.toggle('off', !this.hapticsOn);
+    }
   }
 
   /* ---------------- start ---------------- */
@@ -138,8 +157,17 @@ export class UI {
     this.root.querySelectorAll('.corner').forEach((e) => e.classList.toggle('on', on));
   }
 
+  private remember(key: string, on: boolean) {
+    try {
+      localStorage.setItem(key, on ? '1' : '0');
+    } catch {
+      /* private mode: the choice simply does not persist */
+    }
+  }
+
   private toggleSound() {
     this.soundOn = !this.soundOn;
+    this.remember('doronko.sound', this.soundOn);
     drawSound(this.soundBtn.ctx, this.soundBtn.s, this.soundOn);
     drawSound(this.soundToggle.ctx, this.soundToggle.s, this.soundOn);
     this.soundToggle.el.classList.toggle('off', !this.soundOn);
@@ -194,6 +222,7 @@ export class UI {
     const vt = iconButton('toggle', 'tg-vibe', 58, (c, s) => drawVibration(c, s, true));
     vt.el.addEventListener('click', () => {
       this.hapticsOn = !this.hapticsOn;
+      this.remember('doronko.haptics', this.hapticsOn);
       drawVibration(vt.ctx, vt.s, this.hapticsOn);
       vt.el.classList.toggle('off', !this.hapticsOn);
       this.onHaptics(this.hapticsOn);

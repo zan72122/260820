@@ -114,9 +114,9 @@ function buildSand(size: number) {
     const g = sandGrain(x, y, size);
     // Damp morning sand: warm grey-ochre, not saturated yellow.
     const t = g.macro * 0.55 + g.med * 0.45;
-    let r = 0.5 + t * 0.16;
-    let gg = 0.435 + t * 0.15;
-    let b = 0.335 + t * 0.13;
+    let r = 0.40 + t * 0.15;
+    let gg = 0.338 + t * 0.135;
+    let b = 0.248 + t * 0.115;
     // individual grains: quartz specks (light) + dark mineral specks
     const sp = g.fine;
     if (sp > 0.86) {
@@ -140,9 +140,9 @@ function buildSand(size: number) {
     return [clamp(r, 0, 1), clamp(gg, 0, 1), clamp(b, 0, 1)];
   });
 
-  const normal = normalFromHeight(size, 3.4, (x, y) => {
+  const normal = normalFromHeight(size, 4.6, (x, y) => {
     const g = sandGrain(x, y, size);
-    return g.med * 0.35 + g.fine * 0.42 + g.fine2 * 0.23 + g.macro * 0.2;
+    return g.med * 0.4 + g.fine * 0.5 + g.fine2 * 0.28 + g.macro * 0.18;
   });
 
   const orm = paint(size, (x, y) => {

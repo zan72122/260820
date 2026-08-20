@@ -1,0 +1,30 @@
+import { chromium } from 'playwright';
+const browser = await chromium.launch({ args: ['--use-gl=swiftshader', '--enable-unsafe-swiftshader'] });
+const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+const page = await ctx.newPage();
+page.on('console', (m) => console.log('LOG', m.text()));
+page.on('pageerror', (e) => console.log('ERR', e.message));
+await page.goto('http://localhost:4173/?debug=1', { waitUntil: 'load' });
+await page.waitForFunction(() => document.querySelector('#boot > i')?.style.width === '100%', null, { timeout: 90000 });
+await page.locator('#start-btn').dispatchEvent('click');
+await page.waitForTimeout(6500);
+await page.evaluate(() => {
+  const c = document.getElementById('gl');
+  for (const t of ['pointerdown', 'pointermove', 'pointerup', 'touchstart', 'mousedown'])
+    c.addEventListener(t, (e) => console.log('EVT ' + t + ' ' + (e.clientX | 0) + ',' + (e.clientY | 0)), true);
+  console.log('elem at 195,300: ' + document.elementFromPoint(195, 300)?.id);
+});
+const h = await page.evaluate(() => window.__probe.handleScreen());
+console.log('handle', JSON.stringify(h));
+await page.mouse.move(h.x, h.y);
+await page.mouse.down();
+await page.mouse.move(h.x, h.y - 40);
+await page.mouse.up();
+await page.waitForTimeout(400);
+console.log('mouse state', JSON.stringify(await page.evaluate(() => window.__probe.state())));
+console.log('trace', JSON.stringify(await page.evaluate(() => window.__probe.trace())));
+await page.touchscreen.tap(h.x, h.y);
+await page.waitForTimeout(400);
+console.log('tap state', JSON.stringify(await page.evaluate(() => window.__probe.state())));
+console.log('trace2', JSON.stringify(await page.evaluate(() => window.__probe.trace())));
+await browser.close();

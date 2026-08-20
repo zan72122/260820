@@ -68,6 +68,7 @@ body {
 
 #start.hidden {
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
 }
 
@@ -129,11 +130,14 @@ body {
   gap: 14px;
   z-index: 20;
   opacity: 0;
-  transition: opacity 0.5s ease;
+  visibility: hidden;
+  transition: opacity 0.5s ease, visibility 0s linear 0.5s;
 }
 
 #dock.on {
   opacity: 1;
+  visibility: visible;
+  transition: opacity 0.5s ease, visibility 0s;
 }
 
 body.portrait #dock {
@@ -196,11 +200,14 @@ body.landscape #dock {
   cursor: pointer;
   z-index: 20;
   opacity: 0;
-  transition: opacity 0.5s ease, transform 0.15s ease;
+  visibility: hidden;
+  transition: opacity 0.5s ease, transform 0.15s ease, visibility 0s linear 0.5s;
 }
 
 .corner.on {
   opacity: 1;
+  visibility: visible;
+  transition: opacity 0.5s ease, transform 0.15s ease, visibility 0s;
 }
 
 .corner:active {
@@ -239,12 +246,15 @@ body.landscape #dock {
   -webkit-backdrop-filter: blur(7px);
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.4s ease;
+  visibility: hidden;
+  transition: opacity 0.4s ease, visibility 0s linear 0.4s;
 }
 
 #menu.on {
   pointer-events: auto;
   opacity: 1;
+  visibility: visible;
+  transition: opacity 0.4s ease, visibility 0s;
 }
 
 body.portrait #menu {

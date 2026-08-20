@@ -5,7 +5,6 @@ export interface Stone {
   v: number; // 0..1 along grid Z
   r: number; // radius in world units
   rot: number;
-  seed: number;
 }
 
 export interface Layout {
@@ -15,42 +14,49 @@ export interface Layout {
   gateU: number;
   gateV: number;
   gateHalfCells: number;
+  /** row just upstream of the dam, inside the reservoir */
+  resRow: number;
+  /** first row of the dam band, where water enters the notch */
+  notchRow: number;
   sillY: number;
   crestY: number;
   reservoirFloor: number;
-  reservoirTargetDepth: number;
+  reservoirSurface: number;
+  hollowU: number;
+  hollowV: number;
   pondU: number;
   pondV: number;
   pondRU: number;
   pondRV: number;
-  pondFloor: number;
   stones: Stone[];
 }
 
-export const NX = 96;
-export const NZ = 128;
-export const WORLD_W = 6.0;
-export const WORLD_D = 8.0;
+/* A long, narrow sandbox: the same footprint reads as a channel in portrait
+   and as a cross-section in landscape, and it actually fills a phone screen. */
+export const NX = 72;
+export const NZ = 153;
+export const WORLD_W = 4.2;
+export const WORLD_D = 9.0;
 export const CELL = WORLD_W / (NX - 1);
-export const FLOOR_Y = -0.34;
+export const FLOOR_Y = -0.4;
 
 export const gridToWorldX = (x: number) => (x / (NX - 1) - 0.5) * WORLD_W;
 export const gridToWorldZ = (z: number) => (z / (NZ - 1) - 0.5) * WORLD_D;
 export const worldToGridX = (wx: number) => (wx / WORLD_W + 0.5) * (NX - 1);
 export const worldToGridZ = (wz: number) => (wz / WORLD_D + 0.5) * (NZ - 1);
 
-const RES_V0 = 0.035;
-const RES_V1 = 0.165;
-const DAM_V0 = 0.165;
-const DAM_V1 = 0.222;
+const DAM_V0 = 0.176;
+const DAM_V1 = 0.243;
+const RES_FLOOR = -0.2;
+const RES_SURFACE = 0.06;
+const SILL_Y = -0.09;
+const CREST_Y = 0.26;
 
-/** Smooth elliptical basin carve. */
 function basin(u: number, v: number, cu: number, cv: number, ru: number, rv: number) {
   const d = Math.hypot((u - cu) / ru, (v - cv) / rv);
-  return 1 - smoothstep(0.55, 1.0, d);
+  return 1 - smoothstep(0.62, 1.0, d);
 }
 
-/** Distance from a point to a segment, in normalised grid space. */
 function segDist(u: number, v: number, au: number, av: number, bu: number, bv: number) {
   const dx = bu - au;
   const dy = bv - av;
@@ -61,18 +67,15 @@ function segDist(u: number, v: number, au: number, av: number, bu: number, bv: n
 
 export function buildLayout(id: number): Layout {
   const h = new Float32Array(NX * NZ);
-  const crestY = 0.2;
-  const sillY = -0.055;
-  const reservoirFloor = -0.16;
-  const pondFloor = -0.235;
 
-  const gateU = id === 1 ? 0.36 : 0.5;
+  const gateU = id === 1 ? 0.37 : 0.5;
   const gateV = (DAM_V0 + DAM_V1) * 0.5;
-  const pondU = id === 1 ? 0.62 : 0.5;
-  const pondV = 0.885;
-  const pondRU = 0.27;
-  const pondRV = 0.085;
-
+  const hollowU = gateU + (id === 1 ? 0.09 : 0.0);
+  const hollowV = 0.375;
+  const pondU = id === 1 ? 0.6 : 0.5;
+  const pondV = 0.878;
+  const pondRU = 0.3;
+  const pondRV = 0.082;
   const seed = 1000 + id * 977;
 
   for (let z = 0; z < NZ; z++) {
@@ -81,56 +84,59 @@ export function buildLayout(id: number): Layout {
       const u = x / (NX - 1);
       const i = z * NX + x;
 
-      // Gentle downstream fall so water has somewhere to want to go.
-      let y = 0.045 - smoothstep(DAM_V1, 0.95, v) * 0.075;
+      // A gentle, steady fall from the dam to the far end.
+      let y = 0.05 - smoothstep(DAM_V1, 0.94, v) * 0.085;
 
-      // Natural sand undulation.
-      const n = fbm(u * 5.2, v * 6.6, 4, seed) - 0.5;
-      const n2 = fbm(u * 13.0, v * 15.0, 3, seed + 7) - 0.5;
-      y += n * 0.052 + n2 * 0.016;
+      const n = fbm(u * 4.4, v * 7.4, 4, seed) - 0.5;
+      const n2 = fbm(u * 11.0, v * 17.0, 3, seed + 7) - 0.5;
+      y += n * 0.05 + n2 * 0.015;
 
-      // Raised rim near the sandbox border so water stays in the box.
+      // Raised lip so the sandbox holds its own water.
       const border = Math.min(u, 1 - u, v, 1 - v);
-      y += smoothstep(0.075, 0.0, border) * 0.2;
+      y += smoothstep(0.05, 0.0, border) * 0.15;
 
-      // Upper reservoir basin.
-      const res = basin(u, v, 0.5, (RES_V0 + RES_V1) * 0.5, 0.42, (RES_V1 - RES_V0) * 0.72);
-      y = y * (1 - res) + reservoirFloor * res;
+      // Upper reservoir: a flat pool reaching right up to the dam.
+      const resV = smoothstep(0.022, 0.06, v) * smoothstep(DAM_V0 + 0.004, DAM_V0 - 0.03, v);
+      const resU = smoothstep(0.035, 0.13, u) * smoothstep(0.965, 0.87, u);
+      const res = resV * resU;
+      y = y * (1 - res) + RES_FLOOR * res;
 
-      // Dam wall across the top.
-      const dam = smoothstep(DAM_V0 - 0.012, DAM_V0 + 0.014, v) * smoothstep(DAM_V1 + 0.012, DAM_V1 - 0.014, v);
-      y = Math.max(y, crestY * dam + y * (1 - dam));
+      // Dam wall, near vertical faces so the notch is unambiguous.
+      const dam =
+        smoothstep(DAM_V0 - 0.009, DAM_V0 + 0.003, v) * smoothstep(DAM_V1 + 0.009, DAM_V1 - 0.003, v);
+      y = Math.max(y, CREST_Y * dam + y * (1 - dam));
 
-      // Sluice notch cut through the wall.
-      const notch = smoothstep(0.055, 0.018, Math.abs(u - gateU)) * dam;
-      y = y * (1 - notch) + sillY * notch;
+      // Sluice notch cut clean through the wall.
+      const notch = smoothstep(0.085, 0.058, Math.abs(u - gateU)) * dam;
+      y = y * (1 - notch) + SILL_Y * notch;
 
-      // The short, already-dug groove that stops halfway.
-      const gd = segDist(u, v, gateU, DAM_V1, gateU + (id === 1 ? 0.06 : 0.0), 0.335);
-      const groove = smoothstep(0.052, 0.014, gd) * smoothstep(DAM_V1 - 0.005, DAM_V1 + 0.02, v);
-      y = y * (1 - groove) + (sillY - 0.012) * groove;
+      // The short groove that already exists, and stops halfway.
+      const gd = segDist(u, v, gateU, DAM_V1 - 0.004, hollowU, hollowV - 0.02);
+      const groove = smoothstep(0.07, 0.028, gd) * smoothstep(DAM_V1 - 0.012, DAM_V1 + 0.004, v);
+      const grooveY = SILL_Y - 0.015 - (v - DAM_V1) * 0.12;
+      y = y * (1 - groove) + grooveY * groove;
 
-      // First hollow the groove empties into.
-      const hollow = basin(u, v, gateU + (id === 1 ? 0.07 : 0.0), 0.372, 0.085, 0.042);
-      y = y * (1 - hollow) + -0.105 * hollow;
+      // The first hollow the groove empties into.
+      const hollow = basin(u, v, hollowU, hollowV, 0.115, 0.038);
+      y = y * (1 - hollow) + -0.15 * hollow;
 
-      // Downstream pond, still dry and waiting.
-      const pond = basin(u, v, pondU, pondV, pondRU, pondRV);
-      y = y * (1 - pond) + pondFloor * pond;
+      // Downstream pond, dry and waiting for water.
+      const pond = basin(u, v, pondU, pondV, pondRU, pondRV) * 1.0;
+      y = y * (1 - pond) + -0.3 * pond;
 
       if (id === 0) {
-        // A low ridge with an off-centre saddle: water will find the weak spot.
-        const ridge = smoothstep(0.048, 0.0, Math.abs(v - 0.63));
-        const saddle = smoothstep(0.2, 0.06, Math.abs(u - 0.68));
-        y += ridge * (0.105 - saddle * 0.055);
+        // A low ridge with one weak, off-centre saddle.
+        const ridge = smoothstep(0.05, 0.0, Math.abs(v - 0.63));
+        const saddle = smoothstep(0.24, 0.07, Math.abs(u - 0.7));
+        y += ridge * (0.1 - saddle * 0.058);
       } else if (id === 1) {
-        // Two shallow shelves that split the flow if the child lets them.
-        const b1 = smoothstep(0.042, 0.0, segDist(u, v, 0.18, 0.52, 0.62, 0.58));
-        const b2 = smoothstep(0.042, 0.0, segDist(u, v, 0.86, 0.5, 0.5, 0.72));
-        y += (b1 + b2) * 0.085;
+        // Two shelves: the flow splits if the child lets it.
+        const b1 = smoothstep(0.05, 0.0, segDist(u, v, 0.14, 0.5, 0.66, 0.57));
+        const b2 = smoothstep(0.05, 0.0, segDist(u, v, 0.9, 0.49, 0.46, 0.71));
+        y += (b1 + b2) * 0.082;
       } else {
         // Open plain: nothing but sand to shape.
-        y += smoothstep(0.6, 0.0, Math.abs(v - 0.55)) * 0.012;
+        y += smoothstep(0.55, 0.0, Math.abs(v - 0.55)) * 0.012;
       }
 
       h[i] = clamp(y, FLOOR_Y + 0.01, 0.42);
@@ -139,11 +145,11 @@ export function buildLayout(id: number): Layout {
 
   const stones: Stone[] =
     id === 2
-      ? [{ u: 0.2, v: 0.74, r: 0.2, rot: 0.7, seed: 3 }]
+      ? [{ u: 0.22, v: 0.72, r: 0.15, rot: 0.7 }]
       : [
-          { u: 0.3, v: 0.52, r: 0.26, rot: 0.4, seed: 1 },
-          { u: 0.74, v: 0.72, r: 0.19, rot: 1.9, seed: 2 },
-          { u: 0.58, v: 0.46, r: 0.14, rot: 2.7, seed: 5 },
+          { u: 0.3, v: 0.5, r: 0.19, rot: 0.4 },
+          { u: 0.74, v: 0.71, r: 0.14, rot: 1.9 },
+          { u: 0.58, v: 0.45, r: 0.1, rot: 2.7 },
         ];
 
   return {
@@ -151,16 +157,19 @@ export function buildLayout(id: number): Layout {
     height: h,
     gateU,
     gateV,
-    gateHalfCells: Math.round(0.05 * (NX - 1)),
-    sillY,
-    crestY,
-    reservoirFloor,
-    reservoirTargetDepth: 0.2,
+    gateHalfCells: 4,
+    resRow: Math.round((DAM_V0 - 0.038) * (NZ - 1)),
+    notchRow: Math.round((DAM_V0 + 0.008) * (NZ - 1)),
+    sillY: SILL_Y,
+    crestY: CREST_Y,
+    reservoirFloor: RES_FLOOR,
+    reservoirSurface: RES_SURFACE,
+    hollowU,
+    hollowV,
     pondU,
     pondV,
     pondRU,
     pondRV,
-    pondFloor,
     stones,
   };
 }

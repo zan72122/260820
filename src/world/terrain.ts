@@ -37,7 +37,6 @@ export class Terrain {
   private shapeDirty = true;
   private aoDirty = true;
   private aoTimer = 0;
-  private readonly blur = new Float32Array(N);
 
   constructor(tex: TextureSet) {
     this.geo = new THREE.PlaneGeometry(WORLD_W, WORLD_D, NX - 1, NZ - 1);
@@ -64,16 +63,21 @@ export class Terrain {
     this.stateTex.wrapS = this.stateTex.wrapT = THREE.ClampToEdgeWrapping;
     this.stateTex.needsUpdate = true;
 
-    const sandRepeat = 9;
-    for (const t of [tex.sandColor, tex.sandNormal, tex.sandORM]) t.repeat.set(sandRepeat, sandRepeat * 1.33);
+    // One texture tile is roughly a hand's width of sand, in both axes.
+    const tileM = 0.46;
+    for (const t of [tex.sandColor, tex.sandNormal, tex.sandORM]) {
+      t.repeat.set(WORLD_W / tileM, WORLD_D / tileM);
+      t.needsUpdate = true;
+    }
 
     this.material = new THREE.MeshStandardMaterial({
       map: tex.sandColor,
       normalMap: tex.sandNormal,
-      normalScale: new THREE.Vector2(1.15, 1.15),
+      normalScale: new THREE.Vector2(1.5, 1.5),
       roughnessMap: tex.sandORM,
       aoMap: tex.sandORM,
-      aoMapIntensity: 0.85,
+      aoMapIntensity: 0.7,
+      envMapIntensity: 0.8,
       roughness: 1,
       metalness: 0,
       color: 0xffffff,
@@ -98,7 +102,7 @@ export class Terrain {
           vec4 stx = texture2D( uState, vTerrUv );
           gWet = stx.r; gMud = stx.g; gOcc = stx.b;
           // break up the tiling with a low-frequency second read of the sand
-          vec3 macro = texture2D( map, vTerrUv * vec2(1.6, 2.1) ).rgb;
+          vec3 macro = texture2D( map, vTerrUv * vec2(1.3, 2.6) ).rgb;
           diffuseColor.rgb *= 0.74 + 0.52 * dot( macro, vec3(0.3333) );
           vec3 dryC = diffuseColor.rgb;
           vec3 wetC = dryC * dryC * 1.18;
@@ -128,7 +132,7 @@ export class Terrain {
           '#include <aomap_fragment>',
           /* glsl */ `
           #include <aomap_fragment>
-          float occ = mix( 1.0, gOcc, 0.95 );
+          float occ = mix( 1.0, gOcc, 0.85 );
           reflectedLight.indirectDiffuse *= occ;
           reflectedLight.indirectSpecular *= mix( 1.0, gOcc, 0.65 );
           `,
@@ -314,37 +318,40 @@ export class Terrain {
     this.shapeDirty = false;
   }
 
-  /** Cheap curvature-based occlusion so grooves darken as they deepen. */
+  /**
+   * Horizon-angle occlusion over the height field. Sampling outward in four
+   * directions means a narrow groove darkens strongly while a wide, shallow
+   * basin stays open — which is how sand actually reads.
+   */
   private recomputeAo() {
     const h = this.height;
-    const b = this.blur;
-    const R = 3;
-    // separable box blur
+    const dists = [2, 4, 7];
+    const dirs = [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ];
     for (let z = 0; z < NZ; z++) {
       for (let x = 0; x < NX; x++) {
-        let s = 0;
-        let c = 0;
-        for (let k = -R; k <= R; k++) {
-          const xx = x + k;
-          if (xx < 0 || xx >= NX) continue;
-          s += h[z * NX + xx];
-          c++;
-        }
-        b[z * NX + x] = s / c;
-      }
-    }
-    for (let x = 0; x < NX; x++) {
-      for (let z = 0; z < NZ; z++) {
-        let s = 0;
-        let c = 0;
-        for (let k = -R; k <= R; k++) {
-          const zz = z + k;
-          if (zz < 0 || zz >= NZ) continue;
-          s += b[zz * NX + x];
-          c++;
-        }
         const i = z * NX + x;
-        this.ao[i] = clamp(0.5 + (h[i] - s / c) * 7.5, 0.36, 1);
+        const h0 = h[i];
+        let occ = 0;
+        for (let d = 0; d < 4; d++) {
+          const dx = dirs[d][0];
+          const dz = dirs[d][1];
+          let maxSlope = 0;
+          for (let s = 0; s < 3; s++) {
+            const step = dists[s];
+            const sx = x + dx * step;
+            const sz = z + dz * step;
+            if (sx < 0 || sx >= NX || sz < 0 || sz >= NZ) continue;
+            const slope = (h[sz * NX + sx] - h0) / (step * CELL);
+            if (slope > maxSlope) maxSlope = slope;
+          }
+          occ += clamp(maxSlope * 1.15, 0, 1);
+        }
+        this.ao[i] = clamp(1 - (occ / 4) * 0.55, 0.35, 1);
       }
     }
     this.aoDirty = false;

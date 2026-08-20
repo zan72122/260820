@@ -323,34 +323,84 @@ export class Surroundings {
   readonly stoneGroup = new THREE.Group();
   private stoneGeo: THREE.BufferGeometry;
   private stoneMat: THREE.Material;
+  private bucket = new THREE.Group();
+  private scoop = new THREE.Group();
+
+  /** Anywhere on the paving, never inside the sand. */
+  private static scatter(rng: () => number) {
+    for (let n = 0; n < 40; n++) {
+      const a = rng() * Math.PI * 2;
+      const dist = 2.6 + rng() * 7.2;
+      const x = Math.cos(a) * dist * 1.35;
+      const z = Math.sin(a) * dist;
+      if (Math.abs(x) < WORLD_W / 2 + 0.45 && Math.abs(z) < WORLD_D / 2 + 0.45) continue;
+      return { x, z };
+    }
+    return { x: WORLD_W / 2 + 1.4, z: 0 };
+  }
 
   constructor(tex: TextureSet) {
     const wood = makeWood(tex, 3.2);
     const rng = makeRng(1337);
 
     // --- ground beyond the sandbox -----------------------------------
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(46, 46), makeConcrete(tex, 26));
-    ground.rotation.x = -Math.PI / 2;
+    // The paving has a hole exactly the size of the box, otherwise it would
+    // show through wherever the sand is dug below paving level.
+    const bw = 0.22;
+    const holeX = WORLD_W / 2 + bw;
+    const holeZ = WORLD_D / 2 + bw;
+    const shape = new THREE.Shape();
+    shape.moveTo(-23, -23);
+    shape.lineTo(23, -23);
+    shape.lineTo(23, 23);
+    shape.lineTo(-23, 23);
+    shape.closePath();
+    const hole = new THREE.Path();
+    hole.moveTo(-holeX, -holeZ);
+    hole.lineTo(-holeX, holeZ);
+    hole.lineTo(holeX, holeZ);
+    hole.lineTo(holeX, -holeZ);
+    hole.closePath();
+    shape.holes.push(hole);
+    const groundGeo = new THREE.ShapeGeometry(shape);
+    const guv = groundGeo.attributes.uv as THREE.BufferAttribute;
+    const gpos = groundGeo.attributes.position as THREE.BufferAttribute;
+    for (let i = 0; i < guv.count; i++) guv.setXY(i, gpos.getX(i) / 0.55, gpos.getY(i) / 0.55);
+    groundGeo.setAttribute('uv1', guv);
+    groundGeo.rotateX(-Math.PI / 2);
+    const ground = new THREE.Mesh(groundGeo, makeConcrete(tex, 1));
     ground.position.y = -0.135;
     ground.receiveShadow = true;
     this.group.add(ground);
 
+    // Damp sand filling the box below the playable surface, so digging
+    // through never reveals a hole in the world.
+    const pitMat = new THREE.MeshStandardMaterial({
+      color: 0x6a5a44,
+      roughness: 0.95,
+      metalness: 0,
+      side: THREE.BackSide,
+      envMapIntensity: 0.5,
+    });
+    const pit = new THREE.Mesh(new THREE.BoxGeometry(holeX * 2, 0.62, holeZ * 2), pitMat);
+    pit.position.y = 0.1 - 0.31;
+    pit.receiveShadow = true;
+    this.group.add(pit);
+
     // rain that has not dried yet
     const puddleMat = makePuddle();
-    for (let i = 0; i < 6; i++) {
-      const r = 0.32 + rng() * 0.62;
+    for (let i = 0; i < 7; i++) {
+      const r = 0.3 + rng() * 0.6;
       const pd = new THREE.Mesh(new THREE.CircleGeometry(r, 22), puddleMat);
       pd.rotation.x = -Math.PI / 2;
-      const a = rng() * Math.PI * 2;
-      const dist = 4.4 + rng() * 4.2;
-      pd.position.set(Math.cos(a) * dist, -0.132, Math.sin(a) * dist * 0.9);
+      const s = Surroundings.scatter(rng);
+      pd.position.set(s.x, -0.132, s.z);
       pd.scale.set(1, 1, 0.6 + rng() * 0.6);
       pd.renderOrder = 1;
       this.group.add(pd);
     }
 
     // --- sandbox frame ------------------------------------------------
-    const bw = 0.22;
     const bh = 0.3;
     const hw = WORLD_W / 2 + bw / 2;
     const hd = WORLD_D / 2 + bw / 2;
@@ -388,9 +438,8 @@ export class Surroundings {
     const v = new THREE.Vector3();
     const sc = new THREE.Vector3();
     for (let i = 0; i < 78; i++) {
-      const a = rng() * Math.PI * 2;
-      const dist = 3.9 + rng() * 6.5;
-      v.set(Math.cos(a) * dist, -0.128, Math.sin(a) * dist * 0.95);
+      const sp = Surroundings.scatter(rng);
+      v.set(sp.x, -0.128, sp.z);
       e.set(rng() * 3, rng() * 6, rng() * 3);
       q.setFromEuler(e);
       const s = 0.02 + rng() * 0.045;
@@ -406,9 +455,8 @@ export class Surroundings {
     // --- grass along the paving joints --------------------------------
     const grass = new THREE.InstancedMesh(grassTuftGeometry(), makeFoliage(0x53702f), 120);
     for (let i = 0; i < 120; i++) {
-      const a = rng() * Math.PI * 2;
-      const dist = 3.75 + rng() * 5.5;
-      v.set(Math.cos(a) * dist, -0.135, Math.sin(a) * dist * 0.95);
+      const sp = Surroundings.scatter(rng);
+      v.set(sp.x, -0.135, sp.z);
       e.set(0, rng() * 6.28, 0);
       q.setFromEuler(e);
       const s = 0.7 + rng() * 0.8;
@@ -421,7 +469,7 @@ export class Surroundings {
     this.group.add(grass);
 
     // --- bucket -------------------------------------------------------
-    const bucket = new THREE.Group();
+    const bucket = this.bucket;
     const paint = makePaintedMetal(tex, 2);
     const bareMetal = makeBareMetal(tex, 0xa8adb0, 3);
     const body = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.115, 0.2, 28, 1, true), paint);
@@ -448,37 +496,45 @@ export class Surroundings {
     bail.rotation.set(0, Math.PI / 2, 0);
     bail.castShadow = true;
     bucket.add(bail);
-    bucket.position.set(WORLD_W / 2 - 0.62, 0.09, WORLD_D / 2 - 0.55);
     bucket.rotation.y = 0.5;
-    bucket.rotation.z = 0.11;
+    bucket.rotation.z = 0.1;
     this.group.add(bucket);
 
     // --- scoop --------------------------------------------------------
-    const scoop = new THREE.Group();
-    const blade = new THREE.Mesh(new THREE.SphereGeometry(0.085, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), bareMetal);
-    blade.scale.set(1, 0.42, 1.25);
+    const scoop = this.scoop;
+    const blade = new THREE.Mesh(new THREE.SphereGeometry(0.115, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), bareMetal);
+    blade.scale.set(1, 0.45, 1.3);
     blade.rotation.x = Math.PI;
     blade.castShadow = true;
     blade.receiveShadow = true;
     scoop.add(blade);
     const shaftWood = makeWood(tex, 1.1);
-    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.0155, 0.42, 10), shaftWood);
-    shaft.position.set(0, 0.2, -0.08);
-    shaft.rotation.x = -0.32;
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.019, 0.52, 10), shaftWood);
+    shaft.position.set(0, 0.25, -0.05);
+    shaft.rotation.x = -0.18;
     shaft.castShadow = true;
     scoop.add(shaft);
-    const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.019, 0.019, 0.1, 10), makeRubber());
-    grip.position.set(0, 0.385, -0.145);
-    grip.rotation.x = -0.32;
+    const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.12, 12), makeRubber());
+    grip.position.set(0, 0.485, -0.093);
+    grip.rotation.x = -0.18;
     grip.castShadow = true;
     scoop.add(grip);
-    scoop.position.set(-WORLD_W / 2 + 0.5, 0.02, WORLD_D / 2 - 0.85);
-    scoop.rotation.set(0.32, -0.7, 0.25);
+    scoop.rotation.set(-1.15, -0.66, 0.12);
     this.group.add(scoop);
 
     this.stoneGeo = pebbleGeometry(makeRng(555));
     this.stoneMat = makeRock(tex);
     this.group.add(this.stoneGroup);
+  }
+
+  /** Toys rest on the sand at whatever height the sand happens to be. */
+  placeTools(terrain: Terrain) {
+    const bx = WORLD_W / 2 - 0.58;
+    const bz = WORLD_D / 2 - 0.75;
+    this.bucket.position.set(bx, terrain.heightAt(bx, bz) - 0.01, bz);
+    const sx = -WORLD_W / 2 + 0.52;
+    const sz = WORLD_D / 2 - 1.3;
+    this.scoop.position.set(sx, terrain.heightAt(sx, sz) + 0.055, sz);
   }
 
   /** Stones half-buried in the sand, matching the bumps in the height field. */
