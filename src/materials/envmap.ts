@@ -10,8 +10,8 @@ import * as THREE from 'three';
  * session — no HDR download, no per-frame cost.
  */
 
-const SKY_ZENITH = new THREE.Color(0x7d9dc4);
-const SKY_HORIZON = new THREE.Color(0xd8d2c4);
+const SKY_ZENITH = new THREE.Color(0x8fb0d6);
+const SKY_HORIZON = new THREE.Color(0xe6dfd0);
 const EARTH = new THREE.Color(0x5c554a);
 
 const skyVert = /* glsl */ `
@@ -42,6 +42,11 @@ const skyFrag = /* glsl */ `
     float glow = pow(max(dot(dir, normalize(sunDir)), 0.0), 6.0);
     sky += vec3(1.0, 0.94, 0.82) * (sun * 3.2 + glow * 0.22);
     gl_FragColor = vec4(sky, 1.0);
+    // The dome is lit content, not UI: it has to go through the same tone
+    // mapping and colour conversion as everything else or the sky reads as a
+    // flat grey card behind a tone-mapped pavilion.
+    #include <tonemapping_fragment>
+    #include <colorspace_fragment>
   }
 `;
 
@@ -62,6 +67,7 @@ export function createSkyDome() {
     side: THREE.BackSide,
     depthWrite: false,
     fog: false,
+    toneMapped: true,
   });
   const mesh = new THREE.Mesh(geo, mat);
   mesh.name = 'sky';
@@ -80,6 +86,9 @@ export function buildEnvironment(renderer: THREE.WebGLRenderer): THREE.Texture {
 
   const src = new THREE.Scene();
   const dome = createSkyDome();
+  // PMREM consumes linear radiance; tone mapping here would bake the display
+  // curve into the reflections.
+  (dome.material as THREE.ShaderMaterial).toneMapped = false;
   dome.scale.setScalar(0.1);
   src.add(dome);
 
@@ -108,12 +117,12 @@ export function buildEnvironment(renderer: THREE.WebGLRenderer): THREE.Texture {
 
   // Roof plane overhead: blocks the sky directly above and re-emits a dimmer,
   // warmer bounce, which is what gives the metals their horizontal banding.
-  addPanel(9, 9, 0xb4a893, 0.34, [0, 3.4, 0], [Math.PI / 2, 0, 0]);
+  addPanel(9, 9, 0xb4a893, 0.4, [0, 3.4, 0], [Math.PI / 2, 0, 0]);
   // Two practical strip lights under the roof.
   addPanel(3.4, 0.28, 0xfff0d6, 3.0, [0, 3.25, -1.1], [Math.PI / 2, 0, 0]);
   addPanel(3.4, 0.28, 0xfff0d6, 3.0, [0, 3.25, 1.1], [Math.PI / 2, 0, 0]);
   // Ground bounce: dry earth returning warm light into the underside of things.
-  addPanel(26, 26, 0x6d6252, 0.5, [0, -0.9, 0], [-Math.PI / 2, 0, 0]);
+  addPanel(26, 26, 0x7a6f5d, 0.62, [0, -0.9, 0], [-Math.PI / 2, 0, 0]);
   // A back wall keeps one side of every metal ball dark, so its form reads.
   addPanel(9, 3.6, 0x5d5750, 0.42, [0, 1.4, -4.4], [0, 0, 0]);
 

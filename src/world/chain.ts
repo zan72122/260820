@@ -5,6 +5,7 @@ import { FLOORS, FLOOR_ORDER, type FloorId } from '../physics/params';
 import { damp } from '../util/math';
 import { CHAIN_PADS, TILE_RACK_POS } from './layout';
 import { DeformablePanel, attachWearMap } from './panel';
+import { grabProxy } from './rig';
 import type { TurntableQuality } from './turntable';
 
 /**
@@ -31,6 +32,7 @@ export class ChainArea {
   readonly group = new THREE.Group();
   readonly slots: ChainSlot[] = [];
   readonly tiles: THREE.Mesh[] = [];
+  readonly tileProxies: THREE.Mesh[] = [];
   private lib: MaterialLibrary;
   private tileRack = new THREE.Group();
   private markerPulse = 0;
@@ -72,7 +74,7 @@ export class ChainArea {
           const foot = new THREE.Mesh(new THREE.BoxGeometry(0.05, footH, 0.05), galvMat);
           foot.position.set(cfg.halfX * 0.86 * sx, -0.055 - footH / 2, cfg.halfZ * 0.72 * sz);
           foot.rotation.z = -tilt;
-          foot.castShadow = true;
+          foot.castShadow = false;
           foot.receiveShadow = true;
           cradle.add(foot);
         }
@@ -82,7 +84,8 @@ export class ChainArea {
       for (const sx of [-1, 1]) {
         const lip = new THREE.Mesh(lipGeo, anodMat);
         lip.position.set((cfg.halfX + 0.02) * sx, -0.005, 0);
-        lip.castShadow = true;
+        lip.castShadow = false;
+        lip.receiveShadow = true;
         cradle.add(lip);
       }
 
@@ -131,12 +134,12 @@ export class ChainArea {
     this.tileRack.position.set(TILE_RACK_POS.x, TILE_RACK_POS.y, TILE_RACK_POS.z);
     this.tileRack.rotation.y = -0.5;
 
-    const rackBase = new THREE.Mesh(new THREE.BoxGeometry(1.34, 0.06, 0.34), timberMat);
+    const rackBase = new THREE.Mesh(new THREE.BoxGeometry(1.56, 0.06, 0.34), timberMat);
     rackBase.position.y = 0.03;
     rackBase.castShadow = true;
     rackBase.receiveShadow = true;
     this.tileRack.add(rackBase);
-    const rackBack = new THREE.Mesh(new THREE.BoxGeometry(1.34, 0.36, 0.05), timberMat);
+    const rackBack = new THREE.Mesh(new THREE.BoxGeometry(1.56, 0.36, 0.05), timberMat);
     rackBack.position.set(0, 0.2, -0.14);
     rackBack.rotation.x = -0.22;
     rackBack.castShadow = true;
@@ -146,14 +149,17 @@ export class ChainArea {
     const tileGeo = new THREE.BoxGeometry(0.15, 0.024, 0.15);
     for (let i = 0; i < FLOOR_ORDER.length; i++) {
       const tile = new THREE.Mesh(tileGeo, galvMat);
-      const x = (i - (FLOOR_ORDER.length - 1) / 2) * 0.18;
+      const x = (i - (FLOOR_ORDER.length - 1) / 2) * 0.21;
       tile.position.set(x, 0.14, -0.05);
       tile.rotation.x = -0.22;
-      tile.castShadow = true;
+      tile.castShadow = false;
       tile.receiveShadow = true;
-      tile.userData.pick = 'tile';
-      tile.userData.floorIndex = i;
       this.tileRack.add(tile);
+      const proxy = grabProxy(new THREE.BoxGeometry(0.17, 0.09, 0.17), 'tile');
+      proxy.userData.floorIndex = i;
+      proxy.position.copy(tile.position);
+      this.tileRack.add(proxy);
+      this.tileProxies.push(proxy);
       this.tiles.push(tile);
       this.tileHomes.push(tile.position.clone());
     }

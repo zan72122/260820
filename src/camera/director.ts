@@ -42,11 +42,11 @@ interface Pose {
 const POSES: Record<string, Pose> = {
   // Biased towards a side view: the drop is a vertical event and reads best
   // when the fall line is close to parallel with the screen.
-  'tray.landscape': { azimuth: 0.94, elevation: 0.23, margin: 1.13, padBottom: 0.34, padTop: 0.16 },
-  'tray.portrait': { azimuth: 0.82, elevation: 0.18, margin: 1.06, padBottom: 0.62, padTop: 0.2 },
+  'tray.landscape': { azimuth: 0.95, elevation: 0.19, margin: 1.03, padBottom: 0.12, padTop: 0.1 },
+  'tray.portrait': { azimuth: 1.05, elevation: 0.15, margin: 1.02, padBottom: 0.2, padTop: 0.1 },
   // Higher three-quarter so all three pads and the route between them read.
-  'chain.landscape': { azimuth: 0.34, elevation: 0.42, margin: 1.16, padBottom: 0.2, padTop: 0.3 },
-  'chain.portrait': { azimuth: 0.66, elevation: 0.52, margin: 1.1, padBottom: 0.3, padTop: 0.3 },
+  'chain.landscape': { azimuth: 0.32, elevation: 0.34, margin: 1.04, padBottom: 0.1, padTop: 0.12 },
+  'chain.portrait': { azimuth: 0.85, elevation: 0.5, margin: 1.06, padBottom: 0.16, padTop: 0.18 },
 };
 
 const _box = new THREE.Box3();
@@ -121,7 +121,7 @@ export class CameraDirector {
     for (const p of req.extra) _box.expandByPoint(p);
     _box.min.y -= pose.padBottom;
     _box.max.y += pose.padTop;
-    _box.expandByScalar(0.12);
+    _box.expandByScalar(0.07);
     _box.getCenter(_center);
 
     // Camera basis for the requested pose.
@@ -155,7 +155,9 @@ export class CameraDirector {
     const tanV = Math.tan(vFov / 2) * usable;
     const tanH = tanV * this.aspect;
     const margin = pose.margin * (1 - this.closeIn * 0.09);
-    const dist = Math.max(halfH / tanV, halfW / tanH) * margin + halfD + 0.35;
+    // Fit against the box's near face, plus a small clearance. Anything more
+    // generous here shows up directly as a smaller ball on screen.
+    const dist = Math.max(halfH / tanV, halfW / tanH) * margin + halfD * 0.62 + 0.12;
     this.distance = clamp(dist, 1.6, 16);
 
     this.desiredTarget.copy(_center);

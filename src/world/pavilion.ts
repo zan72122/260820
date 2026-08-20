@@ -33,6 +33,26 @@ export interface PavilionParts {
   slab: THREE.Mesh;
 }
 
+let blobTexture: THREE.Texture | null = null;
+
+/** A soft round falloff, used for anything that should not have a visible edge. */
+export function softBlobTexture() {
+  if (blobTexture) return blobTexture;
+  const size = 128;
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d')!;
+  const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.45, 'rgba(255,255,255,0.7)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, size, size);
+  blobTexture = new THREE.CanvasTexture(c);
+  blobTexture.colorSpace = THREE.SRGBColorSpace;
+  return blobTexture;
+}
+
 /** Bolts, washers and small repeated hardware, drawn in one call. */
 export function boltField(
   material: THREE.Material,
@@ -70,9 +90,10 @@ export function buildPavilion(lib: MaterialLibrary, shadowSize: number): Pavilio
   const timberMat = lib.get(timber, { repeat: 2, normalScale: 1.1 }, 'post');
   const roofMat = lib.get(roofSheet, { repeat: 3, normalScale: 1.0 }, 'roof');
   const cableMat = lib.get(cableRubber, { repeat: 4, normalScale: 1.1 }, 'cable');
-  const screenMat = lib.get(meshPanel, { repeat: 4, normalScale: 1.2 }, 'screen');
+  const screenMat = lib.get(meshPanel, { repeat: 2, normalScale: 0.9 }, 'screen');
   (screenMat as THREE.MeshStandardMaterial).transparent = true;
-  (screenMat as THREE.MeshStandardMaterial).opacity = 0.86;
+  (screenMat as THREE.MeshStandardMaterial).opacity = 0.9;
+  (screenMat as THREE.MeshStandardMaterial).side = THREE.DoubleSide;
 
   // --- terrain and slab ---------------------------------------------------
   const dirt = new THREE.Mesh(new THREE.CircleGeometry(34, 48), groundMat);
@@ -81,20 +102,23 @@ export function buildPavilion(lib: MaterialLibrary, shadowSize: number): Pavilio
   dirt.receiveShadow = true;
   root.add(dirt);
 
-  const slabGeo = new THREE.BoxGeometry(6.6, 0.18, 6.2);
+  const slabGeo = new THREE.BoxGeometry(7.8, 0.18, 7.4);
   const slab = new THREE.Mesh(slabGeo, concreteMat);
-  slab.position.set(0, SLAB_Y - 0.09, 0.1);
+  slab.position.set(0, SLAB_Y - 0.09, -0.6);
   slab.receiveShadow = true;
   slab.castShadow = false;
   root.add(slab);
 
   // --- posts and roof -----------------------------------------------------
   const postGeo = new THREE.BoxGeometry(0.16, 3.3, 0.16);
+  // The camera works from out in the yard, looking in through the open side.
+  // The posts therefore sit behind and beside the rig, never between the lens
+  // and the ball.
   const postPositions: Array<[number, number]> = [
-    [-2.85, -2.5],
-    [2.85, -2.5],
-    [-2.85, 2.6],
-    [2.85, 2.6],
+    [-3.4, -3.2],
+    [3.4, -3.2],
+    [-3.4, 1.45],
+    [3.4, 1.45],
   ];
   const boltPlacements: Array<{ pos: THREE.Vector3; rot?: THREE.Euler }> = [];
   for (const [x, z] of postPositions) {
@@ -107,7 +131,7 @@ export function buildPavilion(lib: MaterialLibrary, shadowSize: number): Pavilio
     // Galvanised base shoe, bolted down.
     const shoe = new THREE.Mesh(new THREE.BoxGeometry(0.26, 0.14, 0.26), galvMat);
     shoe.position.set(x, 0.07, z);
-    shoe.castShadow = true;
+    shoe.castShadow = false;
     shoe.receiveShadow = true;
     root.add(shoe);
     for (const [dx, dz] of [[-0.09, -0.09], [0.09, -0.09], [-0.09, 0.09], [0.09, 0.09]]) {
@@ -115,38 +139,69 @@ export function buildPavilion(lib: MaterialLibrary, shadowSize: number): Pavilio
     }
   }
 
-  const beamGeo = new THREE.BoxGeometry(6.0, 0.2, 0.14);
-  for (const z of [-2.5, 2.6]) {
+  const beamGeo = new THREE.BoxGeometry(7.1, 0.2, 0.14);
+  for (const z of [-3.2, 1.45]) {
     const beam = new THREE.Mesh(beamGeo, timberMat);
     beam.position.set(0, 3.24, z);
     beam.castShadow = true;
     beam.receiveShadow = true;
     root.add(beam);
   }
-  const purlinGeo = new THREE.BoxGeometry(0.09, 0.14, 5.2);
-  for (const x of [-2.2, -0.75, 0.75, 2.2]) {
+  const purlinGeo = new THREE.BoxGeometry(0.09, 0.14, 5.0);
+  for (const x of [-2.6, -0.9, 0.9, 2.6]) {
     const p = new THREE.Mesh(purlinGeo, timberMat);
-    p.position.set(x, 3.4, 0.05);
-    p.castShadow = true;
+    p.position.set(x, 3.4, -0.88);
+    p.castShadow = false;
     root.add(p);
   }
 
-  const roof = new THREE.Mesh(new THREE.BoxGeometry(6.5, 0.05, 5.6), roofMat);
-  roof.position.set(0, 3.5, 0.05);
+  const roof = new THREE.Mesh(new THREE.BoxGeometry(7.6, 0.05, 5.4), roofMat);
+  roof.position.set(0, 3.5, -0.88);
   roof.rotation.x = -0.035;
   roof.castShadow = true;
   roof.receiveShadow = true;
   root.add(roof);
 
   // --- wind screen on the weather side ------------------------------------
-  const screen = new THREE.Mesh(new THREE.PlaneGeometry(5.7, 2.1), screenMat);
-  screen.position.set(0, 1.8, -2.52);
+  // Kept deliberately low. Everything above it is open sky, which is what
+  // gives the ball a bright field to be seen against.
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(6.7, 1.5), screenMat);
+  screen.position.set(0, 0.78, -3.22);
   screen.receiveShadow = false;
   root.add(screen);
-  const screenRail = new THREE.Mesh(new THREE.BoxGeometry(5.8, 0.06, 0.06), galvMat);
-  screenRail.position.set(0, 2.86, -2.52);
-  screenRail.castShadow = true;
-  root.add(screenRail);
+  for (const y of [0.06, 1.52]) {
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(6.8, 0.07, 0.07), galvMat);
+    rail.position.set(0, y, -3.22);
+    rail.castShadow = false;
+    rail.receiveShadow = true;
+    root.add(rail);
+  }
+
+  // --- distant landscape ---------------------------------------------------
+  // Three coarse masses of trees at the property line. They cost three draw
+  // calls and stop the horizon from reading as an empty grey band.
+  const treeMat = new THREE.MeshStandardMaterial({
+    color: 0x5a5e4a,
+    roughness: 1,
+    metalness: 0,
+  });
+  const treeGeo = new THREE.SphereGeometry(1, 10, 7);
+  const trees = new THREE.InstancedMesh(treeGeo, treeMat, 5);
+  const tm = new THREE.Matrix4();
+  const tq = new THREE.Quaternion();
+  const ts = new THREE.Vector3();
+  for (let i = 0; i < 5; i++) {
+    const a = -2.5 + i * 0.95 + rnd() * 0.2;
+    const r = 21 + rnd() * 7;
+    ts.set(6 + rnd() * 5, 3.2 + rnd() * 1.8, 6 + rnd() * 4);
+    tq.setFromEuler(new THREE.Euler(0, rnd() * 3, 0));
+    tm.compose(new THREE.Vector3(Math.sin(a) * r, -1.9 + rnd() * 0.6, Math.cos(a) * r - 4), tq, ts);
+    trees.setMatrixAt(i, tm);
+  }
+  trees.instanceMatrix.needsUpdate = true;
+  trees.castShadow = false;
+  trees.receiveShadow = false;
+  root.add(trees);
 
   // --- practical lights under the roof ------------------------------------
   const lampBody = new THREE.CylinderGeometry(0.055, 0.055, 1.5, 10);
@@ -204,53 +259,64 @@ export function buildPavilion(lib: MaterialLibrary, shadowSize: number): Pavilio
   root.add(bucket);
 
   // Sand and dust dragged out of the tray, scattered around the working side.
-  const dustGeo = new THREE.CircleGeometry(0.5, 12);
-  const dustMat = new THREE.MeshStandardMaterial({
-    color: 0x9a8e75,
-    roughness: 0.98,
-    metalness: 0,
+  const dustGeo = new THREE.PlaneGeometry(1, 1);
+  const dustMat = new THREE.MeshBasicMaterial({
+    color: 0xbeb195,
+    map: softBlobTexture(),
+    alphaMap: softBlobTexture(),
     transparent: true,
-    opacity: 0.34,
+    opacity: 0.3,
     depthWrite: false,
+    toneMapped: true,
   });
-  for (let i = 0; i < 7; i++) {
-    const d = new THREE.Mesh(dustGeo, dustMat);
+  const dust = new THREE.InstancedMesh(dustGeo, dustMat, 9);
+  const dm = new THREE.Matrix4();
+  const dq = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0));
+  const ds = new THREE.Vector3();
+  for (let i = 0; i < 9; i++) {
     const a = rnd() * Math.PI * 2;
-    const r = 0.9 + rnd() * 1.7;
-    d.position.set(Math.cos(a) * r, SLAB_Y + 0.003, Math.sin(a) * r * 0.8 - 0.2);
-    d.rotation.x = -Math.PI / 2;
-    d.scale.setScalar(0.5 + rnd() * 0.9);
-    (d.material as THREE.MeshStandardMaterial).opacity = 0.16 + rnd() * 0.22;
-    d.renderOrder = 1;
-    root.add(d);
+    const r = 0.8 + rnd() * 1.9;
+    const size = 0.5 + rnd() * 1.0;
+    ds.set(size, size, 1);
+    dm.compose(
+      new THREE.Vector3(Math.cos(a) * r, SLAB_Y + 0.004, Math.sin(a) * r * 0.75 - 0.5),
+      dq,
+      ds
+    );
+    dust.setMatrixAt(i, dm);
   }
+  dust.instanceMatrix.needsUpdate = true;
+  dust.renderOrder = 1;
+  root.add(dust);
 
-  root.add(boltField(galvMat, boltPlacements));
+  const bolts = boltField(galvMat, boltPlacements);
+  bolts.castShadow = false;
+  root.add(bolts);
 
   // --- lighting -----------------------------------------------------------
   // One shadow-casting key light. Everything else is ambient or unshadowed
   // fill, which keeps the shadow budget at exactly one map.
-  const sun = new THREE.DirectionalLight(0xfff2dc, 2.35);
+  const sun = new THREE.DirectionalLight(0xfff4e2, 3.5);
   sun.position.copy(SUN_DIRECTION).multiplyScalar(9);
   sun.castShadow = true;
   sun.shadow.mapSize.set(shadowSize, shadowSize);
   sun.shadow.camera.near = 1;
   sun.shadow.camera.far = 22;
-  sun.shadow.camera.left = -3.4;
-  sun.shadow.camera.right = 3.4;
-  sun.shadow.camera.top = 3.6;
-  sun.shadow.camera.bottom = -2.2;
+  sun.shadow.camera.left = -3.6;
+  sun.shadow.camera.right = 3.2;
+  sun.shadow.camera.top = 3.8;
+  sun.shadow.camera.bottom = -2.4;
   sun.shadow.bias = -0.0006;
   sun.shadow.normalBias = 0.018;
   sun.target.position.set(-0.3, 0.4, 0.3);
   root.add(sun);
   root.add(sun.target);
 
-  const hemi = new THREE.HemisphereLight(0xb9cbe0, 0x6a6252, 0.85);
+  const hemi = new THREE.HemisphereLight(0xc6d6ea, 0x7d7361, 1.15);
   root.add(hemi);
 
   // Warm bounce from the roof lights; no shadow map, so it costs nothing.
-  const fill = new THREE.DirectionalLight(0xffe6c0, 0.5);
+  const fill = new THREE.DirectionalLight(0xffe6c0, 0.62);
   fill.position.set(1.6, 3.1, 1.9);
   root.add(fill);
 

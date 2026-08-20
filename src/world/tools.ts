@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { MaterialLibrary } from '../materials/library';
 import { anodised, feltFloor, timber } from '../materials/recipes';
 import { damp } from '../util/math';
+import { grabProxy } from './rig';
 
 /**
  * The clean-up brush.
@@ -13,7 +14,8 @@ import { damp } from '../util/math';
 export class Brush {
   readonly group = new THREE.Group();
   readonly head: THREE.Mesh;
-  readonly home = new THREE.Vector3(1.14, 0.62, 0.16);
+  readonly proxy!: THREE.Mesh;
+  readonly home = new THREE.Vector3(-0.36, 0.4, 0.06);
   private homeQuat = new THREE.Quaternion();
   private carried = false;
   private returning = false;
@@ -37,17 +39,26 @@ export class Brush {
     this.head = new THREE.Mesh(new THREE.SphereGeometry(0.042, 16, 12), anodMat);
     this.head.position.y = 0.055;
     this.head.castShadow = true;
-    this.head.userData.pick = 'brush';
     this.group.add(this.head);
+    const proxy = grabProxy(new THREE.SphereGeometry(0.13, 10, 8), 'brush');
+    proxy.position.copy(this.head.position);
+    this.group.add(proxy);
+    this.proxy = proxy;
 
     const hook = new THREE.Mesh(new THREE.TorusGeometry(0.02, 0.006, 6, 12), anodMat);
     hook.position.set(0.11, 0.03, 0);
     hook.rotation.y = Math.PI / 2;
     this.group.add(hook);
 
-    this.homeQuat.setFromEuler(new THREE.Euler(0, 0.3, -0.5));
+    this.homeQuat.setFromEuler(new THREE.Euler(0, 0.62, 0));
     this.group.position.copy(this.home);
     this.group.quaternion.copy(this.homeQuat);
+  }
+
+  /** Park the brush beside whichever area is currently being tested. */
+  setHome(x: number, y: number, z: number) {
+    this.home.set(x, y, z);
+    this.returning = true;
   }
 
   pickUp() {

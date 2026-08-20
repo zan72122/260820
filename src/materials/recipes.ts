@@ -44,7 +44,7 @@ export const rubberFloor: Recipe = {
     const fleck = smoothstep(0.42, 0.06, speckle.f1) * (speckle.id > 0.72 ? 1 : 0.12);
     const patch = fbm(u * 5, v * 5, 5, 3, 71);
 
-    const base = 0.088 + grain * 0.028 + patch * 0.02;
+    const base = 0.135 + grain * 0.035 + patch * 0.026;
     setRgb(s, base * 1.04, base * 1.0, base * 0.94);
     // Recycled rubber crumb shows as slightly lighter flecks.
     tint(s, 0.2, 0.19, 0.175, fleck * 0.55);
@@ -220,8 +220,8 @@ export const rubberBall: Recipe = {
     // The mould parting line runs round the equator.
     const seam = smoothstep(0.012, 0.0, Math.abs(v - 0.5));
 
-    const light = 0.13 + dust * 0.05 + pebble.id * 0.03;
-    setRgb(s, light * 1.06, light * 0.98, light * 0.9);
+    const light = 0.26 + dust * 0.07 + pebble.id * 0.04;
+    setRgb(s, light * 1.05, light * 0.99, light * 0.93);
 
     s.rough = 0.66 + dust * 0.1 - p * 0.06 + seam * 0.06;
     s.metal = 0;
@@ -553,8 +553,8 @@ export const meshPanel: Recipe = {
   size: 256,
   bump: 0.9,
   sample(u, v, s) {
-    const gx = Math.abs(((u * 30) % 1) * 2 - 1);
-    const gy = Math.abs(((v * 30) % 1) * 2 - 1);
+    const gx = Math.abs(((u * 16) % 1) * 2 - 1);
+    const gy = Math.abs(((v * 16) % 1) * 2 - 1);
     const wire = Math.max(smoothstep(0.55, 0.95, gx), smoothstep(0.55, 0.95, gy));
     const grime = valueNoise(u * 12, v * 12, 12, 661);
 

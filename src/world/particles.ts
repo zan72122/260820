@@ -20,7 +20,10 @@ const vert = /* glsl */ `
     vColor = aColor;
     vec4 mv = modelViewMatrix * vec4(position, 1.0);
     gl_Position = projectionMatrix * mv;
-    gl_PointSize = aSize * uScale / max(-mv.z, 0.05);
+    // aSize is the grain's real diameter in metres; uScale converts that to
+    // pixels for this viewport and lens. Clamped so a particle drifting close
+    // to the lens can never wash out the frame.
+    gl_PointSize = clamp(aSize * uScale / max(-mv.z, 0.08), 1.0, 40.0);
   }
 `;
 
@@ -66,7 +69,7 @@ export class ParticleField {
   private material: THREE.ShaderMaterial;
   private live = 0;
 
-  constructor(capacity = 360, pixelScale = 1) {
+  constructor(capacity = 360) {
     this.positions = new Float32Array(capacity * 3);
     this.sizes = new Float32Array(capacity);
     this.lives = new Float32Array(capacity);
@@ -86,7 +89,7 @@ export class ParticleField {
     this.geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0.5, 0), 12);
 
     this.material = new THREE.ShaderMaterial({
-      uniforms: { uScale: { value: 320 * pixelScale } },
+      uniforms: { uScale: { value: 600 } },
       vertexShader: vert,
       fragmentShader: frag,
       transparent: true,
@@ -97,8 +100,10 @@ export class ParticleField {
     this.points.renderOrder = 5;
   }
 
-  setPixelScale(s: number) {
-    this.material.uniforms.uScale.value = 320 * s;
+  /** Recompute the world-metres-to-pixels factor for the current frame. */
+  setProjection(viewportHeightPx: number, fovDegrees: number) {
+    const tanV = Math.tan((fovDegrees * Math.PI) / 360);
+    this.material.uniforms.uScale.value = viewportHeightPx / (2 * tanV);
   }
 
   private palette(kind: DebrisKind, r: number): [number, number, number] {
@@ -113,7 +118,7 @@ export class ParticleField {
         return [0.62 + r * 0.18, 0.6 + r * 0.16, 0.55 + r * 0.14];
       case 'dust':
       default:
-        return [0.5 + r * 0.14, 0.48 + r * 0.12, 0.44 + r * 0.1];
+        return [0.34 + r * 0.12, 0.32 + r * 0.11, 0.29 + r * 0.09];
     }
   }
 
@@ -146,7 +151,14 @@ export class ParticleField {
       p.vy = speed * up;
       p.maxLife = kind === 'dust' ? 1.1 + Math.random() * 0.7 : 0.5 + Math.random() * 0.55;
       p.life = p.maxLife;
-      p.size = kind === 'dust' ? 5 + Math.random() * 7 : kind === 'water' ? 2.4 + Math.random() * 3.4 : 1.7 + Math.random() * 2.6;
+      p.size =
+        kind === 'dust'
+          ? 0.018 + Math.random() * 0.03
+          : kind === 'water'
+            ? 0.004 + Math.random() * 0.008
+            : kind === 'foam'
+              ? 0.005 + Math.random() * 0.008
+              : 0.0022 + Math.random() * 0.0045;
       p.gravity = kind === 'dust' ? 0.9 : 9.81;
       p.drag = kind === 'dust' ? 1.9 : kind === 'foam' ? 2.6 : 0.35;
       p.floorY = floorY;

@@ -60,6 +60,16 @@ interface DragState {
   committed: boolean;
 }
 
+/** Smaller number wins when several pick volumes overlap. */
+const PICK_PRIORITY: Record<PickKind, number> = {
+  ball: 0,
+  tile: 0,
+  brush: 1,
+  carriage: 2,
+  ring: 3,
+  tray: 4,
+};
+
 const _plane = new THREE.Plane();
 const _ray = new THREE.Vector2();
 const _hit = new THREE.Vector3();
@@ -143,12 +153,25 @@ export class Interaction {
     let anchor = new THREE.Vector3();
 
     if (hits.length) {
-      const obj = hits[0].object;
-      const pick = obj.userData.pick as PickKind | undefined;
-      if (pick) {
-        kind = pick;
-        index = (obj.userData.ballIndex ?? obj.userData.floorIndex ?? 0) as number;
-        obj.getWorldPosition(anchor);
+      // Pick volumes are deliberately generous, so they overlap. When two of
+      // them are under the same finger, the smaller, more specific control
+      // wins: a specimen the child is reaching for should not be stolen by the
+      // big forgiving ball around the release ring.
+      let best: THREE.Object3D | null = null;
+      let bestRank = Infinity;
+      for (const hit of hits) {
+        const pick = hit.object.userData.pick as PickKind | undefined;
+        if (!pick) continue;
+        const rank = PICK_PRIORITY[pick] ?? 9;
+        if (rank < bestRank) {
+          bestRank = rank;
+          best = hit.object;
+        }
+      }
+      if (best) {
+        kind = best.userData.pick as PickKind;
+        index = (best.userData.ballIndex ?? best.userData.floorIndex ?? 0) as number;
+        best.getWorldPosition(anchor);
       }
     }
 

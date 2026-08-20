@@ -1,8 +1,10 @@
 import * as THREE from 'three';
 import { MaterialLibrary } from '../materials/library';
-import { anodised, galvanised, timber } from '../materials/recipes';
+import { anodised, galvanised, paintedSteel, timber } from '../materials/recipes';
 import { BALLS, BALL_ORDER, type BallId, type BallSpec } from '../physics/params';
-import { SHELF_POS, SHELF_TOP_Y } from './layout';
+import { damp } from '../util/math';
+import { SHELF_PITCH, SHELF_POS, SHELF_TOP_Y } from './layout';
+import { grabProxy } from './rig';
 
 /**
  * The ball rack.
@@ -14,6 +16,7 @@ import { SHELF_POS, SHELF_TOP_Y } from './layout';
 export class BallShelf {
   readonly group = new THREE.Group();
   readonly displays: THREE.Mesh[] = [];
+  readonly proxies: THREE.Mesh[] = [];
   private lib: MaterialLibrary;
   private baked = new Set<number>();
   private blank: THREE.Material;
@@ -24,50 +27,77 @@ export class BallShelf {
   /** 0..1 hint lift applied to the first unused specimen. */
   nudge = 0;
   nudgeIndex = 1;
+  private cover!: THREE.Group;
+  private coverOpen = 0;
+  private coverTarget = 0;
 
   constructor(lib: MaterialLibrary, segments = 32) {
     this.lib = lib;
     const timberMat = lib.get(timber, { repeat: 2, normalScale: 1.2 }, 'shelf');
+    const paintMat = lib.get(paintedSteel, { repeat: 2, normalScale: 0.9 }, 'shelf');
     const galvMat = lib.get(galvanised, { repeat: 3, normalScale: 0.9 }, 'shelf');
     const anodMat = lib.get(anodised, { repeat: 2, normalScale: 0.8 }, 'shelf');
     this.blank = galvMat;
 
     this.group.position.set(SHELF_POS.x, SHELF_POS.y, SHELF_POS.z);
-    // Angled so the specimens face the working side of the rig.
-    this.group.rotation.y = 0.42;
 
-    const width = BALL_ORDER.length * 0.24 + 0.12;
+    const span = BALL_ORDER.length * SHELF_PITCH;
 
-    const top = new THREE.Mesh(new THREE.BoxGeometry(width, 0.05, 0.34), timberMat);
-    top.position.y = SHELF_TOP_Y;
-    top.castShadow = true;
-    top.receiveShadow = true;
-    this.group.add(top);
+    // A channel rail bolted across the front of the machine, at the height a
+    // specimen actually gets picked up from.
+    const rail = new THREE.Mesh(new THREE.BoxGeometry(span + 0.14, 0.05, 0.15), galvMat);
+    rail.position.y = SHELF_TOP_Y - 0.03;
+    rail.castShadow = true;
+    rail.receiveShadow = true;
+    this.group.add(rail);
 
-    const shelfLow = new THREE.Mesh(new THREE.BoxGeometry(width, 0.04, 0.3), timberMat);
-    shelfLow.position.set(0, SHELF_TOP_Y - 0.42, 0);
-    shelfLow.castShadow = true;
-    shelfLow.receiveShadow = true;
-    this.group.add(shelfLow);
+    const lip = new THREE.Mesh(new THREE.BoxGeometry(span + 0.14, 0.04, 0.02), anodMat);
+    lip.position.set(0, SHELF_TOP_Y + 0.005, 0.075);
+    lip.castShadow = false;
+    lip.receiveShadow = true;
+    this.group.add(lip);
 
     for (const sx of [-1, 1]) {
-      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.07, SHELF_TOP_Y, 0.07), timberMat);
-      leg.position.set((width / 2 - 0.07) * sx, SHELF_TOP_Y / 2, -0.1);
-      leg.castShadow = true;
+      const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, SHELF_TOP_Y - 0.05, 0.06), galvMat);
+      leg.position.set((span / 2 - 0.02) * sx, (SHELF_TOP_Y - 0.05) / 2, 0);
+      leg.castShadow = false;
       leg.receiveShadow = true;
       this.group.add(leg);
-      const legF = leg.clone();
-      legF.position.z = 0.1;
-      this.group.add(legF);
-      const foot = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.02, 0.32), galvMat);
-      foot.position.set((width / 2 - 0.07) * sx, 0.01, 0);
+      const foot = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.02, 0.16), timberMat);
+      foot.position.set((span / 2 - 0.02) * sx, 0.01, 0);
       foot.receiveShadow = true;
       this.group.add(foot);
     }
 
-    const cradleGeo = new THREE.TorusGeometry(0.045, 0.011, 8, 20);
+    // A hinged dust cover. Until the specimens are in play the rail is shut,
+    // so nothing on screen invites a press that would do nothing.
+    this.cover = new THREE.Group();
+    this.cover.position.set(0, SHELF_TOP_Y + 0.02, -0.085);
+    const lid = new THREE.Mesh(new THREE.BoxGeometry(span + 0.14, 0.018, 0.19), paintMat);
+    lid.position.set(0, 0.095, 0.095);
+    lid.castShadow = true;
+    lid.receiveShadow = true;
+    this.cover.add(lid);
+    const front = new THREE.Mesh(new THREE.BoxGeometry(span + 0.14, 0.095, 0.018), paintMat);
+    front.position.set(0, 0.048, 0.185);
+    front.castShadow = true;
+    front.receiveShadow = true;
+    this.cover.add(front);
+    for (const sx of [-1, 1]) {
+      const end = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.095, 0.19), paintMat);
+      end.position.set(((span + 0.12) / 2) * sx, 0.048, 0.095);
+      end.castShadow = false;
+      end.receiveShadow = true;
+      this.cover.add(end);
+    }
+    const knob = new THREE.Mesh(new THREE.SphereGeometry(0.02, 10, 8), anodMat);
+    knob.position.set(0, 0.048, 0.2);
+    this.cover.add(knob);
+    this.group.add(this.cover);
+
+    const cradleGeo = new THREE.TorusGeometry(0.042, 0.01, 8, 18);
     const cradles = new THREE.InstancedMesh(cradleGeo, anodMat, BALL_ORDER.length);
-    cradles.castShadow = true;
+    cradles.castShadow = false;
     cradles.receiveShadow = true;
     const m = new THREE.Matrix4();
     const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, 0));
@@ -75,17 +105,25 @@ export class BallShelf {
 
     for (let i = 0; i < BALL_ORDER.length; i++) {
       const spec = BALLS[BALL_ORDER[i]];
-      const x = (i - (BALL_ORDER.length - 1) / 2) * 0.24;
-      m.compose(new THREE.Vector3(x, SHELF_TOP_Y + 0.028, 0), q, one);
+      const x = (i - (BALL_ORDER.length - 1) / 2) * SHELF_PITCH;
+      m.compose(new THREE.Vector3(x, SHELF_TOP_Y + 0.026, 0), q, one);
       cradles.setMatrixAt(i, m);
 
-      const mesh = new THREE.Mesh(new THREE.SphereGeometry(spec.radius, segments, Math.round(segments * 0.6)), this.blank);
-      mesh.position.set(x, SHELF_TOP_Y + 0.03 + spec.radius * 0.82, 0);
+      const mesh = new THREE.Mesh(
+        new THREE.SphereGeometry(spec.radius, segments, Math.round(segments * 0.6)),
+        this.blank
+      );
+      mesh.position.set(x, SHELF_TOP_Y + 0.028 + spec.radius * 0.8, 0);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
-      mesh.userData.pick = 'ball';
-      mesh.userData.ballIndex = i;
       this.group.add(mesh);
+      // The steel specimen is barely 6 cm across; the pick volume is sized for
+      // a child's aim, not for the geometry.
+      const proxy = grabProxy(new THREE.SphereGeometry(0.082, 10, 8), 'ball');
+      proxy.userData.ballIndex = i;
+      proxy.position.copy(mesh.position);
+      this.group.add(proxy);
+      this.proxies.push(proxy);
       this.displays.push(mesh);
       this.lift.push(0);
       this.homes.push(mesh.position.clone());
@@ -123,6 +161,9 @@ export class BallShelf {
     this.activeIndex = index;
     for (let i = 0; i < this.displays.length; i++) {
       this.displays[i].visible = i !== index;
+      // An empty cradle is not a target: move its pick volume off the
+      // raycaster's layer rather than leaving a ghost to grab at.
+      this.proxies[i].layers.set(i === index ? 1 : 0);
     }
   }
 
@@ -136,6 +177,19 @@ export class BallShelf {
 
   worldPositionOf(index: number, target: THREE.Vector3) {
     return this.displays[index].getWorldPosition(target);
+  }
+
+  /** The two ends of the rail, so the camera can keep all of it on screen. */
+  extents(): [THREE.Vector3, THREE.Vector3] {
+    return [
+      this.displays[0].getWorldPosition(new THREE.Vector3()),
+      this.displays[this.displays.length - 1].getWorldPosition(new THREE.Vector3()),
+    ];
+  }
+
+  /** Open the rail's dust cover once specimens become selectable. */
+  setOpen(open: boolean) {
+    this.coverTarget = open ? 1 : 0;
   }
 
   /** Carry a specimen with the finger; pass null to just lift it in place. */
@@ -160,6 +214,10 @@ export class BallShelf {
   }
 
   update(dt: number) {
+    this.coverOpen = damp(this.coverOpen, this.coverTarget, 5, dt);
+    this.cover.rotation.x = -this.coverOpen * 1.85;
+    this.cover.visible = this.coverOpen < 0.995;
+
     // The specimens breathe a little in their cradles when idle — enough to
     // read as "these can be picked up", not enough to distract.
     for (let i = 0; i < this.displays.length; i++) {

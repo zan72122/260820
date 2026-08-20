@@ -27,6 +27,7 @@ import {
   CHAIN_DROP_Z,
   CHAIN_PADS,
   SLAB_Y,
+  TILE_RACK_POS,
   TRAY_DROP_Z,
   TRAY_POCKET_R,
   TRAY_SURFACE_Y,
@@ -126,7 +127,7 @@ export class App implements InteractionHost {
     });
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.02;
+    this.renderer.toneMappingExposure = 1.14;
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
@@ -177,7 +178,7 @@ export class App implements InteractionHost {
     this.brush = new Brush(this.lib);
     this.scene.add(this.brush.group);
 
-    this.particles = new ParticleField(this.quality.particleCount, 1);
+    this.particles = new ParticleField(this.quality.particleCount);
     this.scene.add(this.particles.points);
     await nextFrame();
 
@@ -217,8 +218,90 @@ export class App implements InteractionHost {
     document.addEventListener('visibilitychange', this.onVisibility);
     window.addEventListener('pagehide', () => this.state.save());
 
+    if (this.debug.enabled) this.exposeInspector();
+
     this.renderer.compile(this.scene, this.director.camera);
     this.start();
+  }
+
+  /**
+   * Screen positions of the physical controls, published only under
+   * `?debug=1`. It exists so an automated pass can drive the same controls a
+   * child would; a normal session never defines it.
+   */
+  private exposeInspector() {
+    const project = (obj: THREE.Object3D) => {
+      const v = obj.getWorldPosition(new THREE.Vector3()).project(this.director.camera);
+      return {
+        x: ((v.x + 1) / 2) * window.innerWidth,
+        y: ((1 - v.y) / 2) * window.innerHeight,
+      };
+    };
+    (window as unknown as Record<string, unknown>).__lab = {
+      screenOf: (name: string) => {
+        if (name === 'ring') return project(this.rig.ringHandle);
+        if (name === 'clamp') return project(this.rig.head);
+        if (name === 'handle') return project(this.rig.carriageHandle);
+        if (name === 'tray') return project(this.turntable.deck);
+        if (name === 'brush') return project(this.brush.head);
+        if (name.startsWith('ball')) return project(this.shelf.displays[Number(name.slice(4))]);
+        if (name.startsWith('tile')) return project(this.chain.tiles[Number(name.slice(4))]);
+        if (name.startsWith('pad')) {
+          const i = Number(name.slice(3));
+          const p = CHAIN_PADS[i];
+          const v = new THREE.Vector3(p.x, p.y, p.z).project(this.director.camera);
+          return { x: ((v.x + 1) / 2) * window.innerWidth, y: ((1 - v.y) / 2) * window.innerHeight };
+        }
+        return null;
+      },
+      impact: () => {
+        const p = this.chainActive
+          ? new THREE.Vector3(CHAIN_PADS[0].x, CHAIN_PADS[0].y, CHAIN_PADS[0].z)
+          : new THREE.Vector3(0, TRAY_SURFACE_Y, TRAY_DROP_Z);
+        const v = p.project(this.director.camera);
+        return { x: ((v.x + 1) / 2) * window.innerWidth, y: ((1 - v.y) / 2) * window.innerHeight };
+      },
+      camera: () => ({
+        eye: this.director.camera.position.toArray().map((v) => +v.toFixed(2)),
+        target: this.director.lookTarget.toArray().map((v) => +v.toFixed(2)),
+        fov: this.director.camera.fov,
+        armHead: this.rig.head.getWorldPosition(new THREE.Vector3()).toArray().map((v) => +v.toFixed(2)),
+        ring: this.rig.ring.position.toArray().map((v) => +v.toFixed(2)),
+      }),
+      /** What a press at this screen point would grab. */
+      pickAt: (x: number, y: number) => {
+        const rc = new THREE.Raycaster();
+        rc.setFromCamera(
+          new THREE.Vector2((x / window.innerWidth) * 2 - 1, -(y / window.innerHeight) * 2 + 1),
+          this.director.camera
+        );
+        const hits = rc.intersectObjects(this.pickTargets(), false);
+        return hits.length
+          ? { pick: hits[0].object.userData.pick, index: hits[0].object.userData.ballIndex ?? hits[0].object.userData.floorIndex ?? null, name: hits[0].object.name }
+          : null;
+      },
+      snapshot: () => ({
+        phase: this.state.phase,
+        unlocks: { ...this.state.unlocks },
+        simPhase: this.sim.phase,
+        floor: this.currentFloorId(),
+        ball: this.currentBallId(),
+        heightIndex: this.heightIndex,
+        chainActive: this.chainActive,
+        chainSlots: this.chain.slots.map((s) => s.floorId),
+        drops: this.state.metrics.dropsTotal,
+        apexY: this.peakY,
+        ballY: this.ballPosition.y,
+        marked: this.chainActive ? this.chain.slots[0].panel.marked : this.turntable.activePanel.marked,
+      }),
+      /** Force a stage open, so later stages can be exercised without waiting. */
+      unlock: (what: 'balls' | 'height' | 'chain') => {
+        this.state.unlocks.floors = true;
+        if (what === 'balls' || what === 'height' || what === 'chain') this.state.unlocks.balls = true;
+        if (what === 'height' || what === 'chain') this.state.unlocks.height = true;
+        if (what === 'chain') this.state.unlocks.chain = true;
+      },
+    };
   }
 
   private restoreFreeMode() {
@@ -352,7 +435,11 @@ export class App implements InteractionHost {
     else if (this.state.phase === 'trial2.ready') this.state.phase = 'trial2.falling';
   }
 
+  /** Highest point of the most recent rebound, for verification only. */
+  private peakY = 0;
+
   private onApex() {
+    this.peakY = this.ballPosition.y;
     // The frame has been holding the whole fall since before the release, so
     // there is nothing to widen here. Once the ball has peaked we are free to
     // let the camera ease back out of its contact push-in.
@@ -411,6 +498,8 @@ export class App implements InteractionHost {
     this.chain.primeTiles();
     this.chain.setSlot(0, this.turntable.activeFloorId);
     this.rig.setDropZ(CHAIN_DROP_Z);
+    // The brush moves out to the yard with the test.
+    this.brush.setHome(0.55, 0.24, CHAIN_DROP_Z + 0.34);
     this.updatePads();
     if (this.sim.phase === 'held') {
       this.rig.setDropHeight(this.surfaceY(), DROP_HEIGHTS[this.heightIndex], this.sim.ball.radius);
@@ -496,10 +585,13 @@ export class App implements InteractionHost {
       : new THREE.Vector3(0, TRAY_SURFACE_Y, TRAY_DROP_Z);
 
     const extra: THREE.Vector3[] = [this.rig.ring.position.clone()];
+    // The specimen rail is a control the child has to be able to reach, so
+    // both ends of it stay inside the frame in every mode.
+    if (this.state.unlocks.balls) extra.push(...this.shelf.extents());
     if (this.chainActive) {
       for (const cfg of CHAIN_PADS) extra.push(new THREE.Vector3(cfg.x, cfg.y, cfg.z));
-    } else {
-      extra.push(new THREE.Vector3(0, TRAY_SURFACE_Y, TRAY_DROP_Z - TRAY_POCKET_R));
+      // The spare-tile rack is a control, so it has to stay on screen.
+      extra.push(new THREE.Vector3(TILE_RACK_POS.x, 0.24, TILE_RACK_POS.z));
     }
     // Once the ball has passed its first peak we may follow it, so a ball that
     // rolls off the sample is never lost off the edge of the screen.
@@ -546,6 +638,7 @@ export class App implements InteractionHost {
     this.applyHints(dt);
 
     if (this.state.unlocks.chain && !this.chainActive) this.activateChain();
+    this.shelf.setOpen(this.state.unlocks.balls);
 
     // --- simulation -------------------------------------------------------
     if (this.sim.phase === 'held') {
@@ -680,7 +773,6 @@ export class App implements InteractionHost {
   private applyPixelRatio() {
     const dpr = Math.min(window.devicePixelRatio || 1, this.quality.pixelRatioCap);
     this.renderer.setPixelRatio(dpr);
-    this.particles.setPixelScale(1);
   }
 
   // -------------------------------------------------------------------------
@@ -699,7 +791,10 @@ export class App implements InteractionHost {
     if (!this.running) return;
     requestAnimationFrame(this.tick);
     if (this.paused) return;
-    const dt = Math.min((now - this.lastTime) / 1000, 0.05);
+    // Cap the step at a tenth of a second: long enough that a hitching device
+    // still advances in real time, short enough that a tab left in the
+    // background does not resume with one enormous jump.
+    const dt = Math.min((now - this.lastTime) / 1000, 0.1);
     this.lastTime = now;
     this.update(dt);
     this.renderer.render(this.scene, this.director.camera);
@@ -736,6 +831,7 @@ export class App implements InteractionHost {
     this.applyPixelRatio();
     this.renderer.setSize(w, h, false);
     this.director.setViewport(w, h, this.safeTop, this.safeBottom);
+    this.particles?.setProjection(h, this.director.camera.fov);
     this.interaction?.setViewport(w, h);
     // Nothing else is touched: the ball, the sample, every mark on it and the
     // stage of the sequence all survive a rotation untouched.
@@ -747,11 +843,11 @@ export class App implements InteractionHost {
   // -------------------------------------------------------------------------
 
   pickTargets(): THREE.Object3D[] {
-    const t: THREE.Object3D[] = [this.rig.ringHandle, this.brush.head];
+    const t: THREE.Object3D[] = [this.rig.ringHandle, this.brush.proxy];
     if (this.state.unlocks.floors) t.push(...this.turntable.pickables);
-    if (this.state.unlocks.balls) t.push(...this.shelf.displays);
+    if (this.state.unlocks.balls) t.push(...this.shelf.proxies);
     if (this.state.unlocks.height) t.push(this.rig.carriageHandle);
-    if (this.state.unlocks.chain) t.push(...this.chain.tiles);
+    if (this.state.unlocks.chain) t.push(...this.chain.tileProxies);
     return t;
   }
 
@@ -772,7 +868,11 @@ export class App implements InteractionHost {
   }
 
   canChangeFloor() {
-    return this.state.unlocks.floors && this.sim.phase === 'held' && this.reloadT < 0;
+    // Out in the yard the sample tray is behind the camera; materials are
+    // chosen there by carrying a tile to a cradle instead.
+    return (
+      this.state.unlocks.floors && !this.chainActive && this.sim.phase === 'held' && this.reloadT < 0
+    );
   }
 
   canChangeBall() {
