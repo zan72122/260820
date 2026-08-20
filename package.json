@@ -1,0 +1,27 @@
+{
+  "name": "momo-hikari-no-juutan",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "モモの光のじゅうたん - a wordless discovery game for 4-year-olds",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview --port 4173",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "e2e": "playwright test",
+    "shots": "playwright test e2e/shots.spec.ts"
+  },
+  "dependencies": {
+    "three": "^0.169.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "@types/three": "^0.169.0",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10",
+    "vitest": "^2.1.4"
+  }
+}
