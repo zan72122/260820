@@ -11,6 +11,16 @@ function makeCanvas(size: number): [HTMLCanvasElement, CanvasRenderingContext2D]
   return [c, ctx];
 }
 
+/**
+ * Textures whose `repeat` is set by the caller must not be shared instances, or
+ * the last caller silently rescales everyone else. Clones share the GPU source.
+ */
+function instance(t: THREE.Texture): THREE.Texture {
+  const c = t.clone();
+  c.needsUpdate = true;
+  return c;
+}
+
 function finish(c: HTMLCanvasElement, repeat = 1, aniso = 4): THREE.Texture {
   const t = new THREE.CanvasTexture(c);
   t.wrapS = t.wrapT = THREE.RepeatWrapping;
@@ -33,7 +43,7 @@ function finishData(c: HTMLCanvasElement, repeat = 1): THREE.Texture {
 /** Gritty soil / gravel albedo. */
 export function soilTexture(size = 512, base: [number, number, number] = [104, 84, 62]): THREE.Texture {
   const key = `soil${size}${base.join(',')}`;
-  if (cache.has(key)) return cache.get(key)!;
+  if (cache.has(key)) return instance(cache.get(key)!);
   const [c, ctx] = makeCanvas(size);
   const img = ctx.createImageData(size, size);
   const d = img.data;
@@ -67,13 +77,13 @@ export function soilTexture(size = 512, base: [number, number, number] = [104, 8
   }
   const t = finish(c, 1);
   cache.set(key, t);
-  return t;
+  return instance(t);
 }
 
 /** Matching bump/rough map for soil (data texture, no color space). */
 export function soilRough(size = 256): THREE.Texture {
   const key = `soilrough${size}`;
-  if (cache.has(key)) return cache.get(key)!;
+  if (cache.has(key)) return instance(cache.get(key)!);
   const [c, ctx] = makeCanvas(size);
   const img = ctx.createImageData(size, size);
   const d = img.data;
@@ -89,13 +99,13 @@ export function soilRough(size = 256): THREE.Texture {
   ctx.putImageData(img, 0, 0);
   const t = finishData(c, 1);
   cache.set(key, t);
-  return t;
+  return instance(t);
 }
 
 /** Worn asphalt for the closed road. */
 export function asphaltTexture(size = 512): THREE.Texture {
   const key = `asph${size}`;
-  if (cache.has(key)) return cache.get(key)!;
+  if (cache.has(key)) return instance(cache.get(key)!);
   const [c, ctx] = makeCanvas(size);
   const img = ctx.createImageData(size, size);
   const d = img.data;
@@ -118,20 +128,20 @@ export function asphaltTexture(size = 512): THREE.Texture {
   }
   const t = finish(c, 1);
   cache.set(key, t);
-  return t;
+  return instance(t);
 }
 
 /** Concrete / kerb. */
 export function concreteTexture(size = 256): THREE.Texture {
   const key = `conc${size}`;
-  if (cache.has(key)) return cache.get(key)!;
+  if (cache.has(key)) return instance(cache.get(key)!);
   const [c, ctx] = makeCanvas(size);
   const img = ctx.createImageData(size, size);
   const d = img.data;
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
       const i = (y * size + x) * 4;
-      const v = 132 + fbm2(x / 18, y / 18, 3, 21) * 46 + fbm2(x / 3, y / 3, 1, 5) * 18;
+      const v = 104 + fbm2(x / 18, y / 18, 3, 21) * 40 + fbm2(x / 3, y / 3, 1, 5) * 16;
       d[i] = v;
       d[i + 1] = v * 0.99;
       d[i + 2] = v * 0.95;
@@ -141,7 +151,7 @@ export function concreteTexture(size = 256): THREE.Texture {
   ctx.putImageData(img, 0, 0);
   const t = finish(c, 1);
   cache.set(key, t);
-  return t;
+  return instance(t);
 }
 
 /** Painted truck body: slightly chalky, with grime toward the bottom. */
@@ -173,7 +183,7 @@ export function paintTexture(hex: number, size = 256): THREE.Texture {
 /** Reinforced suction hose surface: dark rubber with fabric weave. */
 export function hoseTexture(size = 256): THREE.Texture {
   const key = `hose${size}`;
-  if (cache.has(key)) return cache.get(key)!;
+  if (cache.has(key)) return instance(cache.get(key)!);
   const [c, ctx] = makeCanvas(size);
   ctx.fillStyle = '#22242a';
   ctx.fillRect(0, 0, size, size);
@@ -188,13 +198,13 @@ export function hoseTexture(size = 256): THREE.Texture {
   }
   const t = finish(c, 1);
   cache.set(key, t);
-  return t;
+  return instance(t);
 }
 
 /** Weathered utility marking paint stroke used as a ground decal. */
 export function markingTexture(color: string, dashes: boolean, size = 256): THREE.Texture {
   const key = `mark${color}${dashes}${size}`;
-  if (cache.has(key)) return cache.get(key)!;
+  if (cache.has(key)) return instance(cache.get(key)!);
   const [c, ctx] = makeCanvas(size);
   ctx.clearRect(0, 0, size, size);
   ctx.strokeStyle = color;
@@ -227,7 +237,7 @@ export function markingTexture(color: string, dashes: boolean, size = 256): THRE
   const t = finish(c, 1, 8);
   t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
   cache.set(key, t);
-  return t;
+  return instance(t);
 }
 
 /** Fresh spray-paint cross that the worker draws on the ground. */
@@ -288,7 +298,7 @@ export function pipeTexture(
   size = 256
 ): THREE.Texture {
   const key = `pipe${baseHex}${ribbed}${size}`;
-  if (cache.has(key)) return cache.get(key)!;
+  if (cache.has(key)) return instance(cache.get(key)!);
   const [c, ctx] = makeCanvas(size);
   const col = new THREE.Color(baseHex);
   ctx.fillStyle = `rgb(${(col.r * 255) | 0},${(col.g * 255) | 0},${(col.b * 255) | 0})`;
@@ -313,10 +323,97 @@ export function pipeTexture(
   }
   const t = finish(c, 1);
   cache.set(key, t);
-  return t;
+  return instance(t);
 }
 
 export function disposeTextureCache() {
   cache.forEach((t) => t.dispose());
   cache.clear();
+}
+
+/** Traffic cone: worn orange plastic with two retro-reflective sleeves. */
+export function coneTexture(size = 128): THREE.Texture {
+  const key = `cone${size}`;
+  if (cache.has(key)) return cache.get(key)!;
+  const [c, ctx] = makeCanvas(size);
+  ctx.fillStyle = '#c0491f';
+  ctx.fillRect(0, 0, size, size);
+  // v is 0 at the tip for a ConeGeometry, so the sleeves sit up the body
+  ctx.fillStyle = '#dfe0dc';
+  ctx.fillRect(0, size * 0.3, size, size * 0.13);
+  ctx.fillRect(0, size * 0.56, size, size * 0.1);
+  const rng = new Rng(618);
+  for (let i = 0; i < 900; i++) {
+    ctx.fillStyle = `rgba(${rng.int(40, 90)},${rng.int(30, 60)},${rng.int(20, 45)},${rng.range(0.03, 0.18)})`;
+    ctx.fillRect(rng.range(0, size), rng.range(0, size), rng.range(1, 5), rng.range(1, 3));
+  }
+  const grad = ctx.createLinearGradient(0, size * 0.72, 0, size);
+  grad.addColorStop(0, 'rgba(60,48,34,0)');
+  grad.addColorStop(1, 'rgba(60,48,34,0.55)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+  const t = finish(c, 1);
+  cache.set(key, t);
+  return t;
+}
+
+/** Analogue meter face for the locator: an arc of ticks, no numerals. */
+export function gaugeTexture(size = 128): THREE.Texture {
+  const key = `gauge${size}`;
+  if (cache.has(key)) return cache.get(key)!;
+  const [c, ctx] = makeCanvas(size);
+  ctx.fillStyle = '#ddd9cc';
+  ctx.fillRect(0, 0, size, size);
+  ctx.strokeStyle = '#2c2e32';
+  ctx.lineCap = 'round';
+  const cx = size / 2;
+  const cy = size * 0.88;
+  const r = size * 0.62;
+  for (let i = 0; i <= 12; i++) {
+    const a = Math.PI * (1.12 + (i / 12) * 0.76);
+    const inner = i % 3 === 0 ? r * 0.78 : r * 0.86;
+    ctx.lineWidth = i % 3 === 0 ? size * 0.026 : size * 0.014;
+    ctx.beginPath();
+    ctx.moveTo(cx + Math.cos(a) * inner, cy + Math.sin(a) * inner);
+    ctx.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+    ctx.stroke();
+  }
+  // the strong-signal end of the scale
+  ctx.strokeStyle = '#b8391d';
+  ctx.lineWidth = size * 0.05;
+  ctx.beginPath();
+  ctx.arc(cx, cy, r * 0.93, Math.PI * 1.66, Math.PI * 1.88);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(40,40,44,0.35)';
+  ctx.lineWidth = size * 0.05;
+  ctx.strokeRect(size * 0.025, size * 0.025, size * 0.95, size * 0.95);
+  const t = finish(c, 1, 4);
+  t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+  cache.set(key, t);
+  return t;
+}
+
+/** Red/white hatched barrier panel. */
+export function barrierTexture(size = 256): THREE.Texture {
+  const key = `barrier${size}`;
+  if (cache.has(key)) return cache.get(key)!;
+  const [c, ctx] = makeCanvas(size);
+  ctx.fillStyle = '#e6e2d8';
+  ctx.fillRect(0, 0, size, size);
+  ctx.fillStyle = '#c0451f';
+  ctx.save();
+  ctx.translate(size / 2, size / 2);
+  ctx.rotate(-Math.PI / 4);
+  for (let i = -size; i < size; i += size / 5) {
+    ctx.fillRect(i, -size, size / 10, size * 2);
+  }
+  ctx.restore();
+  const rng = new Rng(2233);
+  for (let i = 0; i < 700; i++) {
+    ctx.fillStyle = `rgba(${rng.int(50, 90)},${rng.int(42, 70)},${rng.int(28, 50)},${rng.range(0.02, 0.14)})`;
+    ctx.fillRect(rng.range(0, size), rng.range(0, size), rng.range(1, 6), rng.range(1, 3));
+  }
+  const t = finish(c, 1);
+  cache.set(key, t);
+  return t;
 }

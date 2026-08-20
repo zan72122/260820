@@ -23,7 +23,7 @@ interface KindLook {
 
 const LOOKS: Record<PipeKind, KindLook> = {
   // Buried utilities are stained and matte. Nothing here is allowed to glow.
-  pe: { color: 0x2c6f9c, ribbed: false, roughness: 0.52, metalness: 0.0, couplingColor: 0x22536f },
+  pe: { color: 0x35759f, ribbed: false, roughness: 0.52, metalness: 0.0, couplingColor: 0x22536f },
   castiron: { color: 0x4a443d, ribbed: false, roughness: 0.86, metalness: 0.45, couplingColor: 0x3b3730 },
   steel: { color: 0x76767a, ribbed: false, roughness: 0.55, metalness: 0.72, couplingColor: 0x5d5d61 },
   cableduct: { color: 0x2a2a2c, ribbed: true, roughness: 0.82, metalness: 0.0, couplingColor: 0xd8a12a },

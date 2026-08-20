@@ -4,6 +4,7 @@ import { blobTexture, crossTexture, markingTexture } from '../util/textures';
 import { DigSite } from '../dig/DigSite';
 import { distanceToPipesXZ } from '../dig/Pipes';
 import { Environment, buildSky } from '../scene/Environment';
+import { PATCH_LIFT } from '../util/ground';
 import { Truck } from '../scene/Truck';
 import { Worker } from '../scene/Worker';
 import { Hose } from '../scene/Hose';
@@ -31,8 +32,8 @@ type Phase =
 type ToolId = 'detector' | 'lance' | 'nozzle' | 'rod' | 'none';
 
 const HOSE_RADIUS = 0.085;
-const WATER_READY = 0.085;
-const WET_EXHAUSTED = 0.014;
+const WATER_READY = 0.1;
+const WET_EXHAUSTED = 0.02;
 
 export class Game {
   readonly scene = new THREE.Scene();
@@ -74,6 +75,8 @@ export class Game {
   private rodHold = 0;
   private rodTipY = 0;
   private detectorPeaked = false;
+  /** Current locator response, 0..1. Also read by the automated play-through. */
+  detectSignal = 0;
   private clock = 0;
   private particleScale = 1;
 
@@ -91,16 +94,25 @@ export class Game {
   private soilColor = new THREE.Color();
   private waterColor = new THREE.Color(0.72, 0.84, 0.9);
   private projected = new THREE.Vector3();
+  private boomTarget = new THREE.Vector3();
+  private anchorA = new THREE.Vector3();
+  private anchorB = new THREE.Vector3();
+  private anchorC = new THREE.Vector3();
+  private anchorD = new THREE.Vector3();
+  private anchorE = new THREE.Vector3();
 
   constructor(input: Input, audio: AudioEngine, hud: Hud, quality: number) {
     this.input = input;
     this.audio = audio;
     this.hud = hud;
 
-    this.scene.fog = new THREE.Fog(0xc6d3dd, 26, 88);
+    this.scene.fog = new THREE.Fog(0xc4d2df, 13, 52);
     this.scene.add(buildSky());
 
-    this.env = new Environment(quality);
+    this.env = new Environment(
+      quality,
+      SITES.map((c) => ({ x: c.origin.x, z: c.origin.z, size: c.size }))
+    );
     this.scene.add(this.env.group);
 
     this.truck = new Truck(quality);
@@ -113,13 +125,13 @@ export class Game {
     for (const t of [this.detector, this.lance, this.nozzle, this.rod]) this.scene.add(t.group);
 
     this.vacHose = new Hose({
-      points: 42,
+      points: 34,
       radius: HOSE_RADIUS,
-      tubular: 54,
+      tubular: 46,
       radial: quality >= 1 ? 10 : 7,
-      ribs: quality >= 1 ? 30 : 16,
-      slackA: 1.05,
-      slackB: 1.16,
+      ribs: quality >= 1 ? 24 : 14,
+      slackA: 1.04,
+      slackB: 1.08,
       gravity: 9.0,
     });
     this.waterHose = new Hose({
@@ -175,17 +187,12 @@ export class Game {
     const grain = new THREE.IcosahedronGeometry(0.5, 0);
     this.soilFx = new ParticlePool(
       grain,
-      new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, flatShading: true }),
+      new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0, flatShading: true }),
       260
     );
     this.dropFx = new ParticlePool(
       grain,
-      new THREE.MeshStandardMaterial({
-        vertexColors: true,
-        roughness: 0.22,
-        metalness: 0,
-        flatShading: true,
-      }),
+      new THREE.MeshStandardMaterial({ roughness: 0.22, metalness: 0, flatShading: true }),
       110
     );
     this.scene.add(this.soilFx.mesh, this.dropFx.mesh);
@@ -213,35 +220,78 @@ export class Game {
       this.truck.boomTipWorld(this.tmp2).clone(),
       this.nozzle.inletWorld(this.tmp3).clone()
     );
-    this.director.setShot(SHOTS.establish(), this.workPoint, true);
+    this.director.setShot(SHOTS.establish(), new THREE.Vector3(1.9, 0, 1.4), true);
   }
 
   // ------------------------------------------------------------------ setup
 
+  private cutawayDir = new THREE.Vector3(-0.9, 0.45, -0.3).normalize();
+  private cutawayAside = new THREE.Vector3();
+
+  /**
+   * A short section view unlocked only after the first pipe has been found:
+   * a translucent slice through the ground with the run continuing past the
+   * hole in both directions.
+   */
   private buildCutaway() {
     const cfg = SITES[0];
-    const slab = new THREE.Mesh(
-      new THREE.PlaneGeometry(4.4, 1.5),
+    const pipe = cfg.pipes[0];
+    const axis = new THREE.Vector3().subVectors(pipe.b, pipe.a).setY(0).normalize();
+    // look square-on to the run, from the lot side
+    const perp = new THREE.Vector3(-axis.z, 0, axis.x);
+    if (perp.z > 0) perp.negate();
+    this.cutawayDir.copy(perp).setY(0.5).normalize();
+    this.cutawayAside.copy(perp).multiplyScalar(-1.9);
+
+    const centre = new THREE.Vector3(cfg.origin.x, pipe.a.y, cfg.origin.z);
+
+    const slice = new THREE.Mesh(
+      new THREE.PlaneGeometry(3.4, 1.15),
       new THREE.MeshBasicMaterial({
-        color: 0x4a3a26,
+        color: 0x4c3c28,
         transparent: true,
-        opacity: 0.0,
+        opacity: 0,
         depthWrite: false,
+        depthTest: false,
         side: THREE.DoubleSide,
       })
     );
-    slab.position.set(cfg.origin.x, -0.55, cfg.origin.z);
-    this.cutawayGroup.add(slab);
+    slice.renderOrder = 20;
+    slice.position.copy(centre).setY(-0.5);
+    slice.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), perp);
+    this.cutawayGroup.add(slice);
 
-    const dir = new THREE.Vector3().subVectors(cfg.pipes[0].b, cfg.pipes[0].a).normalize();
     const ghost = new THREE.Mesh(
-      new THREE.CylinderGeometry(cfg.pipes[0].radius, cfg.pipes[0].radius, 5.4, 14),
-      new THREE.MeshBasicMaterial({ color: 0x3d7fae, transparent: true, opacity: 0.0, depthWrite: false })
+      new THREE.CylinderGeometry(pipe.radius, pipe.radius, 3.2, 16),
+      new THREE.MeshBasicMaterial({
+        color: 0x549ac6,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        depthTest: false,
+      })
     );
-    ghost.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
-    ghost.position.set(cfg.origin.x, cfg.pipes[0].a.y, cfg.origin.z);
+    ghost.renderOrder = 21;
+    ghost.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), axis);
+    ghost.position.copy(centre);
     this.cutawayGroup.add(ghost);
-    slab.lookAt(slab.position.clone().add(new THREE.Vector3(-1, 0, 0.35)));
+
+    // the grade line, so the buried depth is legible at a glance
+    const grade = new THREE.Mesh(
+      new THREE.PlaneGeometry(3.4, 0.012),
+      new THREE.MeshBasicMaterial({
+        color: 0xe8e2d4,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+        depthTest: false,
+        side: THREE.DoubleSide,
+      })
+    );
+    grade.renderOrder = 22;
+    grade.position.copy(centre).setY(0.01);
+    grade.quaternion.copy(slice.quaternion);
+    this.cutawayGroup.add(grade);
   }
 
   private parkAll() {
@@ -256,11 +306,12 @@ export class Game {
 
   private parkSpot(tool: ToolId): THREE.Vector3 {
     const o = SITES[this.siteIndex].origin;
+    // parked clear of the patch, so nothing lies across the work
     const offsets: Record<ToolId, [number, number]> = {
-      detector: [1.15, 0.95],
-      lance: [0.86, 1.16],
-      nozzle: [-1.0, 1.0],
-      rod: [1.3, 0.6],
+      detector: [1.62, 1.5],
+      lance: [1.15, 1.72],
+      nozzle: [-1.62, 1.44],
+      rod: [1.78, 1.0],
       none: [0, 0],
     };
     const [dx, dz] = offsets[tool];
@@ -271,7 +322,7 @@ export class Game {
     for (const s of this.sites) {
       if (s.contains(x, z, 0.02)) return s.surfaceY(x, z);
     }
-    return 0.004;
+    return PATCH_LIFT;
   }
 
   get activeSite(): DigSite {
@@ -290,10 +341,18 @@ export class Game {
   /** Ground point under the finger, clamped into the current patch. */
   private fingerOnSite(pad: number, out: THREE.Vector3): boolean {
     const site = SITES[this.siteIndex];
-    if (!this.input.worldOnPlane(this.director.camera, 0, out)) return false;
     const half = site.size / 2 - pad;
-    out.x = clamp(out.x, site.origin.x - half, site.origin.x + half);
-    out.z = clamp(out.z, site.origin.z - half, site.origin.z + half);
+    // Converge onto the excavated surface rather than a flat plane: a fixed
+    // plane makes the tool drift outward as the hole deepens.
+    let planeY = this.groundHeight(this.workPoint.x, this.workPoint.z);
+    for (let i = 0; i < 3; i++) {
+      if (!this.input.worldOnPlane(this.director.camera, planeY, out)) return false;
+      out.x = clamp(out.x, site.origin.x - half, site.origin.x + half);
+      out.z = clamp(out.z, site.origin.z - half, site.origin.z + half);
+      const next = this.groundHeight(out.x, out.z);
+      if (Math.abs(next - planeY) < 0.004) break;
+      planeY = next;
+    }
     return true;
   }
 
@@ -421,7 +480,9 @@ export class Game {
 
   private workerStand(): THREE.Vector3 {
     const off = SITES[this.siteIndex].workerOffset;
-    return this.tmp2.set(this.workPoint.x + off.x, 0, this.workPoint.z + off.y);
+    // standing tools put the hands further out, so the operator steps back
+    const reach = this.tool === 'detector' ? 0.78 : this.tool === 'rod' ? 0.9 : 1.0;
+    return this.tmp2.set(this.workPoint.x + off.x * reach, 0, this.workPoint.z + off.y * reach);
   }
 
   private onPhaseEnter() {
@@ -459,17 +520,21 @@ export class Game {
         vibrate([14, 40, 22]);
         break;
       case 'depth': {
-        const d = dig.deepest();
-        this.workPoint.set(d.x, 0, d.z);
+        // drop the rod right where the pipe is bared, so the reading is honest
+        dig.firstCutPoint(this.tmp);
+        this.workPoint.set(this.tmp.x, 0, this.tmp.z);
         this.rodTipY = 0.62;
         this.rodHold = 0;
         this.director.setShot(SHOTS.depth(), this.workPoint);
         break;
       }
-      case 'cutaway':
+      case 'cutaway': {
         this.cutawayGroup.visible = true;
-        this.director.setShot(SHOTS.cutaway(), SITES[0].origin);
+        const shot = SHOTS.cutaway();
+        shot.dir = this.cutawayDir;
+        this.director.setShot(shot, this.tmp.copy(SITES[0].origin).setY(-0.22));
         break;
+      }
       case 'handoff': {
         const next = SITES[Math.min(this.siteIndex + 1, SITES.length - 1)];
         this.tmp.copy(SITES[this.siteIndex].origin).lerp(next.origin, 0.55);
@@ -477,7 +542,7 @@ export class Game {
         break;
       }
       case 'finale':
-        this.director.setShot(SHOTS.establish(), new THREE.Vector3(0.2, 0, -1.0));
+        this.director.setShot(SHOTS.establish(), this.tmp.set(1.4, 0, 0.9));
         break;
     }
   }
@@ -486,7 +551,8 @@ export class Game {
 
   private updateIntro() {
     this.workPoint.copy(SITES[0].origin);
-    this.director.setSubject(this.workPoint);
+    // frame the lot and the truck together, not just the first patch
+    this.director.setSubject(this.tmp.set(1.9, 0, 1.4));
     if (this.phaseTime > 0.8) {
       this.beginSwap('detect', 'detector', 1.3);
     }
@@ -511,6 +577,7 @@ export class Game {
       this.detectPos.z - cfg.origin.z
     );
     const signal = Math.exp(-Math.pow(d / 0.42, 2));
+    this.detectSignal = signal;
     this.detector.setSignal(signal);
     this.audio.setDetector(true, signal, this.detectPos);
     this.sensorShadow.place(this.detectPos.x, this.detectPos.y + 0.012, this.detectPos.z);
@@ -574,7 +641,7 @@ export class Game {
     this.worker.setLook(this.markPoint);
     void dt;
     if (this.phaseTime > 1.5) {
-      this.beginSwap('water', 'lance', 1.2);
+      this.beginSwap('water', 'lance', 1.0);
     }
   }
 
@@ -598,15 +665,15 @@ export class Game {
     this.audio.setWater(on, impact);
 
     if (on) {
-      dig.applyWater(impact.x, impact.z, 0.165, dt);
+      dig.applyWater(impact.x, impact.z, 0.2, dt);
       this.waterHeld += dt;
       this.spawnDroplets(impact, dt);
     }
 
-    const pool = dig.wetAround(impact.x, impact.z, 0.42);
-    if (pool > WATER_READY && this.waterHeld > 1.0 && this.phaseTime > 1.6) {
+    const pool = dig.wetAround(impact.x, impact.z, 0.45);
+    if (pool > WATER_READY && this.waterHeld > 1.2 && this.phaseTime > 2.0) {
       this.jet.setVisible(false);
-      this.beginSwap('vacuum', 'nozzle', 1.25);
+      this.beginSwap('vacuum', 'nozzle', 0.95);
     }
   }
 
@@ -629,7 +696,7 @@ export class Game {
 
     let power = 0;
     if (this.input.active) {
-      const report = dig.applyVacuum(this.workPoint.x, this.workPoint.z, 0.155, dt);
+      const report = dig.applyVacuum(this.workPoint.x, this.workPoint.z, 0.17, dt);
       power = 0.42 + clamp01(report.volume * 55) * 0.58;
       this.spawnSoil(report.volume, report.wetness, dt);
       if (report.gritty && report.volume > 0.0004 && Math.random() < 0.35) {
@@ -648,19 +715,20 @@ export class Game {
       return;
     }
     if (dig.exposure >= SITES[this.siteIndex].requiredExposure) {
-      this.beginSwap('depth', 'rod', 1.3);
+      this.beginSwap('depth', 'rod', 1.1);
       return;
     }
-    const near = dig.wetAround(this.workPoint.x, this.workPoint.z, 0.3);
-    if (near < WET_EXHAUSTED && this.phaseTime > 2.0) {
+    const near = dig.wetAround(this.workPoint.x, this.workPoint.z, 0.35);
+    if (near < WET_EXHAUSTED && this.phaseTime > 3.5) {
       // the ground has dried out under the nozzle: back to the water lance
-      this.beginSwap('water', 'lance', 1.15);
+      this.beginSwap('water', 'lance', 0.95);
     }
   }
 
   private updateReveal(dt: number) {
     this.director.setSubject(this.revealPoint);
-    this.toolPoint.set(this.revealPoint.x + 0.25, this.revealPoint.y + 0.42, this.revealPoint.z + 0.2);
+    // lift the nozzle clear so nothing covers the first sight of the pipe
+    this.toolPoint.set(this.revealPoint.x + 0.62, this.revealPoint.y + 0.62, this.revealPoint.z + 0.34);
     this.worker.setLook(this.revealPoint);
     void dt;
     if (this.phaseTime > 2.3) {
@@ -680,7 +748,7 @@ export class Game {
     }
     this.rodTipY = clamp(this.rodTipY, stop, 0.75);
     this.toolPoint.set(px, this.rodTipY, pz);
-    const grade = SITES[this.siteIndex].origin.y + 0.006;
+    const grade = SITES[this.siteIndex].origin.y + PATCH_LIFT;
     this.rod.setGroundLine(grade - this.rodTipY);
     this.rod.highlightSubmerged(grade - this.rodTipY);
     this.director.setSubject(this.tmp2.set(px, (grade + this.rodTipY) * 0.5, pz));
@@ -700,15 +768,19 @@ export class Game {
   }
 
   private updateCutaway(dt: number) {
-    const t = clamp01(this.phaseTime / 0.7) * clamp01((3.4 - this.phaseTime) / 0.7);
+    const t = clamp01(this.phaseTime / 0.6) * clamp01((2.9 - this.phaseTime) / 0.6);
+    const peak = [0.52, 0.88, 0.6];
     this.cutawayGroup.children.forEach((c, i) => {
       const m = (c as THREE.Mesh).material as THREE.MeshBasicMaterial;
-      m.opacity = t * (i === 0 ? 0.5 : 0.72);
+      m.opacity = t * peak[i];
     });
-    this.toolPoint.copy(SITES[0].origin);
-    this.toolPoint.y = 0.5;
+    // step the operator aside so nothing stands in front of the section
+    this.toolPoint.copy(SITES[0].origin).add(this.cutawayAside);
+    this.toolPoint.y = 0.35;
+    this.workPoint.copy(this.toolPoint);
+    this.worker.setLook(this.tmp.copy(SITES[0].origin));
     void dt;
-    if (this.phaseTime > 3.4) {
+    if (this.phaseTime > 2.9) {
       this.cutawayGroup.visible = false;
       this.phase = 'handoff';
       this.phaseTime = 0;
@@ -726,7 +798,7 @@ export class Game {
     this.toolPoint.y = 0.3;
     this.worker.setLook(pingPos);
     void dt;
-    if (this.phaseTime > 2.6) {
+    if (this.phaseTime > 2.4) {
       this.audio.setDetector(false, 0, pingPos);
       this.siteIndex = Math.min(this.siteIndex + 1, SITES.length - 1);
       this.exposing = false;
@@ -741,6 +813,7 @@ export class Game {
   private updateFinale() {
     this.toolPoint.copy(SITES[0].origin);
     this.toolPoint.y = 0.3;
+    this.director.setSubject(this.tmp.set(1.4, 0, 0.9));
     if (this.phaseTime > 2.5 && this.input.justPressed) this.restart();
   }
 
@@ -759,7 +832,8 @@ export class Game {
   // ----------------------------------------------------------------- rig
 
   private updateRig(dt: number) {
-    const tilt = this.phase === 'depth' ? 0 : this.tool === 'detector' ? 0.16 : 0.34;
+    const tilt =
+      this.tool === 'rod' ? 0 : this.tool === 'detector' ? 0.04 : this.tool === 'lance' ? 0.12 : 0.18;
     const active = this.toolOf(this.tool);
     if (!this.busy && active) {
       active.setVisible(true);
@@ -790,29 +864,34 @@ export class Game {
       this.worker.setHandTargets(this.handL, this.handR);
     } else if (!active) {
       const stand = this.workerStand();
-      this.handL.set(stand.x - 0.24, 0.95, stand.z + 0.12);
-      this.handR.set(stand.x + 0.24, 0.95, stand.z + 0.12);
+      const toX = (this.workPoint.x - stand.x) * 0.25;
+      const toZ = (this.workPoint.z - stand.z) * 0.25;
+      this.handL.set(stand.x - 0.19 + toX, 0.84, stand.z + toZ);
+      this.handR.set(stand.x + 0.19 + toX, 0.84, stand.z + toZ);
       this.worker.setHandTargets(this.handL, this.handR);
     }
     this.worker.update(dt, this.clock);
 
     // the boom follows the work so the hose route always makes sense
-    const boomTarget =
-      this.phase === 'vacuum' || this.phase === 'reveal' || this.phase === 'water' || this.phase === 'depth'
-        ? this.workPoint
-        : this.tmp3.copy(SITES[this.siteIndex].origin).add(new THREE.Vector3(-0.6, 0, 0.9));
-    this.truck.aimAt(boomTarget, 1.75);
+    // The head is held behind and above the work so the arm never crosses the
+    // shot; the hose then drops into frame from the truck side.
+    const working =
+      this.phase === 'vacuum' || this.phase === 'reveal' || this.phase === 'water' || this.phase === 'depth';
+    this.boomTarget.copy(working ? this.workPoint : SITES[this.siteIndex].origin);
+    this.boomTarget.x += working ? 0.4 : 1.5;
+    this.boomTarget.z += working ? 0.95 : 1.9;
+    this.truck.aimAt(this.boomTarget, working ? 2.45 : 2.8);
     this.truck.update(dt);
 
-    const reel = this.truck.reelWorld(new THREE.Vector3());
-    const tip = this.truck.boomTipWorld(new THREE.Vector3());
-    this.vacHose.update(dt, reel, tip, this.nozzle.inletWorld(new THREE.Vector3()));
+    const reel = this.truck.reelWorld(this.anchorA);
+    const tip = this.truck.boomTipWorld(this.anchorB);
+    this.vacHose.update(dt, reel, tip, this.nozzle.inletWorld(this.anchorC));
     if (this.waterHose.group.visible) {
       this.waterHose.update(
         dt,
-        this.truck.waterOutletWorld(new THREE.Vector3()),
+        this.truck.waterOutletWorld(this.anchorD),
         tip,
-        this.lance.inletWorld(new THREE.Vector3())
+        this.lance.inletWorld(this.anchorE)
       );
     }
     this.detector.animate(dt, this.clock);
@@ -885,6 +964,64 @@ export class Game {
         this.waterColor
       );
     }
+  }
+
+  /**
+   * Screen position a finger must be at to drive the current tool onto the
+   * live work point, taking the deliberate finger-to-tip offset into account.
+   */
+  fingerTargetScreen(width: number, height: number, lift: number): { x: number; y: number } {
+    if (this.phase === 'detect') this.projected.copy(this.detectPos);
+    else if (this.phase === 'water' || this.phase === 'vacuum') {
+      this.projected.set(
+        this.workPoint.x,
+        this.groundHeight(this.workPoint.x, this.workPoint.z),
+        this.workPoint.z
+      );
+    } else this.projected.copy(this.toolPoint);
+    return this.toScreen(this.projected, width, height, lift);
+  }
+
+  private toScreen(p: THREE.Vector3, width: number, height: number, lift: number) {
+    this.projected.copy(p).project(this.director.camera);
+    return {
+      x: ((this.projected.x + 1) / 2) * width,
+      y: ((1 - this.projected.y) / 2) * height + height * lift,
+    };
+  }
+
+  /** Two points on the nearest buried run, for the automated play-through. */
+  routeScreen(width: number, height: number, lift: number) {
+    const cfg = SITES[this.siteIndex];
+    let best = Infinity;
+    let ax = 0;
+    let az = 0;
+    let bx = 0;
+    let bz = 0;
+    for (const p of cfg.pipes) {
+      const [dist, t] = distToSegmentXZ(
+        this.workPoint.x - cfg.origin.x,
+        this.workPoint.z - cfg.origin.z,
+        p.a.x,
+        p.a.z,
+        p.b.x,
+        p.b.z
+      );
+      if (dist < best) {
+        best = dist;
+        const len = Math.hypot(p.b.x - p.a.x, p.b.z - p.a.z) || 1;
+        const clamped = clamp(t, 0.5 - 0.4 / len, 0.5 + 0.4 / len);
+        const d = 0.26 / len;
+        ax = cfg.origin.x + lerp(p.a.x, p.b.x, clamp(clamped - d, 0, 1));
+        az = cfg.origin.z + lerp(p.a.z, p.b.z, clamp(clamped - d, 0, 1));
+        bx = cfg.origin.x + lerp(p.a.x, p.b.x, clamp(clamped + d, 0, 1));
+        bz = cfg.origin.z + lerp(p.a.z, p.b.z, clamp(clamped + d, 0, 1));
+      }
+    }
+    return [
+      this.toScreen(this.tmp.set(ax, this.groundHeight(ax, az), az), width, height, lift),
+      this.toScreen(this.tmp.set(bx, this.groundHeight(bx, bz), bz), width, height, lift),
+    ];
   }
 
   // ----------------------------------------------------------------- hint

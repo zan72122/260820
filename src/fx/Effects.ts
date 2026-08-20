@@ -27,12 +27,19 @@ export class ParticlePool {
   private v = new THREE.Vector3();
   private s = new THREE.Vector3();
   private col = new THREE.Color();
+  private euler = new THREE.Euler();
   private spin: Float32Array;
   live = 0;
 
-  constructor(geo: THREE.BufferGeometry, mat: THREE.Material, capacity: number) {
+  constructor(geo: THREE.BufferGeometry, mat: THREE.MeshStandardMaterial, capacity: number) {
     this.cap = capacity;
-    this.mesh = new THREE.InstancedMesh(geo, mat, capacity);
+    // Give the geometry a neutral colour attribute and turn vertex colours on:
+    // that guarantees the per-instance tint reaches the shader on every driver.
+    const g = geo.clone();
+    const verts = g.getAttribute('position').count;
+    g.setAttribute('color', new THREE.Float32BufferAttribute(new Float32Array(verts * 3).fill(1), 3));
+    mat.vertexColors = true;
+    this.mesh = new THREE.InstancedMesh(g, mat, capacity);
     this.mesh.frustumCulled = false;
     this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.mesh.count = capacity;
@@ -158,13 +165,12 @@ export class ParticlePool {
       const fade = 1 - smoothstep(0.78, 1, t);
       const sc = this.size[i] * fade;
       this.v.set(this.pos[ix], this.pos[ix + 1], this.pos[ix + 2]);
-      this.q.setFromEuler(
-        new THREE.Euler(
-          this.spin[ix] * this.age[i],
-          this.spin[ix + 1] * this.age[i],
-          this.spin[ix + 2] * this.age[i]
-        )
+      this.euler.set(
+        this.spin[ix] * this.age[i],
+        this.spin[ix + 1] * this.age[i],
+        this.spin[ix + 2] * this.age[i]
       );
+      this.q.setFromEuler(this.euler);
       this.s.set(sc, sc, sc);
       this.m.compose(this.v, this.q, this.s);
       this.mesh.setMatrixAt(i, this.m);

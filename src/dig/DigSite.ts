@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { clamp, clamp01, fbm2, lerp, smoothstep } from '../util/math';
 import { soilTexture, soilRough } from '../util/textures';
+import { PATCH_LIFT, SOIL_REPEAT_PER_M } from '../util/ground';
 import { PipeSpec, buildPipe, pipeClearanceY } from './Pipes';
 
 export type SoilType = 'sandy' | 'clay' | 'gravel';
@@ -15,39 +16,44 @@ interface SoilProfile {
   base: [number, number, number];
 }
 
+/**
+ * Layer tints multiply the shared soil map, and the topmost layer is
+ * deliberately near-neutral so an untouched patch is indistinguishable from
+ * the surrounding lot. The strata only announce themselves once dug into.
+ */
 const SOILS: Record<SoilType, SoilProfile> = {
   sandy: {
     layers: [
-      [0.0, 0.36, 0.3, 0.21],
-      [0.1, 0.55, 0.46, 0.31],
-      [0.28, 0.66, 0.56, 0.37],
-      [0.5, 0.5, 0.48, 0.44],
+      [0.0, 1.0, 0.98, 0.95],
+      [0.09, 1.16, 1.06, 0.86],
+      [0.26, 1.3, 1.15, 0.85],
+      [0.48, 0.94, 0.93, 0.94],
     ],
     looseness: 1.18,
     soak: 1.25,
-    base: [104, 86, 60],
+    base: [104, 90, 68],
   },
   clay: {
     layers: [
-      [0.0, 0.3, 0.25, 0.18],
-      [0.09, 0.44, 0.3, 0.19],
-      [0.3, 0.55, 0.36, 0.22],
-      [0.52, 0.45, 0.42, 0.37],
+      [0.0, 1.0, 0.96, 0.92],
+      [0.09, 1.1, 0.83, 0.63],
+      [0.28, 1.26, 0.85, 0.56],
+      [0.5, 0.9, 0.88, 0.86],
     ],
     looseness: 0.72,
     soak: 0.72,
-    base: [96, 72, 48],
+    base: [104, 90, 68],
   },
   gravel: {
     layers: [
-      [0.0, 0.33, 0.3, 0.24],
-      [0.11, 0.5, 0.47, 0.4],
-      [0.3, 0.44, 0.42, 0.38],
-      [0.5, 0.48, 0.46, 0.42],
+      [0.0, 1.0, 0.99, 0.96],
+      [0.1, 1.08, 1.05, 1.0],
+      [0.28, 0.92, 0.91, 0.9],
+      [0.48, 1.02, 1.0, 0.97],
     ],
     looseness: 0.95,
     soak: 1.0,
-    base: [98, 92, 80],
+    base: [104, 90, 68],
   },
 };
 
@@ -67,10 +73,9 @@ export interface SuctionReport {
   gritty: boolean;
 }
 
-const PATCH_LIFT = 0.006;
-const PIPE_MARGIN = 0.035;
-const MAX_DEPTH = 0.92;
-const MAX_WALL_STEP = 0.075;
+const PIPE_MARGIN = 0.022;
+const MAX_DEPTH = 0.72;
+const MAX_WALL_STEP = 0.042;
 
 export class DigSite {
   readonly group = new THREE.Group();
@@ -133,10 +138,11 @@ export class DigSite {
 
     this.initField();
 
+    // Same texel density as the surrounding lot: no seam at the patch border.
     const map = soilTexture(512, this.profile.base);
-    map.repeat.set(this.size * 1.6, this.size * 1.6);
+    map.repeat.set(this.size * SOIL_REPEAT_PER_M, this.size * SOIL_REPEAT_PER_M);
     const rough = soilRough(256);
-    rough.repeat.set(this.size * 2.2, this.size * 2.2);
+    rough.repeat.set(this.size * SOIL_REPEAT_PER_M * 1.7, this.size * SOIL_REPEAT_PER_M * 1.7);
 
     const mat = new THREE.MeshStandardMaterial({
       map,
@@ -183,16 +189,23 @@ export class DigSite {
     }
   }
 
+  /**
+   * Exposure is measured over a window around the middle of each run, not the
+   * whole length: the job is done when a readable stretch of the pipe is bared,
+   * not when the entire service has been dug out.
+   */
   private buildSamples() {
-    // Sample the crown of every run: exposure is measured against these.
+    const WINDOW = 0.46; // metres either side of the run's midpoint
     for (const p of this.pipes) {
       const len = Math.hypot(p.b.x - p.a.x, p.b.z - p.a.z);
-      const steps = Math.max(6, Math.round(len / 0.09));
+      if (len < 1e-4) continue;
+      const half = this.size / 2 - this.cell * 2;
+      const span = Math.min(WINDOW / len, 0.5);
+      const steps = Math.max(6, Math.round((span * 2 * len) / 0.075));
       for (let s = 0; s <= steps; s++) {
-        const t = s / steps;
+        const t = 0.5 - span + (2 * span * s) / steps;
         const x = lerp(p.a.x, p.b.x, t);
         const z = lerp(p.a.z, p.b.z, t);
-        const half = this.size / 2 - this.cell * 2;
         if (Math.abs(x) > half || Math.abs(z) > half) continue;
         this.samples.push({ x, z });
       }
@@ -333,7 +346,7 @@ export class DigSite {
           // bottomed out on buried plant: from here the suction lifts the last
           // skin of soil off the surface instead of driving the hole deeper.
           this.depth[i] = this.cap[i];
-          this.cut[i] = Math.min(1, this.cut[i] + take * 5.2);
+          this.cut[i] = Math.min(1, this.cut[i] + take * 13);
           this.wet[i] = Math.max(0, w - take * 2.0);
           volume += take * 0.45;
           wetSum += w;
@@ -345,6 +358,7 @@ export class DigSite {
     if (volume > 0) {
       this.dirty = true;
       this.crumble(c0, r0, c1, r1);
+      this.smooth(c0, r0, c1, r1);
     }
     return {
       volume,
@@ -387,6 +401,28 @@ export class DigSite {
     }
   }
 
+  /** Light relaxation so repeated crumbling leaves a bowl, not a staircase. */
+  private smooth(c0: number, r0: number, c1: number, r1: number) {
+    const cc0 = Math.max(1, c0 - 2);
+    const cc1 = Math.min(this.n - 2, c1 + 2);
+    const rr0 = Math.max(1, r0 - 2);
+    const rr1 = Math.min(this.n - 2, r1 + 2);
+    for (let r = rr0; r <= rr1; r++) {
+      for (let c = cc0; c <= cc1; c++) {
+        const i = this.idx(c, r);
+        if (this.depth[i] < 0.004) continue;
+        const avg =
+          (this.depth[this.idx(c + 1, r)] +
+            this.depth[this.idx(c - 1, r)] +
+            this.depth[this.idx(c, r + 1)] +
+            this.depth[this.idx(c, r - 1)]) *
+          0.25;
+        const next = this.depth[i] + (avg - this.depth[i]) * 0.16;
+        this.depth[i] = Math.min(next, this.cap[i]);
+      }
+    }
+  }
+
   /** Surface water creeps toward the low ground of the hole. */
   private flow(dt: number) {
     const step = Math.min(dt, 0.05);
@@ -406,16 +442,18 @@ export class DigSite {
             bj = j;
           }
         }
-        if (bj >= 0) {
-          const move = Math.min(w * 0.5, (hi - bh) * 2.2) * step * 3.0;
-          if (move > 0.0004) {
+        if (bj >= 0 && hi - bh > 0.006) {
+          // only a little creep toward the low ground; the sprayed footprint
+          // must stay recognisably where the player put it
+          const move = Math.min(w * 0.22, (hi - bh) * 1.1) * step * 1.3;
+          if (move > 0.0006) {
             this.wet[i] = w - move;
             this.wet[bj] = clamp01(this.wet[bj] + move * 0.9);
             this.dirty = true;
           }
         }
         // slow drying keeps the player working the water/suction rhythm
-        this.wet[i] -= step * 0.012;
+        this.wet[i] -= step * 0.03;
         if (this.wet[i] < 0) this.wet[i] = 0;
       }
     }
@@ -441,7 +479,7 @@ export class DigSite {
     for (let i = 0; i < this.depth.length; i++) {
       ca[i] = this.cut[i];
       this.layerColor(this.depth[i], this.tmpColor);
-      const grain = 0.9 + fbm2(i % this.n, Math.floor(i / this.n), 2, 3) * 0.22;
+      const grain = 0.96 + fbm2(i % this.n, Math.floor(i / this.n), 2, 3) * 0.09;
       arr[i * 3] = this.tmpColor.r * grain;
       arr[i * 3 + 1] = this.tmpColor.g * grain;
       arr[i * 3 + 2] = this.tmpColor.b * grain;
@@ -468,11 +506,12 @@ export class DigSite {
     let peak = 0;
     for (const s of this.samples) {
       const c = this.cut[this.nearestIndex(s.x, s.z)];
-      if (c > 0.62) hit++;
+      if (c > 0.72) hit++;
       if (c > peak) peak = c;
     }
     this.exposure = hit / this.samples.length;
-    if (!this.firstSighting && peak > 0.45) this.firstSighting = true;
+    // wait until a real window is open, not just the first dissolving fragment
+    if (!this.firstSighting && peak > 0.55) this.firstSighting = true;
   }
 
   private nearestIndex(localX: number, localZ: number) {
@@ -572,28 +611,65 @@ export class DigSite {
  */
 function patchWetShader(mat: THREE.MeshStandardMaterial) {
   mat.onBeforeCompile = (shader) => {
+    shader.uniforms.uSoilScale = { value: SOIL_REPEAT_PER_M };
     shader.vertexShader = shader.vertexShader
       .replace(
         '#include <common>',
-        '#include <common>\nattribute float aWet;\nattribute float aCut;\nvarying float vWet;\nvarying float vCut;\nvarying vec2 vGrit;'
+        `#include <common>
+attribute float aWet;
+attribute float aCut;
+varying float vWet;
+varying float vCut;
+varying vec2 vGrit;
+varying vec3 vWPos;
+varying vec3 vWNrm;`
       )
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\n  vWet = aWet;\n  vCut = aCut;\n  vGrit = uv * 137.0;');
+      .replace(
+        '#include <begin_vertex>',
+        `#include <begin_vertex>
+  vWet = aWet;
+  vCut = aCut;
+  vGrit = uv * 137.0;
+  vWPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
+  vWNrm = normalize(mat3(modelMatrix) * objectNormal);`
+      );
     shader.fragmentShader = shader.fragmentShader
       .replace(
         '#include <common>',
-        '#include <common>\nvarying float vWet;\nvarying float vCut;\nvarying vec2 vGrit;'
+        `#include <common>
+uniform float uSoilScale;
+varying float vWet;
+varying float vCut;
+varying vec2 vGrit;
+varying vec3 vWPos;
+varying vec3 vWNrm;`
       )
       .replace(
         'void main() {',
-        'void main() {\n  float grit = fract(sin(dot(floor(vGrit), vec2(12.9898, 78.233))) * 43758.5453);\n  if (vCut > 0.34 + grit * 0.62) discard;'
+        `void main() {
+  // ragged, position-stable dissolve rather than a clean circular cut
+  float grit = fract(sin(dot(floor(vGrit), vec2(12.9898, 78.233))) * 43758.5453);
+  if (vCut > 0.22 + grit * 0.42) discard;`
       )
       .replace(
         '#include <map_fragment>',
-        '#include <map_fragment>\n  diffuseColor.rgb *= mix(1.0, 0.44, clamp(vWet, 0.0, 1.0));\n  diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.92, 0.95, 1.03), clamp(vWet, 0.0, 1.0));'
+        `{
+    // triplanar, so hole walls keep their grain instead of smearing
+    vec3 tw = pow(abs(normalize(vWNrm)), vec3(4.0));
+    tw /= (tw.x + tw.y + tw.z);
+    vec4 soil =
+      texture2D(map, vWPos.xz * uSoilScale) * tw.y +
+      texture2D(map, vec2(vWPos.z, vWPos.y) * uSoilScale) * tw.x +
+      texture2D(map, vec2(vWPos.x, vWPos.y) * uSoilScale) * tw.z;
+    diffuseColor *= soil;
+  }
+  diffuseColor.rgb *= mix(1.0, 0.44, clamp(vWet, 0.0, 1.0));
+  diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.92, 0.95, 1.03), clamp(vWet, 0.0, 1.0));`
       )
       .replace(
         '#include <roughnessmap_fragment>',
-        '#include <roughnessmap_fragment>\n  roughnessFactor = mix(roughnessFactor, roughnessFactor * 0.28, clamp(vWet, 0.0, 1.0));'
+        `#include <roughnessmap_fragment>
+  roughnessFactor = mix(roughnessFactor, roughnessFactor * 0.28, clamp(vWet, 0.0, 1.0));`
       );
   };
   mat.customProgramCacheKey = () => 'wetsoil';

@@ -22,7 +22,7 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.02;
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap;
 renderer.setClearColor(0xc6d3dd, 1);
 
 const input = new Input(sceneCanvas);
@@ -116,6 +116,9 @@ declare global {
       maxDepth: () => number;
       portrait: () => boolean;
       started: () => boolean;
+      signal: () => number;
+      finger: () => { x: number; y: number };
+      route: () => Array<{ x: number; y: number }>;
     };
   }
 }
@@ -126,4 +129,7 @@ window.__dig = {
   maxDepth: () => game.activeSite.deepest().depth,
   portrait: () => game.director.isPortrait,
   started: () => running,
+  signal: () => game.detectSignal,
+  finger: () => game.fingerTargetScreen(window.innerWidth, window.innerHeight, input.lift),
+  route: () => game.routeScreen(window.innerWidth, window.innerHeight, input.lift),
 };

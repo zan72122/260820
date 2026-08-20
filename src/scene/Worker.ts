@@ -3,10 +3,11 @@ import { clamp, damp, lerp } from '../util/math';
 import { paintTexture } from '../util/textures';
 
 const UP = new THREE.Vector3(0, 1, 0);
+const SEG_DIR = new THREE.Vector3();
 
 /** Positions/orients a cylinder-style limb between two local-space points. */
 function segment(mesh: THREE.Mesh, from: THREE.Vector3, to: THREE.Vector3, rest: number) {
-  const dir = new THREE.Vector3().subVectors(to, from);
+  const dir = SEG_DIR.subVectors(to, from);
   const len = Math.max(1e-4, dir.length());
   mesh.position.copy(from).addScaledVector(dir, 0.5);
   mesh.quaternion.setFromUnitVectors(UP, dir.divideScalar(len));
@@ -55,11 +56,19 @@ export class Worker {
   private tmpA = new THREE.Vector3();
   private tmpB = new THREE.Vector3();
   private tmpC = new THREE.Vector3();
+  private tmpD = new THREE.Vector3();
+  private tmpE = new THREE.Vector3();
+  private tmpF = new THREE.Vector3();
+  private tmpG = new THREE.Vector3();
+  private hipV = new THREE.Vector3();
+  private kneeV = new THREE.Vector3();
+  private footV = new THREE.Vector3();
+  private pole = new THREE.Vector3();
 
   constructor() {
     const hiVis = new THREE.MeshStandardMaterial({
-      map: paintTexture(0xd87420, 128),
-      roughness: 0.82,
+      map: paintTexture(0xc4cf3e, 128),
+      roughness: 0.86,
       metalness: 0,
     });
     const shirt = new THREE.MeshStandardMaterial({ color: 0x35404f, roughness: 0.9 });
@@ -69,7 +78,7 @@ export class Worker {
     const glove = new THREE.MeshStandardMaterial({ color: 0x3f6f92, roughness: 0.85 });
     const skin = new THREE.MeshStandardMaterial({ color: 0xb98a68, roughness: 0.75 });
     const helmet = new THREE.MeshStandardMaterial({ color: 0xe8e5dd, roughness: 0.42, metalness: 0.05 });
-    const strap = new THREE.MeshStandardMaterial({ color: 0xc9ccd0, roughness: 0.6, metalness: 0.2 });
+    const strap = new THREE.MeshStandardMaterial({ color: 0xb9bec4, roughness: 0.55, metalness: 0.25 });
 
     this.group.add(this.hips);
     this.hips.position.y = 0.94;
@@ -87,8 +96,8 @@ export class Worker {
     vest.position.y = 0.3;
     vest.castShadow = true;
     this.torso.add(vest);
-    for (const y of [0.22, 0.38]) {
-      const band = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.045, 0.28), strap);
+    for (const y of [0.2, 0.36]) {
+      const band = new THREE.Mesh(new THREE.BoxGeometry(0.442, 0.032, 0.282), strap);
       band.position.y = y;
       this.torso.add(band);
     }
@@ -116,9 +125,9 @@ export class Worker {
     this.head.add(glasses);
 
     const armGeo = new THREE.CylinderGeometry(0.052, 0.05, 1, 8);
-    this.upperL = new THREE.Mesh(armGeo, hiVis);
+    this.upperL = new THREE.Mesh(armGeo, shirt);
     this.lowerL = new THREE.Mesh(armGeo, shirt);
-    this.upperR = new THREE.Mesh(armGeo, hiVis);
+    this.upperR = new THREE.Mesh(armGeo, shirt);
     this.lowerR = new THREE.Mesh(armGeo, shirt);
     for (const m of [this.upperL, this.lowerL, this.upperR, this.lowerR]) {
       m.castShadow = true;
@@ -206,9 +215,9 @@ export class Worker {
     const kneeY = lerp(-0.46, -0.24, c);
     const footY = -this.hips.position.y + 0.055;
     for (const side of [-1, 1]) {
-      const hip = new THREE.Vector3(side * 0.11, -0.06, 0);
-      const knee = new THREE.Vector3(side * 0.12, kneeY, kneeFwd);
-      const foot = new THREE.Vector3(side * 0.13, footY, kneeFwd * lerp(1.0, 0.45, c));
+      const hip = this.hipV.set(side * 0.11, -0.06, 0);
+      const knee = this.kneeV.set(side * 0.12, kneeY, kneeFwd);
+      const foot = this.footV.set(side * 0.13, footY, kneeFwd * lerp(1.0, 0.45, c));
       const thigh = side < 0 ? this.thighL : this.thighR;
       const shin = side < 0 ? this.shinL : this.shinR;
       const bt = side < 0 ? this.bootL : this.bootR;
@@ -249,28 +258,28 @@ export class Worker {
       1
     );
     const a = Math.acos(cosA);
-    const f = toT.clone().divideScalar(d);
-    const pole = new THREE.Vector3(side * 0.8, -0.5, -0.5).normalize();
-    let right = new THREE.Vector3().crossVectors(f, pole);
+    const f = this.tmpD.copy(toT).divideScalar(d);
+    const pole = this.pole.set(side * 0.8, -0.5, -0.5).normalize();
+    const right = this.tmpE.crossVectors(f, pole);
     if (right.lengthSq() < 1e-6) right.set(0, 0, 1);
     right.normalize();
-    const bend = new THREE.Vector3().crossVectors(right, f).normalize();
+    const bend = this.tmpF.crossVectors(right, f).normalize();
 
-    const elbow = shoulder
-      .clone()
+    const elbow = this.tmpG
+      .copy(shoulder)
       .addScaledVector(f, this.armUpper * Math.cos(a))
       .addScaledVector(bend, this.armUpper * Math.sin(a));
 
     segment(upper, shoulder, elbow, 1);
     segment(lower, elbow, target, 1);
     glove.position.copy(target);
-    glove.quaternion.setFromUnitVectors(UP, new THREE.Vector3().subVectors(target, elbow).normalize());
+    glove.quaternion.setFromUnitVectors(UP, this.tmpE.subVectors(target, elbow).normalize());
   }
 
   private poseHead() {
-    const local = this.lookTarget.clone();
+    const local = this.tmpA.copy(this.lookTarget);
     this.torso.worldToLocal(local);
-    const dir = local.sub(new THREE.Vector3(0, 0.62, 0));
+    const dir = local.sub(this.tmpB.set(0, 0.62, 0));
     const yaw = clamp(Math.atan2(dir.x, dir.z), -0.9, 0.9);
     const pitch = clamp(-Math.atan2(dir.y, Math.hypot(dir.x, dir.z)), -0.55, 0.85);
     this.head.rotation.set(pitch, yaw, 0);

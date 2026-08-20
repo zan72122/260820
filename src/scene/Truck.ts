@@ -34,7 +34,7 @@ export class Truck {
   constructor(quality: number) {
     const seg = quality >= 1 ? 20 : 10;
     const bodyMat = new THREE.MeshStandardMaterial({
-      map: paintTexture(0xc9c5bb, 256),
+      map: paintTexture(0xa8a79f, 256),
       roughness: 0.66,
       metalness: 0.12,
     });
@@ -104,6 +104,28 @@ export class Truck {
       cap.castShadow = true;
       this.group.add(cap);
     }
+    // reinforcing bands: the tank has to take full vacuum
+    for (const x of [-1.25, -0.15, 0.95]) {
+      const band = new THREE.Mesh(new THREE.TorusGeometry(1.035, 0.05, 6, seg), steel);
+      band.rotation.y = Math.PI / 2;
+      band.position.set(x, 2.05, 0);
+      band.castShadow = true;
+      this.group.add(band);
+    }
+    const walkway = new THREE.Mesh(new THREE.BoxGeometry(3.2, 0.05, 0.5), darkSteel);
+    walkway.position.set(-0.15, 2.98, 0.42);
+    walkway.castShadow = true;
+    this.group.add(walkway);
+    for (const x of [-1.5, 1.1]) {
+      const rail = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.85, 6), steel);
+      rail.position.set(x, 3.4, 0.62);
+      this.group.add(rail);
+    }
+    const topRail = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 2.7, 6), steel);
+    topRail.rotation.z = Math.PI / 2;
+    topRail.position.set(-0.2, 3.82, 0.62);
+    this.group.add(topRail);
+
     // mud splash along the bottom of the tank
     const splash = new THREE.Mesh(new THREE.CylinderGeometry(1.045, 1.045, 3.3, seg, 1, true, 3.6, 2.1), grime);
     splash.rotation.z = Math.PI / 2;
@@ -234,8 +256,8 @@ export class Truck {
     this.boomTip.position.set(2.62, -0.2, 0);
     this.extendGroup.add(this.boomTip);
 
-    this.group.position.set(3.9, 0, 4.35);
-    this.group.rotation.y = 0.07;
+    this.group.position.set(4.6, 0, 4.4);
+    this.group.rotation.y = 0.3;
     this.applyBoom();
   }
 

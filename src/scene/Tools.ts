@@ -1,6 +1,28 @@
 import * as THREE from 'three';
 import { clamp, damp, lerp } from '../util/math';
-import { paintTexture } from '../util/textures';
+import { gaugeTexture, paintTexture } from '../util/textures';
+
+const UP = new THREE.Vector3(0, 1, 0);
+
+/** Cylinder spanning two local points; keeps hand-built tools from drifting apart. */
+function link(
+  from: [number, number, number],
+  to: [number, number, number],
+  r1: number,
+  r2: number,
+  mat: THREE.Material,
+  seg = 10
+): THREE.Mesh {
+  const a = new THREE.Vector3(...from);
+  const b = new THREE.Vector3(...to);
+  const dir = new THREE.Vector3().subVectors(b, a);
+  const len = dir.length();
+  const m = new THREE.Mesh(new THREE.CylinderGeometry(r2, r1, len, seg), mat);
+  m.position.copy(a).addScaledVector(dir, 0.5);
+  m.quaternion.setFromUnitVectors(UP, dir.normalize());
+  m.castShadow = true;
+  return m;
+}
 
 const steel = () => new THREE.MeshStandardMaterial({ color: 0x8b8f93, roughness: 0.45, metalness: 0.78 });
 const darkPoly = () => new THREE.MeshStandardMaterial({ color: 0x2b2e33, roughness: 0.72, metalness: 0.05 });
@@ -50,75 +72,61 @@ export class ToolBase {
 /** Cable / pipe locator wand with a physical needle gauge. */
 export class Detector extends ToolBase {
   private needle: THREE.Mesh;
-  private headPlate: THREE.Mesh;
+  private searchHead: THREE.Mesh;
   private shake = new THREE.Group();
   private signal = 0;
 
   constructor() {
     super();
-    const body = new THREE.Group();
     this.group.add(this.shake);
+    const body = new THREE.Group();
     this.shake.add(body);
 
-    const head = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.055, 0.16), darkPoly());
-    head.position.y = 0.05;
-    head.castShadow = true;
-    body.add(head);
-    this.headPlate = new THREE.Mesh(
-      new THREE.BoxGeometry(0.3, 0.02, 0.13),
-      new THREE.MeshStandardMaterial({ color: 0x53595f, roughness: 0.6, metalness: 0.35 })
-    );
-    this.headPlate.position.y = 0.022;
-    body.add(this.headPlate);
+    const shell = darkPoly();
+    // flat search head, held a few centimetres off the ground
+    this.searchHead = new THREE.Mesh(new THREE.CylinderGeometry(0.155, 0.145, 0.038, 20), shell);
+    this.searchHead.position.y = 0.03;
+    this.searchHead.castShadow = true;
+    body.add(this.searchHead);
+    const skid = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.012, 20), rubber());
+    skid.position.y = 0.008;
+    body.add(skid);
 
-    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.021, 0.024, 0.86, 10), steel());
-    shaft.position.set(0, 0.5, 0.1);
-    shaft.rotation.x = -0.13;
-    shaft.castShadow = true;
-    body.add(shaft);
+    const shaftMat = steel();
+    body.add(link([0, 0.05, 0.02], [0, 0.3, 0.14], 0.016, 0.018, shaftMat));
+    body.add(link([0, 0.3, 0.14], [0, 0.98, 0.53], 0.018, 0.02, shaftMat));
 
-    const housing = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.19, 0.09), paintPoly(0xd8a11c));
-    housing.position.set(0, 0.94, 0.16);
+    const housing = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.17, 0.075), paintPoly(0xd0a51f));
+    housing.position.set(0, 0.79, 0.4);
+    housing.rotation.x = -0.55;
     housing.castShadow = true;
     body.add(housing);
 
-    const dial = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.056, 0.056, 0.012, 16),
-      new THREE.MeshStandardMaterial({ color: 0xe9e6dc, roughness: 0.5 })
+    const face = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.108, 0.108),
+      new THREE.MeshStandardMaterial({ map: gaugeTexture(128), roughness: 0.55, metalness: 0 })
     );
-    dial.rotation.x = Math.PI / 2 - 0.35;
-    dial.position.set(0, 0.955, 0.212);
-    body.add(dial);
-    // simple arc of tick marks; no numerals to read
-    for (let i = 0; i < 7; i++) {
-      const a = lerp(-1.05, 1.05, i / 6);
-      const tick = new THREE.Mesh(
-        new THREE.BoxGeometry(0.005, 0.016, 0.004),
-        new THREE.MeshStandardMaterial({ color: 0x2a2c30, roughness: 0.8 })
-      );
-      tick.position.set(Math.sin(a) * 0.042, 0.955 + Math.cos(a) * 0.042 * 0.94, 0.219);
-      tick.rotation.z = -a;
-      body.add(tick);
-    }
+    face.position.set(0, 0.04, 0.039);
+    housing.add(face);
+
     this.needle = new THREE.Mesh(
-      new THREE.BoxGeometry(0.005, 0.078, 0.004),
-      new THREE.MeshStandardMaterial({ color: 0xb8341c, roughness: 0.6 })
+      new THREE.BoxGeometry(0.004, 0.062, 0.003),
+      new THREE.MeshStandardMaterial({ color: 0xb8341c, roughness: 0.55 })
     );
-    this.needle.geometry.translate(0, 0.033, 0);
-    this.needle.position.set(0, 0.925, 0.222);
-    body.add(this.needle);
+    this.needle.geometry.translate(0, 0.028, 0);
+    this.needle.position.set(0, -0.008, 0.043);
+    housing.add(this.needle);
 
-    const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.12, 8), rubber());
-    grip.position.set(0, 1.07, 0.18);
-    grip.rotation.x = -0.13;
-    body.add(grip);
-    const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.019, 0.019, 0.2, 8), rubber());
-    bar.rotation.z = Math.PI / 2;
-    bar.position.set(0, 0.66, 0.12);
-    body.add(bar);
+    const foreGrip = link([0, 0.46, 0.24], [0, 0.63, 0.33], 0.026, 0.026, rubber(), 8);
+    body.add(foreGrip);
+    const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.021, 0.021, 0.16, 8), rubber());
+    handle.rotation.z = Math.PI / 2;
+    handle.position.set(0, 1.0, 0.56);
+    handle.castShadow = true;
+    body.add(handle);
 
-    this.gripFront.position.set(-0.07, 0.66, 0.12);
-    this.gripBack.position.set(0.02, 1.08, 0.18);
+    this.gripFront.position.set(-0.03, 0.55, 0.285);
+    this.gripBack.position.set(0.04, 1.0, 0.56);
     this.tip.position.set(0, 0.03, 0);
   }
 
@@ -127,12 +135,12 @@ export class Detector extends ToolBase {
   }
 
   animate(dt: number, t: number) {
-    const target = lerp(-1.0, 1.0, this.signal);
+    const target = lerp(-0.95, 0.95, this.signal);
     this.needle.rotation.z = damp(this.needle.rotation.z, -target, 12, dt) + Math.sin(t * 22) * 0.02 * this.signal;
-    const amp = this.signal * this.signal * 0.012;
+    const amp = this.signal * this.signal * 0.011;
     this.shake.position.x = Math.sin(t * 34) * amp;
     this.shake.position.y = Math.sin(t * 41 + 1) * amp * 0.7;
-    (this.headPlate.material as THREE.MeshStandardMaterial).roughness = 0.6 - this.signal * 0.2;
+    (this.searchHead.material as THREE.MeshStandardMaterial).roughness = 0.72 - this.signal * 0.16;
   }
 }
 
@@ -143,49 +151,45 @@ export class WaterLance extends ToolBase {
 
   constructor() {
     super();
-    const wand = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.018, 0.76, 10), steel());
-    wand.position.set(0, 0.36, 0.14);
-    wand.rotation.x = -0.36;
-    wand.castShadow = true;
-    this.group.add(wand);
-
-    const nozzle = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.026, 0.09, 10), darkPoly());
-    nozzle.position.set(0, 0.05, 0.02);
-    nozzle.rotation.x = -0.36;
-    nozzle.castShadow = true;
-    this.group.add(nozzle);
-    const collar = new THREE.Mesh(new THREE.TorusGeometry(0.028, 0.007, 6, 12), steel());
-    collar.rotation.x = Math.PI / 2 - 0.36;
-    collar.position.set(0, 0.1, 0.035);
+    const tube = steel();
+    // orifice sits at the tool origin; the lance runs up and back to the grip
+    this.group.add(link([0, 0.015, 0.005], [0, 0.5, 0.6], 0.015, 0.017, tube));
+    const tip = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.025, 0.075, 12), darkPoly());
+    tip.position.set(0, 0.03, 0.028);
+    tip.quaternion.setFromUnitVectors(UP, new THREE.Vector3(0, 0.62, 0.78).normalize());
+    tip.castShadow = true;
+    this.group.add(tip);
+    const collar = new THREE.Mesh(new THREE.TorusGeometry(0.026, 0.006, 5, 12), tube);
+    collar.position.set(0, 0.075, 0.065);
+    collar.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 0.62, 0.78).normalize());
     this.group.add(collar);
 
-    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.16, 0.07), paintPoly(0x2f5f86));
-    grip.position.set(0, 0.72, 0.36);
-    grip.rotation.x = 0.32;
-    grip.castShadow = true;
-    this.group.add(grip);
-    this.trigger = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.075, 0.02), darkPoly());
-    this.trigger.position.set(0, 0.72, 0.31);
-    this.group.add(this.trigger);
-    const guard = new THREE.Mesh(new THREE.TorusGeometry(0.055, 0.008, 5, 10, Math.PI), steel());
-    guard.position.set(0, 0.73, 0.33);
-    guard.rotation.set(0, Math.PI / 2, -0.4);
-    this.group.add(guard);
-
-    const foreGrip = new THREE.Mesh(new THREE.CylinderGeometry(0.022, 0.022, 0.13, 8), rubber());
-    foreGrip.position.set(0, 0.44, 0.2);
-    foreGrip.rotation.x = -0.36;
+    const foreGrip = link([0, 0.26, 0.32], [0, 0.38, 0.47], 0.025, 0.025, rubber(), 8);
     this.group.add(foreGrip);
 
-    this.inlet.position.set(0, 0.8, 0.44);
+    const grip = new THREE.Mesh(new THREE.BoxGeometry(0.052, 0.15, 0.062), paintPoly(0x2f5f86));
+    grip.position.set(0, 0.55, 0.78);
+    grip.rotation.x = 0.5;
+    grip.castShadow = true;
+    this.group.add(grip);
+    this.trigger = new THREE.Mesh(new THREE.BoxGeometry(0.026, 0.07, 0.018), darkPoly());
+    this.trigger.position.set(0, 0.58, 0.715);
+    this.group.add(this.trigger);
+    const guard = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.007, 5, 12, Math.PI), tube);
+    guard.position.set(0, 0.575, 0.735);
+    guard.rotation.set(0.5, Math.PI / 2, -0.35);
+    this.group.add(guard);
+    this.group.add(link([0, 0.5, 0.6], [0, 0.62, 0.72], 0.017, 0.017, tube, 8));
+
+    this.inlet.position.set(0, 0.62, 0.86);
     this.group.add(this.inlet);
-    this.gripFront.position.set(-0.02, 0.44, 0.2);
-    this.gripBack.position.set(0.02, 0.71, 0.37);
-    this.tip.position.set(0, 0.02, 0.005);
+    this.gripFront.position.set(-0.02, 0.32, 0.4);
+    this.gripBack.position.set(0.03, 0.56, 0.77);
+    this.tip.position.set(0, 0.01, 0.002);
   }
 
   setFlow(on: boolean, dt: number) {
-    this.trigger.position.z = damp(this.trigger.position.z, on ? 0.325 : 0.31, 20, dt);
+    this.trigger.position.z = damp(this.trigger.position.z, on ? 0.73 : 0.715, 20, dt);
   }
 
   inletWorld(out: THREE.Vector3) {

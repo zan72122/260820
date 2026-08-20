@@ -110,8 +110,9 @@ export class Hose {
     const g = this.opts.gravity ?? 8.2;
     const h = Math.min(dt, 1 / 30);
     const damping = 0.86;
-    this.restA = (a.distanceTo(guide) * this.opts.slackA) / Math.max(1, this.guide);
-    this.restB = (guide.distanceTo(b) * this.opts.slackB) / Math.max(1, n - 1 - this.guide);
+    const minSeg = this.opts.radius * 0.5;
+    this.restA = Math.max(minSeg, (a.distanceTo(guide) * this.opts.slackA) / Math.max(1, this.guide));
+    this.restB = Math.max(minSeg, (guide.distanceTo(b) * this.opts.slackB) / Math.max(1, n - 1 - this.guide));
     this.scuff = 0;
 
     // verlet integrate
@@ -135,7 +136,7 @@ export class Hose {
     this.pts[n - 1].copy(b);
     this.prev[n - 1].copy(b);
 
-    const iterations = 7;
+    const iterations = 10;
     for (let k = 0; k < iterations; k++) {
       this.solveDistance();
       this.solveBend();
@@ -233,7 +234,6 @@ export class Hose {
 
   private rebuild() {
     const T = this.opts.tubular;
-    this.curve.updateArcLengths?.();
     for (let i = 0; i <= T; i++) this.curve.getPoint(i / T, this.samples[i]);
 
     for (let i = 0; i <= T; i++) {
