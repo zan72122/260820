@@ -885,6 +885,10 @@ export class Director {
 
     // gusts fade back into the ambient breeze
     const motion = settings.motionScale;
+    // the hill in play always breathes a little more than the field around it
+    for (const [key, p] of this.plants) {
+      if (p !== this.gustPlant) p.setWind((key === this.index ? 1.3 : 1) * motion);
+    }
     if (this.gust > 0) {
       this.gust = Math.max(0, this.gust - dt * 1.1);
       this.gustPlant?.setWind((1 + this.gust) * motion);
