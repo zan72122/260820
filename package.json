@@ -10,7 +10,11 @@
     "preview": "vite preview --host",
     "typecheck": "tsc --noEmit",
     "simcheck": "esbuild scripts/simcheck.ts --bundle --platform=node --format=esm --outfile=node_modules/.simcheck.mjs --log-level=warning && node node_modules/.simcheck.mjs",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "touch": "node scripts/touch.mjs",
+    "shots": "node scripts/shots.mjs",
+    "inspect": "node scripts/inspect.mjs",
+    "verify": "npm run build && npm run simcheck && npm run smoke && npm run touch"
   },
   "dependencies": {
     "three": "^0.180.0"

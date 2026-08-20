@@ -79,7 +79,7 @@ export class Wagon {
         leg.castShadow = true;
         leg.receiveShadow = true;
         this.root.add(leg);
-        const caster = new Mesh(new SphereGeometry(0.034, 12, 8), lib.tyre());
+        const caster = new Mesh(new SphereGeometry(0.034, 12, 8), lib.matte('#2c3033', 0.72));
         caster.position.set(x, 0.034, z);
         caster.castShadow = true;
         this.root.add(caster);
@@ -102,7 +102,6 @@ export class Wagon {
     this.lowerShelf.visible = false;
 
     this.buildSlots(deckY);
-    this.buildTools();
   }
 
   private buildSlots(deckY: number): void {
@@ -130,7 +129,9 @@ export class Wagon {
     }
   }
 
+  /** Built the first time the tools are unlocked, not at start-up. */
   private buildTools(): void {
+    if (this.tools.length) return;
     const specs: { id: ToolId; x: number; build: () => Object3D }[] = [
       { id: 'cloth', x: -0.36, build: () => this.buildCloth() },
       { id: 'dropper', x: -0.12, build: () => this.buildDropper() },
@@ -216,7 +217,13 @@ export class Wagon {
     slot.grab.visible = available;
   }
 
+  /** True once anything at all is on the trolley for the child to take. */
+  get hasAvailable(): boolean {
+    return this.slots.some((s) => s.available);
+  }
+
   setToolsAvailable(available: boolean): void {
+    if (available) this.buildTools();
     for (const t of this.tools) t.available = available;
     this.lowerShelf.visible = available;
   }

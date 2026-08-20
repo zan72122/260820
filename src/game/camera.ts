@@ -43,8 +43,8 @@ const PROFILES: Record<Orientation, RigProfile> = {
     landingEl: deg(13),
     landingDist: 2.1,
     landingFov: 46,
-    screenBias: 0.17,
-    padding: 1.1,
+    screenBias: 0.11,
+    padding: 1.08,
   },
   landscape: {
     overviewAz: deg(74),
@@ -121,7 +121,14 @@ export class CameraRig {
     this.camera.updateProjectionMatrix();
   }
 
+  /** Ordered list of shots used, newest last. Read by the debug/e2e surface. */
+  readonly shotLog: ShotName[] = ['overview'];
+
   setShot(shot: ShotName): void {
+    if (this.shot !== shot) {
+      this.shotLog.push(shot);
+      if (this.shotLog.length > 64) this.shotLog.shift();
+    }
     this.shot = shot;
   }
 
@@ -164,11 +171,11 @@ export class CameraRig {
         this.targetLook.set(0, 0, 0);
         for (const q of pts) this.targetLook.add(q);
         this.targetLook.multiplyScalar(1 / Math.max(1, pts.length));
-        const d = this.fitDistance(this.targetLook, pts, p.overviewFov, p.padding * 1.16);
+        const d = this.fitDistance(this.targetLook, pts, p.overviewFov, p.padding * 1.14);
         this.targetPos.copy(this.targetLook).addScaledVector(_dir, d);
         this.fov = p.overviewFov;
         this.applyBias(d, p);
-        rate = 0.05;
+        rate = 0.075;
         break;
       }
       case 'follow': {

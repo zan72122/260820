@@ -26,6 +26,7 @@ import { LandingMat } from './world/landingMat';
 import { Park, SUN_DIRECTION } from './world/park';
 import { SlideRig } from './world/slide';
 import { SlideSurface } from './world/surface';
+import { slideSurface } from './world/slideCurve';
 import { Wagon } from './world/wagon';
 
 const stage = document.getElementById('stage') as HTMLDivElement;
@@ -118,6 +119,7 @@ function start(): void {
   scene.environmentIntensity = 1.35;
 
   // --- world --------------------------------------------------------------
+  const tWorld = performance.now();
   const lib = new MaterialLibrary();
   const surface = new SlideSurface();
   const park = new Park(lib, { foliageDensity: settings.foliageDensity });
@@ -139,6 +141,8 @@ function start(): void {
   const particles = new Particles(settings.particles ? 140 : 1);
   particles.enabled = settings.particles;
   scene.add(particles.points);
+
+  const worldMs = performance.now() - tWorld;
 
   const rig = new CameraRig();
   const audio = new AudioEngine();
@@ -198,6 +202,7 @@ function start(): void {
 
   // --- main loop ----------------------------------------------------------
   let last = performance.now();
+  let firstFrameMs = 0;
   let running = true;
   let elapsed = 0;
   let firstFrame = true;
@@ -241,13 +246,31 @@ function start(): void {
 
     if (firstFrame) {
       firstFrame = false;
+      firstFrameMs = performance.now();
       boot.classList.add('done');
       setTimeout(() => boot.remove(), 800);
     }
   }
   requestAnimationFrame(frame);
 
-  if (E2E) installTestHooks({ director, rig, quality, renderer, step: stepHeadless });
+  if (E2E) {
+    installTestHooks({
+      director,
+      rig,
+      quality,
+      renderer,
+      audio,
+      stand,
+      wagon,
+      mat,
+      canvas: renderer.domElement,
+      step: stepHeadless,
+      timings: () => ({
+        worldMs: Math.round(worldMs),
+        firstFrameMs: Math.round(firstFrameMs),
+      }),
+    });
+  }
 
   /** Advance game logic without waiting for real time, for automated checks. */
   function stepHeadless(seconds: number): void {
@@ -301,7 +324,13 @@ interface TestSurface {
   rig: CameraRig;
   quality: QualityManager;
   renderer: WebGLRenderer;
+  audio: AudioEngine;
+  stand: ControlStand;
+  wagon: Wagon;
+  mat: LandingMat;
+  canvas: HTMLCanvasElement;
   step: (seconds: number) => void;
+  timings: () => { worldMs: number; firstFrameMs: number };
 }
 
 /** Only installed with `?e2e=1`; never present in normal play. */
@@ -324,9 +353,14 @@ function installTestHooks(t: TestSurface): void {
       t.director.setResetPull(1);
       t.director.commitReset(1);
     },
-    tool(kind: string, arc: number): void {
-      t.director.useTool(kind as never, arc, new Vector3());
+    tool(kind: string, arc: number, times = 1): void {
+      for (let i = 0; i < times; i++) t.director.useTool(kind as never, arc, new Vector3());
     },
+    moveMat(x: number, z: number): void {
+      t.director.placeMat(x, z);
+    },
+    surface: () => t.director.surfaceTotals(),
+    shots: () => t.rig.shotLog.slice(),
     camera(px: number, py: number, pz: number, lx: number, ly: number, lz: number): void {
       t.rig.frozen = true;
       t.rig.camera.position.set(px, py, pz);
@@ -336,6 +370,22 @@ function installTestHooks(t: TestSurface): void {
     unfreeze(): void {
       t.rig.frozen = false;
     },
+    /** CSS-pixel position of a touch target, so gestures can be driven for real. */
+    screenOf(what: string): { x: number; y: number } | null {
+      const p = new Vector3();
+      if (what === 'gate') t.stand.gateKnobWorld(p);
+      else if (what === 'reset') t.stand.resetKnobWorld(p);
+      else if (what === 'mat') t.mat.worldPosition(p);
+      else if (what.startsWith('object:')) t.wagon.slotWorld(what.slice(7) as never, p);
+      else if (what.startsWith('tool:')) t.wagon.toolWorld(what.slice(5) as never, p);
+      else if (what.startsWith('slide:')) slideSurface(Number(what.slice(6)), 0, 0.05, p);
+      else return null;
+      const v = p.project(t.rig.camera);
+      const r = t.canvas.getBoundingClientRect();
+      return { x: ((v.x + 1) / 2) * r.width, y: ((-v.y + 1) / 2) * r.height };
+    },
+    audioReady: () => t.audio.ready,
+    timings: t.timings,
     state() {
       const d = t.director.debugState;
       const b = d.body;

@@ -111,7 +111,7 @@ const _tmp = new Vector3();
 
 /** Broad placement bands the child can drop an object into. */
 export const START_ZONES = [
-  { id: 'top' as const, min: 0.0, max: 1.05, center: 0.42 },
+  { id: 'top' as const, min: 0.0, max: 1.3, center: 0.85 },
   { id: 'middle' as const, min: 1.35, max: 2.6, center: 2.05 },
   { id: 'lower' as const, min: 2.7, max: 3.9, center: 3.05 },
 ];

@@ -78,6 +78,8 @@ export class Director implements PlayHooks {
   private predictTimer = 0;
   private settleTimer = 0;
   private movedFromGate = false;
+  /** Guarantees the release and the first movement share one frame. */
+  private gateShotHold = 0;
   /** How far the lever is currently asking the boom to open, 0..1. */
   private gateCommand = 0;
   private resetPull = 0;
@@ -92,6 +94,7 @@ export class Director implements PlayHooks {
   private offerTimer = 0;
   private rng = new Rng(20260820);
   private lastToolSound = 0;
+  private lastToolTime = -1;
   private time = 0;
   private frameCov: SurfaceMix = { ...DRY_MIX };
 
@@ -177,6 +180,9 @@ export class Director implements PlayHooks {
     }
     this.rig.setShot('gate');
     this.audio.gateClick(0.8);
+    // Available immediately so `?debug=1` can show where this test should end
+    // up before it is run.
+    this.prediction = predict(this.body, profile, this.world, 9);
   }
 
   private surfaceSignature(): string {
@@ -206,7 +212,12 @@ export class Director implements PlayHooks {
     this.touched = true;
     this.idle = 0;
     const p = this.prop(id);
-    if (p === this.activeProp) return null;
+    if (p === this.activeProp) {
+      // Picking up the thing that is already out simply ends that experiment.
+      this.activeProp = null;
+      this.body = null;
+      this.runState = 'idle';
+    }
     this.carryProp = p;
     this.carryFrom = id;
     this.wagon.setInUse(id, true);
@@ -222,6 +233,7 @@ export class Director implements PlayHooks {
       this.carryProp.root.removeFromParent();
       this.wagon.setInUse(id, false);
       this.audio.gateClick(0.4);
+      if (!this.body) this.rig.setShot('overview');
     }
     this.carryProp = null;
     this.carryFrom = null;
@@ -274,16 +286,20 @@ export class Director implements PlayHooks {
     this.idle = 0;
     if (this.layer < 3) return;
     const now = this.time;
+    // Rate is per second of contact, not per pointer event, so a slow phone
+    // does not make wiping the slide slower work.
+    const dt = this.lastToolTime < 0 ? 1 / 60 : clamp(now - this.lastToolTime, 0.004, 0.12);
+    this.lastToolTime = now;
     switch (tool) {
       case 'cloth':
-        this.surface.wipe(arc, 0.3, 1.6 * 0.016);
+        this.surface.wipe(arc, 0.3, 7.0 * dt);
         if (now - this.lastToolSound > 0.22) {
           this.audio.wipe();
           this.lastToolSound = now;
         }
         break;
       case 'dropper':
-        this.surface.addWater(arc, 0.24, 0.035);
+        this.surface.addWater(arc, 0.24, 4.5 * dt);
         if (now - this.lastToolSound > 0.3) {
           this.audio.waterDrop();
           this.lastToolSound = now;
@@ -297,7 +313,7 @@ export class Director implements PlayHooks {
         }
         break;
       case 'sand':
-        this.surface.addSand(arc, 0.26, 0.03);
+        this.surface.addSand(arc, 0.26, 4.2 * dt);
         if (now - this.lastToolSound > 0.26) {
           this.audio.sandPour();
           this.lastToolSound = now;
@@ -321,6 +337,7 @@ export class Director implements PlayHooks {
   }
 
   toolReleased(tool: ToolId, arc: number | null): void {
+    this.lastToolTime = -1;
     if (tool === 'strip' && arc === null) this.surface.clearRubber();
   }
 
@@ -378,6 +395,7 @@ export class Director implements PlayHooks {
       this.runState = 'running';
       this.audio.gateOpen();
       this.audio.useVoice(VOICE[this.currentId]);
+      this.gateShotHold = 0.62;
       this.prediction = predict(this.body, PROFILES[this.currentId], this.world);
     }
   }
@@ -404,7 +422,10 @@ export class Director implements PlayHooks {
       stepBody(b, profile, this.world, dt);
       prop.sync(b, dt);
 
-      if (!this.movedFromGate && b.s - this.baseArc > 0.26) this.movedFromGate = true;
+      this.gateShotHold = Math.max(0, this.gateShotHold - dt);
+      if (!this.movedFromGate && b.s - this.baseArc > 0.4 && this.gateShotHold <= 0) {
+        this.movedFromGate = true;
+      }
 
       const speed = b.onSlide ? b.v : Math.hypot(b.vx, b.vz);
       if (b.onSlide) {
@@ -472,7 +493,7 @@ export class Director implements PlayHooks {
       this.rig.setShot('overview');
       return;
     }
-    if (!this.movedFromGate) {
+    if (!this.movedFromGate || this.gateShotHold > 0) {
       // The pulling hand and the first movement stay in one frame.
       this.rig.setShot('gate');
       return;
@@ -630,7 +651,7 @@ export class Director implements PlayHooks {
     } else if (this.rig.currentShot === 'overview') {
       frame.push(this.stand.gateKnobWorld(new Vector3()));
       frame.push(new Vector3(6.4, 0, 0));
-      if (this.layer >= 1) {
+      if (this.wagon.hasAvailable) {
         // Both ends of the trolley, so it is never half out of frame.
         const w = this.wagon.root.position;
         frame.push(new Vector3(w.x - 0.62, 0.62, w.z + 0.3));
@@ -677,5 +698,25 @@ export class Director implements PlayHooks {
   /** Which object is currently in the child's hand, if any. */
   get carryingId(): ObjectId | null {
     return this.carryFrom;
+  }
+
+  /** Coarse totals of what is on the bed, for the debug/e2e surface. */
+  surfaceTotals(): { wet: number; sand: number; rubber: number; states: number } {
+    let wet = 0;
+    let sand = 0;
+    let rubber = 0;
+    for (let i = 0; i < this.surface.wet.length; i++) {
+      wet += this.surface.wet[i];
+      sand += this.surface.sand[i];
+      rubber += this.surface.rubber[i];
+    }
+    return { wet, sand, rubber, states: this.surface.distinctStates() };
+  }
+
+  /** Drag the landing pad, exactly as the finger does. */
+  placeMat(x: number, z: number): void {
+    this.mat.setPresent(true);
+    this.mat.moveTo(x, z);
+    this.matMoved();
   }
 }

@@ -15,7 +15,8 @@ export const MAT_THICKNESS = 0.052;
  */
 export class LandingMat {
   readonly root = new Group();
-  readonly mesh: Mesh;
+  /** Built on first use: the pad does not exist until free play opens. */
+  mesh: Mesh | null = null;
   readonly state: MatState = {
     x: 5.9,
     z: 0,
@@ -25,17 +26,23 @@ export class LandingMat {
     present: false,
     depression: 0,
   };
-  private rest: Float32Array;
+  private rest: Float32Array | null = null;
   private dipAmount = 0;
   private dipTarget = 0;
   private dipX = 0;
   private dipZ = 0;
 
-  constructor(lib: MaterialLibrary) {
+  constructor(private lib: MaterialLibrary) {
     this.root.name = 'landingMat';
+    this.root.visible = false;
+    this.root.position.set(this.state.x, MAT_THICKNESS / 2, this.state.z);
+  }
+
+  private build(): void {
+    if (this.mesh) return;
     const geo = roundedBox(MAT_HALF_X * 2, MAT_THICKNESS, MAT_HALF_Z * 2, 0.03, 9);
     this.rest = (geo.attributes.position as BufferAttribute).array.slice() as Float32Array;
-    const cloth = lib.felt().clone();
+    const cloth = this.lib.felt().clone();
     cloth.color.set('#7fa8bd').convertSRGBToLinear();
     cloth.sheenColor.set('#cfe4ee').convertSRGBToLinear();
     this.mesh = new Mesh(geo, cloth);
@@ -47,17 +54,15 @@ export class LandingMat {
     // A webbing edge so the pad reads as a made object.
     const trim = new Mesh(
       roundedBox(MAT_HALF_X * 2 + 0.03, MAT_THICKNESS * 0.5, MAT_HALF_Z * 2 + 0.03, 0.02, 4),
-      lib.rubber('#243138'),
+      this.lib.rubber('#243138'),
     );
     trim.position.y = -MAT_THICKNESS * 0.28;
     trim.receiveShadow = true;
     this.root.add(trim);
-
-    this.root.visible = false;
-    this.root.position.set(this.state.x, MAT_THICKNESS / 2, this.state.z);
   }
 
   setPresent(v: boolean): void {
+    if (v) this.build();
     this.state.present = v;
     this.root.visible = v;
   }
@@ -79,7 +84,7 @@ export class LandingMat {
     this.dipTarget = held ? this.dipTarget : damp(this.dipTarget, 0, 0.06, dt);
     this.dipAmount = damp(this.dipAmount, this.dipTarget, held ? 0.55 : 0.14, dt);
     this.state.depression = this.dipAmount;
-    if (!this.root.visible) return;
+    if (!this.root.visible || !this.mesh || !this.rest) return;
 
     const pos = this.mesh.geometry.attributes.position as BufferAttribute;
     const arr = pos.array as Float32Array;

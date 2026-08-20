@@ -21,18 +21,32 @@ Open the previewed URL on an iPhone or iPad in Safari. Nothing else is
 needed — there is no back end, no login, no analytics, no network request
 after the initial load.
 
-Other scripts:
+## Checking it
 
 ```bash
 npm run typecheck  # tsc --noEmit
-npm run simcheck   # headless behaviour table for every object x surface
-npm run smoke      # Chromium smoke run of the production build (see below)
+npm run simcheck   # headless behaviour table: every object x every bed state
+npm run smoke      # Chromium run of the production build, four viewports
+npm run touch      # the same build driven by real drags, not the test API
+npm run verify     # build + simcheck + smoke + touch
+npm run shots      # gameplay screenshots for eyeballing
+npm run inspect    # debug overlay, each bed state, each object at the gate
 ```
 
-`npm run smoke` expects `npm run preview` to already be serving on
-`127.0.0.1:4173`, and drives a full round in four viewports
-(iPhone/iPad × portrait/landscape), writing screenshots and a report into
-`artifacts/`.
+The browser checks expect `npm run preview` to already be serving on
+`127.0.0.1:4173`. They write screenshots and a report into `artifacts/`.
+
+`smoke` plays the opening sequence in all four viewports (iPhone/iPad ×
+portrait/landscape) and the whole progression — both later layers, all four
+bed states, the landing pad — in one of them. `touch` re-plays the same world
+through real pointer drags: pulling the lever, dragging an object out of the
+trolley onto the bed, rotating the device mid-experiment, dragging the pad,
+and wiping and sanding the bed with the tools.
+
+Both suites run under software rendering (SwiftShader), so they check that the
+build boots, the causal chain works and the simulation reaches the right
+results. **They do not judge frame rate, animation smoothness or final image
+quality** — those need a machine with a real GPU.
 
 ### URL flags
 

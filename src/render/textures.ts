@@ -128,14 +128,34 @@ export function bakeSlideMetal(w = 1024, h = 256): SlideMetalMaps {
   const ao = new Float32Array(w * h);
   const aniso = new Float32Array(w * h);
 
-  // A handful of deep scratches with random slope, kept as line segments.
-  const scratches: { u0: number; v0: number; u1: number; v1: number; d: number }[] = [];
+  // A handful of deep scratches with random slope. They are rasterised into
+  // their own buffer first: walking every scratch for every pixel is the one
+  // thing in the bakery that would show up on the start-up budget.
+  const scratchField = new Float32Array(w * h);
   for (let i = 0; i < 26; i++) {
-    const u0 = n.value(i * 7.3, 3.1) * 1;
+    const u0 = n.value(i * 7.3, 3.1);
     const v0 = n.value(i * 3.7, 11.9);
     const len = 0.04 + n.value(i * 2.1, 5.5) * 0.5;
     const tilt = (n.value(i * 5.9, 1.3) - 0.5) * 0.08;
-    scratches.push({ u0, v0, u1: u0 + len, v1: v0 + tilt, d: 0.4 + n.value(i, 9) * 0.6 });
+    const u1 = u0 + len;
+    const v1 = v0 + tilt;
+    const depth = 0.4 + n.value(i, 9) * 0.6;
+    const px0 = Math.max(0, Math.floor((u0 - 0.02) * w));
+    const px1 = Math.min(w - 1, Math.ceil((u1 + 0.02) * w));
+    for (let x = px0; x <= px1; x++) {
+      const u = (x + 0.5) / w;
+      const t = clamp((u - u0) / Math.max(1e-4, u1 - u0), 0, 1);
+      const vv = v0 + (v1 - v0) * t;
+      const yc = vv * h;
+      const spread = 4;
+      for (let y = Math.floor(yc - spread); y <= Math.ceil(yc + spread); y++) {
+        const yy = ((y % h) + h) % h;
+        const dv = ((yy + 0.5) / h - vv);
+        const v = depth * Math.exp(-(dv * dv) / 2e-6);
+        const k = yy * w + x;
+        if (v > scratchField[k]) scratchField[k] = v;
+      }
+    }
   }
 
   for (let y = 0; y < h; y++) {
@@ -149,15 +169,7 @@ export function bakeSlideMetal(w = 1024, h = 256): SlideMetalMaps {
         n.fbm(u * 6, v * 210, 2, 6, 210) * 0.6 + n.value(u * 3, v * 256, 3, 256) * 0.4;
       let hgt = brush * 0.5;
 
-      // Stray scratches.
-      let scratch = 0;
-      for (const s of scratches) {
-        if (u < s.u0 - 0.02 || u > s.u1 + 0.02) continue;
-        const t = clamp((u - s.u0) / Math.max(1e-4, s.u1 - s.u0), 0, 1);
-        const vv = s.v0 + (s.v1 - s.v0) * t;
-        const dv = Math.abs(v - vv);
-        scratch = Math.max(scratch, s.d * Math.exp(-(dv * dv) / 2e-6));
-      }
+      const scratch = scratchField[i];
       hgt -= scratch * 0.9;
 
       // Worn lane: everything slides down the middle, so it is polished
@@ -208,9 +220,12 @@ export function bakeSlideMetal(w = 1024, h = 256): SlideMetalMaps {
   };
 }
 
-/** Powder-coated steel: non-metal film with orange peel and worn edges. */
+/**
+ * Powder-coated steel: an orange-peel paint film with worn edges. The maps are
+ * colour-neutral and tinted per material, so the whole park's paintwork costs
+ * one bake instead of one per colour.
+ */
 export function bakePaint(
-  hex: [number, number, number],
   size = 256,
 ): { map: Texture; roughnessMap: Texture; normalMap: Texture; metalnessMap: Texture } {
   const n = new Noise2D(4711);
@@ -240,13 +255,10 @@ export function bakePaint(
     const i = y * w + x;
     const dust = n.fbm(u * 7 + 21, v * 7 + 5, 3, 7);
     const k = 1 + (dust - 0.5) * 0.16;
-    const wr = wear[i];
-    // Worn spots show dull primed steel underneath.
-    return [
-      hex[0] * k * (1 - wr) + 0.42 * wr,
-      hex[1] * k * (1 - wr) + 0.43 * wr,
-      hex[2] * k * (1 - wr) + 0.45 * wr,
-    ];
+    // Worn patches lose the colour coat and read as bare primed steel, which
+    // the metalness map finishes off.
+    const wr = wear[i] * 0.8;
+    return [k * (1 - wr) + 0.72 * wr, k * (1 - wr) + 0.72 * wr, k * (1 - wr) + 0.74 * wr];
   });
   const roughC = field(w, h, (u, v, x, y) => {
     const i = y * w + x;
@@ -266,7 +278,7 @@ export function bakePaint(
 }
 
 /** Long-grain timber for the deck boards. */
-export function bakeWood(size = 512): {
+export function bakeWood(size = 384): {
   map: Texture;
   roughnessMap: Texture;
   normalMap: Texture;
@@ -358,7 +370,7 @@ export function bakeWoodEnd(size = 256): { map: Texture; roughnessMap: Texture; 
 }
 
 /** Poured rubber safety surfacing: EPDM crumb, matte, faintly damp. */
-export function bakeRubberFloor(size = 512): {
+export function bakeRubberFloor(size = 384): {
   map: Texture;
   roughnessMap: Texture;
   normalMap: Texture;
@@ -407,7 +419,7 @@ export function bakeRubberFloor(size = 512): {
 }
 
 /** Park soil with pebbles and rain-damp patches. */
-export function bakeSoil(size = 512): { map: Texture; roughnessMap: Texture; normalMap: Texture } {
+export function bakeSoil(size = 384): { map: Texture; roughnessMap: Texture; normalMap: Texture } {
   const n = new Noise2D(31415);
   const w = size;
   const h = size;
@@ -689,7 +701,7 @@ export function bakeFoliage(size = 256): { map: Texture; alphaMap: Texture } {
 }
 
 /** Mown park grass: clumped blades, worn patches, still damp in the hollows. */
-export function bakeGrass(size = 512): { map: Texture; roughnessMap: Texture; normalMap: Texture } {
+export function bakeGrass(size = 384): { map: Texture; roughnessMap: Texture; normalMap: Texture } {
   const n = new Noise2D(60606);
   const w = size;
   const h = size;

@@ -270,9 +270,10 @@ export class SlideRig {
     const paint = this.lib.paint('#ee8b45', 'grab');
     for (const side of [-1, 1]) {
       const pts: Vector3[] = [];
+      // Kept short so they never cross in front of the object at the gate.
       for (let i = 0; i <= 8; i++) {
-        const s = (i / 8) * 0.95;
-        const lift = 0.52 * Math.pow(1 - i / 8, 1.4) + 0.13;
+        const s = (i / 8) * 0.5;
+        const lift = 0.55 * Math.pow(1 - i / 8, 1.35) + 0.12;
         pts.push(slideSurface(s, side * (RAIL_Z + 0.012), lift));
       }
       pts.unshift(new Vector3(-0.1, TOP_HEIGHT + 0.66, side * 0.37));
@@ -312,7 +313,7 @@ export class SlideRig {
     bar.receiveShadow = true;
     arm.add(bar);
     // Soft rubber face so the object rests against something believable.
-    const pad = new Mesh(new BoxGeometry(0.012, 0.026, 0.52), this.lib.rubber('#3a3f42'));
+    const pad = new Mesh(new BoxGeometry(0.012, 0.026, 0.52), this.lib.matte('#33383b', 0.72));
     pad.position.set(0.016, 0, 0.3);
     arm.add(pad);
     const tip = new Mesh(new SphereGeometry(0.017, 12, 8), paint);

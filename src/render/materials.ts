@@ -3,6 +3,14 @@ import * as tex from './textures';
 
 const srgb = (hex: string): Color => new Color(hex).convertSRGBToLinear();
 
+/** Reuse one baked image with a different tiling, instead of baking twice. */
+function retile(t: Texture, x: number, y: number): Texture {
+  const c = t.clone();
+  c.repeat.set(x, y);
+  c.needsUpdate = true;
+  return c;
+}
+
 /**
  * Every surface in the park is a physically-based material with its own
  * roughness story — none of them are told apart by base colour alone.
@@ -27,10 +35,15 @@ export class MaterialLibrary {
     return m;
   }
 
+  /** One brushed-steel bake shared by every metal part in the park. */
+  private steelMaps(): tex.SlideMetalMaps {
+    return this.memo('steelMaps', () => tex.bakeSlideMetal());
+  }
+
   /** Brushed stainless bed. The slide shader is patched in world/slide.ts. */
   slideSteel(): MeshPhysicalMaterial {
     return this.memo('slideSteel', () => {
-      const maps = tex.bakeSlideMetal();
+      const maps = this.steelMaps();
       const m = new MeshPhysicalMaterial({
         map: maps.map,
         roughnessMap: maps.roughnessMap,
@@ -57,11 +70,12 @@ export class MaterialLibrary {
   /** Plain stainless for the rails and the gate flap. */
   bareSteel(rough = 0.3): MeshPhysicalMaterial {
     return this.memo(`bareSteel${rough}`, () => {
-      const maps = tex.bakeSlideMetal(512, 128);
+      // Clones share the same image but carry their own tiling.
+      const maps = this.steelMaps();
       const m = new MeshPhysicalMaterial({
-        map: maps.map,
-        roughnessMap: maps.roughnessMap,
-        normalMap: maps.normalMap,
+        map: retile(maps.map, 3, 1),
+        roughnessMap: retile(maps.roughnessMap, 3, 1),
+        normalMap: retile(maps.normalMap, 3, 1),
         color: srgb('#e8ebec'),
         metalness: 1,
         roughness: rough,
@@ -77,11 +91,10 @@ export class MaterialLibrary {
   /** Powder-coated steelwork: a paint film, not a shiny metal. */
   paint(hex: string, key = hex): MeshPhysicalMaterial {
     return this.memo(`paint${key}`, () => {
-      // The bakery writes into an sRGB texture, so it must be handed sRGB
-      // values — converting here would darken the paint twice.
-      const c = new Color(hex);
-      const maps = tex.bakePaint([c.r, c.g, c.b]);
+      // One neutral bake, tinted per colour.
+      const maps = this.memo('paintMaps', () => tex.bakePaint());
       const m = new MeshPhysicalMaterial({
+        color: srgb(hex),
         map: maps.map,
         roughnessMap: maps.roughnessMap,
         normalMap: maps.normalMap,
@@ -244,12 +257,12 @@ export class MaterialLibrary {
 
   polishedMetal(hex = '#dfe3e6'): MeshPhysicalMaterial {
     return this.memo(`polished${hex}`, () => {
-      const maps = tex.bakeSlideMetal(256, 256);
+      const maps = this.steelMaps();
       const m = new MeshPhysicalMaterial({
         color: srgb(hex),
-        map: maps.map,
-        roughnessMap: maps.roughnessMap,
-        normalMap: maps.normalMap,
+        map: retile(maps.map, 1, 4),
+        roughnessMap: retile(maps.roughnessMap, 1, 4),
+        normalMap: retile(maps.normalMap, 1, 4),
         metalness: 1,
         roughness: 0.19,
         envMapIntensity: 1.7,

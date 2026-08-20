@@ -108,7 +108,7 @@ export class Interaction {
     if (this.stand.resetGrab.visible) list.push(this.stand.resetGrab);
     for (const s of this.wagon.slots) if (s.available) list.push(s.grab);
     for (const t of this.wagon.tools) if (t.available) list.push(t.grab);
-    if (this.mat.state.present) list.push(this.mat.mesh);
+    if (this.mat.state.present && this.mat.mesh) list.push(this.mat.mesh);
     return list;
   }
 
@@ -153,7 +153,7 @@ export class Interaction {
       t.model.rotation.set(0, 0, 0);
       return;
     }
-    if (hit.object === this.mat.mesh) {
+    if (this.mat.mesh && hit.object === this.mat.mesh) {
       this.kind = 'mat';
       const g = this.rayToGround(p);
       this.matGrabOffset.set(this.mat.state.x - g.x, this.mat.state.z - g.z);
