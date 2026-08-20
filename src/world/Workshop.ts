@@ -100,8 +100,8 @@ export class Workshop {
 
     // ---------------- bench + wall ----------------
     const wood = apply(createWoodMaterial(opts.uTime, this.uBenchWet));
-    const bench = new Mesh(new BoxGeometry(6.4, 0.30, 3.2), wood);
-    bench.position.set(0.15, -0.15, 0.10);
+    const bench = new Mesh(new BoxGeometry(7.6, 0.32, 4.0), wood);
+    bench.position.set(0.15, -0.16, 0.45);
     bench.receiveShadow = q.shadows;
     bench.castShadow = q.shadows;
     this.root.add(bench);

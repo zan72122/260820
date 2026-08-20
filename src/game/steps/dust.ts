@@ -94,6 +94,7 @@ export const dustStep: Step = {
     brush.rotation.z = damp(brush.rotation.z, clamp(-spring.velocity.x * 0.12, -0.5, 0.5), 8, dt);
     brush.rotation.x = damp(brush.rotation.x, clamp(spring.velocity.z * 0.12, -0.5, 0.5), 8, dt);
 
+    g.uHint.value = damp(g.uHint.value, 0, 2.5, dt);
     const clean = 1 - g.powderLeft;
     g.uCrystalGlow.value = damp(g.uCrystalGlow.value, 0.55 + clean * 0.3, 3, dt);
     g.uSparkle.value = damp(g.uSparkle.value, 0.45 + clean * 0.6, 2.5, dt);

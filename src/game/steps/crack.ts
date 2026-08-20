@@ -165,6 +165,7 @@ export const crackStep: Step = {
     g.uCrystalGlow.value = damp(g.uCrystalGlow.value, 0.75, 4, dt);
     g.uSparkle.value = damp(g.uSparkle.value, 0.55, 3, dt);
     g.uStress.value = damp(g.uStress.value, 0, 5, dt);
+    g.uHint.value = damp(g.uHint.value, 0.30, 2.5, dt);
 
     // Retract and fade the wedge — its job is done.
     placeWedge(ctx, wedgeLon, -clamp(crackT * 0.5) * 0.4, ctx.time);

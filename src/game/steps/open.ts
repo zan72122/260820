@@ -101,6 +101,7 @@ export const openStep: Step = {
     const a = g.openAmount;
     g.gap = clamp(g.radius * 0.135 + a * g.radius * 0.05);
     g.uSeamGlow.value = damp(g.uSeamGlow.value, 1.0 * (1 - a * 0.78), 4, dt);
+    g.uHint.value = damp(g.uHint.value, 0.30 * (1 - a), 2.5, dt);
     g.uCrystalGlow.value = damp(g.uCrystalGlow.value, 0.35 + a * 0.35, 3, dt);
     g.uSparkle.value = damp(g.uSparkle.value, 0.3 + a * 0.6, 2.5, dt);
     ctx.rig.setDolly(-0.10 + a * 0.16);

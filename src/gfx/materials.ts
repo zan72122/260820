@@ -103,7 +103,9 @@ export function createShellMaterial(un: ShellUniforms): MeshPhysicalMaterial {
 
       // ---- the promise: colour bleeding out of the crevices ---------------
       float crevice = smoothstep(0.45, 0.9, 1.0 - crag);
-      float hint = uHint * (1.0 - mudMask) * seamBand * (0.35 + 0.85 * crevice);
+      // Never on the cut face: that is fresh rock, not a crevice colour is
+      // seeping out of.
+      float hint = uHint * (1.0 - mudMask) * (1.0 - rim) * seamBand * (0.35 + 0.85 * crevice);
       hint = clamp(hint, 0.0, 0.85);
       vec3 hueLin = uHue * uHue;
       albedo = mix(albedo, hueLin * 0.85, hint * 0.62);
@@ -129,7 +131,8 @@ export function createShellMaterial(un: ShellUniforms): MeshPhysicalMaterial {
       gMetal = 0.0;
       gHeight = height;
       gBumpScale = mix(0.029, 0.021, mudMask) * mix(1.0, 0.85, rim) * mix(1.0, 0.82, wet);
-      gEmiss = hueLin * ((hint * 0.40 + seamLine * seamBand * 0.55) * uSeamGlow + stressGlow * 0.75);
+      gEmiss = hueLin * ((hint * 0.40 + seamLine * seamBand * 0.55 * (1.0 - rim)) * uSeamGlow
+             + stressGlow * 0.75);
     `,
     params: { roughness: 0.8, metalness: 0, envMapIntensity: 0.85 },
   });
@@ -462,7 +465,7 @@ export function createPlasterMaterial(): MeshPhysicalMaterial {
       float trowel = fbm3(vec3(p.x * 5.0, p.y * 1.3, 0.0), 3) * 0.5 + 0.5;
       vec3 albedo = mix(vec3(0.030, 0.026, 0.024), vec3(0.088, 0.078, 0.070), coarse * 0.7 + trowel * 0.35);
       // Slight vertical gradient: the wall is lit from a window up and to the left.
-      albedo *= 0.55 + 0.75 * smoothstep(-2.2, 2.6, p.y);
+      albedo *= 0.28 + 0.95 * smoothstep(-1.4, 3.0, p.y);
       gAlbedo = albedo;
       gRough = 0.92 - fine * 0.08;
       gMetal = 0.0;

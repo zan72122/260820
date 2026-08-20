@@ -62,8 +62,10 @@ export class SeamGlow {
           float breathe = 0.90 + 0.10 * sin(uTime * 3.1);
           // Capped: this quad is additive and sits in front of a bloom pass, so
           // an unbounded value turns the whole screen into a white card.
-          float a = min(1.15, (band * 0.85 + flare * 0.26 * streak) * sides * uIntensity * breathe);
-          vec3 col = mix(uColor, vec3(1.0), clamp(band * 0.55, 0.0, 1.0));
+          float a = min(0.92, (band * 0.78 + flare * 0.24 * streak) * sides * uIntensity * breathe);
+          // Keep the core the crystal's colour. Whitening it out is what turns
+          // "amethyst is in there" into "a light is in there".
+          vec3 col = mix(uColor, vec3(1.0), clamp(band * 0.26, 0.0, 1.0));
           gl_FragColor = vec4(col * a, a);
         }`,
     });

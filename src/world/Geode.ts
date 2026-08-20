@@ -188,6 +188,7 @@ export class Geode {
       inst.instanceMatrix.needsUpdate = true;
       if (inst.instanceColor) inst.instanceColor.needsUpdate = true;
       parent.add(inst);
+      this.disposables.push(inst);
 
       if (q.sparkles) {
         const step = Math.max(1, Math.round(1 / Math.min(1, q.particleMul)));

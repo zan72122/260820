@@ -27,12 +27,12 @@ export const MUDFLECK: ParticleKind = {
 
 export const POWDER: ParticleKind = {
   shape: 'puff', additive: false, gravity: -0.32, drag: 2.6,
-  life: [0.9, 2.0], size: [0.018, 0.055], color: new Color(0.62, 0.58, 0.52), fadeIn: 0.08,
+  life: [0.9, 2.0], size: [0.010, 0.030], color: new Color(0.62, 0.58, 0.52), fadeIn: 0.08,
 };
 
 export const CHIP: ParticleKind = {
   shape: 'puff', additive: false, gravity: -5.2, drag: 0.8,
-  life: [0.5, 1.1], size: [0.008, 0.026], color: new Color(0.34, 0.30, 0.27), fadeIn: 0.01,
+  life: [0.5, 1.1], size: [0.005, 0.016], color: new Color(0.34, 0.30, 0.27), fadeIn: 0.01,
 };
 
 /**
