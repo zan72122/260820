@@ -102,7 +102,11 @@ export class Game {
     this.school.floorY = TUB.floorY;
     scene.add(this.school.group);
 
-    this.droplets = new Droplets({ budget: settings.dropletBudget, rng: this.rng });
+    this.droplets = new Droplets({
+      budget: settings.dropletBudget,
+      rng: this.rng,
+      detail: settings.dropletBudget > 50 ? 1 : 0,
+    });
     scene.add(this.droplets.mesh);
     this.droplets.onSplash = (x, z, size) => {
       this.water.addRipple(x, z, 0.0016 + size * 0.35);
@@ -379,10 +383,14 @@ export class Game {
 
     if (poi.exitedWater) {
       const wet = poi.paper.wetness;
-      this.water.addRipple(poi.pos.x, poi.pos.z, 0.007 + wet * 0.008);
+      // The surface peels off the rim: a ring wave leaving, a scatter thrown
+      // up by the release, then the film running off the paper for a moment.
+      this.water.addRipple(poi.pos.x, poi.pos.z, 0.009 + wet * 0.009);
       this.audio.waterExit(0.4 + wet * 0.6);
-      // The surface lets go of the paper, and the film runs off the rim.
-      this._dripBudget = Math.round(6 + wet * 10);
+      this.droplets.splash(poi.pos.x, waterY, poi.pos.z, 5, 0.45 + wet * 0.3);
+      this.droplets.runOff(poi, 5, 0.8 + wet * 0.5);
+      if (poi.uniforms) poi.uniforms.uFilm.value = 0.55 + wet * 0.45;
+      this._dripBudget = Math.round(10 + wet * 14);
       this._dripTimer = 0;
     }
 
@@ -458,8 +466,8 @@ export class Game {
           // The moment the whole game exists for.
           const wy = this.water.heightAt(f.pos.x, f.pos.z);
           this.water.addRipple(f.pos.x, f.pos.z, 0.014);
-          this.droplets.splash(f.pos.x, wy, f.pos.z, 10, 0.85);
-          this.droplets.runOff(this.poi, 6, 1.1);
+          this.droplets.splash(f.pos.x, wy, f.pos.z, 14, 0.9);
+          this.droplets.runOff(this.poi, 9, 1.15);
           this.audio.waterExit(0.9);
           this.audio.tailFlick(1);
           break;

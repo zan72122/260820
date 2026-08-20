@@ -112,6 +112,7 @@ const PAPER_FRAG = /* glsl */ `
   uniform float uTime;
   uniform vec3 uWaterTint;
   uniform float uOpacity;
+  uniform float uFilm;
   varying vec2 vDisc;
   varying vec3 vWorld;
   varying vec3 vNormalW;
@@ -178,6 +179,17 @@ const PAPER_FRAG = /* glsl */ `
     vec3 hl = normalize(normalize(uLampA.xyz - vWorld) + v);
     lit += uLampColor * pow(max(dot(n, hl), 0.0), gloss) * wet * 0.6;
 
+    // --- the moment the surface lets go ----------------------------------
+    // A film of water stays on the sheet for a beat after it clears the
+    // water, pooling towards the low edge and flashing as it drains.
+    if (uFilm > 0.001) {
+      float pool = smoothstep(0.15, 1.0, r) * uFilm;
+      vec3 hf = normalize(uKeyDir + v);
+      float filmSpec = pow(max(dot(n, hf), 0.0), 220.0) + fres * 0.5;
+      lit += (uKeyColor * 0.6 + uLampColor * 0.7) * filmSpec * (0.35 + pool) * uFilm * 1.6;
+      albedo = mix(albedo, albedo * vec3(0.86, 0.92, 0.94), pool * 0.5);
+    }
+
     // --- under the surface ----------------------------------------------
     lit = mix(lit, lit * uWaterTint, clamp(uSubmerge, 0.0, 1.0) * 0.62);
 
@@ -187,7 +199,7 @@ const PAPER_FRAG = /* glsl */ `
     float alpha = mix(0.98, 0.66, wet);
     alpha *= mix(1.0, 0.35, fray);
     alpha *= mix(1.0, 0.62, crackMask);
-    alpha = clamp(alpha * uOpacity, 0.0, 1.0);
+    alpha = clamp(alpha * uOpacity + uFilm * 0.16, 0.0, 1.0);
 
     gl_FragColor = vec4(lit, alpha);
     #include <colorspace_fragment>
@@ -260,6 +272,7 @@ export class Poi {
       uRadius: { value: this.radius },
       uWaterTint: { value: new THREE.Color(0x5f8f86) },
       uOpacity: { value: 1 },
+      uFilm: { value: 0 },
     };
   }
 
@@ -486,6 +499,8 @@ export class Poi {
     u.uSubmerge.value = damp(u.uSubmerge.value, this.submerge, 10, dt);
     u.uLoad.value = damp(u.uLoad.value, load, 8, dt);
     u.uLoadR.value = damp(u.uLoadR.value, loadR, 8, dt);
+
+    u.uFilm.value = Math.max(0, u.uFilm.value - dt * 1.55);
 
     // Wet paper hangs; dry paper is nearly flat.
     const sagTarget = 0.045 + p.wetness * 0.46 + p.damage * 0.2;

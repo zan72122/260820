@@ -17,7 +17,7 @@ export class Droplets {
    * @param {number} o.budget      maximum live drops
    * @param {import('../core/Rng.js').Rng} o.rng
    */
-  constructor({ budget, rng }) {
+  constructor({ budget, rng, detail = 0 }) {
     this.rng = rng;
     this.max = budget;
     this.count = 0;
@@ -29,7 +29,8 @@ export class Droplets {
     this.hang = new Float32Array(budget);
     this.alive = new Uint8Array(budget);
 
-    const geo = new THREE.IcosahedronGeometry(1, 0);
+    // One subdivision is enough to stop a falling drop reading as a die.
+    const geo = new THREE.IcosahedronGeometry(1, detail);
     this.uniforms = { ...createLightUniforms(), uTime: { value: 0 } };
     this.material = new THREE.ShaderMaterial({
       uniforms: this.uniforms,
@@ -54,13 +55,15 @@ export class Droplets {
           vec3 n = normalize(vN);
           vec3 v = normalize(cameraPosition - vW);
           float fres = pow(1.0 - clamp(dot(n, v), 0.0, 1.0), 2.2);
-          vec3 base = vec3(0.42, 0.56, 0.55) * 0.5 + hemi(n) * 0.8;
+          vec3 base = vec3(0.34, 0.44, 0.46) * 0.5 + hemi(n) * 0.7;
           vec3 lamps = allLamps(vW, n);
           vec3 h = normalize(uKeyDir + v);
-          float spec = pow(max(dot(n, h), 0.0), 130.0);
-          vec3 col = base + lamps * 0.9 + (uKeyColor + uLampColor) * spec * 0.9;
-          col += vec3(1.0, 0.8, 0.55) * fres * 0.55;
-          gl_FragColor = vec4(col, clamp(0.30 + fres * 0.66, 0.0, 0.95));
+          float spec = pow(max(dot(n, h), 0.0), 90.0);
+          // A drop is mostly a lens full of whatever is bright nearby, so it
+          // reads as a highlight with a dark rim rather than a grey bead.
+          vec3 col = base + lamps * 2.2 + (uKeyColor + uLampColor) * spec * 2.4;
+          col += vec3(1.0, 0.82, 0.58) * fres * 1.1;
+          gl_FragColor = vec4(col, clamp(0.42 + fres * 0.58, 0.0, 0.97));
           #include <colorspace_fragment>
         }
       `,
@@ -107,12 +110,20 @@ export class Droplets {
     return true;
   }
 
-  /** A ring of run-off from the rim of the poi. */
+  /**
+   * Run-off from the rim of the poi.
+   *
+   * Biased towards whichever side of the hoop is currently lowest, because
+   * that is where water actually leaves a tilted sheet — and because a few
+   * drops falling from one edge reads as draining, while the same number
+   * sprinkled evenly round the rim reads as nothing at all.
+   */
   runOff(poi, n, strength = 1) {
     const rng = this.rng;
+    const low = this._lowestRimAngle(poi);
     for (let i = 0; i < n; i++) {
-      const a = rng.range(0, Math.PI * 2);
-      const r = rng.range(0.55, 1.0);
+      const a = low + rng.sym(1.1);
+      const r = rng.range(0.72, 1.0);
       const p = poi.paperWorldPoint(Math.cos(a) * r, Math.sin(a) * r, this._p.clone());
       this.spawn(
         p.x,
@@ -121,10 +132,27 @@ export class Droplets {
         rng.sym(0.06) * strength,
         rng.range(-0.05, 0.12) * strength,
         rng.sym(0.06) * strength,
-        rng.range(0.0022, 0.0055),
-        rng.range(0, 0.42)
+        // Generous for real water, but a 2mm drop is three pixels on a phone
+        // held at arm's length, and these have to be seen to close the loop.
+        rng.range(0.006, 0.0125),
+        rng.range(0, 0.34)
       );
     }
+  }
+
+  /** Which way round the hoop hangs lowest, in the sheet's local angle. */
+  _lowestRimAngle(poi) {
+    let best = Infinity;
+    let bestA = 0;
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      const p = poi.paperWorldPoint(Math.cos(a) * 0.95, Math.sin(a) * 0.95, this._p);
+      if (p.y < best) {
+        best = p.y;
+        bestA = a;
+      }
+    }
+    return bestA;
   }
 
   /** Spray thrown up by a tail or a body hitting the surface. */
@@ -140,7 +168,7 @@ export class Droplets {
         Math.cos(a) * sp,
         rng.range(0.28, 0.72) * strength,
         Math.sin(a) * sp,
-        rng.range(0.0018, 0.0042),
+        rng.range(0.0045, 0.0092),
         0
       );
     }
