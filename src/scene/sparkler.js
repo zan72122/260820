@@ -57,7 +57,7 @@ void main(){
               + vnoise(vec3(u * 22.0, v * 900.0, 9.0)) * 0.5;
 
   // Paper, dyed toward the top the way shop-bought senko-hanabi are.
-  vec3 paper = vec3(0.50, 0.44, 0.33);
+  vec3 paper = vec3(0.38, 0.335, 0.255);
   paper *= 0.86 + fibre * 0.3;
   vec3 dye = mix(uDyeA, uDyeB, fract(v * 5.0));
   float dyeMask = smoothstep(0.34, 0.10, v);
@@ -86,8 +86,9 @@ void main(){
   float ndl = wrapDiffuse(n, L, 0.45);
 
   // Paper is bright and the sky is the only large source here, so the cord
-  // reads all the way down even when the bead is barely alight.
-  vec3 lit = albedo * hemisphere(n) * 2.6;
+  // reads all the way down even when the bead is barely alight -- but it must
+  // never look like wire, so this stops well short of the bead's own value.
+  vec3 lit = albedo * hemisphere(n) * 1.7;
   lit += albedo * uKeyColor * wrapDiffuse(n, uKeyDir, 0.6);
   lit += albedo * uEmberColor * ndl * atten;
 

@@ -16,11 +16,16 @@ function textureAspect(mesh) {
 }
 
 function plate(texture, opts = {}) {
+  // depthTest stays ON. These are transparent materials, so three draws them
+  // after every opaque object in the scene -- including the hand and the cord.
+  // Without a depth test they would paint straight over the foreground, which
+  // is exactly what they did until this was noticed: the lower half of the
+  // sparkler simply vanished behind the garden.
   const mat = new THREE.MeshBasicMaterial({
     map: texture,
     transparent: opts.transparent !== false,
     depthWrite: false,
-    depthTest: false,
+    depthTest: true,
     color: new THREE.Color(opts.tint ?? 0xffffff),
     opacity: opts.opacity ?? 1,
     fog: false,
@@ -85,7 +90,7 @@ export class Environment {
           transparent: true,
           blending: THREE.AdditiveBlending,
           depthWrite: false,
-          depthTest: false,
+          depthTest: true,
           opacity: s.i,
         })
       );
@@ -109,7 +114,7 @@ export class Environment {
           color: new THREE.Color(0x6b7180),
           transparent: true,
           depthWrite: false,
-          depthTest: false,
+          depthTest: true,
           opacity: 0.05,
         })
       );
@@ -131,7 +136,7 @@ export class Environment {
         transparent: true,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
-        depthTest: false,
+        depthTest: true,
         opacity: 0,
       })
     );
