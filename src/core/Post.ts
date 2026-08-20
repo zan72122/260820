@@ -1,5 +1,6 @@
 import {
   Camera,
+  Vector3,
   ClampToEdgeWrapping,
   DepthTexture,
   HalfFloatType,
@@ -80,6 +81,9 @@ const FINAL_FRAG = /* glsl */ `
   uniform float uVignette;
   uniform float uAberration;
   uniform float uDofEnabled;
+  uniform float uSaturation;
+  uniform float uContrast;
+  uniform vec3 uLift;
 
   float viewDistance(vec2 uv) {
     float d = texture2D(tDepth, uv).x;
@@ -121,6 +125,12 @@ const FINAL_FRAG = /* glsl */ `
     }
 
     col += texture2D(tBloom, uv).rgb * uBloom;
+
+    // --- grade -------------------------------------------------------------
+    float lum = dot(col, vec3(0.2126, 0.7152, 0.0722));
+    col = mix(vec3(lum), col, uSaturation);
+    col = max(vec3(0.0), (col - 0.18) * uContrast + 0.18);
+    col += uLift * lum;
 
     // --- vignette ----------------------------------------------------------
     vec2 q = (uv - 0.5) * vec2(1.0, 1.0);
@@ -192,11 +202,14 @@ export class Post {
         uNear: { value: 0.05 },
         uFar: { value: 200 },
         uFocus: { value: 1.8 },
-        uBlurNear: { value: 3.2 },
-        uBlurFar: { value: 2.6 },
+        uBlurNear: { value: 2.1 },
+        uBlurFar: { value: 1.7 },
         uVignette: { value: 0.30 },
         uAberration: { value: 0.0016 },
         uDofEnabled: { value: 1 },
+        uSaturation: { value: 1.12 },
+        uContrast: { value: 1.10 },
+        uLift: { value: new Vector3(0.012, 0.010, 0.004) },
       },
     })
 

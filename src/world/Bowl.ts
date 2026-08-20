@@ -7,6 +7,7 @@ import {
   Mesh,
   MeshPhysicalMaterial,
   MeshStandardMaterial,
+  RepeatWrapping,
   BoxGeometry,
   ShaderMaterial,
   Vector2,
@@ -14,6 +15,7 @@ import {
   Vector4,
 } from 'three'
 import { BOWL, SUN_DIR } from '../config'
+import { bakeWood } from '../gfx/textures'
 
 const MAX_RIPPLES = 4
 
@@ -98,20 +100,33 @@ export class Bowl {
     for (let i = 0; i < MAX_RIPPLES; i++) this.ripples.push(new Vector4(0, 0, -99, 0))
 
     // ---- the stand --------------------------------------------------------
-    const woodMat = new MeshStandardMaterial({ color: 0x6b4a30, roughness: 0.55, metalness: 0 })
-    const top = new Mesh(new BoxGeometry(0.30, 0.018, 0.30), woodMat)
-    top.position.set(BOWL.x, BOWL.standY - 0.009, BOWL.z)
+    const w = bakeWood()
+    for (const t of [w.map, w.roughnessMap, w.normalMap]) {
+      t.wrapS = t.wrapT = RepeatWrapping
+      t.repeat.set(1.2, 0.8)
+    }
+    const woodMat = new MeshStandardMaterial({
+      map: w.map,
+      roughnessMap: w.roughnessMap,
+      normalMap: w.normalMap,
+      color: 0xb08a63,
+      roughness: 1,
+      metalness: 0,
+      envMapIntensity: 0.8,
+    })
+    const top = new Mesh(new BoxGeometry(0.34, 0.020, 0.34), woodMat)
+    top.position.set(BOWL.x, BOWL.standY - 0.010, BOWL.z)
     top.castShadow = true
     top.receiveShadow = true
     this.group.add(top)
     for (const [dx, dz] of [
-      [-0.125, -0.125],
-      [0.125, -0.125],
-      [-0.125, 0.125],
-      [0.125, 0.125],
+      [-0.145, -0.145],
+      [0.145, -0.145],
+      [-0.145, 0.145],
+      [0.145, 0.145],
     ]) {
-      const leg = new Mesh(new BoxGeometry(0.022, BOWL.standY - 0.018, 0.022), woodMat)
-      leg.position.set(BOWL.x + dx, (BOWL.standY - 0.018) / 2, BOWL.z + dz)
+      const leg = new Mesh(new BoxGeometry(0.026, BOWL.standY - 0.020, 0.026), woodMat)
+      leg.position.set(BOWL.x + dx, (BOWL.standY - 0.020) / 2, BOWL.z + dz)
       leg.castShadow = true
       this.group.add(leg)
     }
@@ -163,8 +178,8 @@ export class Bowl {
         uTime: { value: 0 },
         uSunDir: { value: new Vector3(SUN_DIR.x, SUN_DIR.y, SUN_DIR.z).normalize() },
         uSunColor: { value: new Color(1.0, 0.94, 0.8) },
-        uZenith: { value: new Color(0.2, 0.42, 0.8) },
-        uHorizon: { value: new Color(0.84, 0.88, 0.86) },
+        uZenith: { value: new Color(0.095, 0.225, 0.62) },
+        uHorizon: { value: new Color(0.545, 0.625, 0.685) },
         uLiquid: { value: new Color(0.055, 0.030, 0.018) },
         uRadius: { value: liquidR },
         uLevel: { value: 0 },

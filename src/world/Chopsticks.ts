@@ -33,8 +33,8 @@ export class Chopsticks {
 
   constructor() {
     this.lacquer = new MeshPhysicalMaterial({
-      color: new Color(0x3a1c16),
-      roughness: 0.18,
+      color: new Color(0x5d2b1e),
+      roughness: 0.22,
       metalness: 0,
       clearcoat: 1.0,
       clearcoatRoughness: 0.06,
@@ -55,7 +55,7 @@ export class Chopsticks {
 
     const rBack = 0.0056
     const rTip = 0.0017
-    const split = 0.86
+    const split = 0.78
     const rSplit = rBack + (rTip - rBack) * split
     const bodyGeo = new CylinderGeometry(rSplit, rBack, split, 8, 1, false)
     bodyGeo.translate(0, split / 2, 0)

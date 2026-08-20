@@ -7,11 +7,11 @@
  */
 
 export const FLUME = {
-  zStart: -11.4,
-  zEnd: 4.6,
+  zStart: -8.6,
+  zEnd: 4.2,
   /** Height of the *inside bottom* of the trough at z. */
   yAt(z: number): number {
-    return 1.005 - (z - -11.4) * 0.0192 + Math.sin(z * 0.61 + 1.9) * 0.0035
+    return 0.782 - z * 0.0195 + Math.sin(z * 0.61 + 1.9) * 0.0032
   },
   /** Lateral drift of the trough centre — split bamboo is never truly straight. */
   xAt(z: number): number {
@@ -44,22 +44,22 @@ export function nodeDistance(z: number): number {
 
 /** Reach of the chopsticks along the flume. */
 export const PLAY = {
-  sMin: -3.6,
-  sMax: 2.0,
+  sMin: -2.3,
+  sMax: -0.34,
   hMin: -0.014,
   hMax: 0.44,
   /** Where the somen is released and where it dies. */
-  spawnZ: -9.4,
+  spawnZ: -7.6,
   despawnZ: 3.6,
 } as const
 
 export const BOWL = {
-  x: 0.30,
-  z: 1.55,
+  x: 0.41,
+  z: -0.76,
   rim: 0.078,
   height: 0.052,
   /** Height of the little stand the bowl sits on. */
-  standY: 0.66,
+  standY: 0.745,
   /** Height of the tsuyu surface. */
   get liquidY(): number {
     return this.standY + 0.034
@@ -75,4 +75,8 @@ export const WATERLINE_V = (() => {
   return [(-theta + THETA_MAX) / (2 * THETA_MAX), (theta + THETA_MAX) / (2 * THETA_MAX)] as const
 })()
 
-export const SUN_DIR = { x: -0.42, y: 0.78, z: 0.47 }
+/**
+ * Mid-afternoon sun, placed *upstream* so the player is looking towards it.
+ * Back-lighting is what makes water sparkle and makes somen glow.
+ */
+export const SUN_DIR = { x: -0.30, y: 0.62, z: -0.72 }

@@ -14,12 +14,13 @@ import { makeRng } from '../gfx/noise'
 
 /**
  * Everything that is not bamboo, water, somen or chopsticks: the ground the
- * flume stands on, the veranda behind it, the trees, and — most importantly —
- * the leaves overhead whose shadows fall across the whole scene.
+ * flume stands on, the veranda behind it, the trees that close off the
+ * distance, and — most importantly — the leaves overhead, whose shadows fall
+ * across the whole scene and make it read as a real afternoon.
  */
 export class Garden {
   readonly group = new Group()
-  readonly shadowLeaves: { mesh: Mesh; phase: number; amp: number }[] = []
+  readonly shadowLeaves: { mesh: Mesh; phase: number; amp: number; y0: number }[] = []
 
   constructor() {
     const rng = makeRng(4242)
@@ -28,44 +29,113 @@ export class Garden {
     const g = bakeGround()
     for (const t of [g.map, g.roughnessMap, g.normalMap]) {
       t.wrapS = t.wrapT = RepeatWrapping
-      t.repeat.set(26, 26)
+      t.repeat.set(96, 96)
     }
     const groundMat = new MeshStandardMaterial({
       map: g.map,
       roughnessMap: g.roughnessMap,
       normalMap: g.normalMap,
-      normalScale: new Vector2(1.1, 1.1),
+      normalScale: new Vector2(1.2, 1.2),
       roughness: 1,
       metalness: 0,
-      envMapIntensity: 0.85,
+      envMapIntensity: 0.75,
     })
-    const ground = new Mesh(new PlaneGeometry(70, 70, 1, 1), groundMat)
+    const ground = new Mesh(new PlaneGeometry(64, 64, 1, 1), groundMat)
     ground.rotation.x = -Math.PI / 2
-    ground.position.set(-4, 0, -3)
+    ground.position.set(-3, 0, -4)
     ground.receiveShadow = true
     this.group.add(ground)
 
+    // A plain skirt far beyond the detailed ground, so the tiled plane never
+    // ends in a visible edge — the haze swallows it instead.
+    const far = new Mesh(
+      new PlaneGeometry(400, 400, 1, 1),
+      new MeshStandardMaterial({ color: 0x4a5c34, roughness: 1, metalness: 0, envMapIntensity: 0.7 }),
+    )
+    far.rotation.x = -Math.PI / 2
+    far.position.set(-3, -0.02, -4)
+    this.group.add(far)
+
     // ---- stepping stones beside the flume ---------------------------------
-    const stoneMat = new MeshStandardMaterial({ color: 0x7d7a72, roughness: 0.92, metalness: 0 })
-    const stoneGeo = new CylinderGeometry(0.21, 0.23, 0.075, 9)
-    for (let i = 0; i < 7; i++) {
+    const stoneMat = new MeshStandardMaterial({ color: 0x6a6a5c, roughness: 0.96, metalness: 0 })
+    const stoneGeo = new CylinderGeometry(0.155, 0.175, 0.07, 9)
+    for (let i = 0; i < 8; i++) {
       const s = new Mesh(stoneGeo, stoneMat)
-      s.position.set(0.85 + rng() * 0.25, 0.03, 2.4 - i * 0.86 + rng() * 0.2)
+      s.position.set(1.02 + rng() * 0.5 + i * 0.09, 0.012, 0.7 - i * 0.66 + rng() * 0.14)
       s.rotation.y = rng() * 3
-      s.scale.set(1 + rng() * 0.25, 1, 0.78 + rng() * 0.3)
+      s.scale.set(1 + rng() * 0.2, 1, 0.8 + rng() * 0.25)
       s.receiveShadow = true
-      s.castShadow = i < 4
+      s.castShadow = i < 5
       this.group.add(s)
     }
 
-    // ---- the veranda behind the flume -------------------------------------
+    this.group.add(this.buildLantern())
+    this.group.add(this.buildShrubs(rng))
     this.group.add(this.buildEngawa())
-
-    // ---- trees ------------------------------------------------------------
     this.group.add(this.buildTrees(rng))
-
-    // ---- leaves overhead: these cast the moving dapple --------------------
     this.group.add(this.buildCanopy(rng))
+  }
+
+  /** A small stone lantern — a silhouette that says "Japanese garden". */
+  private buildLantern(): Group {
+    const g = new Group()
+    const stone = new MeshStandardMaterial({ color: 0x8b897c, roughness: 0.95, metalness: 0 })
+    const dark = new MeshStandardMaterial({ color: 0x3a3833, roughness: 0.95, metalness: 0 })
+    const parts: [number, number, number, number, number][] = [
+      // [radiusTop, radiusBottom, height, y, sides]
+      [0.15, 0.19, 0.10, 0.05, 6],
+      [0.075, 0.085, 0.46, 0.33, 6],
+      [0.20, 0.15, 0.07, 0.595, 6],
+      [0.17, 0.20, 0.20, 0.73, 6],
+      [0.30, 0.24, 0.10, 0.88, 6],
+      [0.05, 0.09, 0.10, 0.97, 6],
+    ]
+    for (let i = 0; i < parts.length; i++) {
+      const [rt, rb, h, y, sides] = parts[i]
+      const m = new Mesh(new CylinderGeometry(rt, rb, h, sides), i === 3 ? dark : stone)
+      m.position.set(0, y, 0)
+      m.castShadow = true
+      m.receiveShadow = true
+      g.add(m)
+    }
+    g.position.set(2.35, 0, -2.55)
+    g.rotation.y = 0.4
+    return g
+  }
+
+  /** Low planting so the lawn is not an empty field. */
+  private buildShrubs(rng: () => number): Group {
+    const g = new Group()
+    const tex = bakeLeafCard(5150, [70, 116, 46])
+    const mat = new MeshStandardMaterial({
+      map: tex,
+      transparent: true,
+      alphaTest: 0.42,
+      side: DoubleSide,
+      roughness: 0.86,
+      metalness: 0,
+      envMapIntensity: 0.95,
+    })
+    const clumps: [number, number, number][] = [
+      [1.75, -1.35, 0.42],
+      [2.9, -0.55, 0.34],
+      [1.5, -3.4, 0.5],
+      [3.3, -3.9, 0.46],
+      [-1.6, -2.3, 0.44],
+      [-2.2, -4.6, 0.5],
+      [1.1, -5.6, 0.4],
+      [2.7, -6.6, 0.52],
+    ]
+    for (const [x, z, r] of clumps) {
+      for (let i = 0; i < 3; i++) {
+        const card = new Mesh(new PlaneGeometry(r * 2.1, r * 1.5), mat)
+        card.position.set(x + (rng() - 0.5) * r, r * 0.72 + rng() * r * 0.2, z + (rng() - 0.5) * r)
+        card.rotation.y = rng() * Math.PI
+        card.castShadow = true
+        g.add(card)
+      }
+    }
+    return g
   }
 
   private buildEngawa(): Group {
@@ -73,7 +143,7 @@ export class Garden {
     const w = bakeWood()
     for (const t of [w.map, w.roughnessMap, w.normalMap]) {
       t.wrapS = t.wrapT = RepeatWrapping
-      t.repeat.set(6, 2)
+      t.repeat.set(3, 14)
     }
     const wood = new MeshStandardMaterial({
       map: w.map,
@@ -81,42 +151,54 @@ export class Garden {
       normalMap: w.normalMap,
       roughness: 1,
       metalness: 0,
-      envMapIntensity: 0.7,
+      envMapIntensity: 0.55,
     })
+    const dark = new MeshStandardMaterial({ color: 0x2a1d14, roughness: 0.85, metalness: 0 })
+    const frameMat = new MeshStandardMaterial({ color: 0x3d2b1c, roughness: 0.7, metalness: 0 })
 
-    // deck
-    const deck = new Mesh(new BoxGeometry(1.9, 0.11, 9.5), wood)
-    deck.position.set(-4.6, 0.44, -1.4)
+    const X = -5.5
+    const Z = -1.2
+    const LEN = 8.4
+
+    // The dark void under the deck: without it the veranda floats.
+    const base = new Mesh(new BoxGeometry(1.55, 0.36, LEN - 0.2), dark)
+    base.position.set(X, 0.18, Z)
+    g.add(base)
+
+    const deck = new Mesh(new BoxGeometry(1.78, 0.075, LEN), wood)
+    deck.position.set(X, 0.40, Z)
     deck.receiveShadow = true
     deck.castShadow = true
     g.add(deck)
 
-    // shoji wall
-    const paper = new MeshStandardMaterial({ color: 0xe9e2cd, roughness: 0.88, metalness: 0 })
-    const wall = new Mesh(new BoxGeometry(0.09, 1.95, 9.5), paper)
-    wall.position.set(-5.5, 1.42, -1.4)
+    // shoji: bright paper with a dark interior showing through
+    const paper = new MeshStandardMaterial({ color: 0xded6bf, roughness: 0.9, metalness: 0 })
+    const wall = new Mesh(new BoxGeometry(0.08, 1.86, LEN), paper)
+    wall.position.set(X - 0.86, 1.37, Z)
     wall.receiveShadow = true
     g.add(wall)
-    const frameMat = new MeshStandardMaterial({ color: 0x4a3524, roughness: 0.72, metalness: 0 })
-    for (let i = 0; i < 10; i++) {
-      const m = new Mesh(new BoxGeometry(0.05, 1.95, 0.05), frameMat)
-      m.position.set(-5.44, 1.42, -6.1 + i * 1.05)
+    for (let i = 0; i < 9; i++) {
+      const m = new Mesh(new BoxGeometry(0.045, 1.86, 0.045), frameMat)
+      m.position.set(X - 0.81, 1.37, Z - LEN / 2 + 0.4 + i * 0.95)
       g.add(m)
     }
     for (let i = 0; i < 4; i++) {
-      const m = new Mesh(new BoxGeometry(0.05, 0.045, 9.5), frameMat)
-      m.position.set(-5.44, 0.62 + i * 0.52, -1.4)
+      const m = new Mesh(new BoxGeometry(0.045, 0.04, LEN), frameMat)
+      m.position.set(X - 0.81, 0.62 + i * 0.5, Z)
       g.add(m)
     }
 
-    // deep eave — the dark band that reads as "indoors" behind the light
-    const eave = new Mesh(new BoxGeometry(2.9, 0.13, 10.2), frameMat)
-    eave.position.set(-4.9, 2.55, -1.4)
+    // deep eave: the dark band that says "there is a house here"
+    const eave = new Mesh(new BoxGeometry(2.5, 0.11, LEN + 0.7), frameMat)
+    eave.position.set(X - 0.15, 2.36, Z)
     eave.castShadow = true
     g.add(eave)
-    for (const z of [-5.4, -2.4, 0.6, 3.1]) {
-      const post = new Mesh(new BoxGeometry(0.1, 2.1, 0.1), frameMat)
-      post.position.set(-3.78, 1.5, z)
+    const soffit = new Mesh(new BoxGeometry(2.4, 0.30, LEN + 0.5), dark)
+    soffit.position.set(X - 0.15, 2.18, Z)
+    g.add(soffit)
+    for (const dz of [-3.4, -1.1, 1.2, 3.4]) {
+      const post = new Mesh(new BoxGeometry(0.085, 1.85, 0.085), frameMat)
+      post.position.set(X + 0.78, 1.35, Z + dz)
       post.castShadow = true
       g.add(post)
     }
@@ -125,11 +207,11 @@ export class Garden {
 
   private buildTrees(rng: () => number): Group {
     const g = new Group()
-    const barkMat = new MeshStandardMaterial({ color: 0x4b4237, roughness: 0.95, metalness: 0 })
+    const barkMat = new MeshStandardMaterial({ color: 0x453c31, roughness: 0.95, metalness: 0 })
     const tints: [number, number, number][] = [
-      [92, 138, 58],
-      [64, 112, 48],
-      [120, 156, 70],
+      [86, 130, 52],
+      [58, 104, 44],
+      [112, 148, 64],
     ]
     const leafTex = tints.map((t, i) => bakeLeafCard(700 + i * 31, t))
     const leafMats = leafTex.map(
@@ -137,46 +219,61 @@ export class Garden {
         new MeshStandardMaterial({
           map: t,
           transparent: true,
-          alphaTest: 0.42,
+          alphaTest: 0.40,
+          depthWrite: true,
           side: DoubleSide,
-          roughness: 0.82,
+          roughness: 0.85,
           metalness: 0,
-          envMapIntensity: 1.1,
+          envMapIntensity: 1.0,
         }),
     )
 
     const trees = [
-      { x: -9.5, z: -7.5, h: 5.6, r: 2.9 },
-      { x: -12.5, z: 1.5, h: 6.6, r: 3.4 },
-      { x: -7.5, z: 6.5, h: 4.6, r: 2.4 },
-      { x: 4.5, z: -9.5, h: 5.0, r: 2.7 },
-      { x: 9.0, z: -2.0, h: 6.0, r: 3.1 },
-      { x: -16.0, z: -6.0, h: 7.2, r: 3.8 },
+      { x: 4.6, z: -6.4, h: 5.4, r: 2.6 },
+      { x: -9.2, z: -6.4, h: 6.2, r: 3.0 },
+      { x: -11.0, z: 3.6, h: 5.4, r: 2.7 },
+      { x: 8.2, z: 1.2, h: 6.0, r: 2.9 },
+      { x: -6.4, z: -13.5, h: 6.4, r: 3.2 },
+      { x: 6.0, z: -12.5, h: 5.2, r: 2.8 },
     ]
     for (const t of trees) {
-      const trunk = new Mesh(new CylinderGeometry(0.11, 0.2, t.h, 7), barkMat)
+      const trunk = new Mesh(new CylinderGeometry(0.1, 0.19, t.h, 7), barkMat)
       trunk.position.set(t.x, t.h / 2, t.z)
       g.add(trunk)
-      const clusters = 5
-      for (let i = 0; i < clusters; i++) {
+      for (let i = 0; i < 6; i++) {
         const mat = leafMats[Math.floor(rng() * leafMats.length)]
-        const card = new Mesh(new PlaneGeometry(t.r * (0.9 + rng() * 0.4), t.r * (0.75 + rng() * 0.35)), mat)
+        const card = new Mesh(
+          new PlaneGeometry(t.r * (0.9 + rng() * 0.5), t.r * (0.7 + rng() * 0.4)),
+          mat,
+        )
         card.position.set(
-          t.x + (rng() - 0.5) * t.r * 0.9,
-          t.h * (0.72 + rng() * 0.3),
-          t.z + (rng() - 0.5) * t.r * 0.9,
+          t.x + (rng() - 0.5) * t.r * 1.0,
+          t.h * (0.66 + rng() * 0.32),
+          t.z + (rng() - 0.5) * t.r * 1.0,
         )
         card.rotation.y = rng() * Math.PI
-        card.rotation.z = (rng() - 0.5) * 0.4
+        card.rotation.z = (rng() - 0.5) * 0.5
         g.add(card)
       }
     }
 
-    // a low hedge / bamboo grove line to close the mid distance
+    // A bamboo grove closing the far end, so the flume runs *into* something.
     const hedgeMat = leafMats[1]
-    for (let i = 0; i < 14; i++) {
-      const card = new Mesh(new PlaneGeometry(2.4, 1.7), hedgeMat)
-      card.position.set(-8.5 + (rng() - 0.5) * 1.6, 0.9 + rng() * 0.35, -9 + i * 1.5)
+    for (let i = 0; i < 16; i++) {
+      const h = 1.5 + rng() * 0.8
+      const card = new Mesh(new PlaneGeometry(1.5 + rng() * 0.8, h), hedgeMat)
+      card.position.set(
+        -4.6 + i * 0.62 + (rng() - 0.5) * 0.5,
+        h * 0.48 + rng() * 0.25,
+        -10.4 - rng() * 2.2,
+      )
+      card.rotation.y = (rng() - 0.5) * 0.6
+      g.add(card)
+    }
+    for (let i = 0; i < 9; i++) {
+      const h2 = 1.7 + rng() * 0.8
+      const card = new Mesh(new PlaneGeometry(1.9 + rng() * 0.9, h2), hedgeMat)
+      card.position.set(7.6 + rng() * 1.4, h2 * 0.48 + rng() * 0.2, -7.5 + i * 1.5)
       card.rotation.y = Math.PI / 2 + (rng() - 0.5) * 0.5
       g.add(card)
     }
@@ -184,50 +281,39 @@ export class Garden {
   }
 
   /**
-   * A branch reaching over the flume. Its leaves are the only shadow casters
-   * that matter — they are what makes the bamboo look like it is outdoors.
+   * Leaves high above the flume. They are almost never in frame; what the
+   * player sees is their shadow moving over the bamboo and the water.
    */
   private buildCanopy(rng: () => number): Group {
     const g = new Group()
-    const barkMat = new MeshStandardMaterial({ color: 0x4b4237, roughness: 0.95, metalness: 0 })
-    const trunk = new Mesh(new CylinderGeometry(0.15, 0.26, 5.4, 8), barkMat)
-    trunk.position.set(2.9, 2.7, -3.2)
-    trunk.castShadow = true
-    g.add(trunk)
-    const branch = new Mesh(new CylinderGeometry(0.05, 0.11, 3.2, 6), barkMat)
-    branch.position.set(1.6, 3.35, -2.7)
-    branch.rotation.z = Math.PI / 2.35
-    branch.rotation.y = 0.4
-    branch.castShadow = true
-    g.add(branch)
-
-    const tex = bakeLeafCard(1234, [88, 132, 54])
+    const tex = bakeLeafCard(1234, [82, 126, 50])
     const mat = new MeshStandardMaterial({
       map: tex,
       transparent: false,
       alphaTest: 0.5,
       side: DoubleSide,
-      roughness: 0.78,
+      roughness: 0.8,
       metalness: 0,
-      envMapIntensity: 1.1,
+      envMapIntensity: 1.0,
     })
-    const spots = [
-      [0.5, 3.1, -2.3],
-      [-0.4, 3.25, -1.1],
-      [0.9, 3.0, -0.2],
-      [-0.1, 3.35, 0.9],
-      [0.6, 3.15, 1.9],
-      [-0.8, 3.3, -3.1],
-      [1.4, 3.05, 0.8],
+    const spots: [number, number, number][] = [
+      [0.4, 3.5, -2.6],
+      [-0.5, 3.7, -1.3],
+      [1.0, 3.4, -0.3],
+      [-0.2, 3.8, 0.8],
+      [0.7, 3.55, 1.9],
+      [-1.0, 3.65, -3.4],
+      [1.5, 3.45, 0.9],
+      [-1.3, 3.75, 2.4],
     ]
     for (const [x, y, z] of spots) {
-      const card = new Mesh(new PlaneGeometry(1.5 + rng() * 0.7, 1.2 + rng() * 0.6), mat)
+      const card = new Mesh(new PlaneGeometry(1.4 + rng() * 0.8, 1.15 + rng() * 0.7), mat)
       card.position.set(x, y, z)
-      card.rotation.set(-Math.PI / 2 + (rng() - 0.5) * 0.5, rng() * Math.PI, 0)
+      card.rotation.set(-Math.PI / 2 + (rng() - 0.5) * 0.4, rng() * Math.PI, 0)
       card.castShadow = true
       card.receiveShadow = false
       g.add(card)
-      this.shadowLeaves.push({ mesh: card, phase: rng() * 6.28, amp: 0.02 + rng() * 0.035 })
+      this.shadowLeaves.push({ mesh: card, phase: rng() * 6.28, amp: 0.02 + rng() * 0.03, y0: y })
     }
     return g
   }
@@ -236,7 +322,7 @@ export class Garden {
   update(time: number): void {
     for (const l of this.shadowLeaves) {
       l.mesh.rotation.z = Math.sin(time * 0.42 + l.phase) * l.amp * 6
-      l.mesh.position.y += Math.sin(time * 0.63 + l.phase) * 0.00012
+      l.mesh.position.y = l.y0 + Math.sin(time * 0.63 + l.phase) * 0.02
     }
   }
 }

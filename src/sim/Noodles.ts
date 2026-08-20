@@ -20,7 +20,7 @@ const RINGS = 18
 const RADIAL = 4
 const COLS = RADIAL + 1
 const MAX_STRANDS = 14
-const RADIUS = 0.00082
+const RADIUS = 0.00098
 /** Which node the chopsticks take hold of — off centre, so it drapes. */
 const GRAB_NODE = 4
 
@@ -39,12 +39,12 @@ export interface Pattern {
 }
 
 export const PATTERNS: Pattern[] = [
-  { name: 'single', strands: 1, speedScale: 1.0, lane: 0, laneSwing: 0.25, spread: 0.004, sag: 1 },
-  { name: 'small', strands: 4, speedScale: 0.96, lane: -0.15, laneSwing: 0.3, spread: 0.010, sag: 1 },
-  { name: 'fat', strands: 12, speedScale: 0.80, lane: 0.05, laneSwing: 0.15, spread: 0.017, sag: 1.15 },
-  { name: 'fast-centre', strands: 7, speedScale: 1.30, lane: 0, laneSwing: 0.05, spread: 0.009, sag: 0.95 },
-  { name: 'wall-hug', strands: 6, speedScale: 0.88, lane: 0.62, laneSwing: 0.5, spread: 0.012, sag: 1 },
-  { name: 'pair', strands: 2, speedScale: 1.08, lane: -0.45, laneSwing: 0.35, spread: 0.006, sag: 1 },
+  { name: 'single', strands: 2, speedScale: 1.0, lane: 0, laneSwing: 0.25, spread: 0.0035, sag: 1 },
+  { name: 'small', strands: 6, speedScale: 0.96, lane: -0.15, laneSwing: 0.3, spread: 0.0075, sag: 1 },
+  { name: 'fat', strands: 14, speedScale: 0.80, lane: 0.05, laneSwing: 0.15, spread: 0.0115, sag: 1.15 },
+  { name: 'fast-centre', strands: 9, speedScale: 1.28, lane: 0, laneSwing: 0.05, spread: 0.0070, sag: 0.95 },
+  { name: 'wall-hug', strands: 8, speedScale: 0.88, lane: 0.62, laneSwing: 0.5, spread: 0.0090, sag: 1 },
+  { name: 'pair', strands: 4, speedScale: 1.06, lane: -0.45, laneSwing: 0.35, spread: 0.0055, sag: 1 },
 ]
 
 const vert = /* glsl */ `
@@ -199,7 +199,7 @@ export class Bundle {
           uSunColor: { value: new Color(1, 1, 1) },
           uSky: { value: new Color(0.35, 0.42, 0.52) },
           uGround: { value: new Color(0.16, 0.15, 0.11) },
-          uColor: { value: new Color(0.95, 0.945, 0.90) },
+          uColor: { value: new Color(1.02, 1.0, 0.94) },
           uWet: { value: 1 },
           uFade: { value: 1 },
           uShade: { value: 1 },
@@ -247,7 +247,7 @@ export class Bundle {
         const z = zStart + oz + j * LINK * pattern.sag
         const i = (s * NODES + j) * 3
         this.pos[i] = FLUME.xAt(z) + ox + Math.sin(j * 0.9 + wig) * pattern.spread * 0.6
-        this.pos[i + 1] = waterY(z) - 0.0022 + oy
+        this.pos[i + 1] = waterY(z) + 0.0004 + oy
         this.pos[i + 2] = z
         this.vel[i] = 0
         this.vel[i + 1] = 0
@@ -390,7 +390,7 @@ export class Bundle {
           const sub = Math.max(0, Math.min(1, (wy + 0.004 - y) / 0.012))
           if (sub > 0) {
             inLiquid = sub
-            targetY = wy - 0.0024
+            targetY = wy + 0.0003
             targetX = this.laneX(z, half)
             flowZ = flow * this.speed
           }

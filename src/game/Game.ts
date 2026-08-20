@@ -3,7 +3,8 @@ import {
   Color,
   DirectionalLight,
   FogExp2,
-  PCFSoftShadowMap,
+  MeshBasicMaterial,
+  PCFShadowMap,
   Scene,
   SRGBColorSpace,
   Vector3,
@@ -29,9 +30,9 @@ type Phase = 'opening' | 'firstPass' | 'invite' | 'playing'
 type Hold = 'none' | 'follow' | 'carry' | 'release'
 
 const SUN_COLOR = new Color(1.0, 0.945, 0.86)
-const SUN_STRENGTH = 3.1
-const SKY_AMBIENT = new Color(0.32, 0.40, 0.52)
-const GROUND_AMBIENT = new Color(0.20, 0.19, 0.13)
+const SUN_STRENGTH = 1.9
+const SKY_AMBIENT = new Color(0.20, 0.25, 0.33)
+const GROUND_AMBIENT = new Color(0.11, 0.11, 0.07)
 
 export class Game {
   private renderer: WebGLRenderer
@@ -58,6 +59,7 @@ export class Game {
   private frameAvg = 16
   private qualityTier = 2
   private qualityCooldown = 0
+  private qualityLocked = false
 
   private clock = 0
   private lastT = 0
@@ -86,10 +88,13 @@ export class Game {
   private dripAcc = 0
   private lastDripSound = 0
   private stickRippleAt = 0
+  private lastTouchAt = -99
   private lastNodeIdx = new Map<Bundle, number>()
 
   private tmp = new Vector3()
   private tmp2 = new Vector3()
+  /** Non-zero when the page asked for a deterministic timestep (?fixed). */
+  private fixedStep = 0
 
   constructor(private container: HTMLElement) {
     this.renderer = new WebGLRenderer({
@@ -100,9 +105,9 @@ export class Game {
     })
     this.renderer.outputColorSpace = SRGBColorSpace
     this.renderer.toneMapping = ACESFilmicToneMapping
-    this.renderer.toneMappingExposure = 1.0
+    this.renderer.toneMappingExposure = 0.88
     this.renderer.shadowMap.enabled = true
-    this.renderer.shadowMap.type = PCFSoftShadowMap
+    this.renderer.shadowMap.type = PCFShadowMap
     this.renderer.setClearColor(0x0d1410, 1)
     container.appendChild(this.renderer.domElement)
 
@@ -112,8 +117,8 @@ export class Game {
     this.sky = new Sky(sunDir)
     this.scene.add(this.sky.mesh)
     this.scene.environment = this.sky.buildEnvironment(this.renderer)
-    this.scene.environmentIntensity = 1.0
-    this.scene.fog = new FogExp2(0xdfe6de, 0.030)
+    this.scene.environmentIntensity = 0.9
+    this.scene.fog = new FogExp2(0xc6d1d6, 0.020)
 
     this.sun = new DirectionalLight(SUN_COLOR.getHex(), SUN_STRENGTH)
     this.sun.color.copy(SUN_COLOR)
@@ -155,17 +160,124 @@ export class Game {
     }
     this.drops.applyLighting(sunDir, SUN_COLOR.clone().multiplyScalar(SUN_STRENGTH))
 
+    const q = new URLSearchParams(location.search)
+    if (q.has('fixed')) this.fixedStep = 1 / 30
+    if (q.has('quality')) {
+      this.qualityTier = Number(q.get('quality'))
+      this.qualityLocked = true
+      this.applyQuality()
+    }
+    this.installDebugHooks()
+
     this.input.attach(this.renderer.domElement, () => this.audio.unlock())
     window.addEventListener('resize', () => this.resize())
     window.addEventListener('orientationchange', () => setTimeout(() => this.resize(), 250))
     this.resize()
   }
 
+  /** A tiny inspection surface so the scene can be checked in a real browser. */
+  private installDebugHooks(): void {
+    const w = window as unknown as { __somen?: unknown }
+    w.__somen = {
+      info: () => ({
+        clock: +this.clock.toFixed(2),
+        phase: this.phase,
+        hold: this.hold,
+        captures: this.captures,
+        shot: this.rig.current,
+        bundles: this.noodles.active.map((b) => ({
+          p: b.pattern.name,
+          s: b.state,
+          z: +b.centre(new Vector3()).z.toFixed(2),
+        })),
+        ms: +this.frameAvg.toFixed(1),
+        tier: this.qualityTier,
+        aim: [+this.aimS.toFixed(2), +this.aimH.toFixed(3)],
+      }),
+      cut: (shot: string) => this.rig.cut(shot as never, this.clock),
+      skipTo: (phase: Phase) => {
+        this.phase = phase
+        if (phase !== 'opening') this.revealChopsticks(this.clock)
+        this.nextSpawn = this.clock + 0.2
+        if (phase === 'playing') this.captures = Math.max(1, this.captures)
+      },
+      spawn: (i: number, z?: number) => {
+        const b = this.noodles.free()
+        if (!b) return
+        b.spawn(PATTERNS[i % PATTERNS.length], this.clock, z ?? PLAY.spawnZ)
+        this.lastNodeIdx.set(b, Math.floor(((z ?? PLAY.spawnZ) - FLUME.nodePhase) / FLUME.nodeSpacing))
+      },
+      aimTo: (s: number, h: number) => {
+        this.aimS = s
+        this.aimH = h
+      },
+      look: (p: number[], t: number[], fov: number) => this.rig.override(p, t, fov),
+      vis: (name: string, v: boolean) => {
+        const m: Record<string, { visible: boolean }> = {
+          water: this.water.mesh,
+          flume: this.flume.group,
+          garden: this.garden.group,
+          bowl: this.bowl.group,
+          sticks: this.sticks.group,
+        }
+        if (m[name]) m[name].visible = v
+      },
+      noodleMat: (kind: string) => {
+        for (const b of this.noodles.bundles) {
+          b.mesh.material = kind === 'basic' ? new MeshBasicMaterial({ color: 0xff0000 }) : b.material
+        }
+      },
+      noodleDebug: () => {
+        const b = this.noodles.bundles.find((x) => x.state !== 'off')
+        if (!b) return 'no active bundle'
+        const g = b.mesh.geometry
+        const pos = g.getAttribute('position').array as Float32Array
+        let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9, minZ = 1e9, maxZ = -1e9
+        const n = b.strandCount * 18 * 5
+        for (let i = 0; i < n; i++) {
+          minX = Math.min(minX, pos[i * 3]); maxX = Math.max(maxX, pos[i * 3])
+          minY = Math.min(minY, pos[i * 3 + 1]); maxY = Math.max(maxY, pos[i * 3 + 1])
+          minZ = Math.min(minZ, pos[i * 3 + 2]); maxZ = Math.max(maxZ, pos[i * 3 + 2])
+        }
+        return {
+          state: b.state,
+          strands: b.strandCount,
+          visible: b.mesh.visible,
+          drawRange: g.drawRange,
+          indexCount: g.getIndex()?.count,
+          bbox: [minX, minY, minZ, maxX, maxY, maxZ].map((v) => +v.toFixed(4)),
+          matVisible: (b.material as unknown as { visible: boolean }).visible,
+          program: !!(b.material as unknown as { program?: unknown }).program,
+        }
+      },
+      post: (bloom: boolean, dof: boolean) => {
+        this.post.options.bloom = bloom
+        this.post.options.dof = dof
+      },
+      water: (k: string, v: number) => {
+        const u = this.water.material.uniforms[k]
+        if (u) u.value = v
+      },
+      waterDbg: (a: number, b: number, c: number, d: number) => {
+        ;(this.water.material.uniforms.uDbg.value as { set: (a: number, b: number, c: number, d: number) => void }).set(a, b, c, d)
+      },
+      // L = lateral offset, H = height above the water, A = degrees off the
+      // flume axis, T = the flume coordinate being framed.
+      frame: (L: number, H: number, A: number, T: number, fov: number) => {
+        const wy = waterY(T)
+        const dz = L / Math.tan((A * Math.PI) / 180)
+        this.rig.override([L, wy + H, T + dz], [FLUME.xAt(T), wy - 0.004, T], fov)
+        return [L, +(wy + H).toFixed(3), +(T + dz).toFixed(3)]
+      },
+      free: () => this.rig.clearOverride(),
+    }
+  }
+
   private applyWaterLighting(sunDir: Vector3): void {
     const u = this.water.material.uniforms
     ;(u.uSunDir.value as Vector3).copy(sunDir)
     ;(u.uSunColor.value as Color).copy(SUN_COLOR).multiplyScalar(SUN_STRENGTH)
-    ;(u.uBedLight.value as Color).setRGB(1.35, 1.32, 1.2)
+    ;(u.uBedLight.value as Color).setRGB(0.90, 0.88, 0.80)
   }
 
   private resize(): void {
@@ -202,7 +314,7 @@ export class Game {
       const t = ms / 1000
       let dt = this.lastT ? t - this.lastT : 1 / 60
       this.lastT = t
-      dt = Math.min(0.05, Math.max(0.001, dt))
+      dt = this.fixedStep || Math.min(0.05, Math.max(0.001, dt))
       this.clock += dt
       this.step(dt)
       this.measure(dt)
@@ -213,7 +325,7 @@ export class Game {
   private measure(dt: number): void {
     this.frameAvg += (dt * 1000 - this.frameAvg) * 0.05
     this.qualityCooldown -= dt
-    if (this.qualityCooldown > 0 || this.clock < 3) return
+    if (this.qualityLocked || this.qualityCooldown > 0 || this.clock < 3) return
     if (this.frameAvg > 21 && this.qualityTier > 0) {
       this.qualityTier--
       this.applyQuality()
@@ -359,7 +471,7 @@ export class Game {
   private revealChopsticks(t: number): void {
     if (this.sticks.group.visible) return
     this.sticks.group.visible = true
-    this.aimS = 0.95
+    this.aimS = -0.62
     this.aimH = 0.15
     this.lastGlint = t - 1.6
   }
@@ -399,7 +511,7 @@ export class Game {
       wantH = picked.h
     } else if (this.hold === 'none') {
       // Resting pose: hovering just downstream, waiting.
-      wantS = 0.98
+      wantS = -0.62
       wantH = 0.155 + Math.sin(t * 0.9) * 0.006
     }
 
@@ -434,9 +546,13 @@ export class Game {
       this.tip.y += Math.sin(Math.min(1, e) * Math.PI) * 0.055
     }
 
+    if (this.input.down) this.lastTouchAt = t
+
     // --- soft snap towards whatever is nearby -----------------------------
+    // Only while the player is holding on: chopsticks resting by themselves
+    // must never catch anything, or the first discovery is stolen from them.
     let closeness = 0
-    if (this.hold === 'none') {
+    if (this.hold === 'none' && t - this.lastTouchAt < 0.4) {
       let best: Bundle | null = null
       let bestD = Infinity
       for (const b of this.noodles.active) {

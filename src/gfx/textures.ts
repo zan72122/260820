@@ -116,9 +116,9 @@ export function bakeBambooOuter(): SurfaceMaps {
       const blotch = tileFbm(u * 5, v * 3, 5, 3, 3, 11)
       const patina = tileFbm(u * 13, v * 2.2, 13, 2, 3, 29)
       const greenish = smoothstep(0.62, 0.02, Math.abs(v - 0.5) * 2) * 0.45 + 0.25
-      let r = mix(196, 150, greenish) + (blotch - 0.5) * 46 + (patina - 0.5) * 16
-      let g = mix(190, 166, greenish * 0.4) + (blotch - 0.5) * 34 + (patina - 0.5) * 12
-      let b = mix(140, 88, greenish) + (blotch - 0.5) * 30 - patina * 10
+      let r = mix(184, 150, greenish) + (blotch - 0.5) * 50 + (patina - 0.5) * 18
+      let g = mix(176, 156, greenish * 0.5) + (blotch - 0.5) * 38 + (patina - 0.5) * 13
+      let b = mix(112, 82, greenish) + (blotch - 0.5) * 32 - patina * 12
 
       // --- fibres: fine longitudinal grain --------------------------------
       const fibreA = tileNoise(u * 22, v * 340, 22, 340, 3)
@@ -222,9 +222,9 @@ export function bakeBambooInner(wetV0: number, wetV1: number): SurfaceMaps {
       // --- pale ivory split face, greener towards the cut rims ------------
       const blotch = tileFbm(u * 6, v * 3, 6, 3, 3, 91)
       const rimGreen = smoothstep(0.55, 1.0, Math.abs(v - 0.5) * 2)
-      let r = mix(228, 205, rimGreen) + (blotch - 0.5) * 26
-      let g = mix(219, 207, rimGreen) + (blotch - 0.5) * 22
-      let b = mix(191, 158, rimGreen) + (blotch - 0.5) * 20
+      let r = mix(172, 152, rimGreen) + (blotch - 0.5) * 30
+      let g = mix(164, 156, rimGreen) + (blotch - 0.5) * 26
+      let b = mix(126, 100, rimGreen) + (blotch - 0.5) * 22
 
       // --- fibres ---------------------------------------------------------
       const fibreA = tileNoise(u * 18, v * 420, 18, 420, 13)
@@ -251,10 +251,10 @@ export function bakeBambooInner(wetV0: number, wetV1: number): SurfaceMaps {
 
       // --- water tone: submerged bamboo darkens and goes amber -------------
       const stain = tileFbm(u * 9, v * 5, 9, 5, 3, 7)
-      const wetTone = wet * (0.80 + stain * 0.06)
-      r = mix(r, r * (0.82 - stain * 0.05), wetTone)
-      g = mix(g, g * (0.80 - stain * 0.05), wetTone)
-      b = mix(b, b * (0.70 - stain * 0.04), wetTone)
+      const wetTone = wet * (0.88 + stain * 0.06)
+      r = mix(r, r * (0.70 - stain * 0.06), wetTone)
+      g = mix(g, g * (0.66 - stain * 0.06), wetTone)
+      b = mix(b, b * (0.52 - stain * 0.05), wetTone)
 
       // dried mineral tide-line just above the water
       const tide = Math.exp(-(((v - wetV1) / 0.012) ** 2)) + Math.exp(-(((v - wetV0) / 0.012) ** 2))
@@ -262,7 +262,9 @@ export function bakeBambooInner(wetV0: number, wetV1: number): SurfaceMaps {
       g += tide * 16
       b += tide * 13
 
-      const rough = mix(mix(0.56 + (1 - blotch) * 0.08, 0.30, damp), 0.075, wet)
+      // Submerged bamboo has no air interface of its own — all of the shine
+      // down there belongs to the water surface above it.
+      const rough = mix(mix(0.62 + (1 - blotch) * 0.08, 0.30, damp), 0.78, wet)
 
       col[i] = clamp01(r / 255) * 255
       col[i + 1] = clamp01(g / 255) * 255
@@ -298,14 +300,16 @@ export function bakeGround(): { map: DataTexture; roughnessMap: DataTexture; nor
       const u = x / w
       const v = y / h
       const i = (y * w + x) * 4
-      const macro = tileFbm(u * 4, v * 4, 4, 4, 4, 3)
-      const blade = tileNoise(u * 190, v * 44, 190, 44, 23)
-      const blade2 = tileNoise(u * 46, v * 200, 46, 200, 27)
-      const moss = smoothstep(0.42, 0.72, macro)
-      const dirt = smoothstep(0.36, 0.12, macro)
-      let r = mix(96, 58, moss) + dirt * 62 + (blade - 0.5) * 30 + (blade2 - 0.5) * 26
-      let g = mix(112, 96, moss) + dirt * 34 + (blade - 0.5) * 34 + (blade2 - 0.5) * 28
-      let b = mix(56, 44, moss) + dirt * 22 + (blade - 0.5) * 18 + (blade2 - 0.5) * 16
+      const macro = tileFbm(u * 7, v * 7, 7, 7, 3, 3)
+      const blade = tileNoise(u * 160, v * 128, 160, 128, 23)
+      const blade2 = tileNoise(u * 96, v * 210, 96, 210, 27)
+      const blade3 = tileNoise(u * 220, v * 90, 220, 90, 31)
+      const moss = smoothstep(0.44, 0.70, macro)
+      const dirt = smoothstep(0.34, 0.14, macro)
+      const fine = (blade - 0.5) * 0.5 + (blade2 - 0.5) * 0.3 + (blade3 - 0.5) * 0.2
+      let r = mix(84, 54, moss) + dirt * 44 + fine * 44
+      let g = mix(102, 88, moss) + dirt * 26 + fine * 50
+      let b = mix(48, 38, moss) + dirt * 16 + fine * 26
       col[i] = clamp01(r / 255) * 255
       col[i + 1] = clamp01(g / 255) * 255
       col[i + 2] = clamp01(b / 255) * 255
@@ -314,7 +318,7 @@ export function bakeGround(): { map: DataTexture; roughnessMap: DataTexture; nor
       rgh[i + 1] = clamp01(0.86 - moss * 0.08) * 255
       rgh[i + 2] = 30
       rgh[i + 3] = 255
-      hgt[y * w + x] = (blade - 0.5) * 0.8 + (blade2 - 0.5) * 0.7 + (macro - 0.5) * 2.2
+      hgt[y * w + x] = fine * 1.6 + (macro - 0.5) * 1.6
     }
   }
   return {
@@ -369,14 +373,14 @@ export function bakeLeafCard(seed: number, tint: [number, number, number]): Canv
   const g = c.getContext('2d')!
   g.clearRect(0, 0, size, size)
   const rng = makeRng(seed)
-  const leaves = 130
+  const leaves = 300
   for (let i = 0; i < leaves; i++) {
     // Cluster towards the centre, thin out at the silhouette edge.
     const a = rng() * Math.PI * 2
     const rad = Math.pow(rng(), 0.62) * size * 0.47
     const cx = size / 2 + Math.cos(a) * rad
     const cy = size / 2 + Math.sin(a) * rad * 0.86
-    const len = size * (0.055 + rng() * 0.075) * (1 - rad / size)
+    const len = size * (0.070 + rng() * 0.085) * (1 - rad / size)
     const wid = len * (0.28 + rng() * 0.2)
     const rot = rng() * Math.PI * 2
     const shade = 0.55 + rng() * 0.6 - (rad / size) * 0.25

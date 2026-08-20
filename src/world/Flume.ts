@@ -34,11 +34,11 @@ export function sectionCentre(z: number, out = new Vector2()): Vector2 {
 /** Build the z sampling: dense through the play zone, very dense at nodes. */
 function sampleZ(): number[] {
   const zs: number[] = []
-  for (let z = FLUME.zStart; z < -4.6; z += 0.25) zs.push(z)
-  for (let z = -4.6; z <= 4.6; z += 0.03) zs.push(z)
+  for (let z = FLUME.zStart; z < -4.6; z += 0.10) zs.push(z)
+  for (let z = -4.6; z <= FLUME.zEnd; z += 0.028) zs.push(z)
   const extras = [0.004, 0.008, 0.0125, 0.018, 0.025, 0.034]
   const n0 = Math.ceil((-4.6 - FLUME.nodePhase) / FLUME.nodeSpacing)
-  const n1 = Math.floor((4.6 - FLUME.nodePhase) / FLUME.nodeSpacing)
+  const n1 = Math.floor((FLUME.zEnd - FLUME.nodePhase) / FLUME.nodeSpacing)
   for (let n = n0; n <= n1; n++) {
     const c = FLUME.nodePhase + n * FLUME.nodeSpacing
     zs.push(c)
@@ -109,11 +109,11 @@ export class Flume {
       normalScale: new Vector2(0.6, 0.6),
       roughness: 1,
       metalness: 0,
-      envMapIntensity: 1.15,
+      envMapIntensity: 0.6,
     })
     this.rimMaterial = new MeshStandardMaterial({
-      color: 0xd8cfae,
-      roughness: 0.72,
+      color: 0xb5a680,
+      roughness: 0.82,
       metalness: 0,
       envMapIntensity: 0.9,
     })
@@ -233,7 +233,7 @@ export class Flume {
     const g = new Group()
     const legGeo = new CylinderGeometry(0.019, 0.024, 1, 7, 1, true)
     const tieGeo = new CylinderGeometry(0.013, 0.013, 1, 6, 1, true)
-    const positions = [-9.4, -7.3, -5.4, -3.7, -2.1, -0.6, 0.9, 2.4, 3.9]
+    const positions = [-8.1, -6.6, -5.1, -3.7, -2.35, -1.05, 0.25, 1.6, 3.0]
     for (const z of positions) {
       const y = FLUME.yAt(z)
       const cx = FLUME.xAt(z)

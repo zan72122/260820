@@ -97,8 +97,8 @@ export class Droplets {
         {
           uSunDir: { value: new Vector3(0, 1, 0) },
           uSunColor: { value: new Color(1, 0.94, 0.8) },
-          uZenith: { value: new Color(0.2, 0.42, 0.8) },
-          uHorizon: { value: new Color(0.84, 0.88, 0.86) },
+          uZenith: { value: new Color(0.095, 0.225, 0.62) },
+          uHorizon: { value: new Color(0.545, 0.625, 0.685) },
         },
       ]),
     })

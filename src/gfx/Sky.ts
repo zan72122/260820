@@ -66,10 +66,10 @@ export class Sky {
       fog: false,
       uniforms: {
         uSunDir: { value: sunDir.clone().normalize() },
-        uZenith: { value: new Color(0.20, 0.42, 0.80) },
-        uHorizon: { value: new Color(0.84, 0.88, 0.86) },
-        uGroundHaze: { value: new Color(0.52, 0.55, 0.42) },
-        uSunColor: { value: new Color(1.0, 0.94, 0.80) },
+        uZenith: { value: new Color(0.095, 0.225, 0.62) },
+        uHorizon: { value: new Color(0.545, 0.625, 0.685) },
+        uGroundHaze: { value: new Color(0.26, 0.29, 0.20) },
+        uSunColor: { value: new Color(1.0, 0.95, 0.84) },
         uExposure: { value: 1.0 },
       },
     })

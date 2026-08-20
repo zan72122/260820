@@ -19,34 +19,44 @@ interface ShotDef {
 }
 
 const SHOTS: Record<ShotName, ShotDef> = {
-  // A wide, low look down the flume. Nothing is happening yet.
+  // A low, quiet look along the flume. Nothing is happening yet.
   establish: {
     relative: false,
-    land: { pos: [1.62, 1.44, 3.05], target: [-0.05, 0.85, -1.5], fov: 40, tau: 1.5 },
-    port: { pos: [1.26, 1.36, 2.55], target: [-0.05, 0.84, -1.7], fov: 58, tau: 1.5 },
+    land: { pos: [0.30, 1.45, 0.14], target: [0.0, 0.840, -1.30], fov: 46, tau: 1.5 },
+    port: { pos: [0.28, 1.42, 0.20], target: [0.0, 0.845, -1.35], fov: 62, tau: 1.5 },
   },
-  // Running alongside a bundle, close to the surface of the water.
+  // Running alongside a bundle, right down at the surface of the water.
   travel: {
     relative: true,
-    land: { pos: [0.44, 0.115, 0.70], target: [0.0, 0.004, -0.42], fov: 36, tau: 0.30 },
-    port: { pos: [0.40, 0.135, 0.60], target: [0.0, 0.004, -0.52], fov: 54, tau: 0.30 },
+    land: { pos: [0.30, 0.075, 0.52], target: [0.0, 0.0, -0.30], fov: 32, tau: 0.30 },
+    port: { pos: [0.27, 0.085, 0.45], target: [0.0, 0.0, -0.34], fov: 48, tau: 0.30 },
   },
   // The framing the game lives in: chopsticks, water and somen together.
   play: {
     relative: false,
-    land: { pos: [0.92, 1.06, 2.20], target: [0.0, 0.795, -0.62], fov: 43, tau: 0.85 },
-    port: { pos: [0.86, 1.06, 1.72], target: [-0.02, 0.79, -1.05], fov: 62, tau: 0.85 },
+    land: { pos: [0.30, 1.18, -0.04], target: [0.0, 0.840, -1.10], fov: 43, tau: 0.85 },
+    port: { pos: [0.27, 1.20, 0.02], target: [0.0, 0.845, -1.30], fov: 60, tau: 0.85 },
   },
   // Following the catch upwards. Never cut here — the causality must hold.
   lift: {
     relative: true,
-    land: { pos: [0.40, 0.10, 0.54], target: [0.0, -0.03, -0.04], fov: 34, tau: 0.26 },
-    port: { pos: [0.34, 0.11, 0.44], target: [0.0, -0.03, -0.05], fov: 52, tau: 0.26 },
+    land: { pos: [0.30, 0.07, 0.44], target: [0.0, -0.02, -0.04], fov: 31, tau: 0.26 },
+    port: { pos: [0.26, 0.075, 0.36], target: [0.0, -0.02, -0.05], fov: 46, tau: 0.26 },
   },
   bowl: {
     relative: false,
-    land: { pos: [BOWL.x + 0.27, BOWL.standY + 0.26, BOWL.z + 0.40], target: [BOWL.x, BOWL.standY + 0.02, BOWL.z], fov: 40, tau: 0.45 },
-    port: { pos: [BOWL.x + 0.22, BOWL.standY + 0.24, BOWL.z + 0.32], target: [BOWL.x, BOWL.standY + 0.02, BOWL.z], fov: 58, tau: 0.45 },
+    land: {
+      pos: [BOWL.x + 0.20, BOWL.standY + 0.245, BOWL.z + 0.30],
+      target: [BOWL.x, BOWL.standY + 0.03, BOWL.z],
+      fov: 38,
+      tau: 0.45,
+    },
+    port: {
+      pos: [BOWL.x + 0.16, BOWL.standY + 0.225, BOWL.z + 0.24],
+      target: [BOWL.x, BOWL.standY + 0.03, BOWL.z],
+      fov: 52,
+      tau: 0.45,
+    },
   },
 }
 
@@ -56,15 +66,16 @@ export class CameraRig {
   readonly camera: PerspectiveCamera
   private pos = new Vector3()
   private look = new Vector3()
-  private fov = 43
+  private fov = 36
   private shot: ShotName = 'establish'
   private shotAt = 0
   private subject = new Vector3()
   private landscapeMix = 1
   private drift = 0
+  private overridden = false
 
   constructor() {
-    this.camera = new PerspectiveCamera(43, 1, 0.03, 220)
+    this.camera = new PerspectiveCamera(36, 1, 0.03, 160)
     const p = SHOTS.establish.land
     this.pos.set(p.pos[0], p.pos[1], p.pos[2])
     this.look.set(p.target[0], p.target[1], p.target[2])
@@ -99,7 +110,24 @@ export class CameraRig {
     return this.pos.distanceTo(this.look)
   }
 
+  /** Debug only: pin the camera so a detail can be inspected in a browser. */
+  override(pos: number[], target: number[], fov: number): void {
+    this.overridden = true
+    this.pos.set(pos[0], pos[1], pos[2])
+    this.look.set(target[0], target[1], target[2])
+    this.fov = fov
+    this.camera.fov = fov
+    this.camera.updateProjectionMatrix()
+    this.camera.position.copy(this.pos)
+    this.camera.lookAt(this.look)
+  }
+
+  clearOverride(): void {
+    this.overridden = false
+  }
+
   update(dt: number, time: number): void {
+    if (this.overridden) return
     const def = SHOTS[this.shot]
     const m = this.landscapeMix
     const px: number[] = []
