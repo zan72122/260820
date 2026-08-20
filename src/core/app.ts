@@ -571,7 +571,7 @@ export class Game {
     if (s.phase === 'handoff' && !this.nextBag) {
       const next = layoutForRound(s.round + 1)
       this.nextBag = new PaperBag(makeBagShape(next.bagSeed), makePeachShape(next.peachSeed, s.round + 1))
-      const local = new THREE.Vector3(this.layout.peachPos.x + 0.56, this.layout.peachPos.y + 0.085, this.layout.peachPos.z + 0.1)
+      const local = new THREE.Vector3(this.layout.peachPos.x + 0.56, this.layout.peachPos.y + 0.125, this.layout.peachPos.z + 0.1)
       this.nextBag.group.position.copy(local)
       this.orchard.branchGroup.add(this.nextBag.group)
       this.nextBagPos.copy(local).applyMatrix4(this.orchard.branchGroup.matrixWorld)
