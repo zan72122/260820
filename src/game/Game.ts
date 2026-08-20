@@ -21,7 +21,7 @@ export const BED_Y = -0.5
 /** the jet lands this far above the finger so the hand never covers the find */
 const FINGER_OFFSET_PX = 66
 /** the nozzle is held at waist height; the stream arcs down into the water */
-const HAND_Y = 0.72
+const HAND_Y = 0.48
 /** a lifted root is carried just clear of the surface so it can be sluiced */
 const CARRY_Y = 0.34
 
@@ -546,7 +546,7 @@ export class Game {
     const workPoint = carrying ? this.holdPoint.clone().setY(0) : this.grip.clone().setY(0)
     // The worker stands almost directly beyond the work point, so the reaching
     // arm arrives from behind the find rather than across it.
-    const wa = this.camAz() + 2.25
+    const wa = this.camAz() + 2.5
     const carryNow = this.phase === 'lift' || this.phase === 'hold'
     this.worker.moveToward(workPoint, dt, new THREE.Vector3(Math.cos(wa), 0, Math.sin(wa)), carryNow ? 3.4 : 4.2)
     const support = this.supportPoint()
@@ -558,8 +558,8 @@ export class Game {
       const along = new THREE.Vector3().subVectors(this.holdPoint, this.worker.stance).setY(0)
       if (along.lengthSq() < 1e-5) along.set(0, 0, 1)
       along.normalize()
-      handPos = this.holdPoint.clone().addScaledVector(along, -0.03)
-      handPos.y -= 0.055
+      handPos = this.holdPoint.clone().addScaledVector(along, -0.04)
+      handPos.y -= 0.105
       handAim = this.holdPoint.clone().addScaledVector(along, 0.4)
     }
     // working posture: a constant slight bend over the water, a deep one while
@@ -1110,8 +1110,8 @@ export class Game {
       }
       req = {
         key: 'work',
-        dir: shot(waiting ? (portrait ? 0.72 : 0.66) : 0.84),
-        dist: waiting ? (portrait ? 1.6 : 1.45) : portrait ? 2.4 : 2.2,
+        dir: shot(waiting ? (portrait ? 0.74 : 0.68) : 0.86),
+        dist: waiting ? (portrait ? 2.0 : 1.8) : portrait ? 3.1 : 2.8,
         target,
         fov: portrait ? 54 : 46,
         must,
