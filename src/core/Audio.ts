@@ -240,6 +240,11 @@ export class GameAudio {
     this.burst(1500, 1.6, 0.07 * strength, 0.012, 0.16, pan, 620)
   }
 
+  /** The tips breaking the surface. */
+  dip(pan = 0): void {
+    this.burst(1100, 1.1, 0.055, 0.012, 0.13, pan, 2400)
+  }
+
   /** Lacquer on bamboo. */
   chopstickTick(pan = 0): void {
     this.burst(2300, 12, 0.055, 0.002, 0.045, pan)

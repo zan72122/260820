@@ -22,8 +22,8 @@ const SHOTS: Record<ShotName, ShotDef> = {
   // A low, quiet look along the flume. Nothing is happening yet.
   establish: {
     relative: false,
-    land: { pos: [0.30, 1.45, 0.14], target: [0.0, 0.840, -1.30], fov: 46, tau: 1.5 },
-    port: { pos: [0.30, 1.40, 0.18], target: [0.08, 0.848, -1.40], fov: 60, tau: 1.5 },
+    land: { pos: [0.30, 1.30, 0.10], target: [0.0, 0.845, -1.35], fov: 42, tau: 1.5 },
+    port: { pos: [0.31, 1.29, 0.14], target: [0.08, 0.850, -1.42], fov: 57, tau: 1.5 },
   },
   // Running alongside a bundle, right down at the surface of the water.
   travel: {

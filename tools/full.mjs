@@ -1,10 +1,10 @@
 import { chromium } from 'playwright'
 import fs from 'node:fs'
-const OUT = '/tmp/claude-0/-home-user-260820/c97bd2e6-1e3f-5498-8a4e-db9eb702a758/scratchpad/shots'
+const OUT = process.env.OUT || new URL('../.shots/', import.meta.url).pathname
 fs.mkdirSync(OUT, { recursive: true })
 const W = Number(process.env.W || 960), H = Number(process.env.H || 440)
 const browser = await chromium.launch({
-  executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  executablePath: process.env.CHROME_PATH || undefined,
   args: ['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist'],
 })
 const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 })

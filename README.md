@@ -104,6 +104,20 @@ scaled by a three-step quality ladder that also drops MSAA, bloom, DOF and
 shadow-map size when frame time runs long. One shadow-casting light. Droplets
 are a fixed instanced pool. No allocation happens in the frame loop.
 
+### Looking at it while building it
+
+`tools/` holds the small Playwright drivers used to frame and check the scene
+in a real browser — `shots.mjs` for arbitrary camera setups, `full.mjs` for a
+whole playthrough up to the first catch, `smoke.mjs` for a real-time run with
+a resize, `audio.mjs` to fire every sound once. They expect a dev server on
+`127.0.0.1:5173` and write PNGs into `.shots/`. Set `CHROME_PATH` if Chromium
+is not where Playwright installs it:
+
+```bash
+npm run dev &
+CHROME_PATH=/path/to/chrome node tools/full.mjs
+```
+
 ### Debug hooks
 
 Loading with `?fixed=0.05` runs a deterministic timestep, and `?quality=0..2`

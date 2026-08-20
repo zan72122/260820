@@ -1,7 +1,7 @@
 import { chromium } from 'playwright'
 import fs from 'node:fs'
 
-const OUT = process.env.OUT || '/tmp/claude-0/-home-user-260820/c97bd2e6-1e3f-5498-8a4e-db9eb702a758/scratchpad/shots'
+const OUT = process.env.OUT || new URL('../.shots/', import.meta.url).pathname
 fs.mkdirSync(OUT, { recursive: true })
 
 const URL_BASE = process.env.URL || 'http://localhost:5173/'
@@ -9,7 +9,7 @@ const SIZE = (process.env.SIZE || '900x420').split('x').map(Number)
 const PLAN = JSON.parse(process.env.PLAN || '[]')
 
 const browser = await chromium.launch({
-  executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  executablePath: process.env.CHROME_PATH || undefined,
   args: [
     '--use-gl=angle',
     '--use-angle=swiftshader',

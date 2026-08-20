@@ -205,7 +205,7 @@ export class Post {
         uBlurNear: { value: 2.1 },
         uBlurFar: { value: 1.7 },
         uVignette: { value: 0.30 },
-        uAberration: { value: 0.0016 },
+        uAberration: { value: 0.0008 },
         uDofEnabled: { value: 1 },
         uSaturation: { value: 1.16 },
         uContrast: { value: 1.14 },
@@ -310,7 +310,7 @@ export class Post {
     u.tBloom.value = this.options.bloom ? this.bloomA.texture : null
     u.tDepth.value = this.sceneRT.depthTexture
     ;(u.uTexel.value as Vector2).set(1 / this.width, 1 / this.height)
-    u.uBloom.value = this.options.bloom ? 0.55 : 0
+    u.uBloom.value = this.options.bloom ? 0.40 : 0
     u.uNear.value = camera.near
     u.uFar.value = camera.far
     u.uDofEnabled.value = this.options.dof ? 1 : 0

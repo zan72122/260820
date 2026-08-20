@@ -89,6 +89,7 @@ export class Game {
   private lastDripSound = 0
   private stickRippleAt = 0
   private lastTouchAt = -99
+  private tipsWet = false
   private lastNodeIdx = new Map<Bundle, number>()
 
   private tmp = new Vector3()
@@ -105,7 +106,7 @@ export class Game {
     })
     this.renderer.outputColorSpace = SRGBColorSpace
     this.renderer.toneMapping = ACESFilmicToneMapping
-    this.renderer.toneMappingExposure = 0.88
+    this.renderer.toneMappingExposure = 0.95
     this.renderer.shadowMap.enabled = true
     this.renderer.shadowMap.type = PCFShadowMap
     this.renderer.setClearColor(0x0d1410, 1)
@@ -420,7 +421,10 @@ export class Game {
   private assistCaptureRadius(b: Bundle): number {
     const learned = Math.min(1, this.captures / 3)
     const base = 0.150 - learned * 0.072
-    return base + Math.min(0.030, b.strandCount * 0.0022)
+    // Before the idea has landed, a child holding their finger near a bundle
+    // should not be able to miss it.
+    const firstTry = this.captures === 0 && this.input.down ? 0.055 : 0
+    return base + firstTry + Math.min(0.030, b.strandCount * 0.0022)
   }
 
   private assistSnap(): number {
@@ -624,17 +628,18 @@ export class Game {
       this.hold === 'none' ? Math.min(0.7, closeness * 0.8) : 1
     this.sticks.place(this.tipSmooth, this.hand)
 
-    // Ripples and a wet sound if the tips are actually in the stream.
+    // Ripples, and a small wet sound the moment the tips break the surface.
     const surface = waterY(this.tipSmooth.z)
-    if (
+    const inStream =
       this.tipSmooth.y < surface + 0.004 &&
       this.tipSmooth.z > PLAY.sMin &&
-      this.tipSmooth.z < PLAY.sMax &&
-      t - this.stickRippleAt > 0.07
-    ) {
+      this.tipSmooth.z < PLAY.sMax
+    if (inStream && t - this.stickRippleAt > 0.07) {
       this.stickRippleAt = t
       this.water.addRipple(this.tipSmooth.x, this.tipSmooth.z, 0.7, t)
     }
+    if (inStream && !this.tipsWet) this.audio.dip(this.panOf(this.tipSmooth))
+    this.tipsWet = inStream
   }
 
   private capture(b: Bundle, t: number): void {

@@ -395,10 +395,14 @@ export class Bundle {
           if (inside) {
             const sub = Math.max(0, Math.min(1, (wy + 0.004 - y) / 0.012))
             if (sub > 0) {
-              inLiquid = sub
+              // Once the chopsticks have it, the stream lets go: a tail still
+              // in the water drags for a moment and then comes out with the
+              // rest instead of anchoring the bundle to the flume.
+              const grip = this.state === 'held' ? Math.max(0, 1 - (time - this.stateAt) / 0.35) : 1
+              inLiquid = sub * (0.35 + 0.65 * grip)
               targetY = wy + 0.0003
               targetX = this.laneX(z, half)
-              flowZ = flow * this.speed
+              flowZ = flow * this.speed * grip
             }
           }
         }
@@ -451,7 +455,7 @@ export class Bundle {
     }
 
     // --- constraints -------------------------------------------------------
-    const iterations = this.state === 'held' ? 3 : 2
+    const iterations = this.state === 'held' ? 6 : 2
     for (let it = 0; it < iterations; it++) {
       for (let s = 0; s < this.strandCount; s++) {
         for (let j = 0; j < NODES - 1; j++) {
@@ -477,6 +481,10 @@ export class Bundle {
       this.clampToTrough()
       if (this.state === 'dropping' || this.state === 'soaking') this.clampToBowl(bowl, bowlR)
     }
+    // Gauss-Seidel alone cannot keep up with a chopstick tip crossing half a
+    // metre in a second, so a held bundle finishes with an exact
+    // follow-the-leader pass out from the pinned node. Nothing stretches.
+    if (this.state === 'held') this.followTheLeader()
 
     // --- surface wetness dries off once it is out of the water --------------
     let above = 0
@@ -496,6 +504,41 @@ export class Bundle {
         if (this.fade <= 0.001) this.kill()
       }
     }
+  }
+
+  private followTheLeader(): void {
+    const L = LINK * this.pattern.sag
+    for (let s = 0; s < this.strandCount; s++) {
+      const base = s * NODES * 3
+      for (let j = GRAB_NODE + 1; j < NODES; j++) {
+        const a = base + (j - 1) * 3
+        const b = base + j * 3
+        this.pinLink(a, b, L)
+      }
+      for (let j = GRAB_NODE - 1; j >= 0; j--) {
+        const a = base + (j + 1) * 3
+        const b = base + j * 3
+        this.pinLink(a, b, L)
+      }
+    }
+  }
+
+  /** Move node `b` so it sits exactly `len` from the fixed node `a`. */
+  private pinLink(a: number, b: number, len: number): void {
+    let dx = this.pos[b] - this.pos[a]
+    let dy = this.pos[b + 1] - this.pos[a + 1]
+    let dz = this.pos[b + 2] - this.pos[a + 2]
+    let d = Math.hypot(dx, dy, dz)
+    if (d < 1e-6) {
+      dx = 0
+      dy = -1
+      dz = 0
+      d = 1
+    }
+    const f = len / d
+    this.pos[b] = this.pos[a] + dx * f
+    this.pos[b + 1] = this.pos[a + 1] + dy * f
+    this.pos[b + 2] = this.pos[a + 2] + dz * f
   }
 
   private clampToTrough(): void {
