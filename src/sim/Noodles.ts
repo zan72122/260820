@@ -92,20 +92,20 @@ const frag = /* glsl */ `
 
     float ndl = dot(N, uSunDir);
     // Wrapped diffuse: a translucent noodle never goes fully dark.
-    float wrap = clamp((ndl + 0.62) / 1.62, 0.0, 1.0);
+    float wrap = clamp((ndl + 0.38) / 1.38, 0.0, 1.0);
 
     float jitter = fract(sin(vStrand * 91.7) * 4137.13);
-    vec3 albedo = uColor * (0.90 + 0.18 * jitter);
+    vec3 albedo = uColor * (0.84 + 0.26 * jitter);
     // The cut ends are a touch more translucent.
     float thin = 0.55 + 0.45 * (1.0 - abs(vT * 2.0 - 1.0));
 
     vec3 sun = uSunColor * wrap * uShade;
     float back = pow(clamp(dot(V, -uSunDir) * 0.5 + 0.5, 0.0, 1.0), 3.0);
-    vec3 sss = uSunColor * back * thin * 0.85 * uShade;
+    vec3 sss = uSunColor * back * thin * 0.30 * uShade;
     vec3 amb = mix(uGround, uSky, N.y * 0.5 + 0.5);
 
     vec3 H = normalize(V + uSunDir);
-    float spec = pow(max(dot(N, H), 0.0), 150.0) * (0.25 + uWet * 1.9);
+    float spec = pow(max(dot(N, H), 0.0), 150.0) * (0.15 + uWet * 1.0);
 
     vec3 col = albedo * (sun + amb + sss) + uSunColor * spec * uShade;
     gl_FragColor = vec4(col, uFade);
@@ -199,7 +199,7 @@ export class Bundle {
           uSunColor: { value: new Color(1, 1, 1) },
           uSky: { value: new Color(0.35, 0.42, 0.52) },
           uGround: { value: new Color(0.16, 0.15, 0.11) },
-          uColor: { value: new Color(1.02, 1.0, 0.94) },
+          uColor: { value: new Color(0.82, 0.81, 0.76) },
           uWet: { value: 1 },
           uFade: { value: 1 },
           uShade: { value: 1 },
@@ -333,10 +333,11 @@ export class Bundle {
       this.pin[s * 3] = this.pos[i] - tip.x
       this.pin[s * 3 + 1] = this.pos[i + 1] - tip.y
       this.pin[s * 3 + 2] = this.pos[i + 2] - tip.z
-      // Shrink the offsets so the strands gather into the chopsticks.
-      this.pin[s * 3] *= 0.35
-      this.pin[s * 3 + 1] *= 0.2
-      this.pin[s * 3 + 2] *= 0.35
+      // Gather the strands into the chopsticks, but not into a single line —
+      // a caught bundle should still read as many separate noodles.
+      this.pin[s * 3] *= 0.6
+      this.pin[s * 3 + 1] *= 0.25
+      this.pin[s * 3 + 2] *= 0.6
     }
   }
 

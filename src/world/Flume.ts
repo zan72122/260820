@@ -82,6 +82,18 @@ function pushRingStrip(
   void rings
 }
 
+function alignBambooUv(geo: CylinderGeometry, lengthMetres: number): CylinderGeometry {
+  const uv = geo.getAttribute('uv') as BufferAttribute
+  const period = FLUME.nodeSpacing * 2
+  for (let i = 0; i < uv.count; i++) {
+    const u = uv.getX(i)
+    const v = uv.getY(i)
+    uv.setXY(i, (v * lengthMetres) / period, u * 0.5)
+  }
+  uv.needsUpdate = true
+  return geo
+}
+
 export class Flume {
   readonly group = new Group()
   readonly innerMaterial: MeshStandardMaterial
@@ -231,8 +243,10 @@ export class Flume {
   /** Crossed bamboo legs holding the trough up, thinning into the distance. */
   private buildSupports(): Object3D {
     const g = new Group()
-    const legGeo = new CylinderGeometry(0.019, 0.024, 1, 7, 1, true)
-    const tieGeo = new CylinderGeometry(0.013, 0.013, 1, 6, 1, true)
+    // The bamboo texture runs along U, but a cylinder wraps U around its
+    // girth — swap the channels so the fibres run down the pole.
+    const legGeo = alignBambooUv(new CylinderGeometry(0.019, 0.024, 1, 7, 1, true), 1.25)
+    const tieGeo = alignBambooUv(new CylinderGeometry(0.013, 0.013, 1, 6, 1, true), 0.9)
     const positions = [-8.1, -6.6, -5.1, -3.7, -2.35, -1.05, 0.25, 1.6, 3.0]
     for (const z of positions) {
       const y = FLUME.yAt(z)

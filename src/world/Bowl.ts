@@ -81,8 +81,8 @@ const tsuyuFrag = /* glsl */ `
     float F = 0.03 + 0.97 * pow(1.0 - max(dot(N, V), 0.0), 5.0);
     vec3 refl = skyColor(reflect(-V, N));
     vec3 H = normalize(V + uSunDir);
-    float spec = pow(max(dot(N, H), 0.0), 1600.0) * 3.2 + pow(max(dot(N, H), 0.0), 260.0) * 0.28;
-    vec3 col = mix(uLiquid, refl, clamp(F, 0.0, 0.75)) + uSunColor * spec;
+    float spec = pow(max(dot(N, H), 0.0), 1600.0) * 2.4 + pow(max(dot(N, H), 0.0), 300.0) * 0.10;
+    vec3 col = mix(uLiquid, refl * 0.75, clamp(F, 0.0, 0.6)) + uSunColor * spec;
     gl_FragColor = vec4(col, 1.0);
     #include <colorspace_fragment>
   }
@@ -181,7 +181,7 @@ export class Bowl {
         uSunColor: { value: new Color(1.0, 0.94, 0.8) },
         uZenith: { value: new Color(0.095, 0.225, 0.62) },
         uHorizon: { value: new Color(0.470, 0.545, 0.640) },
-        uLiquid: { value: new Color(0.055, 0.030, 0.018) },
+        uLiquid: { value: new Color(0.030, 0.017, 0.010) },
         uRadius: { value: liquidR },
         uLevel: { value: 0 },
         uRipples: { value: this.ripples },

@@ -30,7 +30,7 @@ type Phase = 'opening' | 'firstPass' | 'invite' | 'playing'
 type Hold = 'none' | 'follow' | 'carry' | 'release'
 
 const SUN_COLOR = new Color(1.0, 0.945, 0.86)
-const SUN_STRENGTH = 1.9
+const SUN_STRENGTH = 1.8
 const SKY_AMBIENT = new Color(0.20, 0.25, 0.33)
 const GROUND_AMBIENT = new Color(0.11, 0.11, 0.07)
 
@@ -117,7 +117,7 @@ export class Game {
     this.sky = new Sky(sunDir)
     this.scene.add(this.sky.mesh)
     this.scene.environment = this.sky.buildEnvironment(this.renderer)
-    this.scene.environmentIntensity = 0.9
+    this.scene.environmentIntensity = 1.05
     this.scene.fog = new FogExp2(0xb6c5d2, 0.020)
 
     this.sun = new DirectionalLight(SUN_COLOR.getHex(), SUN_STRENGTH)
@@ -278,6 +278,9 @@ export class Game {
         if (typeof a[name] === 'function') a[name](0, 1)
         return this.audio.ready
       },
+      tipAt: () => this.tipSmooth.toArray(),
+      drops: (n: number) =>
+        this.drops.burst(this.tipSmooth.x, this.tipSmooth.y, this.tipSmooth.z, n, 0.7, this.rng),
       post: (bloom: boolean, dof: boolean) => {
         this.post.options.bloom = bloom
         this.post.options.dof = dof
@@ -735,7 +738,7 @@ export class Game {
           (this.rng() - 0.5) * 0.05,
           -0.02,
           (this.rng() - 0.5) * 0.05,
-          0.0013 + this.rng() * 0.0016,
+          0.0008 + this.rng() * 0.0011,
           1.6,
         )
       }

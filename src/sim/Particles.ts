@@ -92,6 +92,8 @@ export class Droplets {
       vertexShader: vert,
       fragmentShader: frag,
       fog: true,
+      transparent: true,
+      depthWrite: false,
       uniforms: UniformsUtils.merge([
         UniformsLib.fog,
         {
@@ -102,7 +104,7 @@ export class Droplets {
         },
       ]),
     })
-    const geo = new IcosahedronGeometry(1, 0)
+    const geo = new IcosahedronGeometry(1, 1)
     this.mesh = new InstancedMesh(geo, this.material, count)
     this.mesh.frustumCulled = false
     this.mesh.count = count
@@ -145,7 +147,7 @@ export class Droplets {
         Math.cos(a) * s * 0.5,
         (0.5 + rng() * 0.8) * power,
         Math.sin(a) * s * 0.5 + power * 0.25,
-        0.0011 + rng() * 0.0022,
+        0.0008 + rng() * 0.0014,
         0.7 + rng() * 0.6,
       )
     }

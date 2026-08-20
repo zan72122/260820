@@ -42,11 +42,11 @@ export class Chopsticks {
   constructor() {
     this.lacquer = new MeshPhysicalMaterial({
       color: new Color(0x5d2b1e),
-      roughness: 0.16,
+      roughness: 0.26,
       metalness: 0,
-      clearcoat: 1.0,
-      clearcoatRoughness: 0.06,
-      envMapIntensity: 1.4,
+      clearcoat: 0.65,
+      clearcoatRoughness: 0.14,
+      envMapIntensity: 1.0,
       emissive: new Color(0xfff0d8),
       emissiveIntensity: 0,
     })

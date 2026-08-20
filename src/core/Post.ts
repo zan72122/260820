@@ -177,7 +177,7 @@ export class Post {
       uniforms: {
         tSrc: { value: null },
         tex: { value: new Vector2() },
-        uThreshold: { value: this.hdr ? 1.05 : 0.72 },
+        uThreshold: { value: this.hdr ? 1.35 : 0.80 },
         uKnee: { value: 0.7 },
       },
     })
