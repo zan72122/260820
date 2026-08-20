@@ -1,0 +1,437 @@
+:root {
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #1b1712;
+  overscroll-behavior: none;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Maru Gothic ProN',
+    'Hiragino Sans', sans-serif;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+#gl {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+#ui {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* ---------- start gate ---------- */
+#start {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(120% 90% at 50% 35%, #6f5c40 0%, #2a2119 70%, #191410 100%);
+  transition: opacity 0.55s ease;
+  z-index: 40;
+}
+
+#start.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#start-btn {
+  position: relative;
+  width: min(62vw, 62vh, 340px);
+  height: min(62vw, 62vh, 340px);
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  animation: breathe 2.4s ease-in-out infinite;
+  pointer-events: auto;
+}
+
+#start-btn canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  filter: drop-shadow(0 10px 26px rgba(0, 0, 0, 0.55));
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.055);
+  }
+}
+
+#boot {
+  position: absolute;
+  left: 50%;
+  bottom: calc(9% + var(--safe-b));
+  transform: translateX(-50%);
+  width: min(48vw, 220px);
+  height: 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+
+#boot > i {
+  display: block;
+  height: 100%;
+  width: 0%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, #ffd489, #ffb04d);
+  transition: width 0.25s ease;
+}
+
+/* ---------- tool dock ---------- */
+#dock {
+  position: absolute;
+  pointer-events: none;
+  display: flex;
+  gap: 14px;
+  z-index: 20;
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+#dock.on {
+  opacity: 1;
+}
+
+body.portrait #dock {
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(14px + var(--safe-b));
+  flex-direction: row;
+}
+
+body.landscape #dock {
+  left: calc(14px + var(--safe-l));
+  top: 50%;
+  transform: translateY(-50%);
+  flex-direction: column;
+}
+
+.tool {
+  pointer-events: auto;
+  width: 74px;
+  height: 74px;
+  border: none;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(255, 252, 244, 0.86);
+  box-shadow: 0 4px 14px rgba(40, 26, 10, 0.34), inset 0 -3px 0 rgba(0, 0, 0, 0.1);
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.18s ease,
+    background 0.18s ease;
+  cursor: pointer;
+  display: block;
+}
+
+.tool canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 50%;
+}
+
+.tool.sel {
+  background: #ffe6ab;
+  transform: scale(1.14);
+  box-shadow: 0 6px 20px rgba(40, 26, 10, 0.45), 0 0 0 5px rgba(255, 214, 128, 0.7);
+}
+
+.tool:active {
+  transform: scale(1.04);
+}
+
+/* ---------- corner buttons ---------- */
+.corner {
+  position: absolute;
+  pointer-events: auto;
+  width: 54px;
+  height: 54px;
+  border: none;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(255, 252, 244, 0.7);
+  box-shadow: 0 3px 10px rgba(40, 26, 10, 0.3);
+  cursor: pointer;
+  z-index: 20;
+  opacity: 0;
+  transition: opacity 0.5s ease, transform 0.15s ease;
+}
+
+.corner.on {
+  opacity: 1;
+}
+
+.corner:active {
+  transform: scale(0.93);
+}
+
+.corner canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 50%;
+}
+
+#btn-sound {
+  right: calc(12px + var(--safe-r));
+  top: calc(12px + var(--safe-t));
+}
+
+#btn-menu {
+  right: calc(12px + var(--safe-r));
+  top: calc(76px + var(--safe-t));
+}
+
+/* ---------- picture menu ---------- */
+#menu {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4vmin;
+  padding: 5vmin;
+  background: rgba(24, 18, 12, 0.55);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+#menu.on {
+  pointer-events: auto;
+  opacity: 1;
+}
+
+body.portrait #menu {
+  flex-direction: column;
+}
+
+body.landscape #menu {
+  flex-direction: row;
+}
+
+.card {
+  pointer-events: auto;
+  border: none;
+  padding: 0;
+  border-radius: 26px;
+  overflow: hidden;
+  background: #fffaf0;
+  box-shadow: 0 8px 26px rgba(0, 0, 0, 0.42);
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  flex: 0 0 auto;
+}
+
+body.portrait .card {
+  width: min(74vw, 330px);
+  height: min(22vh, 150px);
+}
+
+body.landscape .card {
+  width: min(28vw, 260px);
+  height: min(62vh, 260px);
+}
+
+.card canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.card:active {
+  transform: scale(0.96);
+}
+
+#menu-close {
+  position: absolute;
+  right: calc(14px + var(--safe-r));
+  top: calc(14px + var(--safe-t));
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  background: rgba(255, 252, 244, 0.9);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+}
+
+#menu-close canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 50%;
+}
+
+/* ---------- debug ---------- */
+#debug {
+  position: absolute;
+  left: calc(8px + var(--safe-l));
+  top: calc(8px + var(--safe-t));
+  z-index: 50;
+  font: 11px/1.42 ui-monospace, Menlo, monospace;
+  color: #c7ffd8;
+  background: rgba(0, 0, 0, 0.62);
+  padding: 7px 9px;
+  border-radius: 8px;
+  white-space: pre;
+  pointer-events: none;
+  display: none;
+}
+
+#debug.on {
+  display: block;
+}
+
+#debugmap {
+  position: absolute;
+  right: calc(8px + var(--safe-r));
+  bottom: calc(8px + var(--safe-b));
+  z-index: 50;
+  image-rendering: pixelated;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 4px;
+  pointer-events: none;
+  display: none;
+  opacity: 0.85;
+}
+
+#debugmap.on {
+  display: block;
+}
+
+/* ---------- ghost hand (last-resort hint) ---------- */
+#ghost {
+  position: absolute;
+  width: 96px;
+  height: 96px;
+  margin-left: -48px;
+  margin-top: -48px;
+  pointer-events: none;
+  z-index: 15;
+  opacity: 0;
+  transition: opacity 0.45s ease;
+}
+
+#ghost.on {
+  opacity: 1;
+  animation: ghostlift 2.1s ease-in-out infinite;
+}
+
+#ghost canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+@keyframes ghostlift {
+  0%,
+  100% {
+    transform: translateY(10px);
+  }
+  45% {
+    transform: translateY(-16px);
+  }
+  60% {
+    transform: translateY(-16px);
+  }
+}
+
+/* ---------- settings row inside the picture menu ---------- */
+#menu-toggles {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(16px + var(--safe-b));
+  display: flex;
+  gap: 16px;
+  pointer-events: auto;
+}
+
+.toggle {
+  width: 58px;
+  height: 58px;
+  border: none;
+  padding: 0;
+  border-radius: 50%;
+  background: rgba(255, 252, 244, 0.9);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  opacity: 1;
+}
+
+.toggle.off {
+  background: rgba(150, 140, 128, 0.72);
+}
+
+.toggle canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+  border-radius: 50%;
+}
+
+.tool.hide {
+  display: none;
+}
+
+.tool.pop {
+  animation: toolpop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes toolpop {
+  0% {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
