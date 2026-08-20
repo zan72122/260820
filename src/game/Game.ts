@@ -349,8 +349,8 @@ export class Game {
     const d = this.ray.ray.direction
     if (Math.abs(d.y) < 1e-5) return out.set(o.x, y, o.z)
     let t = (y - o.y) / d.y
-    if (t < 0.05) t = 40
-    t = Math.min(t, 40)
+    if (t < 0.05) t = 12
+    t = Math.min(t, 12)
     return out.set(o.x + d.x * t, y, o.z + d.z * t)
   }
 
@@ -438,7 +438,14 @@ export class Game {
       impactTarget.copy(plot.spec.center).addScaledVector(toPlot, -0.25).setY(WATER_Y)
     }
     if (carrying) {
-      // the hose is laid down in the water; both hands are on the rhizome
+      // the hose is laid down in the water; both hands are on the rhizome.
+      // A carried root can only go as far as a person can walk it, so a wild
+      // drag toward the horizon cannot fling it across the paddy.
+      const carryReach = new THREE.Vector3().subVectors(gripTarget, this.worker.stance).setY(0)
+      if (carryReach.length() > 1.7) {
+        carryReach.setLength(1.7)
+        gripTarget.set(this.worker.stance.x + carryReach.x, gripTarget.y, this.worker.stance.z + carryReach.z)
+      }
       this.holdPoint.lerp(gripTarget, 1 - Math.exp(-dt * 14))
       const away = this.camAz() + Math.PI
       const side = new THREE.Vector3(Math.cos(away), 0, Math.sin(away))
