@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#c6d3dd" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <title>Vacuum Excavation — Find the Pipe</title>
+    <link rel="icon" href="data:," />
+  </head>
+  <body>
+    <div id="stage">
+      <canvas id="scene"></canvas>
+      <canvas id="hint"></canvas>
+      <button id="sound" aria-label="sound">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+          <path id="spk" d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor" />
+          <g id="waves" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+            <path d="M16.5 8.6a4.6 4.6 0 0 1 0 6.8" />
+            <path d="M19 6.2a8 8 0 0 1 0 11.6" />
+          </g>
+          <path id="mute" d="M16.5 9.5l5 5m0-5l-5 5" stroke="currentColor" stroke-width="1.9"
+                stroke-linecap="round" fill="none" style="display:none" />
+        </svg>
+      </button>
+      <div id="start">
+        <div id="startInner">
+          <svg viewBox="0 0 120 120" width="118" height="118" aria-hidden="true">
+            <circle cx="60" cy="60" r="56" fill="rgba(20,24,28,0.42)" stroke="rgba(255,255,255,0.85)" stroke-width="3" />
+            <path d="M48 38 L86 60 L48 82 Z" fill="rgba(255,255,255,0.92)" />
+          </svg>
+        </div>
+      </div>
+      <div id="rotate" hidden>
+        <svg viewBox="0 0 120 90" width="120" height="90" aria-hidden="true">
+          <rect x="10" y="16" width="42" height="60" rx="6" fill="none" stroke="#fff" stroke-width="3" />
+          <rect x="62" y="28" width="52" height="36" rx="6" fill="none" stroke="#fff" stroke-width="3" />
+          <path d="M54 46 h6 m-3 -3 l3 3 l-3 3" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" />
+        </svg>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

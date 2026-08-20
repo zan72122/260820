@@ -1,0 +1,21 @@
+{
+  "name": "vacuum-dig-pipes",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Realistic industrial 3D mobile web game: find underground pipes with vacuum excavation.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview --host 0.0.0.0 --port 4173"
+  },
+  "dependencies": {
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@types/three": "^0.185.4",
+    "typescript": "^5.9.3",
+    "vite": "^7.1.9"
+  }
+}
