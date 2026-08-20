@@ -235,7 +235,7 @@ export class Game {
   }
 
   private fDig(): Framing {
-    return { tx: 0, ty: 0, tz: 0.25, w: WORLD_W - 0.35, d: WORLD_D - 0.9, pitch: 55, margin: 1.02, fov: 44, ease: 0.65 };
+    return { tx: 0, ty: 0, tz: 0.25, w: WORLD_W - 0.35, d: WORLD_D - 0.9, pitch: 55, margin: 1.07, fov: 44, ease: 0.65 };
   }
 
   private fBreach(x: number, z: number): Framing {
@@ -243,7 +243,7 @@ export class Game {
   }
 
   private fComplete(): Framing {
-    return { tx: 0, ty: 0, tz: 0.55, w: WORLD_W + 1.1, d: WORLD_D + 1.4, pitch: 42, margin: 1.04, fov: 42, ease: 0.85 };
+    return { tx: 0, ty: 0, tz: 0.55, w: WORLD_W + 1.1, d: WORLD_D + 1.4, pitch: 42, margin: 1.06, fov: 42, ease: 0.85 };
   }
 
   private applyFraming(f: Framing) {
@@ -550,6 +550,8 @@ export class Game {
         this.drag = 'mud';
         this.mudActive = true;
         this.mudHeld = 0;
+        this.digSpeed = 0;
+        this.audio.setDigging(0, 0);
         this.haptic(14);
         this.revealMud();
       }

@@ -539,7 +539,7 @@ export class Surroundings {
 
   /** Stones half-buried in the sand, matching the bumps in the height field. */
   placeStones(layout: Layout, terrain: Terrain) {
-    for (const c of this.stoneGroup.children) (c as THREE.Mesh).geometry.dispose?.();
+    // The stones share one geometry and material, so only the nodes go.
     this.stoneGroup.clear();
     for (const s of layout.stones) {
       const m = new THREE.Mesh(this.stoneGeo, this.stoneMat);
