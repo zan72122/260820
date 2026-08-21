@@ -1,0 +1,17 @@
+{
+  "_comment": "family → Poly Haven slug. Slugs are resolved through the Poly Haven API at fetch time, so renames fail loudly. Run `npm run fetch:textures` on a machine with open network access; the game falls back to procedural synthesis for any family that is missing.",
+  "families": {
+    "woodWeathered": { "slug": "weathered_planks", "maps": ["diff", "rough", "nor_gl"] },
+    "woodDark": { "slug": "rough_wood", "maps": ["diff", "rough", "nor_gl"] },
+    "plaster": { "slug": "beige_wall_001", "maps": ["diff", "rough", "nor_gl"] },
+    "kawara": { "slug": "roof_09", "maps": ["diff", "rough", "nor_gl"] },
+    "soilPacked": { "slug": "dirt_floor", "maps": ["diff", "rough", "nor_gl"] },
+    "soilTilled": { "slug": "brown_mud_03", "maps": ["diff", "rough", "nor_gl"] },
+    "stone": { "slug": "rock_boulder_dry", "maps": ["diff", "rough", "nor_gl"] },
+    "moss": { "slug": "forest_ground_04", "maps": ["diff", "rough", "nor_gl"] },
+    "gravel": { "slug": "gravel_floor", "maps": ["diff", "rough", "nor_gl"] },
+    "grassShort": { "slug": "leafy_grass", "maps": ["diff", "rough", "nor_gl"] }
+  },
+  "targetPx": { "color": 512, "data": 256 },
+  "sizeGate": { "perFamilyKB": 800, "totalMB": 6 }
+}
