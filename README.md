@@ -75,8 +75,21 @@ reveal and the weight of the hose survive on slower hardware.
 ## Checking it
 
 `scripts/play.mjs <profile> <outDir> [stopAfter]` drives a real play-through in
-Chromium (iPhone/iPad, portrait/landscape) and captures each stage.
-`scripts/checks.mjs` asserts the behaviour that matters: nothing is exposed at
-launch, the locator response tracks position, dry ground resists the nozzle,
-rapid tapping during a tool handover cannot corrupt state, and rotation keeps
-the excavation.
+Chromium (iPhone/iPad, portrait/landscape) and captures each stage;
+`scripts/frames.mjs` grabs the opening shot in all four orientations.
+
+`scripts/checks.mjs` asserts the behaviour that matters, and currently passes
+all of it:
+
+- nothing is exposed at launch
+- rapid tapping during a tool handover cannot corrupt state
+- the locator response tracks position: one clear peak, repeatable
+- dry ground barely yields to the nozzle
+- rotation preserves the excavation, and restores the framing
+- the WebGL context stays healthy and the console stays clean
+
+The page exposes a small `window.__dig` object that these scripts read (phase,
+site, depth, exposure, locator signal, and the screen point a finger must be
+at). It also carries `forceExpose()`, which bares a site instantly so the tail
+of the loop can be exercised without a full excavation — a test aid only, not
+reachable from play.
