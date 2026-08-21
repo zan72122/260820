@@ -32,7 +32,7 @@ export class Hint {
     const tex = makeGlowTexture(64, 2.2)
     for (let i = 0; i < DOTS; i++) {
       const m = new Mesh(
-        new PlaneGeometry(0.36, 0.36),
+        new PlaneGeometry(0.48, 0.48),
         new MeshBasicMaterial({
           map: tex,
           transparent: true,
@@ -48,7 +48,7 @@ export class Hint {
       this.group.add(m)
     }
     this.lead = new Mesh(
-      new PlaneGeometry(0.95, 0.95),
+      new PlaneGeometry(1.2, 1.2),
       new MeshBasicMaterial({
         map: tex,
         transparent: true,
@@ -69,8 +69,11 @@ export class Hint {
     const r = this.radius + 0.34
     this.dots.forEach((d, i) => {
       const f = i / (DOTS - 1)
-      const a = -0.34 + f * 0.86
-      d.position.set(this.pivot.x, this.pivot.y - Math.cos(a) * r, this.pivot.z - Math.sin(a) * r)
+      const a = -0.42 + f * 1.0
+      // Same parametrisation as the seat itself — inside the bay the seat sits at
+      // (0, -L cos t, +L sin t) — so the dots lie on the real arc and the sweep
+      // runs in the direction that actually advances the clock.
+      d.position.set(this.pivot.x, this.pivot.y - Math.cos(a) * r, this.pivot.z + Math.sin(a) * r)
     })
   }
 
@@ -104,7 +107,7 @@ export class Hint {
       const dist = Math.abs(i - head)
       const glow = Math.exp(-dist * dist * 0.5)
       const m = d.material as MeshBasicMaterial
-      m.opacity = this.opacity * (0.1 + glow * 0.62)
+      m.opacity = this.opacity * (0.15 + glow * 0.78)
       d.quaternion.copy(camera.quaternion)
       const s = 1 + glow * 0.5
       d.scale.setScalar(s)
@@ -116,6 +119,6 @@ export class Hint {
     this.lead.position.lerpVectors(this.dots[i0].position, this.dots[i1].position, li - i0)
     this.lead.quaternion.copy(camera.quaternion)
     ;(this.lead.material as MeshBasicMaterial).opacity =
-      this.opacity * 0.75 * (p < 0.72 ? 1 : Math.max(0, 1 - (p - 0.72) / 0.16))
+      this.opacity * 0.92 * (p < 0.72 ? 1 : Math.max(0, 1 - (p - 0.72) / 0.16))
   }
 }

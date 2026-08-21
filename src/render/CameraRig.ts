@@ -83,6 +83,7 @@ export class CameraRig {
   private leanTarget = 0
   private leanHold = 0
 
+  private bias = new Vector3()
   private time = 0
   private snapped = false
 
@@ -172,7 +173,7 @@ export class CameraRig {
       // A lean, never a leap: the offset is capped in world units, so glancing at
       // a lamp three hundred metres away moves the frame by the same small amount
       // as glancing at the bench.
-      const bias = this.leanPoint.clone().sub(this.cur.target)
+      const bias = this.bias.copy(this.leanPoint).sub(this.cur.target)
       const dist = bias.length() || 1
       bias.multiplyScalar((Math.min(3.0, dist * 0.05) * this.lean) / dist)
       bias.y = clamp(bias.y, -1.6, 2.2)

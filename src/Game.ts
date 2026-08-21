@@ -33,7 +33,9 @@ const SAVE_KEY = 'moon-pendulum-clock/v1'
  * thing this game has to keep visible.
  */
 const SWING_POS = new Vector3(-2.4, 0, 0.6)
-const SWING_YAW = -0.45
+// Turned so that the pass which drives the ratchet is the one swinging *out*
+// towards the town: the night spreading outward then follows the child's push.
+const SWING_YAW = -0.45 + Math.PI
 /** Middle ground: the machine, three metres clear of the arc beyond its guard rail. */
 const CLOCK_POS = new Vector3(0.6, 0, -6.8)
 /** Heading that turns the dial towards the authored viewpoint. */
@@ -48,9 +50,13 @@ const SENSOR_LOCAL = new Vector3(-0.81, 0, 5.84)
 /** What the sensor head is pointed at: the swing's pivot, in the machine's frame. */
 const SENSOR_AIM = new Vector3(-2.37, 0, 4.97)
 
+// Hoisted so the frame loop allocates nothing.
+const FILL_OFFSET = new Vector3(0, 5, 0)
+const FILL_WARM = new Color('#ffe0bb')
+
 export class Game {
   readonly scene = new Scene()
-  private rig = new CameraRig()
+  readonly rig = new CameraRig()
   private renderer: Renderer
   private lightRig = new LightRig()
 
@@ -80,6 +86,8 @@ export class Game {
   private last = 0
   private replayEl: HTMLButtonElement | null = null
   private tmpV = new Vector3()
+  private tmpA = new Vector3()
+  private tmpB = new Vector3()
   /** Ignition level of the clock's own dial lamp, driven through the light rig. */
   private clockDialLevel = 0
 
@@ -163,6 +171,11 @@ export class Game {
     this.scene.fog = this.fog
 
     // --- input --------------------------------------------------------------
+    this.renderer.onContextRestored = () => {
+      this.lightRig.syncInstant((g) => this.state.litOf(g))
+      this.clock.setTeeth(this.state.teeth)
+    }
+
     this.input = new Input(canvas)
     this.input.onFirstTouch = () => void this.audio.unlock()
     this.input.onSwipe = (e) => this.onSwipe(e.length, e.alignment)
@@ -221,11 +234,19 @@ export class Game {
   private frame = (now: number): void => {
     if (!this.running) return
     // A long tab switch must not fast-forward the simulation.
-    const dt = Math.min(0.05, Math.max(0.0005, (now - this.last) / 1000))
+    const real = (now - this.last) / 1000
+    // The simulation is clamped so a long tab switch cannot fast-forward the
+    // evening; the resolution scaler needs the *real* cost of the frame.
+    const dt = Math.min(0.05, Math.max(0.0005, real))
     this.last = now
     this.update(dt)
-    this.renderer.gl.render(this.scene, this.rig.camera)
-    this.renderer.measure(dt)
+    // Resize *before* drawing. The resolution scaler reallocates the drawing
+    // buffer, and a buffer that is resized after the last render can be composited
+    // before anything has been drawn into it — which shows up as a stale frame.
+    this.renderer.measure(real)
+    // While the GPU context is gone the simulation keeps running, so the evening
+    // is exactly where it was when the picture comes back.
+    if (!this.renderer.contextLost) this.renderer.gl.render(this.scene, this.rig.camera)
     requestAnimationFrame(this.frame)
   }
 
@@ -285,8 +306,8 @@ export class Game {
       this.moonLight.castShadow = moonShadows
     }
 
-    this.fill.position.copy(this.rig.camera.position).add(new Vector3(0, 5, 0))
-    this.fill.color.copy(L.ambientSky).lerp(new Color('#ffe0bb'), 0.25)
+    this.fill.position.copy(this.rig.camera.position).add(FILL_OFFSET)
+    this.fill.color.copy(L.ambientSky).lerp(FILL_WARM, 0.25)
     this.fill.intensity = L.readFill
 
     this.fog.color.copy(L.fogColor)
@@ -300,9 +321,14 @@ export class Game {
     // and the swipe test agree with what the child can see moving.
     const p = this.pendulum
     const R = p.length
-    const t = this.tmpV.set(0, Math.sin(p.theta), -Math.cos(p.theta)).multiplyScalar(0.9)
-    const a = this.swing.seatWorld.clone().project(this.rig.camera)
-    const b = this.swing.seatWorld.clone().add(t.multiplyScalar(R * 0.35)).project(this.rig.camera)
+    // Seat position inside the bay is (0, -L cos t, +L sin t), so its tangent with
+    // respect to a growing angle — the direction that drives the clock — is
+    // (0, sin t, cos t).
+    const t = this.tmpV.set(0, Math.sin(p.theta), Math.cos(p.theta)).multiplyScalar(R * 0.35)
+    // The tangent is expressed in the bay's frame, so it has to be rotated with it.
+    t.applyQuaternion(this.swing.group.quaternion)
+    const a = this.tmpA.copy(this.swing.seatWorld).project(this.rig.camera)
+    const b = this.tmpB.copy(this.swing.seatWorld).add(t).project(this.rig.camera)
     const dx = (b.x - a.x) * window.innerWidth * 0.5
     const dy = -(b.y - a.y) * window.innerHeight * 0.5
     const n = Math.hypot(dx, dy)
@@ -604,6 +630,7 @@ export class Game {
       calls: this.renderer.gl.info.render.calls,
       triangles: this.renderer.gl.info.render.triangles,
       programs: this.renderer.gl.info.programs?.length ?? 0,
+      audioReady: this.audio.ready,
     }
   }
 }

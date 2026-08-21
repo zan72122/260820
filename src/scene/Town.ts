@@ -784,6 +784,17 @@ export class Town {
 
   // ------------------------------------------------------------- behaviour
 
+  private syncCommon(u: Record<string, { value: unknown }>, L: LightingState): void {
+    ;(u.uSunDir.value as Vector3).copy(L.sunDir)
+    ;(u.uSunColor.value as Color).copy(L.warmBand)
+    u.uSunPower.value = L.sunIntensity * 0.45 + L.moonIntensity * 0.2
+    ;(u.uSkyAmbient.value as Color).copy(L.ambientSky)
+    ;(u.uGroundAmbient.value as Color).copy(L.ambientGround)
+    ;(u.uFogColor.value as Color).copy(L.fogColor)
+    u.uFogDensity.value = L.fogDensity
+    u.uContrast.value = L.distantContrast
+  }
+
   triggerBreath(): void {
     this.breathActive = 1
     this.breathFront = -320
@@ -806,24 +817,13 @@ export class Town {
       if (this.breathFront > 420) this.breathActive = 0
     }
 
-    const setCommon = (u: Record<string, { value: unknown }>) => {
-      ;(u.uSunDir.value as Vector3).copy(L.sunDir)
-      ;(u.uSunColor.value as Color).copy(L.warmBand)
-      u.uSunPower.value = L.sunIntensity * 0.45 + L.moonIntensity * 0.2
-      ;(u.uSkyAmbient.value as Color).copy(L.ambientSky)
-      ;(u.uGroundAmbient.value as Color).copy(L.ambientGround)
-      ;(u.uFogColor.value as Color).copy(L.fogColor)
-      u.uFogDensity.value = L.fogDensity
-      u.uContrast.value = L.distantContrast
-    }
-    setCommon(this.townMat.uniforms)
-    setCommon(this.terrainMat.uniforms)
+    this.syncCommon(this.townMat.uniforms, L)
+    this.syncCommon(this.terrainMat.uniforms, L)
 
     this.townMat.uniforms.uLitLevel.value = this.litLevel
     this.townMat.uniforms.uWindowEmissive.value = L.windowEmissive
     this.townMat.uniforms.uBreath.value = breathPulse
     this.townMat.uniforms.uBreathFront.value = this.breathFront
-    ;(this.townMat.uniforms.uWarm.value as Color).setHex(0xffc98a)
 
     const w = this.waterMat.uniforms
     ;(w.uDeep.value as Color).copy(L.zenith).multiplyScalar(0.45)

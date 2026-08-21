@@ -21,6 +21,7 @@ import { clamp, damp, lerp, Rng, TAU } from '../util/math'
 import { makeCloudTexture, makeGlowTexture, makeMoonTexture, makeStarSprite } from '../util/textures'
 
 const SKY_R = 900
+const MOON_HALO_TINT = new Color('#dbe4ff')
 
 const skyVert = /* glsl */ `
 varying vec3 vDir;
@@ -166,6 +167,7 @@ export class Sky {
   private time = 0
   private tmp = new Color()
   private tmpVec = new Vector3()
+  private moonPos = new Vector3()
 
   constructor(pixelScale: number) {
     this.domeMat = new ShaderMaterial({
@@ -344,7 +346,7 @@ export class Sky {
     // moon rides its own arc
     const d = L.moonDir
     this.moonPivot.position.set(0, 0, 0)
-    const md = new Vector3(d.x, d.y, d.z).normalize().multiplyScalar(760)
+    const md = this.moonPos.set(d.x, d.y, d.z).normalize().multiplyScalar(760)
     this.moon.position.copy(md)
     this.moon.lookAt(0, 0, 0)
     this.moonHalo.position.copy(md).multiplyScalar(0.985)
@@ -373,7 +375,7 @@ export class Sky {
     L.skyColorAt(L.moonDir, this.moonMat.uniforms.uSkyTint.value as Color)
     const haloMat = this.moonHalo.material as MeshBasicMaterial
     haloMat.opacity = clamp(moonReveal * (0.06 + L.starVisibility * 0.26))
-    haloMat.color.copy(L.zenith).lerp(new Color('#dbe4ff'), 0.65)
+    haloMat.color.copy(L.zenith).lerp(MOON_HALO_TINT, 0.65)
 
     // the cloud slides off the moon once, then keeps drifting
     this.moonCloudX = damp(this.moonCloudX, moonReveal, 0.5, dt)

@@ -21,6 +21,9 @@ export class Renderer {
   private fastFor = 0
   private width = 1
   private height = 1
+  /** Set while the GPU context is gone; the frame loop skips rendering. */
+  contextLost = false
+  onContextRestored: (() => void) | null = null
 
   constructor(canvas: HTMLCanvasElement) {
     let gl: WebGLRenderer | null = null
@@ -46,6 +49,19 @@ export class Renderer {
     gl.shadowMap.enabled = true
     gl.shadowMap.type = PCFSoftShadowMap
     gl.setClearColor(0x10141f, 1)
+
+    // Mobile browsers drop the GL context when memory gets tight or the tab is
+    // backgrounded. Calling preventDefault is what allows it to come back at all.
+    canvas.addEventListener('webglcontextlost', (e) => {
+      e.preventDefault()
+      this.contextLost = true
+    })
+    canvas.addEventListener('webglcontextrestored', () => {
+      this.contextLost = false
+      this.gl.setPixelRatio(this.basePR * this.scale)
+      this.gl.setSize(this.width, this.height, false)
+      this.onContextRestored?.()
+    })
 
     const dpr = window.devicePixelRatio || 1
     // Two device pixels per CSS pixel is already past the point of visible return
