@@ -72,9 +72,16 @@ async function main() {
     },
     aboveShaft: {
       name: 'aboveShaft',
-      pos: V(LIGHT_SHAFT.x + 2.2, 5.6, LIGHT_SHAFT.z + 4.6),
-      look: V(LIGHT_SHAFT.x, -1.0, LIGHT_SHAFT.z),
+      pos: V(LIGHT_SHAFT.x + 1.8, 5.4, LIGHT_SHAFT.z + 3.2),
+      look: V(LIGHT_SHAFT.x, -1.2, LIGHT_SHAFT.z - 0.4),
       portraitBack: 1.6,
+    },
+    // between the shaft and the room the camera must stay inside the opening,
+    // then get fully below the slab before it moves sideways
+    underSlab: {
+      name: 'underSlab',
+      pos: V(LIGHT_SHAFT.x - 0.5, ROOM.ceiling - 0.9, LIGHT_SHAFT.z + 0.2),
+      look: V(0.6, -10.2, 0.6),
     },
     inShaft: {
       name: 'inShaft',
@@ -130,8 +137,8 @@ async function main() {
     },
     homeShaft: {
       name: 'homeShaft',
-      pos: V(LIGHT_SHAFT.x + 2.0, 4.6, LIGHT_SHAFT.z + 4.2),
-      look: V(LIGHT_SHAFT.x - 0.6, -1.6, LIGHT_SHAFT.z - 0.4),
+      pos: V(LIGHT_SHAFT.x + 1.6, 4.6, LIGHT_SHAFT.z + 2.6),
+      look: V(LIGHT_SHAFT.x - 0.4, -2.4, LIGHT_SHAFT.z - 0.6),
       portraitBack: 1.4,
     },
     homeTank: {
@@ -416,10 +423,13 @@ async function main() {
       } else if (descentStep === 1 && sim.phaseTime > 2.6) {
         director.cut(SHOT.inShaft, 2.6);
         descentStep = 2;
-      } else if (descentStep === 2 && sim.phaseTime > 5.0) {
-        director.cut(SHOT.roomWide, 2.8);
+      } else if (descentStep === 2 && sim.phaseTime > 4.8) {
+        director.cut(SHOT.underSlab, 2.2);
         descentStep = 3;
-      } else if (descentStep === 3 && sim.phaseTime > 7.6) {
+      } else if (descentStep === 3 && sim.phaseTime > 6.8) {
+        director.cut(SHOT.roomWide, 2.4);
+        descentStep = 4;
+      } else if (descentStep === 4 && sim.phaseTime > 9.0) {
         sim.setPhase('discover');
       }
     } else if (p === 'discover') {
@@ -454,9 +464,11 @@ async function main() {
     } else if (p === 'reveal') {
       // the whole circuit, then follow the water home the way the camera came
       revealTimer += dt;
-      if (revealTimer < 5.5) director.cut(SHOT.reveal, 3.2);
-      else if (revealTimer < 9.0) director.cut(SHOT.homeShaft, 3.0);
-      else if (revealTimer < 13.5) director.cut(SHOT.homeTank, 3.0);
+      if (revealTimer < 4.6) director.cut(SHOT.reveal, 3.2);
+      else if (revealTimer < 7.4) director.cut(SHOT.homeShaft, 2.6);
+      else if (revealTimer < 10.0) director.cut(SHOT.inShaft, 2.4);
+      else if (revealTimer < 12.4) director.cut(SHOT.underSlab, 2.2);
+      else if (revealTimer < 16.2) director.cut(SHOT.homeTank, 2.8);
       else {
         sim.beginFreeplay();
         hud.buttonsVisible = true;
