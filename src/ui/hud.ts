@@ -3,7 +3,7 @@
  * 1 つの gesture に 1 つの機械動作。
  */
 import * as THREE from 'three'
-import { CHUTE_VARIANTS, type ChuteVariant } from '../build/layout'
+import { CHUTE_VARIANTS, ROLLER_START_S, SITE, chuteCenter, type ChuteVariant } from '../build/layout'
 import { clamp } from '../core/rng'
 
 export type HotspotKind = 'turn' | 'push' | 'swipe'
@@ -452,24 +452,25 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string): HTMLEle
   return e
 }
 
+/** 選択カードの断面プレビュー。実際の滑走面の中心線をそのまま描く。 */
 function variantSvg(v: ChuteVariant): string {
   const pts: string[] = []
-  for (let i = 0; i <= 24; i++) {
-    const t = i / 24
-    let y = 6 + 34 * (0.5 - 0.5 * Math.cos(Math.PI * (0.55 + t * 0.45))) * 1.6
-    if (v === 'wave') {
-      const b = Math.sin(Math.PI * t)
-      y -= 11 * b * b
-    }
-    pts.push(`${6 + t * 88},${Math.min(48, y)}`)
+  const n = 40
+  for (let i = 0; i <= n; i++) {
+    const s = i / n
+    const c = chuteCenter(s, v)
+    const base = chuteCenter(s, 'straight')
+    // 4歳児にも違いが分かるよう、まっすぐとの差だけ誇張して描く（模式図）
+    const y = base.y + (c.y - base.y) * 2.4
+    pts.push(`${(6 + s * 88).toFixed(1)},${(8 + (-y / SITE.chuteDrop) * 38).toFixed(1)}`)
   }
   const line = `<polyline points="${pts.join(' ')}" fill="none" stroke="#f2c33c" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>`
   let extra = ''
   if (v === 'roller') {
-    for (let i = 0; i < 7; i++) {
-      const t = 0.42 + (i / 7) * 0.56
-      const y = 6 + 34 * (0.5 - 0.5 * Math.cos(Math.PI * (0.55 + t * 0.45))) * 1.6
-      extra += `<circle cx="${6 + t * 88}" cy="${Math.min(48, y) + 5}" r="3.2" fill="#cdd3d6"/>`
+    for (let i = 0; i < 8; i++) {
+      const s = ROLLER_START_S + (i / 8) * (1 - ROLLER_START_S)
+      const c = chuteCenter(s, v)
+      extra += `<circle cx="${(6 + s * 88).toFixed(1)}" cy="${(8 + (-c.y / SITE.chuteDrop) * 38 + 4.5).toFixed(1)}" r="2.8" fill="#cdd3d6"/>`
     }
   }
   return `<svg viewBox="0 0 100 54" aria-hidden="true">${line}${extra}</svg>`
