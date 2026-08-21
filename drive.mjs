@@ -42,12 +42,12 @@ await until((s) => s.phase === 'introSnag' || s.phase === 'drive', 'snag');
 await shot('02-snag'); await log('snag');
 
 const gestures = {
-  peel: async (c, lift) => { for (let i = 0; i < 8; i++) await swipe(c.x - 20, c.y + lift - 30, c.x + 30, c.y + lift + H * 0.24, 10, 8); },
-  brush: async (c, lift) => { for (let i = 0; i < 12; i++) await swipe(c.x - W*0.3, c.y + lift + (i%3-1)*16, c.x + W*0.3, c.y + lift + (i%3-1)*16, 10, 8); },
-  fill: async (c, lift) => { for (let i = 0; i < 5; i++) await swipe(c.x - W*0.34, c.y + lift, c.x + W*0.34, c.y + lift, 20, 14); },
-  smooth: async (c, lift) => { for (let i = 0; i < 5; i++) await swipe(c.x - W*0.36, c.y + lift, c.x + W*0.36, c.y + lift, 18, 10); },
-  polish: async (c, lift) => {
-    for (let i = 0; i < 8; i++) {
+  peel: async (c, lift, go) => { for (let i = 0; i < 8 && await go(); i++) await swipe(c.x - 20, c.y + lift - 30, c.x + 30, c.y + lift + H * 0.24, 10, 8); },
+  brush: async (c, lift, go) => { for (let i = 0; i < 12 && await go(); i++) await swipe(c.x - W*0.3, c.y + lift + (i%3-1)*16, c.x + W*0.3, c.y + lift + (i%3-1)*16, 10, 8); },
+  fill: async (c, lift, go) => { for (let i = 0; i < 6 && await go(); i++) await swipe(c.x - W*0.34, c.y + lift, c.x + W*0.34, c.y + lift, 20, 14); },
+  smooth: async (c, lift, go) => { for (let i = 0; i < 6 && await go(); i++) await swipe(c.x - W*0.36, c.y + lift, c.x + W*0.36, c.y + lift, 18, 10); },
+  polish: async (c, lift, go) => {
+    for (let i = 0; i < 8 && await go(); i++) {
       const R = Math.min(W, H) * 0.16;
       await page.mouse.move(c.x + R, c.y + lift); await page.mouse.down();
       for (let k = 1; k <= 26; k++) { const a = (k/26)*Math.PI*4; await page.mouse.move(c.x + Math.cos(a)*R, c.y + lift + Math.sin(a)*R*0.6); await page.waitForTimeout(6); }
@@ -96,7 +96,7 @@ for (let round = 0; round < ROUNDS; round++) {
     }
     if (s.phase !== 'treat') { await page.waitForTimeout(400); continue; }
     const id = s.stepId;
-    await gestures[id](s.workScreen, s.liftPx);
+    await gestures[id](s.workScreen, s.liftPx, async () => (await st()).stepId === id);
     await page.waitForTimeout(500);
     const after = await st();
     if (after.stepId !== id || after.phase !== 'treat') {

@@ -62,6 +62,7 @@ export class Game {
   private tmp2 = new THREE.Vector3();
   private outdoor = 1;
   private waterQuality = 0;
+  private respawn = 0;
 
   constructor(
     private world: World,
@@ -120,7 +121,7 @@ export class Game {
 
   private prepareRound(): void {
     const kind = defectForRound(this.round, this.rng);
-    const seam = seamForRound(this.round, this.world.collars.length, this.rng);
+    const seam = seamForRound(this.round, this.world.collars.length);
     for (const c of this.world.collars) {
       if (c.index === seam) continue;
       if (c.defect) c.clearDefect();
@@ -134,6 +135,9 @@ export class Game {
   }
 
   private setPhase(p: Phase): void {
+    if (p !== 'drive') this.audio.loop('wheels')?.silence();
+    if (p !== 'dropWatch') this.audio.loop('flow')?.silence();
+    if (p !== 'raftTest') this.audio.loop('raft')?.silence();
     this.phase = p;
     this.timer = 0;
     this.hintTimer = 0;
@@ -196,8 +200,12 @@ export class Game {
   private onDropletFinished(): void {
     if (this.phase === 'dropWatch') {
       this.audio.splash();
-      this.startRaftTest();
+      void this.startRaftTest();
+      return;
     }
+    // A fault that only slows the water needs the water to keep coming, or the
+    // clue disappears down the pipe and never returns.
+    if (this.phase === 'drive' || this.phase === 'lightSearch') this.respawn = 2.4;
   }
 
   private replayWater(): void {
@@ -237,10 +245,35 @@ export class Game {
     this.prepareRound();
     this.world.collars[prev].markMaps();
     this.driveTarget = this.parkingU();
+    // A fault behind the machine means this run is finished: come back out and
+    // start a fresh pass from the inspection bench.
+    const restart = this.driveTarget <= this.world.crawler.u + 0.002;
+    if (restart) {
+      this.world.crawler.setU(0.002);
+      this.world.crawler.speed = 0;
+      this.outdoor = 1;
+    }
     this.driveStarted = false;
     this.drivePush = 0;
+    this.releaseInspectionDrop(restart);
     this.setPhase('drive');
-    this.director.play(this.shots.driveFollow, 1.8, 'driveFollow');
+    this.director.play(
+      restart ? this.shots.deck : this.shots.driveFollow,
+      2.0,
+      restart ? 'deck' : 'driveFollow',
+    );
+  }
+
+  /** Sends a fresh inspection droplet down ahead of the machine. */
+  private releaseInspectionDrop(fromMouth: boolean): void {
+    const u = fromMouth
+      ? 0.012
+      : Math.min(0.9, this.world.crawler.u + this.world.slide.metersToU(0.5));
+    this.world.droplet.obstacleU = this.world.active.u;
+    this.world.droplet.obstacleStrength =
+      this.world.active.defect === 'step' || this.world.active.defect === 'oldSealant' ? 1 : 0.72;
+    this.world.droplet.release(u);
+    this.respawn = 0;
   }
 
   /** Where the machine stops: close enough to work, far enough to rake light. */
@@ -343,6 +376,12 @@ export class Game {
 
   update(dt: number): void {
     this.timer += dt;
+    if (this.respawn > 0) {
+      this.respawn -= dt;
+      if (this.respawn <= 0 && (this.phase === 'drive' || this.phase === 'lightSearch')) {
+        this.releaseInspectionDrop(false);
+      }
+    }
     this.ctx.viewport = this.stage.viewport;
     this.ctx.liftPx = this.input.liftPx;
     this.audio.setOutdoor(this.outdoor);
@@ -412,24 +451,28 @@ export class Game {
         if (this.timer > 0.45) this.beginStep();
         break;
 
-      case 'dropTest':
-        this.world.park.setLever(damp(this.hud.leverValue, this.hud.leverValue, 10, dt));
+      case 'dropTest': {
+        this.world.park.setLever(this.hud.leverValue);
         this.hintTimer += dt;
         if (this.hintTimer > 3.2 && !this.hud.hinting) {
-          const r = { x: this.stage.viewport.width * 0.86, y: this.stage.viewport.height * 0.7 };
+          const from = this.hud.leverCentre();
           this.hud.showHint({
             kind: 'swipe',
-            from: r,
-            to: { x: r.x, y: r.y + this.stage.viewport.height * 0.1 },
+            from,
+            to: { x: from.x, y: from.y + this.hud.leverTravel() },
             period: 1.8,
           });
         }
         break;
+      }
 
-      case 'dropWatch':
+      case 'dropWatch': {
         this.world.park.setLever(damp(this.world.park.leverPivot.rotation.x / 0.85, 0, 4, dt));
         this.outdoor = this.world.droplet.u > 0.02 ? 0 : 1;
+        const v = clamp(this.world.droplet.speed / 2.6, 0, 1);
+        this.audio.loop('flow')?.set(this.world.droplet.running ? 0.02 + v * 0.06 : 0, 1500 + v * 1400, 0.8 + v * 0.5);
         break;
+      }
 
       case 'raftTest':
         this.outdoor = 1;
@@ -468,7 +511,7 @@ export class Game {
 
     // aim the beam along the pipe so the machine reads as looking where it goes
     crawler.aimX = damp(crawler.aimX, 0, 2, dt);
-    crawler.aimY = damp(crawler.aimY, 0.45, 2, dt);
+    crawler.aimY = damp(crawler.aimY, 0.05, 2, dt);
 
     if (crawler.u * slide.length > 3.4 && this.director.name === 'deck') {
       this.director.play(this.shots.driveFollow, 1.9, 'driveFollow');
@@ -478,6 +521,7 @@ export class Game {
 
     if (remaining <= 0.06 && crawler.speed < 0.12) {
       this.audio.loop('wheels')?.silence();
+      this.audio.latch();
       crawler.speed = 0;
       this.beginLightSearch();
       return;
@@ -517,6 +561,10 @@ export class Game {
     this.reveal = 0;
     this.revealHold = 0;
     this.twitchTimer = 0;
+    // Park the beam deliberately short and off to one side: the fault has to be
+    // found, not handed over.
+    this.world.crawler.aimX = -0.52;
+    this.world.crawler.aimY = -0.58;
     this.hud.showKnob(true);
     this.hud.setKnob(this.world.crawler.aimX, this.world.crawler.aimY);
     this.director.play(this.shots.inspect, 1.8, 'inspect');
@@ -548,9 +596,11 @@ export class Game {
     const wait = this.round === 0 ? 4.0 : 8.0;
     if (this.twitchTimer > wait) {
       this.twitchTimer = 0;
-      if (this.world.droplet.running || this.world.droplet.group.visible) {
+      if (this.world.droplet.group.visible) {
         this.world.droplet.twitch();
         this.audio.snag();
+      } else if (this.respawn <= 0) {
+        this.respawn = 0.6;
       }
     }
     if (this.hintTimer > wait * 1.4 && !this.hud.hinting) {
@@ -571,7 +621,6 @@ export class Game {
     const step = this.step;
     if (!step) return;
     step.update(dt);
-    this.world.tools.press = damp(this.world.tools.press, this.world.tools.press, 8, dt);
     if (step.done) {
       this.finishStep();
       return;

@@ -237,6 +237,7 @@ export class Hud {
 
   showTray(ids: StepId[] | null, highlight: StepId | null = null): void {
     if (!ids || ids.length === 0) {
+      if (this.trayButtons.size === 0) return;
       this.tray.classList.remove('on');
       this.tray.innerHTML = '';
       this.trayButtons.clear();
@@ -352,8 +353,14 @@ export class Hud {
     this.applyKnob();
   }
 
-  /** Screen rectangle that HUD furniture occupies, so shots can avoid it. */
-  reservedBottom(): number {
-    return this.landscape ? 0.1 : 0.26;
+  /** Centre of the water lever in CSS pixels, for placing the gesture demo. */
+  leverCentre(): { x: number; y: number } {
+    const r = this.lever.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height * 0.28 };
+  }
+
+  /** Height of the lever grip travel, used by the same demo. */
+  leverTravel(): number {
+    return this.lever.getBoundingClientRect().height * 0.45;
   }
 }

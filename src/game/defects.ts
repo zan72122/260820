@@ -1,4 +1,4 @@
-import { Rng } from '../core/util';
+import type { Rng } from '../core/util';
 
 export type StepId = 'peel' | 'brush' | 'fill' | 'smooth' | 'polish';
 
@@ -26,9 +26,13 @@ export function defectForRound(round: number, rng: Rng): DefectKind {
   return rng.pick(LATER);
 }
 
-/** Which seam of the flume holds the fault for this round. */
-export function seamForRound(round: number, seamCount: number, rng: Rng): number {
-  if (round === 0) return 0;
-  if (round === 1) return 1;
-  return 2 + rng.int(Math.max(1, seamCount - 2));
+/**
+ * Which joint holds the fault for this round.
+ *
+ * Faults are always found further down the flume than the last one, so the
+ * crawler only ever drives forwards. Once the last joint is done the machine
+ * leaves by the exit and the next inspection run starts at the mouth again.
+ */
+export function seamForRound(round: number, seamCount: number): number {
+  return round % seamCount;
 }
