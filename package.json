@@ -1,0 +1,33 @@
+{
+  "name": "hono-kurashi-no-niwa",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "「ほの暮しの庭」— a cozy Japanese garden 3D game (Three.js + Vite + TypeScript)",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4173 --strictPort",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test:unit": "vitest run",
+    "test:e2e": "playwright test",
+    "verify": "npm run lint && npm run typecheck && npm run test:unit",
+    "fetch:textures": "node scripts/fetch-textures.mjs"
+  },
+  "dependencies": {
+    "three": "0.185.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "@playwright/test": "^1.57.0",
+    "@types/node": "^22.19.11",
+    "@types/three": "^0.185.4",
+    "eslint": "^9.39.2",
+    "sharp": "^0.34.5",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.4",
+    "vite": "^7.3.1",
+    "vitest": "^3.2.4"
+  }
+}

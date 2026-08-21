@@ -1,0 +1,63 @@
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #1a1712;
+}
+
+#app {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+#game {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+#ui {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  font-family: 'Hiragino Sans', 'Noto Sans JP', system-ui, sans-serif;
+  color: #f2ead9;
+}
+
+#prompt {
+  position: absolute;
+  left: 50%;
+  bottom: 12%;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  background: rgba(26, 23, 18, 0.72);
+  border-radius: 3px;
+  font-size: 15px;
+  letter-spacing: 0.06em;
+}
+
+#chores {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  padding: 8px 12px;
+  background: rgba(26, 23, 18, 0.55);
+  border-radius: 3px;
+  font-size: 13px;
+  line-height: 1.7;
+  white-space: pre-line;
+}
+
+#fatal {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  transform: translateX(-50%);
+  max-width: 32em;
+  padding: 1em 1.5em;
+  background: rgba(60, 20, 16, 0.92);
+  border-radius: 4px;
+  font-size: 14px;
+}
