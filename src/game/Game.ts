@@ -246,7 +246,7 @@ export class Game {
     const centre = new THREE.Vector3(cfg.origin.x, pipe.a.y, cfg.origin.z);
 
     const slice = new THREE.Mesh(
-      new THREE.PlaneGeometry(3.4, 1.15),
+      new THREE.PlaneGeometry(2.8, 0.95),
       new THREE.MeshBasicMaterial({
         color: 0x4c3c28,
         transparent: true,
@@ -262,9 +262,11 @@ export class Game {
     this.cutawayGroup.add(slice);
 
     const ghost = new THREE.Mesh(
-      new THREE.CylinderGeometry(pipe.radius, pipe.radius, 3.2, 16),
-      new THREE.MeshBasicMaterial({
-        color: 0x549ac6,
+      new THREE.CylinderGeometry(pipe.radius, pipe.radius, 2.6, 18),
+      new THREE.MeshStandardMaterial({
+        color: 0x4c8cb4,
+        roughness: 0.5,
+        metalness: 0,
         transparent: true,
         opacity: 0,
         depthWrite: false,
@@ -278,7 +280,7 @@ export class Game {
 
     // the grade line, so the buried depth is legible at a glance
     const grade = new THREE.Mesh(
-      new THREE.PlaneGeometry(3.4, 0.012),
+      new THREE.PlaneGeometry(2.8, 0.01),
       new THREE.MeshBasicMaterial({
         color: 0xe8e2d4,
         transparent: true,
@@ -535,7 +537,8 @@ export class Game {
         this.cutawayGroup.visible = true;
         const shot = SHOTS.cutaway();
         shot.dir = this.cutawayDir;
-        this.director.setShot(shot, this.tmp.copy(SITES[0].origin).setY(-0.22));
+        // a hard cut: the section is a diagram beat, not a camera move
+        this.director.setShot(shot, this.tmp.copy(SITES[0].origin).setY(-0.22), true);
         break;
       }
       case 'handoff': {
@@ -772,9 +775,9 @@ export class Game {
 
   private updateCutaway(dt: number) {
     const t = clamp01(this.phaseTime / 0.6) * clamp01((2.9 - this.phaseTime) / 0.6);
-    const peak = [0.52, 0.88, 0.6];
+    const peak = [0.42, 0.9, 0.6];
     this.cutawayGroup.children.forEach((c, i) => {
-      const m = (c as THREE.Mesh).material as THREE.MeshBasicMaterial;
+      const m = (c as THREE.Mesh).material as THREE.Material;
       m.opacity = t * peak[i];
     });
     // step the operator aside so nothing stands in front of the section

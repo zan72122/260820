@@ -237,10 +237,10 @@ export const SHOTS = {
   /** Short underground cutaway, only unlocked after the first find. */
   cutaway: (): Shot => ({
     dir: new THREE.Vector3(-0.94, 0.16, -0.3).normalize(),
-    distance: 2.6,
+    distance: 4.6,
     fov: 40,
     ndcY: 0.03,
-    raise: -0.1,
+    raise: -0.05,
     portraitDistance: 1.22,
     portraitFov: 48,
     speed: 1.4,
