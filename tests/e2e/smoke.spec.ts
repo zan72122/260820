@@ -43,6 +43,31 @@ test('ガター投球は0ピンで記帳される', async ({ page }) => {
   expect(result.standing).toBe(10);
 });
 
+test('実ポインタのドラッグスイングで投球できる', async ({ page }) => {
+  await page.goto('/?fast=1&seed=42');
+  await page.waitForFunction(() => window.__game?.ready === true);
+
+  // 引いてから振り抜く（真っ直ぐ・速め）
+  await page.mouse.move(480, 380);
+  await page.mouse.down();
+  for (let i = 0; i <= 4; i++) {
+    await page.mouse.move(480, 380 + i * 20, { steps: 1 });
+    await page.waitForTimeout(14);
+  }
+  for (let i = 0; i <= 10; i++) {
+    await page.mouse.move(480, 460 - i * 40, { steps: 1 });
+    await page.waitForTimeout(10);
+  }
+  await page.mouse.up();
+
+  expect(await page.evaluate(() => window.__game!.state)).toBe('rolling');
+  const rolls = await page.evaluate(() => {
+    window.__game!.advance(9);
+    return window.__game!.rolls();
+  });
+  expect(rolls).toHaveLength(1);
+});
+
 test('同一シード・同一投球で同一ピンフォール（決定論）', async ({ page }) => {
   const run = async (): Promise<number[]> => {
     await page.goto('/?fast=1&seed=42');
