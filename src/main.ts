@@ -23,8 +23,8 @@ const handles = buildGardenScene(app.scene, flags)
 
 // Provisional camera until FollowCamera lands (M6): stand in the garden
 // looking north toward the house.
-app.camera.position.set(1.2, 1.7, 4.5)
-app.camera.lookAt(0, 0.9, -3)
+app.camera.position.set(2.4, 1.6, 3.8)
+app.camera.lookAt(-1.4, 1.1, -3.6)
 
 function update(): void {
   const actions = queuedActions.splice(0)
@@ -35,7 +35,8 @@ function update(): void {
 }
 
 function render(): void {
-  handles.playerRoot.position.set(state.player.x, 0.65, state.player.z)
+  const groundY = handles.ground.heightAt(state.player.x, state.player.z)
+  handles.playerRoot.position.set(state.player.x, groundY + 0.65, state.player.z)
   handles.playerRoot.rotation.y = state.player.heading
   app.render()
 }
@@ -55,7 +56,7 @@ if (flags.test) {
     getState: () => state,
     dispatch: (action) => queuedActions.push(action),
     step: (n) => loop.step(n),
-    usedFallbackTextures: () => [],
+    usedFallbackTextures: () => handles.registry.usedFallbackTextures(),
     getCameraPos: () => ({
       x: app.camera.position.x,
       y: app.camera.position.y,
