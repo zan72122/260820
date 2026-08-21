@@ -9,7 +9,7 @@ import type { Hud } from '../ui/hud';
 import { WORK_THETA } from '../world/slide';
 import { DEFECT_STEPS, defectForRound, seamForRound, type StepId } from './defects';
 import { makeShots, type Shots } from './shots';
-import { makeStep, type Step, type StepCtx } from './steps';
+import { makeStep, toScreen, workPoint, type Step, type StepCtx } from './steps';
 import type { World } from './world';
 
 export type Phase =
@@ -107,6 +107,13 @@ export class Game {
     this.prepareRound();
     this.world.crawler.setU(0.002);
     this.world.crawler.setLampEnabled(true, this.stage.tier >= 1);
+    if (settings.e2e && settings.jump) {
+      this.world.crawler.setU(this.parkingU());
+      this.outdoor = 0;
+      this.director.snap(this.shots.inspect, this.stage.viewport);
+      this.beginLightSearch();
+      return;
+    }
     this.setPhase('establish');
     this.director.snap(this.shots.establish, this.stage.viewport);
   }
@@ -238,7 +245,7 @@ export class Game {
 
   /** Where the machine stops: close enough to work, far enough to rake light. */
   private parkingU(): number {
-    return Math.max(0.004, this.world.active.u - this.world.slide.metersToU(0.95));
+    return Math.max(0.004, this.world.active.u - this.world.slide.metersToU(2.6));
   }
 
   // ---- tools -----------------------------------------------------------
@@ -339,6 +346,14 @@ export class Game {
     this.ctx.viewport = this.stage.viewport;
     this.ctx.liftPx = this.input.liftPx;
     this.audio.setOutdoor(this.outdoor);
+    const wantWorkLight =
+      this.phase === 'treat' || this.phase === 'discover' || this.phase === 'toolPick';
+    this.world.workLight.intensity = damp(
+      this.world.workLight.intensity,
+      wantWorkLight ? 0.75 : 0,
+      3,
+      dt,
+    );
 
     switch (this.phase) {
       case 'establish':
@@ -373,6 +388,7 @@ export class Game {
 
       case 'lightSearch':
         this.updateLightSearch(dt);
+        this.world.crawler.fill.intensity = damp(this.world.crawler.fill.intensity, 0.6, 2, dt);
         break;
 
       case 'discover':
@@ -452,7 +468,7 @@ export class Game {
 
     // aim the beam along the pipe so the machine reads as looking where it goes
     crawler.aimX = damp(crawler.aimX, 0, 2, dt);
-    crawler.aimY = damp(crawler.aimY, 0.75, 2, dt);
+    crawler.aimY = damp(crawler.aimY, 0.45, 2, dt);
 
     if (crawler.u * slide.length > 3.4 && this.director.name === 'deck') {
       this.director.play(this.shots.driveFollow, 1.9, 'driveFollow');
@@ -548,6 +564,10 @@ export class Game {
 
   private updateTreat(dt: number): void {
     this.outdoor = 0;
+    // keep the lamp on the work while a head is in contact
+    this.world.crawler.aimX = damp(this.world.crawler.aimX, 0, 3, dt);
+    this.world.crawler.aimY = damp(this.world.crawler.aimY, 0, 3, dt);
+    this.world.crawler.fill.intensity = damp(this.world.crawler.fill.intensity, 1.1, 2, dt);
     const step = this.step;
     if (!step) return;
     step.update(dt);
@@ -563,7 +583,11 @@ export class Game {
 
   /** Snapshot used by the automated browser pass. */
   snapshot(): Record<string, unknown> {
+    const centre = toScreen(this.ctx, workPoint(this.ctx, 0, 0).point);
     return {
+      workScreen: { x: Math.round(centre.x), y: Math.round(centre.y) },
+      liftPx: Math.round(this.input.liftPx),
+      driveDir: { x: Number(this.driveDir.x.toFixed(3)), y: Number(this.driveDir.y.toFixed(3)) },
       phase: this.phase,
       round: this.round,
       seam: this.world.activeIndex,

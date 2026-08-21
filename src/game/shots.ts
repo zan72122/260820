@@ -26,12 +26,20 @@ export function makeShots(world: World): Record<string, ShotFn> {
   const slide = world.slide;
 
   const establish: ShotFn = (t, vp, out) => {
-    const a = -0.55 + t * 0.045;
-    const R = vp.portrait ? 41 : 33;
-    out.pos.set(0.6 + Math.cos(a) * R, 15 + Math.sin(t * 0.22) * 1.2, 19 + Math.sin(a) * R * 0.62);
-    slide.curve.getPointAt(0.45, out.look);
-    out.look.y += 1.5;
-    out.fov = vp.portrait ? 58 : 46;
+    // Portrait looks down the length of the flume so its run reads vertically;
+    // landscape swings out to the side where the whole structure fits across.
+    const drift = Math.sin(t * 0.16) * 2.4;
+    if (vp.portrait) {
+      out.pos.set(-15 - drift * 0.4, 20.5, -20 + drift);
+      slide.curve.getPointAt(0.38, out.look);
+      out.look.y += 1.0;
+      out.fov = 54;
+    } else {
+      out.pos.set(-33 - drift, 17.5, 2 + drift * 1.6);
+      slide.curve.getPointAt(0.42, out.look);
+      out.look.y -= 0.5;
+      out.fov = 44;
+    }
     out.roll = 0;
     out.pitch = 0;
   };
@@ -53,9 +61,8 @@ export function makeShots(world: World): Record<string, ShotFn> {
   /** Rides just behind the inspection droplet as it runs into the pipe. */
   const dropChase: ShotFn = (_t, vp, out) => {
     const u = world.droplet.u;
-    const back = slide.metersToU(1.35);
-    slide.floorAt(clamp(u - back, 0, 1), 0.62, out.pos);
-    slide.floorAt(clamp(u + slide.metersToU(0.5), 0, 1), 0.08, out.look);
+    slide.floorAt(clamp(u - slide.metersToU(1.15), 0, 1), 0.44, out.pos);
+    slide.floorAt(clamp(u + slide.metersToU(3.2), 0, 1), 0.3, out.look);
     out.fov = vp.portrait ? 66 : 54;
     out.roll = 0;
     out.pitch = vp.portrait ? -0.06 : 0;
@@ -73,22 +80,27 @@ export function makeShots(world: World): Record<string, ShotFn> {
 
   const driveFollow: ShotFn = (_t, vp, out) => {
     const u = world.crawler.u;
-    slide.floorAt(clamp(u - slide.metersToU(1.9), 0, 1), 0.72, out.pos);
-    slide.floorAt(clamp(u + slide.metersToU(1.2), 0, 1), 0.16, out.look);
+    slide.floorAt(clamp(u - slide.metersToU(1.9), 0, 1), 0.6, out.pos);
+    slide.floorAt(clamp(u + slide.metersToU(3.4), 0, 1), 0.38, out.look);
     out.fov = vp.portrait ? 64 : 52;
     out.roll = 0;
     out.pitch = vp.portrait ? -0.05 : 0;
   };
 
-  /** Over the machine's shoulder while the lamp is swept across the joint. */
+  /**
+   * Ahead of the machine, low and slightly off the centre line, while the lamp
+   * is swept across the joint. Close enough to read the seam, wide enough to see
+   * the beam arrive on it.
+   */
   const inspect: ShotFn = (_t, vp, out) => {
     const uS = slide.seams[world.activeIndex];
-    const uC = world.crawler.u;
-    slide.floorAt(clamp(uC - slide.metersToU(1.05), 0, 1), 0.66, out.pos);
-    slide.floorAt(clamp(uS + slide.metersToU(0.1), 0, 1), 0.09, out.look);
+    const f = slide.frame(uS);
+    slide.floorAt(clamp(uS - slide.metersToU(2.2), 0, 1), 0.92, out.pos);
+    out.pos.addScaledVector(f.r, vp.portrait ? 0.3 : 0.6);
+    slide.floorAt(clamp(uS + slide.metersToU(3.2), 0, 1), 0.36, out.look);
     out.fov = vp.portrait ? 60 : 48;
     out.roll = 0;
-    out.pitch = vp.portrait ? -0.1 : -0.02;
+    out.pitch = vp.portrait ? -0.12 : -0.03;
   };
 
   /** Raking macro used for every treatment step. */
@@ -98,9 +110,9 @@ export function makeShots(world: World): Record<string, ShotFn> {
     slide.pointAt(uS, 0, 0, A);
     slide.normalAt(uS, 0, B);
     const fov = vp.portrait ? 62 : 46;
-    const frac = vp.portrait ? 0.78 : 0.5;
-    const d = clamp(fit(0.72, frac, fov, vp.aspect), 0.6, 2.9);
-    const elev = rad(54);
+    const frac = vp.portrait ? 0.86 : 0.56;
+    const d = clamp(fit(0.74, frac, fov, vp.aspect), 0.6, 2.9);
+    const elev = rad(36);
     out.pos
       .copy(A)
       .addScaledVector(B, d * Math.sin(elev))
@@ -114,8 +126,8 @@ export function makeShots(world: World): Record<string, ShotFn> {
   /** Low chase used for the proving droplet after the repair. */
   const waterTest: ShotFn = (_t, vp, out) => {
     const u = world.droplet.u;
-    slide.floorAt(clamp(u - slide.metersToU(0.95), 0, 1), 0.3, out.pos);
-    slide.floorAt(clamp(u + slide.metersToU(0.8), 0, 1), 0.06, out.look);
+    slide.floorAt(clamp(u - slide.metersToU(1.0), 0, 1), 0.32, out.pos);
+    slide.floorAt(clamp(u + slide.metersToU(2.4), 0, 1), 0.12, out.look);
     out.fov = vp.portrait ? 64 : 52;
     out.roll = 0;
     out.pitch = vp.portrait ? -0.07 : -0.01;

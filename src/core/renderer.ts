@@ -48,11 +48,11 @@ export class Stage {
     this.renderer.setClearColor(0x0a1c2a, 1);
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.06;
+    this.renderer.toneMappingExposure = 0.9;
     this.renderer.shadowMap.enabled = false;
 
     this.dprCap = settings.fast ? 1 : 2;
-    this.tier = settings.fast ? 0 : 2;
+    this.tier = settings.fast ? 1 : 2;
 
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(52, 1, 0.05, 260);

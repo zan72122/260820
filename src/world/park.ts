@@ -26,10 +26,11 @@ export class Park {
     this.group.name = 'park';
 
     const tiles = deckTiles();
-    tiles.repeat.set(60, 60);
+    tiles.repeat.set(150, 150);
     const deck = new THREE.Mesh(
-      new THREE.PlaneGeometry(220, 220),
+      new THREE.PlaneGeometry(600, 600),
       new THREE.MeshStandardMaterial({
+        color: 0xd9e3e0,
         map: tiles,
         roughness: 0.42,
         roughnessMap: roughnessCloud(0.4, 0.22, 41, 'deckRough'),
@@ -127,7 +128,7 @@ export class Park {
         ]),
       );
     }
-    const mesh = new THREE.Mesh(mergeGeoms(geoms), this.mat.aluminium);
+    const mesh = new THREE.Mesh(mergeGeoms(geoms), this.mat.galv);
     g.add(mesh);
     return g;
   }
@@ -157,7 +158,7 @@ export class Park {
       legs.push(transformed(new THREE.BoxGeometry(4.2, 0.12, 0.12), [base.x, y, base.z + 2]));
       legs.push(transformed(new THREE.BoxGeometry(0.12, 0.12, 4.2), [base.x - 2, y, base.z]));
     }
-    g.add(new THREE.Mesh(mergeGeoms(legs), this.mat.aluminium));
+    g.add(new THREE.Mesh(mergeGeoms(legs), this.mat.galv));
 
     const deckMat = this.mat.plastic(0xdfe8e6);
     const platform = new THREE.Mesh(softBox(5.6, 0.22, 5.6, 0.06), deckMat);
@@ -219,7 +220,7 @@ export class Park {
         );
       }
     }
-    const legMesh = new THREE.Mesh(mergeGeoms(legs), this.mat.aluminium);
+    const legMesh = new THREE.Mesh(mergeGeoms(legs), this.mat.galv);
 
     const tank = new THREE.Mesh(
       new THREE.CylinderGeometry(0.16, 0.16, 0.34, 18),
@@ -299,7 +300,7 @@ export class Park {
       blob.position.set(x, 0.01, z);
       g.add(blob);
     }
-    g.add(new THREE.Mesh(mergeGeoms(poles), this.mat.aluminium));
+    g.add(new THREE.Mesh(mergeGeoms(poles), this.mat.galv));
     return g;
   }
 

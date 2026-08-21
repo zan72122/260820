@@ -30,6 +30,8 @@ export class World {
   tools!: ToolKit;
   collars: SeamCollar[] = [];
   dust!: Puffs;
+  /** Soft lamp riding with the camera so materials stay readable up close. */
+  workLight!: THREE.PointLight;
   haze!: Puffs;
   spray!: Puffs;
 
@@ -51,7 +53,7 @@ export class World {
     this.env = buildEnvironment(this.stage.renderer);
     const scene = this.scene;
     scene.environment = this.env.envMap;
-    scene.fog = new THREE.FogExp2(0xbcd6e0, 0.0068);
+    scene.fog = new THREE.FogExp2(0xc6dbe3, 0.0042);
     scene.add(this.env.sky, this.env.hemi, this.env.sun, this.env.sun.target);
     progress(0.15);
     await nextFrame();
@@ -80,6 +82,8 @@ export class World {
 
     this.crawler = new Crawler(this.slide, this.mat);
     this.scene.add(this.crawler.group, this.crawler.lampTarget);
+    this.workLight = new THREE.PointLight(0xdcecf5, 0, 7, 1.15);
+    this.scene.add(this.workLight);
     this.tools = new ToolKit(this.mat);
     this.scene.add(this.tools.group);
     this.droplet = new Droplet(this.slide, this.env.envMap);
@@ -120,6 +124,12 @@ export class World {
   }
 
   update(dt: number): void {
+    if (this.slide.shell) {
+      this.slide.shell.visible = !this.slide.isInside(this.stage.camera.position);
+    }
+    if (this.workLight) {
+      this.workLight.position.copy(this.stage.camera.position);
+    }
     this.crawler?.update(dt);
     this.droplet?.update(dt);
     this.raft?.update(dt);

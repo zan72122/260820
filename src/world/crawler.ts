@@ -88,11 +88,11 @@ export class Crawler {
     const lens = new THREE.Mesh(new THREE.CircleGeometry(0.04, 18), mat.glass);
     lens.position.z = 0.031;
     const halo = new THREE.Mesh(
-      new THREE.CircleGeometry(0.055, 18),
+      new THREE.CircleGeometry(0.05, 16),
       new THREE.MeshBasicMaterial({
         color: 0xfff2d0,
         transparent: true,
-        opacity: 0.55,
+        opacity: 0.3,
         depthWrite: false,
       }),
     );
@@ -101,7 +101,7 @@ export class Crawler {
     this.mast.add(this.turret);
     this.group.add(this.mast);
 
-    this.lamp = new THREE.SpotLight(0xfff0d2, 26, 7.5, 0.34, 0.62, 1.4);
+    this.lamp = new THREE.SpotLight(0xfff0d2, 5.5, 9, 0.42, 0.55, 1.2);
     this.lamp.position.set(0, 0, 0.03);
     this.lamp.castShadow = true;
     this.lamp.shadow.mapSize.set(512, 512);
@@ -112,15 +112,15 @@ export class Crawler {
     this.turret.add(this.lamp);
     this.lamp.target = this.lampTarget;
 
-    this.fill = new THREE.PointLight(0xcfe6f2, 1.6, 5.5, 1.6);
+    this.fill = new THREE.PointLight(0xcfe6f2, 0.6, 5.5, 1.8);
     this.fill.position.set(0, 0.28, 0.05);
     this.group.add(this.fill);
 
     // service boom that reaches out to whatever head is in use
     this.boomPivot.position.set(0, 0.2, 0.19);
     this.boom = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.016, 0.019, 1, 10),
-      mat.aluminium,
+      new THREE.CylinderGeometry(0.011, 0.014, 1, 8),
+      mat.galv,
     );
     this.boom.geometry.translate(0, 0.5, 0);
     this.boom.scale.y = 0.2;
@@ -165,7 +165,7 @@ export class Crawler {
 
   /** Where the beam lands on the flume wall, in slide coordinates. */
   aimSlide(): { u: number; theta: number } {
-    const ahead = lerp(0.24, 1.75, (this.aimY + 1) / 2);
+    const ahead = lerp(0.3, 3.2, (this.aimY + 1) / 2);
     return {
       u: clamp(this.u + this.slide.metersToU(ahead), 0, 1),
       theta: this.aimX * 0.75,

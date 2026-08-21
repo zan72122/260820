@@ -181,10 +181,12 @@ export class PeelStep extends Step {
     const slide = this.ctx.world.slide;
     const collar = this.ctx.world.active;
     const front = -WORK_THETA + 2 * WORK_THETA * this.progress;
+    // Lifted clear of the wall and trailing back towards the operator, tracking
+    // the finger across the joint but locked to the peel line along it.
     slide.pointAt(
-      collar.u + slide.metersToU(0.09 + this.progress * 0.05 + w.t * 0.05),
+      collar.u + slide.metersToU(clamp(w.t, -1, 0.4) * 0.16 - 0.07),
       front,
-      -0.09 - this.progress * 0.13,
+      0.1 + this.progress * 0.15,
       r.grab,
     );
     r.rebuild();
@@ -248,7 +250,7 @@ export class BrushStep extends Step {
       scratch.copy(w.normal).multiplyScalar(0.25);
       puffs.emit(w.point, scratch, 0.14, 1, 0.5);
     }
-    if (this.progress >= 0.94 && !this.done) {
+    if (this.progress >= 0.9 && !this.done) {
       this.done = true;
       this.ctx.audio.stepDone();
     }
@@ -297,7 +299,7 @@ export class FillStep extends Step {
     }
     bead.rebuild();
     this.progress = bead.coverage();
-    if (this.progress >= 0.9 && !this.done) {
+    if (this.progress >= 0.85 && !this.done) {
       this.done = true;
       this.ctx.audio.stepDone();
     }
@@ -342,7 +344,7 @@ export class SmoothStep extends Step {
     this.progress = bead.smoothness();
     const v = clamp(t.speed / 900, 0, 1);
     this.ctx.audio.loop('brush')?.set(0.03 + v * 0.1, 380 + v * 320, 0.6 + v * 0.4);
-    if (this.progress >= 0.88 && !this.done) {
+    if (this.progress >= 0.84 && !this.done) {
       this.done = true;
       this.ctx.audio.stepDone();
     }
@@ -379,19 +381,19 @@ export class PolishStep extends Step {
   protected onMove(w: WorkPoint, t: Touch2D): void {
     if (this.done) return;
     const collar = this.ctx.world.active;
-    const amount = clamp(t.speed / 650, 0.08, 1) * 0.05;
-    collar.polish(w.s, w.t, 0.44, amount);
-    this.progress = clamp(collar.meanGloss() / 0.62, 0, 1);
+    const amount = clamp(t.speed / 650, 0.08, 1) * 0.1;
+    collar.polish(w.s, w.t, 0.6, amount);
+    this.progress = clamp(collar.meanGloss() / 0.72, 0, 1);
     const v = clamp(t.speed / 800, 0, 1);
     this.ctx.audio
       .loop('polish')
       ?.set(0.03 + v * 0.12, 1200 + this.progress * 2200, 0.8 + v * 0.6);
     const puffs = this.ctx.world.haze;
-    if (puffs && t.speed > 80 && this.progress < 0.7) {
+    if (puffs && t.speed > 80 && this.progress > 0.12 && this.progress < 0.82) {
       scratch.copy(w.normal).multiplyScalar(0.16);
       puffs.emit(w.point, scratch, 0.1, 1, 0.6);
     }
-    if (this.progress >= 0.99 && !this.done) {
+    if (this.progress >= 0.97 && !this.done) {
       this.done = true;
       this.ctx.audio.stepDone();
     }

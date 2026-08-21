@@ -306,11 +306,14 @@ export class Hud {
     this.hint = h;
     this.hintTime = 0;
     this.hand.classList.toggle('on', !!h);
+    if (!h) this.hand.style.opacity = '0';
   }
 
   clearHint(): void {
     this.hint = null;
     this.hand.classList.remove('on');
+    // the demo writes an inline opacity every frame, so clear it explicitly
+    this.hand.style.opacity = '0';
   }
 
   get hinting(): boolean {

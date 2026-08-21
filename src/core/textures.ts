@@ -18,7 +18,7 @@ function finish(c: HTMLCanvasElement, srgb: boolean, repeat = 1): THREE.Texture 
   tex.wrapT = THREE.RepeatWrapping;
   tex.repeat.set(repeat, repeat);
   tex.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
-  tex.anisotropy = 4;
+  tex.anisotropy = 8;
   tex.needsUpdate = true;
   return tex;
 }
@@ -68,9 +68,9 @@ export function frpNormal(): THREE.Texture {
   const h = new Float32Array(size * size);
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
-      const u = (x / size) * 9;
-      const v = (y / size) * 9;
-      h[y * size + x] = fbm(n1, u, v, 3, 0.55) * 0.55;
+      const u = (x / size) * 22;
+      const v = (y / size) * 22;
+      h[y * size + x] = fbm(n1, u, v, 3, 0.55) * 0.34;
     }
   }
   const rng = new Rng(23);
@@ -88,7 +88,7 @@ export function frpNormal(): THREE.Texture {
       h[y * size + x] -= depth * fade;
     }
   }
-  const tex = finish(heightToNormal(h, size, 26), false, 1);
+  const tex = finish(heightToNormal(h, size, 1.6), false, 1);
   cache.set(key, tex);
   return tex;
 }

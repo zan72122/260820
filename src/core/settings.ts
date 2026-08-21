@@ -18,6 +18,8 @@ export const settings = {
   seed: Number(params.get('seed') ?? 0) || 0,
   /** Shortens cinematic holds so a full loop can be verified quickly. */
   turbo: flag('turbo'),
+  /** Automated pass only: park the machine at the fault and skip the opening. */
+  jump: flag('jump'),
 };
 
 export type QualityTier = 0 | 1 | 2;

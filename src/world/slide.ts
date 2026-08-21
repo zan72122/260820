@@ -33,10 +33,12 @@ export class Slide {
   readonly seams: number[];
   readonly root = new THREE.Group();
 
-  innerMaterial!: THREE.MeshPhysicalMaterial;
+  innerMaterial!: THREE.MeshStandardMaterial;
+  shell!: THREE.Mesh;
 
   private tmpA = new THREE.Vector3();
   private tmpB = new THREE.Vector3();
+  private axisSamples: THREE.Vector3[] = [];
 
   constructor() {
     const pts = [
@@ -59,6 +61,21 @@ export class Slide {
     // Joints sit a little further apart than a real 3 m mould section so a young
     // player never has two candidate seams inside one camera framing.
     this.seams = [0.16, 0.28, 0.41, 0.545, 0.675, 0.8];
+  }
+
+  /**
+   * True when a point lies within the bore.
+   *
+   * Used to drop the translucent outer shell while the camera is inside: it is
+   * full screen overdraw that buys nothing from in there.
+   */
+  isInside(p: THREE.Vector3): boolean {
+    let best = Infinity;
+    for (const s of this.axisSamples) {
+      const d = s.distanceToSquared(p);
+      if (d < best) best = d;
+    }
+    return best < this.radius * this.radius * 0.94;
   }
 
   frame(u: number, out?: Frame): Frame {
@@ -104,6 +121,21 @@ export class Slide {
     return m / this.length;
   }
 
+  /**
+   * Baked ambient occlusion for the inside of the flume.
+   *
+   * Daylight only reaches a little way past each opening, so the middle of the
+   * run is dim while both ends stay visible. This is what keeps the pipe reading
+   * as a calm inspection space instead of a black tunnel, without a single extra
+   * light or shadow map.
+   */
+  ambientAt(u: number, theta: number): number {
+    const dm = Math.min(u, 1 - u) * this.length;
+    const end = 1 - smoothstep(clamp(dm / 11, 0, 1));
+    const ceiling = 1 - 0.28 * smoothstep(clamp((Math.abs(theta) - 1.2) / 1.4, 0, 1));
+    return (0.44 + 0.56 * end) * ceiling;
+  }
+
   /** Base wall relief shared by every joint: a moulded caulk groove. */
   grooveDepth(dMeters: number): number {
     const half = 0.055;
@@ -120,77 +152,88 @@ export class Slide {
     const rough = roughnessCloud(0.11, 0.05, 31, 'frpRough');
     rough.wrapS = THREE.RepeatWrapping;
     rough.wrapT = THREE.RepeatWrapping;
-    rough.repeat.set(8, 3);
+    rough.repeat.set(5, 10);
 
-    this.innerMaterial = new THREE.MeshPhysicalMaterial({
-      color: 0xdfeae6,
-      roughness: 0.12,
+    // Deliberately MeshStandard rather than MeshPhysical: the long run of pipe
+    // fills the screen, and a clearcoat lobe over that many fragments is the
+    // single most expensive thing a phone GPU would be asked to do here. Low
+    // roughness plus a strong probe reads as wet gelcoat for a fraction of it.
+    this.innerMaterial = new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      color: 0xffffff,
+      roughness: 0.1,
       metalness: 0,
-      clearcoat: 0.75,
-      clearcoatRoughness: 0.08,
       normalMap: normal,
-      normalScale: new THREE.Vector2(0.35, 0.35),
+      normalScale: new THREE.Vector2(0.5, 0.5),
       roughnessMap: rough,
       envMap,
-      envMapIntensity: 1.15,
+      envMapIntensity: 0.62,
       side: THREE.FrontSide,
     });
-    this.innerMaterial.normalMap!.repeat.set(26, 6);
+    this.innerMaterial.normalMap!.repeat.set(27, 27);
 
     this.root.add(this.buildInner(), this.buildShell(), this.buildFlange());
+    const step = 1 / 47;
+    for (let i = 0; i <= 47; i++) this.axisSamples.push(this.curve.getPointAt(i * step));
   }
 
-  /** Ring stations for the long runs between joints. */
-  private sectionRings(): number[] {
-    const rings: number[] = [];
-    const stepU = this.metersToU(0.13);
-    const skip = this.metersToU(WORK_HALF_LEN);
-    for (let u = 0; u <= 1.00001; u += stepU) {
-      const uu = Math.min(1, u);
-      let inCollar = false;
-      for (const s of this.seams) {
-        if (Math.abs(uu - s) < skip * 1.02) inCollar = true;
-      }
-      if (!inCollar) rings.push(uu);
+  /**
+   * Ring stations for the long runs between joints.
+   *
+   * Each run ends exactly on the boundary of the next joint collar, so the two
+   * meshes share a rim instead of leaving a sliver of missing wall.
+   */
+  private sections(): { u0: number; u1: number }[] {
+    const half = this.metersToU(WORK_HALF_LEN);
+    const runs: { u0: number; u1: number }[] = [];
+    let start = 0;
+    for (const s of this.seams) {
+      if (s - half > start + 1e-6) runs.push({ u0: start, u1: s - half });
+      start = s + half;
     }
-    return rings;
+    if (start < 1 - 1e-6) runs.push({ u0: start, u1: 1 });
+    return runs;
   }
 
   private buildInner(): THREE.Mesh {
-    const rings = this.sectionRings();
     const M = 44;
     const positions: number[] = [];
     const normals: number[] = [];
     const uvs: number[] = [];
+    const colors: number[] = [];
     const indices: number[] = [];
-
-    const rowStart: number[] = [];
-    let vertexCount = 0;
+    const gel = new THREE.Color(0xdfeae6).convertSRGBToLinear();
     const p = new THREE.Vector3();
     const n = new THREE.Vector3();
+    let vertexCount = 0;
 
-    for (let i = 0; i < rings.length; i++) {
-      const u = rings[i];
-      rowStart.push(vertexCount);
-      for (let j = 0; j <= M; j++) {
-        const theta = -Math.PI + (2 * Math.PI * j) / M;
-        this.pointAt(u, theta, 0, p);
-        this.normalAt(u, theta, n);
-        positions.push(p.x, p.y, p.z);
-        normals.push(n.x, n.y, n.z);
-        uvs.push(u * (this.length / (2 * Math.PI * this.radius)), (theta + Math.PI) / (2 * Math.PI));
-        vertexCount++;
+    for (const run of this.sections()) {
+      const lenM = (run.u1 - run.u0) * this.length;
+      const rings = Math.max(2, Math.round(lenM / 0.13) + 1);
+      const base = vertexCount;
+      for (let i = 0; i < rings; i++) {
+        const u = run.u0 + ((run.u1 - run.u0) * i) / (rings - 1);
+        for (let j = 0; j <= M; j++) {
+          const theta = -Math.PI + (2 * Math.PI * j) / M;
+          this.pointAt(u, theta, 0, p);
+          this.normalAt(u, theta, n);
+          positions.push(p.x, p.y, p.z);
+          normals.push(n.x, n.y, n.z);
+          uvs.push(
+            u * (this.length / (2 * Math.PI * this.radius)),
+            (theta + Math.PI) / (2 * Math.PI),
+          );
+          const ao = this.ambientAt(u, theta);
+          colors.push(gel.r * ao, gel.g * ao, gel.b * ao);
+          vertexCount++;
+        }
       }
-    }
-
-    // Only stitch neighbouring rings that belong to the same run between joints.
-    const maxGap = this.metersToU(0.2);
-    for (let i = 0; i < rings.length - 1; i++) {
-      if (rings[i + 1] - rings[i] > maxGap) continue;
-      const a = rowStart[i];
-      const b = rowStart[i + 1];
-      for (let j = 0; j < M; j++) {
-        indices.push(a + j, b + j, a + j + 1, a + j + 1, b + j, b + j + 1);
+      for (let i = 0; i < rings - 1; i++) {
+        const a = base + i * (M + 1);
+        const b = base + (i + 1) * (M + 1);
+        for (let j = 0; j < M; j++) {
+          indices.push(a + j, b + j, a + j + 1, a + j + 1, b + j, b + j + 1);
+        }
       }
     }
 
@@ -198,6 +241,7 @@ export class Slide {
     geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
     geo.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
     geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
     geo.setIndex(indices);
     geo.computeBoundingSphere();
 
@@ -216,8 +260,8 @@ export class Slide {
     const indices: number[] = [];
     const p = new THREE.Vector3();
     const n = new THREE.Vector3();
-    const aqua = new THREE.Color(0x49c4dd).convertSRGBToLinear();
-    const pale = new THREE.Color(0xd9f5fb).convertSRGBToLinear();
+    const aqua = new THREE.Color(0x27a9cd).convertSRGBToLinear();
+    const pale = new THREE.Color(0xeff9fb).convertSRGBToLinear();
 
     for (let i = 0; i <= N; i++) {
       const u = i / N;
@@ -246,18 +290,17 @@ export class Slide {
     geo.setIndex(indices);
     geo.computeBoundingSphere();
 
-    const mat = new THREE.MeshPhysicalMaterial({
+    const mat = new THREE.MeshStandardMaterial({
       vertexColors: true,
-      roughness: 0.16,
+      roughness: 0.12,
       metalness: 0,
-      clearcoat: 0.9,
-      clearcoatRoughness: 0.06,
       transparent: true,
-      opacity: 0.42,
+      opacity: 0.72,
       depthWrite: false,
       side: THREE.DoubleSide,
     });
     const mesh = new THREE.Mesh(geo, mat);
+    this.shell = mesh;
     mesh.name = 'flume-shell';
     mesh.renderOrder = 4;
     mesh.frustumCulled = false;

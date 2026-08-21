@@ -12,6 +12,7 @@ export function makeShopMaterials(envMap: THREE.Texture): {
   rubber: THREE.MeshStandardMaterial;
   grip: THREE.MeshStandardMaterial;
   foam: THREE.MeshStandardMaterial;
+  galv: THREE.MeshStandardMaterial;
   glass: THREE.MeshPhysicalMaterial;
 } {
   const alRough = metalRoughness();
@@ -59,6 +60,15 @@ export function makeShopMaterials(envMap: THREE.Texture): {
     envMapIntensity: 0.25,
   });
 
+  const galv = new THREE.MeshStandardMaterial({
+    color: 0xa9b6ba,
+    metalness: 0.45,
+    roughness: 0.56,
+    roughnessMap: alRough,
+    envMap,
+    envMapIntensity: 0.9,
+  });
+
   const glass = new THREE.MeshPhysicalMaterial({
     color: 0xdff3ff,
     metalness: 0,
@@ -81,7 +91,7 @@ export function makeShopMaterials(envMap: THREE.Texture): {
       envMapIntensity: 0.9,
     });
 
-  return { aluminium, steel, plastic, rubber, grip, foam, glass };
+  return { aluminium, steel, galv, plastic, rubber, grip, foam, glass };
 }
 
 export type ShopMaterials = ReturnType<typeof makeShopMaterials>;

@@ -42,6 +42,8 @@ void main() {
   col += uSunColor * pow(sd, 26.0) * 0.85;
   col += uSunColor * pow(sd, 4.0) * 0.16;
   gl_FragColor = vec4(col, 1.0);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
 }
 `;
 
@@ -62,9 +64,9 @@ export function buildEnvironment(renderer: THREE.WebGLRenderer): EnvRig {
     depthWrite: false,
     fog: false,
     uniforms: {
-      uZenith: { value: new THREE.Color(0x2f6f9c).convertSRGBToLinear() },
-      uHorizon: { value: new THREE.Color(0xf7c093).convertSRGBToLinear() },
-      uGround: { value: new THREE.Color(0x4a4f55).convertSRGBToLinear() },
+      uZenith: { value: new THREE.Color(0x1d5f8f).convertSRGBToLinear() },
+      uHorizon: { value: new THREE.Color(0xf0c39c).convertSRGBToLinear() },
+      uGround: { value: new THREE.Color(0x707a77).convertSRGBToLinear() },
       uSunDir: { value: sunDir.clone() },
       uSunColor: { value: new THREE.Color(0xffd9a0).convertSRGBToLinear() },
     },
@@ -73,6 +75,7 @@ export function buildEnvironment(renderer: THREE.WebGLRenderer): EnvRig {
   const sky = new THREE.Mesh(new THREE.SphereGeometry(180, 32, 20), skyMat);
   sky.name = 'sky';
   sky.frustumCulled = false;
+  sky.renderOrder = -1;
 
   // Probe scene: the same sky plus a bounce card standing in for the wet deck.
   const probeScene = new THREE.Scene();
@@ -96,11 +99,11 @@ export function buildEnvironment(renderer: THREE.WebGLRenderer): EnvRig {
   bounce.geometry.dispose();
   (bounce.material as THREE.Material).dispose();
 
-  const sun = new THREE.DirectionalLight(0xffe0b4, 2.1);
+  const sun = new THREE.DirectionalLight(0xffe0b4, 1.7);
   sun.position.copy(sunDir).multiplyScalar(60);
   sun.target.position.set(0, 0, 20);
 
-  const hemi = new THREE.HemisphereLight(0xbfe4f7, 0x6d6257, 0.5);
+  const hemi = new THREE.HemisphereLight(0xbfe4f7, 0x6d6257, 0.32);
 
   return {
     envMap,

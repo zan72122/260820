@@ -98,7 +98,9 @@ export class App {
 
   private frame = (now: number): void => {
     requestAnimationFrame(this.frame);
-    const dtMs = Math.min(64, now - this.last);
+    // An automated pass runs on a software rasteriser; letting the clock take
+    // bigger steps there keeps game time roughly wall-clock instead of crawling.
+    const dtMs = Math.min(settings.e2e ? 250 : 64, now - this.last);
     this.last = now;
     const dt = dtMs / 1000;
 

@@ -11,10 +11,10 @@ const NT = 18;
 /** Angular half width of the caulk strip that a player can actually work on. */
 const STRIP_THETA = WORK_THETA;
 
-const GROOVE_HALF = 0.055;
-const GROOVE_DEPTH = 0.021;
-const SEALANT_TOP = -0.006;
-const SEALANT_THICK = 0.0095;
+const GROOVE_HALF = 0.075;
+const GROOVE_DEPTH = 0.03;
+const SEALANT_TOP = -0.007;
+const SEALANT_THICK = 0.013;
 
 /** Defects fade out inside the work window so the rest of the ring stays healthy. */
 function bottomFalloff(theta: number): number {
@@ -29,19 +29,19 @@ function grooveProfile(du: number): number {
 
 /** Sharp moulding lip just downstream of the joint, faired back into the wall. */
 function stepRamp(du: number): number {
-  if (du <= 0.003) return 0;
-  const rise = smoothstep(clamp((du - 0.003) / 0.011, 0, 1));
-  const fall = 1 - smoothstep(clamp((du - 0.12) / 0.09, 0, 1));
+  if (du <= 0.004) return 0;
+  const rise = smoothstep(clamp((du - 0.004) / 0.009, 0, 1));
+  const fall = 1 - smoothstep(clamp((du - 0.125) / 0.085, 0, 1));
   return rise * fall;
 }
 
-const SCRATCH_AT = [-0.036, -0.008, 0.021, 0.045];
+const SCRATCH_AT = [-0.048, -0.011, 0.028, 0.06];
 
 function scratchProfile(du: number): number {
   let v = 0;
   for (const c of SCRATCH_AT) {
-    const a = clamp(Math.abs(du - c) / 0.0055, 0, 1);
-    v = Math.max(v, (1 - smoothstep(a)) * 0.0042);
+    const a = clamp(Math.abs(du - c) / 0.006, 0, 1);
+    v = Math.max(v, (1 - smoothstep(a)) * 0.005);
   }
   return v;
 }
@@ -90,7 +90,7 @@ class Bead {
   static readonly N = 56;
   static readonly NDU = 17;
   readonly amount = new Float32Array(Bead.N);
-  readonly width = new Float32Array(Bead.N).fill(0.026);
+  readonly width = new Float32Array(Bead.N).fill(0.032);
   readonly smoothed = new Float32Array(Bead.N);
   readonly excess = new Float32Array(Bead.N);
   readonly mesh: THREE.Mesh;
@@ -124,8 +124,11 @@ class Bead {
     this.geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
     this.geo.setIndex(idx);
 
-    const normal = sealantNormal();
-    normal.repeat.set(10, 2);
+    const normal = sealantNormal().clone();
+    normal.needsUpdate = true;
+    normal.wrapS = THREE.RepeatWrapping;
+    normal.wrapT = THREE.RepeatWrapping;
+    normal.repeat.set(7, 1.1);
     const mat = new THREE.MeshPhysicalMaterial({
       color: 0xeef0e6,
       roughness: 0.42,
@@ -134,7 +137,7 @@ class Bead {
       sheenRoughness: 0.6,
       sheenColor: new THREE.Color(0xfff6e2),
       normalMap: normal,
-      normalScale: new THREE.Vector2(0.5, 0.5),
+      normalScale: new THREE.Vector2(0.22, 0.22),
       envMap,
       envMapIntensity: 0.85,
       polygonOffset: true,
@@ -149,9 +152,15 @@ class Bead {
     this.rebuild();
   }
 
+  setAmbient(ao: number): void {
+    (this.mesh.material as THREE.MeshPhysicalMaterial).color
+      .copy(new THREE.Color(0xeef0e6).convertSRGBToLinear())
+      .multiplyScalar(ao);
+  }
+
   reset(): void {
     this.amount.fill(0);
-    this.width.fill(0.026);
+    this.width.fill(0.032);
     this.smoothed.fill(0);
     this.excess.fill(0);
     this.mesh.visible = false;
@@ -169,13 +178,16 @@ class Bead {
   private surface(k: number, du: number): number {
     const stepH = this.stepHeight();
     const base = -grooveProfile(du) + stepH * stepRamp(du);
-    const target = stepH * smoothstep(clamp((du + GROOVE_HALF) / 0.12, 0, 1));
+    const target = stepH * smoothstep(clamp((du + GROOVE_HALF) / 0.15, 0, 1));
     const w = this.width[k];
-    const bulge = 0.0135 * Math.exp(-((du / w) * (du / w)));
+    const bulge = 0.017 * Math.exp(-((du / w) * (du / w)));
     const extra = this.excess[k] * 0.011 * Math.exp(-((du / 0.032) * (du / 0.032)));
     const raw = target + bulge * (1 - 0.74 * this.smoothed[k]) + extra;
-    const edge = 1 - smoothstep(clamp((Math.abs(du) - 0.044) / 0.031, 0, 1));
-    return base + (raw - base) * edge * clamp(this.amount[k], 0, 1);
+    const edge = 1 - smoothstep(clamp((Math.abs(du) - 0.058) / 0.035, 0, 1));
+    // taper the run-out at both ends so the ridge does not stop like a brick
+    const endK = Math.min(k, Bead.N - 1 - k) / 4;
+    const ends = endK >= 1 ? 1 : smoothstep(clamp(endK, 0, 1));
+    return base + (raw - base) * edge * ends * clamp(this.amount[k], 0, 1);
   }
 
   rebuild(): void {
@@ -187,7 +199,7 @@ class Bead {
       if (this.amount[k] > 0.01) any = true;
       const theta = this.thetaAt(k);
       for (let m = 0; m < Bead.NDU; m++) {
-        const du = -0.075 + (0.15 * m) / (Bead.NDU - 1);
+        const du = -0.095 + (0.19 * m) / (Bead.NDU - 1);
         const h = this.surface(k, du);
         this.slide.pointAt(this.uSeam + this.slide.metersToU(du), theta, h, p);
         arr[i++] = p.x;
@@ -257,8 +269,8 @@ class Ribbon {
     this.geo.setAttribute('position', this.pos);
 
     const colors = new Float32Array(count * 3);
-    const top = new THREE.Color(0x8f9186).convertSRGBToLinear();
-    const under = new THREE.Color(0x4a4234).convertSRGBToLinear();
+    const top = new THREE.Color(0xa9a99b).convertSRGBToLinear();
+    const under = new THREE.Color(0x6d6353).convertSRGBToLinear();
     for (let k = 0; k < N; k++) {
       for (let j = 0; j < W; j++) {
         const t = (k * W + j) * 3;
@@ -273,6 +285,19 @@ class Ribbon {
       }
     }
     this.geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+    const uv = new Float32Array(count * 2);
+    for (let k = 0; k < N; k++) {
+      for (let j = 0; j < W; j++) {
+        const t = (k * W + j) * 2;
+        const b = (N * W + k * W + j) * 2;
+        uv[t] = k / (N - 1);
+        uv[t + 1] = j / (W - 1);
+        uv[b] = k / (N - 1);
+        uv[b + 1] = j / (W - 1);
+      }
+    }
+    this.geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
 
     const idx: number[] = [];
     const T = (k: number, j: number): number => k * W + j;
@@ -292,7 +317,11 @@ class Ribbon {
     }
     this.geo.setIndex(idx);
 
-    const normal = sealantNormal();
+    const normal = sealantNormal().clone();
+    normal.needsUpdate = true;
+    normal.wrapS = THREE.RepeatWrapping;
+    normal.wrapT = THREE.RepeatWrapping;
+    normal.repeat.set(9, 1.4);
     this.mat = new THREE.MeshPhysicalMaterial({
       vertexColors: true,
       roughness: 0.72,
@@ -300,7 +329,7 @@ class Ribbon {
       normalMap: normal,
       normalScale: new THREE.Vector2(0.85, 0.85),
       envMap,
-      envMapIntensity: 0.55,
+      envMapIntensity: 0.9,
       side: THREE.DoubleSide,
       transparent: true,
       opacity: 1,
@@ -317,15 +346,17 @@ class Ribbon {
     const N = 30;
     const W = 3;
     const positions: number[] = [];
+    const uvs: number[] = [];
     const idx: number[] = [];
     const p = new THREE.Vector3();
     const span = 2 * Math.PI - 2 * (STRIP_THETA + 0.02);
     for (let k = 0; k < N; k++) {
       const theta = STRIP_THETA + 0.02 + (span * k) / (N - 1);
       for (let j = 0; j < W; j++) {
-        const du = -0.048 + (0.096 * j) / (W - 1);
+        const du = -0.058 + (0.116 * j) / (W - 1);
         this.slide.pointAt(this.uSeam + this.slide.metersToU(du), theta, SEALANT_TOP, p);
         positions.push(p.x, p.y, p.z);
+        uvs.push((k / (N - 1)) * 12, j / (W - 1));
       }
     }
     for (let k = 0; k < N - 1; k++) {
@@ -337,23 +368,35 @@ class Ribbon {
     }
     const geo = new THREE.BufferGeometry();
     geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
     geo.setIndex(idx);
     geo.computeVertexNormals();
+    const restNormal = sealantNormal().clone();
+    restNormal.needsUpdate = true;
+    restNormal.wrapS = THREE.RepeatWrapping;
+    restNormal.wrapT = THREE.RepeatWrapping;
     const mesh = new THREE.Mesh(
       geo,
       new THREE.MeshPhysicalMaterial({
         color: 0x8d8f84,
         roughness: 0.7,
         metalness: 0,
-        normalMap: sealantNormal(),
+        normalMap: restNormal,
         envMap,
-        envMapIntensity: 0.5,
+        envMapIntensity: 0.85,
         side: THREE.DoubleSide,
       }),
     );
     mesh.name = 'old-sealant-ring';
     mesh.frustumCulled = false;
     return mesh;
+  }
+
+  /** Applies the flume's baked ambient level so the strip sits in its lighting. */
+  setAmbient(ao: number): void {
+    this.mat.color.setScalar(ao);
+    const rest = this.rest.material as THREE.MeshPhysicalMaterial;
+    rest.color.copy(new THREE.Color(0xa8a89a).convertSRGBToLinear()).multiplyScalar(ao);
   }
 
   setFade(v: number): void {
@@ -392,11 +435,11 @@ class Ribbon {
       const peeled = this.peel > 0.001 && theta < front;
       if (!peeled) {
         for (let j = 0; j < W; j++) {
-          const du = -0.048 + (0.096 * j) / (W - 1);
+          const du = -0.058 + (0.116 * j) / (W - 1);
           const liftEdge =
             this.lift *
-            0.011 *
-            smoothstep(clamp((du - 0.006) / 0.04, 0, 1)) *
+            0.014 *
+            smoothstep(clamp((du - 0.008) / 0.05, 0, 1)) *
             bottomFalloff(theta);
           const h = SEALANT_TOP + liftEdge;
           this.slide.pointAt(this.uSeam + this.slide.metersToU(du), theta, h, P);
@@ -430,7 +473,7 @@ class Ribbon {
       const cw = Math.cos(twist);
       const sw = Math.sin(twist);
       for (let j = 0; j < W; j++) {
-        const du = -0.048 + (0.096 * j) / (W - 1);
+        const du = -0.058 + (0.116 * j) / (W - 1);
         const ox = wide.x * cw + thick.x * sw;
         const oy = wide.y * cw + thick.y * sw;
         const oz = wide.z * cw + thick.z * sw;
@@ -485,7 +528,10 @@ export class SeamCollar {
   readonly dirt = new Float32Array(NS * NT);
   readonly cloud = new Float32Array(NS * NT);
   readonly dull = new Float32Array(NS * NT);
+  /** Polish level per cell, 0 = as found and matt, 1 = fully brought up. */
   readonly work = new Float32Array(NS * NT);
+  /** How much compound the pad has actually laid down on each cell. */
+  readonly touch = new Float32Array(NS * NT);
   scratchLevel = 0;
   private stepH = 0;
 
@@ -522,6 +568,19 @@ export class SeamCollar {
       }
     }
     this.geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    // Second set keeps the moulding relief running the same way as the long runs
+    // either side of the joint, so the collar does not read as a pasted-on patch.
+    const uv1: number[] = [];
+    const axial = slide.length / (2 * Math.PI * slide.radius);
+    for (let i = 0; i < NDu; i++) {
+      for (let j = 0; j < NTh; j++) {
+        uv1.push(
+          (u + slide.metersToU(this.dus[i])) * axial,
+          (this.thetas[j] + Math.PI) / (2 * Math.PI),
+        );
+      }
+    }
+    this.geo.setAttribute('uv1', new THREE.Float32BufferAttribute(uv1, 2));
     const idx: number[] = [];
     for (let i = 0; i < NDu - 1; i++) {
       for (let j = 0; j < NTh - 1; j++) {
@@ -542,18 +601,19 @@ export class SeamCollar {
       roughnessMap: this.roughMap.tex,
       roughness: 1,
       metalness: 0,
-      clearcoat: 0.7,
-      clearcoatRoughness: 0.1,
+      clearcoat: 0.32,
+      clearcoatRoughness: 0.12,
       normalMap: normal,
-      normalScale: new THREE.Vector2(0.42, 0.42),
+      normalScale: new THREE.Vector2(0.5, 0.5),
       envMap,
-      envMapIntensity: 1.15,
+      envMapIntensity: 0.8,
       side: THREE.FrontSide,
     });
     this.material.normalMap = normal.clone();
     this.material.normalMap.wrapS = THREE.RepeatWrapping;
     this.material.normalMap.wrapT = THREE.RepeatWrapping;
-    this.material.normalMap.repeat.set(3, 1.4);
+    this.material.normalMap.repeat.set(27, 27);
+    this.material.normalMap.channel = 1;
     this.material.normalMap.needsUpdate = true;
 
     this.mesh = new THREE.Mesh(this.geo, this.material);
@@ -569,6 +629,11 @@ export class SeamCollar {
 
     this.proxy = this.buildProxy();
     this.group.add(this.proxy);
+
+    const ao = slide.ambientAt(u, 0);
+    this.material.color.setScalar(ao);
+    this.ribbon.setAmbient(ao);
+    this.bead.setAmbient(ao);
 
     this.clearDefect();
     this.rebuildGeometry();
@@ -623,7 +688,8 @@ export class SeamCollar {
     this.dirt.fill(0);
     this.cloud.fill(0);
     this.dull.fill(0);
-    this.work.fill(1.6);
+    this.work.fill(1);
+    this.touch.fill(0);
     this.scratchLevel = 0;
     this.stepH = 0;
     this.ribbon.reset(false);
@@ -635,7 +701,7 @@ export class SeamCollar {
   setDefect(kind: DefectKind): void {
     this.clearDefect();
     this.defect = kind;
-    this.work.fill(1.35);
+    this.work.fill(0.5);
     const blob = (amp: number, arr: Float32Array, sx: number, sy: number): void => {
       for (let j = 0; j < NT; j++) {
         for (let i = 0; i < NS; i++) {
@@ -648,26 +714,27 @@ export class SeamCollar {
     };
     switch (kind) {
       case 'step':
-        this.stepH = 0.0205;
-        this.work.fill(0.9);
+        this.stepH = 0.03;
+        this.work.fill(0.34);
         this.ribbon.reset(true);
         break;
       case 'oldSealant':
-        this.stepH = 0.004;
+        this.stepH = 0.006;
+        this.work.fill(0.88);
         this.ribbon.reset(true);
         break;
       case 'cloudy':
         blob(1, this.cloud, 0.05, 0.1);
         blob(0.62, this.dirt, -0.1, -0.05);
-        this.work.fill(0.15);
+        this.work.fill(0.06);
         break;
       case 'scratch':
         this.scratchLevel = 1;
-        this.work.fill(0.75);
+        this.work.fill(0.22);
         break;
       case 'wax':
         blob(0.85, this.dull, 0, 0);
-        this.work.fill(0.55);
+        this.work.fill(0.14);
         break;
     }
     this.mapDirty = true;
@@ -688,8 +755,9 @@ export class SeamCollar {
       const s = clamp(theta / WORK_THETA, -1, 1);
       const d = this.dirt[this.cell(s, 0)];
       if (d > 0.01) {
-        const ripple = 0.5 + 0.5 * Math.sin(theta * 61 + du * 190);
-        h += d * 0.0038 * ripple * w;
+        const ripple =
+          0.55 + 0.45 * Math.sin(theta * 17 + du * 34) * Math.sin(theta * 9.3 - 2.1);
+        h += d * 0.0032 * ripple * w;
       }
     }
     return h;
@@ -739,16 +807,16 @@ export class SeamCollar {
         const dirt = clamp(this.dirt[n], 0, 1);
         const cloud = clamp(this.cloud[n], 0, 1);
         const dull = clamp(this.dull[n], 0, 1);
-        const w = this.work[n];
-        const haze = clamp(w, 0, 1) * (1 - clamp(w - 1, 0, 1));
-        const gloss = clamp(w - 1, 0, 1);
+        const gloss = clamp(this.work[n], 0, 1);
+        // Compound clouds the surface on the way up and clears as gloss arrives.
+        const haze =
+          clamp(this.touch[n], 0, 1) * clamp(1 - Math.abs(gloss - 0.55) / 0.42, 0, 1) * 0.9;
 
-        let r = 0.115;
+        let r = lerp(0.44, 0.055, gloss);
         r = lerp(r, 0.3, dull);
         r = lerp(r, 0.6, cloud);
         r = lerp(r, 0.78, dirt);
-        r = lerp(r, 0.87, haze);
-        r = lerp(r, 0.055, gloss);
+        r = lerp(r, 0.88, haze);
 
         let cr = 0.86;
         let cg = 0.91;
@@ -777,10 +845,8 @@ export class SeamCollar {
     this.blit(this.colorMap, cImg);
     this.blit(this.roughMap, rImg);
 
-    let gloss = 0;
-    for (let n = 0; n < this.work.length; n++) gloss += clamp(this.work[n] - 1, 0, 1);
-    gloss /= this.work.length;
-    const k = lerp(0.46, 0.1, gloss);
+    const gloss = this.meanGloss();
+    const k = lerp(0.62, 0.14, gloss);
     this.material.normalScale.set(k, k);
     this.mapDirty = false;
   }
@@ -831,11 +897,12 @@ export class SeamCollar {
         if (d >= 1) continue;
         const f = (1 - smoothstep(d)) * amount;
         const n = j * NS + i;
-        const before = clamp(this.work[n] - 1, 0, 1);
-        this.work[n] = Math.min(2, this.work[n] + f * 2.4);
-        this.cloud[n] = Math.max(0, this.cloud[n] - f * 1.5);
-        this.dull[n] = Math.max(0, this.dull[n] - f * 2.2);
-        touched += clamp(this.work[n] - 1, 0, 1) - before;
+        const before = this.work[n];
+        this.touch[n] = Math.min(1, this.touch[n] + f * 5);
+        this.work[n] = Math.min(1, this.work[n] + f * 1.7);
+        this.cloud[n] = Math.max(0, this.cloud[n] - f * 2.4);
+        this.dull[n] = Math.max(0, this.dull[n] - f * 3.2);
+        touched += this.work[n] - before;
       }
     }
     if (this.scratchLevel > 0 && Math.abs(t) < 0.9) {
@@ -881,7 +948,7 @@ export class SeamCollar {
       for (let i = 0; i < NS; i++) {
         const cs = (i / (NS - 1)) * 2 - 1;
         const along = 1 - smoothstep(clamp((Math.abs(cs) - 0.72) / 0.28, 0, 1));
-        const grain = 0.72 + 0.28 * Math.sin(i * 2.7 + j * 1.9);
+        const grain = 0.68 + 0.32 * Math.sin(i * 0.9 + j * 1.35) * Math.cos(i * 0.41);
         this.dirt[j * NS + i] = Math.max(this.dirt[j * NS + i], across * along * grain);
       }
     }
@@ -911,7 +978,7 @@ export class SeamCollar {
 
   meanGloss(): number {
     let sum = 0;
-    for (let n = 0; n < this.work.length; n++) sum += clamp(this.work[n] - 1, 0, 1);
+    for (let n = 0; n < this.work.length; n++) sum += clamp(this.work[n], 0, 1);
     return sum / this.work.length;
   }
 
