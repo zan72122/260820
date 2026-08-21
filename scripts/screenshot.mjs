@@ -37,6 +37,25 @@ if (process.env.SHOT_DRIVE) {
     [dx, dz, ticks],
   )
 }
+// SHOT_OPS="t:x,z;e;s:30;..." — t=teleport, e=interact, s=step n.
+if (process.env.SHOT_OPS) {
+  await page.evaluate((ops) => {
+    const g = window.__game
+    for (const op of ops.split(';')) {
+      const [kind, args] = op.split(':')
+      if (kind === 't') {
+        const [x, z] = (args ?? '').split(',').map(Number)
+        g.dispatch({ type: 'teleport', x, z })
+        g.step(2)
+      } else if (kind === 'e') {
+        g.dispatch({ type: 'interact' })
+        g.step(2)
+      } else if (kind === 's') {
+        g.step(Number(args ?? '1'))
+      }
+    }
+  }, process.env.SHOT_OPS)
+}
 await page.screenshot({ path: out })
 await browser.close()
 console.log(`saved ${out}`)

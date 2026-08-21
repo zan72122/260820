@@ -12,6 +12,8 @@ import { COLLIDERS, WALKABLE } from './scene/layout'
 import { tobiishiTopAt } from './builders/garden/tobiishi'
 import { applyIdlePose, applyWalkPose, CYCLE_LEN } from './character/walkCycle'
 import { FollowCamera } from './camera/FollowCamera'
+import { SceneSync } from './scene/SceneSync'
+import { Hud } from './ui/hud'
 
 const flags = readFlags(window.location.search)
 const canvas = document.getElementById('game') as HTMLCanvasElement
@@ -35,6 +37,8 @@ if (staticCam) {
 }
 const followCam = new FollowCamera(app.camera, canvas)
 followCam.yaw = state.player.heading
+const sync = new SceneSync(handles)
+const hud = new Hud()
 
 // 描画側の状態（シムには入れない）
 let walkPhase = 0
@@ -75,6 +79,9 @@ function render(): void {
   } else {
     applyIdlePose(rig, idleTime)
   }
+  sync.applyCarryPose(state, rig)
+  sync.apply(state, rig, (x, z) => handles.ground.heightAt(x, z))
+  hud.update(state)
 
   if (!staticCam) {
     followCam.update(dt, { x: p.x, y: visualY, z: p.z, heading: p.heading })

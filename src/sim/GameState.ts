@@ -22,7 +22,7 @@ export interface BedState {
   moisture: number
 }
 
-export type CropKind = 'daikon' | 'negi' | 'tomato'
+export type CropKind = 'daikon' | 'negi' | 'tomato' | 'kaki'
 
 export interface CropState {
   kind: CropKind
@@ -31,7 +31,8 @@ export interface CropState {
 }
 
 export type ToolId = 'wateringCan' | 'hoe' | 'broom'
-export type ToolPlace = 'rack' | 'held'
+/** rack=定位置 / held=手の中 / out=出しっぱなし（初期の如雨露） */
+export type ToolPlace = 'rack' | 'held' | 'out'
 
 export interface GameState {
   seed: number
@@ -40,6 +41,8 @@ export interface GameState {
   player: PlayerState
   /** Watering can fill 0..1 (refill at the tsukubai basin). */
   canFill: number
+  /** 進行中の注水（移動でキャンセル）。 */
+  pouring: { bedId: string; ticksLeft: number } | null
   beds: Record<string, BedState>
   crops: Record<string, CropState>
   tools: Record<ToolId, ToolPlace>
@@ -55,7 +58,9 @@ export function createInitialState(seed: number): GameState {
     seed,
     tick: 0,
     player: { x: 1.2, z: 2.4, heading: 0, speed: 0, held: null },
-    canFill: 0,
+    // 昼の水やりで使いさし、菜園の縁に出しっぱなし — という夕方の状況
+    canFill: 0.35,
+    pouring: null,
     beds: {
       bedA: { moisture: 0.15 },
       bedB: { moisture: 0.15 },
@@ -66,8 +71,10 @@ export function createInitialState(seed: number): GameState {
       daikon3: { kind: 'daikon', ripe: false, harvested: false },
       negi1: { kind: 'negi', ripe: false, harvested: false },
       tomato1: { kind: 'tomato', ripe: true, harvested: false },
+      kaki1: { kind: 'kaki', ripe: true, harvested: false },
+      kaki2: { kind: 'kaki', ripe: true, harvested: false },
     },
-    tools: { wateringCan: 'rack', hoe: 'rack', broom: 'rack' },
-    chores: { watered: false, harvested: 0, toolsTidy: true },
+    tools: { wateringCan: 'out', hoe: 'rack', broom: 'rack' },
+    chores: { watered: false, harvested: 0, toolsTidy: false },
   }
 }

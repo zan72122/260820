@@ -286,9 +286,10 @@ function buildTomato(g: Group, kit: MatKit, rng: Rng): void {
   leafMesh.castShadow = true
   g.add(leafMesh)
 
-  // 実: 熟れた赤1つ＋青い実2つ
+  // 実: 熟れた赤1つ（収穫対象=個別メッシュ）＋青い実2つ
   const fruits = new Group()
   fruits.name = 'fruits'
+  const fruitMat = new MeshStandardMaterial({ roughness: 0.45, vertexColors: true })
   const mkFruit = (color: string, y: number, ox: number, oz: number, r: number) => {
     const s = new SphereGeometry(r, 10, 8)
     setVertexColor(s, new Color(color))
@@ -296,17 +297,16 @@ function buildTomato(g: Group, kit: MatKit, rng: Rng): void {
     offsetUvs(s, rng(), rng())
     return s
   }
-  const fruitGeo = mergeParts([
-    mkFruit('#c8402a', 0.62, 0.06, 0.03, 0.028),
+  const greenGeo = mergeParts([
     mkFruit('#7d8f4a', 0.78, -0.05, -0.02, 0.022),
     mkFruit('#7d8f4a', 0.9, 0.04, -0.04, 0.02),
   ])
-  const fruitMesh = new Mesh(
-    fruitGeo,
-    new MeshStandardMaterial({ roughness: 0.45, vertexColors: true }),
-  )
-  fruitMesh.castShadow = true
-  fruitMesh.name = 'fruitBodies'
-  fruits.add(fruitMesh)
+  const greenMesh = new Mesh(greenGeo, fruitMat)
+  greenMesh.castShadow = true
+  fruits.add(greenMesh)
+  const ripeMesh = new Mesh(mkFruit('#c8402a', 0.62, 0.06, 0.03, 0.028), fruitMat)
+  ripeMesh.castShadow = true
+  ripeMesh.name = 'ripeFruit'
+  fruits.add(ripeMesh)
   g.add(fruits)
 }

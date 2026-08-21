@@ -1,6 +1,11 @@
 import type { GameState } from './GameState'
 import type { Action } from './actions'
 import { resolveCollisions, type Bounds, type Collider } from './collision'
+import {
+  findInteractable,
+  POUR_DRAIN_PER_TICK,
+  POUR_MOISTURE_PER_TICK,
+} from './interactables'
 
 export const TICK_HZ = 60
 export const DT = 1 / TICK_HZ
@@ -27,10 +32,15 @@ export function simulate(
     ...state,
     tick: state.tick + 1,
     player: { ...state.player },
-    beds: { ...state.beds },
-    crops: state.crops,
-    tools: state.tools,
-    chores: state.chores,
+    pouring: state.pouring ? { ...state.pouring } : null,
+    beds: Object.fromEntries(
+      Object.entries(state.beds).map(([k, v]) => [k, { ...v }]),
+    ),
+    crops: Object.fromEntries(
+      Object.entries(state.crops).map(([k, v]) => [k, { ...v }]),
+    ),
+    tools: { ...state.tools },
+    chores: { ...state.chores },
   }
 
   next.player.speed = 0
@@ -45,18 +55,36 @@ export function simulate(
           next.player.z += nz * WALK_SPEED * DT
           next.player.heading = Math.atan2(-nx, -nz)
           next.player.speed = WALK_SPEED
+          next.pouring = null // 歩き出したら注水は止める
         }
         break
       }
       case 'teleport': {
         next.player.x = a.x
         next.player.z = a.z
+        next.pouring = null
         break
       }
-      case 'interact':
-        // Handled by the interactables layer (installed in a later milestone);
-        // simulate() stays the single entry point.
+      case 'interact': {
+        const hit = findInteractable(next)
+        if (hit) hit.item.apply(next)
         break
+      }
+    }
+  }
+
+  // 注水の進行: 土が湿り、如雨露が減る
+  if (next.pouring) {
+    const bed = next.beds[next.pouring.bedId]
+    if (bed && next.canFill > 0) {
+      bed.moisture = Math.min(1, bed.moisture + POUR_MOISTURE_PER_TICK)
+      next.canFill = Math.max(0, next.canFill - POUR_DRAIN_PER_TICK)
+      next.pouring.ticksLeft -= 1
+      if (next.pouring.ticksLeft <= 0 || next.canFill <= 0 || bed.moisture >= 1) {
+        next.pouring = null
+      }
+    } else {
+      next.pouring = null
     }
   }
 
@@ -73,12 +101,18 @@ export function simulate(
   for (const id of Object.keys(next.beds)) {
     const bed = next.beds[id]
     if (bed && bed.moisture > 0) {
-      next.beds[id] = {
-        ...bed,
-        moisture: Math.max(0, bed.moisture - EVAPORATION_PER_TICK),
-      }
+      bed.moisture = Math.max(0, bed.moisture - EVAPORATION_PER_TICK)
     }
   }
+
+  // 夕方の仕事の達成状況
+  if (
+    Object.values(next.beds).every((b) => b.moisture > 0.65) &&
+    !next.chores.watered
+  ) {
+    next.chores.watered = true
+  }
+  next.chores.toolsTidy = Object.values(next.tools).every((p) => p === 'rack')
 
   return next
 }

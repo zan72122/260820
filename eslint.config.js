@@ -23,6 +23,15 @@ export default tseslint.config(
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
   {
+    // 全角スペースはUI文言（テンプレート文字列）で意図的に使う
+    rules: {
+      'no-irregular-whitespace': [
+        'error',
+        { skipStrings: true, skipTemplates: true },
+      ],
+    },
+  },
+  {
     files: ['src/**/*.ts'],
     rules: {
       // Determinism: world generation and simulation must use the seeded RNG

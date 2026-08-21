@@ -164,6 +164,11 @@ export const LANTERN = { x: 1.35, z: -3.05, shaftSq: 0.12, h: 1.2 }
 export const KAKI_TREE = { x: -4.3, z: -0.9, trunkD: 0.18, height: 3.5 }
 /** 道具ラック: 縁側の東、壁際 */
 export const TOOL_RACK = { x: 1.6, z: -4.25 }
+/** 如雨露の定位置（ラック脇）と、出しっぱなしの初期位置（菜園の縁） */
+export const CAN_HOME = { x: TOOL_RACK.x - 0.75, z: TOOL_RACK.z + 0.45 }
+export const CAN_OUT = { x: -1.95, z: 3.0 }
+/** 柿の低枝の実へ手が届く立ち位置 */
+export const KAKI_PICK = { x: -3.1, z: -0.4 }
 /** 薪積み: 軒下（雨に濡れない=置き場の必然） */
 export const FIREWOOD = { x: -4.7, z: -4.15, w: 1.2, d: 0.4, h: 0.9 }
 /** 物干し: 東側、竿高1700 */
