@@ -1,0 +1,152 @@
+:root {
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #0d1418;
+  overscroll-behavior: none;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+#stage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+#ui {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* The blast lever lives at the edge of the screen as physical equipment.
+   This is only its (invisible, generous) touch footprint - the lever itself
+   is a real object in the 3D scene. */
+.lever-zone {
+  position: absolute;
+  pointer-events: auto;
+  touch-action: none;
+  border-radius: 28px;
+}
+
+body.landscape .lever-zone {
+  left: calc(var(--safe-l));
+  bottom: calc(var(--safe-b));
+  width: min(32vw, 280px);
+  height: min(52vh, 360px);
+}
+
+body.portrait .lever-zone {
+  left: calc(var(--safe-l));
+  bottom: calc(var(--safe-b));
+  width: min(62vw, 380px);
+  height: min(32vh, 300px);
+}
+
+.again {
+  position: absolute;
+  right: calc(12px + var(--safe-r));
+  bottom: calc(12px + var(--safe-b));
+  width: 74px;
+  height: 74px;
+  border-radius: 50%;
+  pointer-events: auto;
+  touch-action: manipulation;
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  background: radial-gradient(circle at 34% 30%, #d8e6ee 0%, #9fb3bd 46%, #6b7f8a 100%);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35), inset 0 2px 4px rgba(255, 255, 255, 0.55);
+  display: grid;
+  place-items: center;
+  opacity: 0;
+  transform: scale(0.7);
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+.again.show {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.again:active {
+  filter: brightness(0.92);
+  transform: scale(0.94);
+}
+
+.again svg {
+  width: 40px;
+  height: 40px;
+  fill: none;
+  stroke: #22343d;
+  stroke-width: 5;
+  stroke-linecap: round;
+}
+
+#boot {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(#8fb6cf, #cfe0e8 60%, #b9c9c6);
+  display: grid;
+  place-items: center;
+  transition: opacity 0.6s ease;
+  z-index: 10;
+}
+
+#boot.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#boot-fill {
+  width: min(46vw, 220px);
+  height: 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.45);
+  overflow: hidden;
+  position: relative;
+}
+
+#boot-fill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 35%;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #ffffff, #62b4d8);
+  animation: fill 1.15s ease-in-out infinite;
+}
+
+@keyframes fill {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
