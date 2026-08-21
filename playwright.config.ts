@@ -9,6 +9,7 @@ export default defineConfig({
   timeout: 60_000,
   use: {
     ...devices['Desktop Chrome'],
+    baseURL: 'http://localhost:4173',
     viewport: { width: 960, height: 540 },
     video: 'off',
     screenshot: 'only-on-failure',
