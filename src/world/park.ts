@@ -198,11 +198,14 @@ export class Park {
     const f = this.slide.frame(0);
     const g = this.bench;
     g.name = 'inspection-bench';
+    // Stand the bench on the tower deck beside the mouth, at working height:
+    // this is where the player is, and it has to read as outside the flume.
+    const deckTop = f.p.y - 1.5 + 0.11;
     const origin = new THREE.Vector3()
       .copy(f.p)
-      .addScaledVector(f.r, -2.35)
-      .addScaledVector(f.t, 0.5);
-    origin.y = f.p.y - this.slide.radius - 0.5;
+      .addScaledVector(f.r, -2.55)
+      .addScaledVector(f.t, -1.35);
+    origin.y = deckTop + 0.92;
 
     const top = new THREE.Mesh(softBox(1.7, 0.09, 1.0, 0.03), this.mat.plastic(0xdfe8e6));
     top.position.copy(origin);
@@ -257,7 +260,7 @@ export class Park {
       }),
     );
     blob.rotation.x = -Math.PI / 2;
-    blob.position.set(origin.x, 0.02, origin.z);
+    blob.position.set(origin.x, deckTop + 0.01, origin.z);
 
     g.add(top, legMesh, tank, tankWater, this.leverPivot, caddy, blob);
     return g;

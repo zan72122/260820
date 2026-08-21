@@ -48,11 +48,11 @@ export function makeShots(world: World): Record<string, ShotFn> {
     const f = slide.frame(0);
     out.pos
       .copy(f.p)
-      .addScaledVector(f.r, -4.9)
-      .addScaledVector(f.t, -3.4 - Math.sin(t * 0.3) * 0.35);
-    out.pos.y = f.p.y + 1.1;
-    out.look.copy(f.p).addScaledVector(f.t, 1.4);
-    out.look.y -= 0.5;
+      .addScaledVector(f.r, -4.4)
+      .addScaledVector(f.t, -2.7 - Math.sin(t * 0.3) * 0.3);
+    out.pos.y = f.p.y + 1.55;
+    out.look.copy(f.p).addScaledVector(f.t, 1.1);
+    out.look.y -= 0.75;
     out.fov = vp.portrait ? 56 : 44;
     out.roll = 0;
     out.pitch = vp.portrait ? -0.04 : 0;

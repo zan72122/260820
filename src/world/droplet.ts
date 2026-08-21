@@ -107,7 +107,7 @@ export class Droplet {
       if (near > 0 && distM > -0.12) {
         target = lerp(target, target * (1 - this.obstacleStrength * 0.97), near);
       }
-      if (this.obstacleStrength > 0.85 && distM < 0.035 && distM > -0.2) {
+      if (this.obstacleStrength > 0.85 && distM < 0.06 && distM > -0.2) {
         this.snagged = true;
       }
     }
@@ -126,6 +126,11 @@ export class Droplet {
     }
 
     this.u += (this.speed * dt) / this.slide.length;
+    // A caught droplet stops on the lip, not a hand's width past it.
+    if (this.snagged && this.obstacleU !== null && this.u > this.obstacleU) {
+      this.u = this.obstacleU;
+      this.speed = 0;
+    }
     if (this.u >= Math.min(0.995, this.stopU)) {
       this.u = Math.min(0.995, this.stopU);
       this.running = false;
