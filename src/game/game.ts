@@ -182,7 +182,14 @@ export class Game {
     this.waterQuality = this.world.active.quality();
     this.world.droplet.obstacleU = this.world.active.u;
     this.world.droplet.obstacleStrength = clamp((1 - this.waterQuality) * 0.9, 0, 0.7);
-    this.world.droplet.release(0.012);
+    const slide = this.world.slide;
+    const seam = this.world.active.u;
+    // Start the proving droplet just above the joint and let it run well past:
+    // the whole point is watching it cross the repair, not watching it commute.
+    this.world.droplet.release(
+      Math.max(0.008, seam - slide.metersToU(6)),
+      Math.min(0.99, seam + slide.metersToU(9)),
+    );
     this.hud.showLever(false);
     this.hud.showEnd(false);
     this.setPhase('dropWatch');
@@ -307,10 +314,12 @@ export class Game {
     while (picks.length < 3 && others.length) {
       picks.push(others.splice(this.rng.int(others.length), 1)[0]);
     }
-    // stable ordering so the answer is not always in the same slot
-    return picks.sort(
-      (a, b) => ALL_TOOLS.indexOf(a) - ALL_TOOLS.indexOf(b) + (this.rng.next() - 0.5) * 0.01,
-    );
+    // shuffle so the right head is never in a predictable slot
+    for (let i = picks.length - 1; i > 0; i--) {
+      const j = this.rng.int(i + 1);
+      [picks[i], picks[j]] = [picks[j], picks[i]];
+    }
+    return picks;
   }
 
   private pickTool(id: StepId): void {
@@ -648,6 +657,8 @@ export class Game {
       reveal: Number(this.reveal.toFixed(3)),
       crawlerU: Number(this.world.crawler.u.toFixed(4)),
       dropU: Number(this.world.droplet.u.toFixed(4)),
+      raftU: this.world.raft ? Number(this.world.raft.u.toFixed(4)) : -1,
+      raftRunning: this.world.raft ? this.world.raft.running : false,
       quality: Number((this.world.active?.quality() ?? 0).toFixed(3)),
       workTheta: WORK_THETA,
     };

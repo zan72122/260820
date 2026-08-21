@@ -230,8 +230,3 @@ export function softDot(tint: string): THREE.Texture {
   cache.set(key, tex);
   return tex;
 }
-
-export function disposeTextureCache(): void {
-  for (const t of cache.values()) t.dispose();
-  cache.clear();
-}

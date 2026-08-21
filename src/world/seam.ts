@@ -1,12 +1,12 @@
 import * as THREE from 'three';
-import { clamp, lerp, smoothstep } from '../core/util';
+import { clamp, lerp, Rng, smoothstep } from '../core/util';
 import { frpNormal, sealantNormal } from '../core/textures';
 import { Slide, WORK_HALF_LEN, WORK_THETA } from './slide';
 import type { DefectKind } from '../game/defects';
 
 /** Grid resolution of the repair state that drives colour, roughness and relief. */
-const NS = 44;
-const NT = 18;
+const NS = 64;
+const NT = 26;
 
 /** Angular half width of the caulk strip that a player can actually work on. */
 const STRIP_THETA = WORK_THETA;
@@ -64,6 +64,31 @@ interface DynMap {
   ctx: CanvasRenderingContext2D;
   small: HTMLCanvasElement;
   smallCtx: CanvasRenderingContext2D;
+}
+
+let grainPattern: CanvasPattern | null = null;
+
+/** Fine tiling grain laid over the upscaled state grid so grime has texture. */
+function getGrain(ctx: CanvasRenderingContext2D): CanvasPattern | null {
+  if (grainPattern) return grainPattern;
+  const size = 64;
+  const c = document.createElement('canvas');
+  c.width = size;
+  c.height = size;
+  const g = c.getContext('2d');
+  if (!g) return null;
+  const img = g.createImageData(size, size);
+  const rng = new Rng(4919);
+  for (let i = 0; i < size * size; i++) {
+    const v = 150 + Math.floor(rng.next() * 105);
+    img.data[i * 4] = v;
+    img.data[i * 4 + 1] = v;
+    img.data[i * 4 + 2] = v;
+    img.data[i * 4 + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  grainPattern = ctx.createPattern(c, 'repeat');
+  return grainPattern;
 }
 
 function makeDynMap(w: number, h: number, srgb: boolean): DynMap {
@@ -128,7 +153,7 @@ class Bead {
     normal.needsUpdate = true;
     normal.wrapS = THREE.RepeatWrapping;
     normal.wrapT = THREE.RepeatWrapping;
-    normal.repeat.set(7, 1.1);
+    normal.repeat.set(5, 3);
     const mat = new THREE.MeshPhysicalMaterial({
       color: 0xeef0e6,
       roughness: 0.42,
@@ -137,7 +162,7 @@ class Bead {
       sheenRoughness: 0.6,
       sheenColor: new THREE.Color(0xfff6e2),
       normalMap: normal,
-      normalScale: new THREE.Vector2(0.22, 0.22),
+      normalScale: new THREE.Vector2(0.16, 0.16),
       envMap,
       envMapIntensity: 0.85,
       polygonOffset: true,
@@ -183,7 +208,7 @@ class Bead {
     const bulge = 0.017 * Math.exp(-((du / w) * (du / w)));
     const extra = this.excess[k] * 0.011 * Math.exp(-((du / 0.032) * (du / 0.032)));
     const raw = target + bulge * (1 - 0.74 * this.smoothed[k]) + extra;
-    const edge = 1 - smoothstep(clamp((Math.abs(du) - 0.058) / 0.035, 0, 1));
+    const edge = 1 - smoothstep(clamp((Math.abs(du) - 0.048) / 0.032, 0, 1));
     // taper the run-out at both ends so the ridge does not stop like a brick
     const endK = Math.min(k, Bead.N - 1 - k) / 4;
     const ends = endK >= 1 ? 1 : smoothstep(clamp(endK, 0, 1));
@@ -199,7 +224,7 @@ class Bead {
       if (this.amount[k] > 0.01) any = true;
       const theta = this.thetaAt(k);
       for (let m = 0; m < Bead.NDU; m++) {
-        const du = -0.095 + (0.19 * m) / (Bead.NDU - 1);
+        const du = -0.082 + (0.164 * m) / (Bead.NDU - 1);
         const h = this.surface(k, du);
         this.slide.pointAt(this.uSeam + this.slide.metersToU(du), theta, h, p);
         arr[i++] = p.x;
@@ -211,6 +236,8 @@ class Bead {
     this.geo.computeVertexNormals();
     this.geo.computeBoundingSphere();
     this.mesh.visible = any;
+    // drawn down material closes up and picks up a little more sheen
+    (this.mesh.material as THREE.MeshPhysicalMaterial).roughness = lerp(0.52, 0.3, this.smoothness());
   }
 
   /** Mean fill coverage across the work strip. */
@@ -591,8 +618,8 @@ export class SeamCollar {
     }
     this.geo.setIndex(idx);
 
-    this.colorMap = makeDynMap(192, 80, true);
-    this.roughMap = makeDynMap(192, 80, false);
+    this.colorMap = makeDynMap(256, 112, true);
+    this.roughMap = makeDynMap(256, 112, false);
 
     const normal = frpNormal();
     this.material = new THREE.MeshPhysicalMaterial({
@@ -757,7 +784,7 @@ export class SeamCollar {
       if (d > 0.01) {
         const ripple =
           0.55 + 0.45 * Math.sin(theta * 17 + du * 34) * Math.sin(theta * 9.3 - 2.1);
-        h += d * 0.0032 * ripple * w;
+        h += d * 0.005 * ripple * w;
       }
     }
     return h;
@@ -818,9 +845,9 @@ export class SeamCollar {
         r = lerp(r, 0.78, dirt);
         r = lerp(r, 0.88, haze);
 
-        let cr = 0.86;
+        let cr = 0.85;
         let cg = 0.91;
-        let cb = 0.89;
+        let cb = 0.9;
         cr = lerp(cr, 0.4, dirt * 0.9);
         cg = lerp(cg, 0.37, dirt * 0.9);
         cb = lerp(cb, 0.31, dirt * 0.9);
@@ -842,8 +869,8 @@ export class SeamCollar {
         rImg.data[ci + 3] = 255;
       }
     }
-    this.blit(this.colorMap, cImg);
-    this.blit(this.roughMap, rImg);
+    this.blit(this.colorMap, cImg, true);
+    this.blit(this.roughMap, rImg, false);
 
     const gloss = this.meanGloss();
     const k = lerp(0.62, 0.14, gloss);
@@ -851,11 +878,24 @@ export class SeamCollar {
     this.mapDirty = false;
   }
 
-  private blit(map: DynMap, img: ImageData): void {
+  private blit(map: DynMap, img: ImageData, grain: boolean): void {
+    const w = map.tex.image.width as number;
+    const h = map.tex.image.height as number;
     map.smallCtx.putImageData(img, 0, 0);
     map.ctx.imageSmoothingEnabled = true;
-    map.ctx.clearRect(0, 0, map.tex.image.width, map.tex.image.height);
-    map.ctx.drawImage(map.small, 0, 0, map.tex.image.width, map.tex.image.height);
+    map.ctx.clearRect(0, 0, w, h);
+    map.ctx.drawImage(map.small, 0, 0, w, h);
+    if (grain) {
+      const pattern = getGrain(map.ctx);
+      if (pattern) {
+        map.ctx.globalCompositeOperation = 'overlay';
+        map.ctx.globalAlpha = 0.3;
+        map.ctx.fillStyle = pattern;
+        map.ctx.fillRect(0, 0, w, h);
+        map.ctx.globalAlpha = 1;
+        map.ctx.globalCompositeOperation = 'source-over';
+      }
+    }
     map.tex.needsUpdate = true;
   }
 

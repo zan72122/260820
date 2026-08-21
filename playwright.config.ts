@@ -1,4 +1,4 @@
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig } from '@playwright/test';
 
 /**
  * Cloud runner profile: Chromium only, one worker, tiny artefacts.
@@ -8,8 +8,9 @@ import { defineConfig, devices } from '@playwright/test';
  */
 export default defineConfig({
   testDir: './tests',
-  timeout: 150_000,
-  expect: { timeout: 20_000 },
+  // A full round is a real play-through; on a software rasteriser it is slow.
+  timeout: 900_000,
+  expect: { timeout: 30_000 },
   workers: 1,
   retries: 1,
   maxFailures: 1,
@@ -21,8 +22,10 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     trace: 'on-first-retry',
     launchOptions: {
-      executablePath: '/opt/pw-browsers/chromium',
       args: [
+        // Containers commonly run this as root, where the Chromium sandbox
+        // refuses to start; this browser only ever loads our own dev server.
+        '--no-sandbox',
         '--use-gl=angle',
         '--use-angle=swiftshader',
         '--enable-unsafe-swiftshader',
@@ -31,14 +34,24 @@ export default defineConfig({
       ],
     },
   },
+  // Chromium only, at the two shapes the game is designed around. The device
+  // presets are not used because they would pull in WebKit, which cannot be
+  // driven from this container.
   projects: [
     {
       name: 'iphone-portrait',
-      use: { ...devices['iPhone 13'], isMobile: true, hasTouch: true },
+      use: {
+        browserName: 'chromium',
+        viewport: { width: 390, height: 844 },
+        deviceScaleFactor: 2,
+        isMobile: true,
+        hasTouch: true,
+      },
     },
     {
       name: 'ipad-landscape',
       use: {
+        browserName: 'chromium',
         viewport: { width: 1180, height: 820 },
         deviceScaleFactor: 2,
         isMobile: true,

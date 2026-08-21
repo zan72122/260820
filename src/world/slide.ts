@@ -202,7 +202,7 @@ export class Slide {
     const uvs: number[] = [];
     const colors: number[] = [];
     const indices: number[] = [];
-    const gel = new THREE.Color(0xdfeae6).convertSRGBToLinear();
+    const gel = new THREE.Color(0xdcebea).convertSRGBToLinear();
     const p = new THREE.Vector3();
     const n = new THREE.Vector3();
     let vertexCount = 0;
@@ -295,7 +295,7 @@ export class Slide {
       roughness: 0.12,
       metalness: 0,
       transparent: true,
-      opacity: 0.72,
+      opacity: 0.6,
       depthWrite: false,
       side: THREE.DoubleSide,
     });

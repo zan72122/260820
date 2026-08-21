@@ -19,6 +19,9 @@ import { ToolKit } from '../world/tools';
  * with a frame yielded in between so the title screen keeps animating instead of
  * freezing on a long synchronous build.
  */
+const RIGHT = new THREE.Vector3();
+const UP_AXIS = new THREE.Vector3();
+
 export class World {
   readonly slide = new Slide();
   env!: EnvRig;
@@ -128,7 +131,13 @@ export class World {
       this.slide.shell.visible = !this.slide.isInside(this.stage.camera.position);
     }
     if (this.workLight) {
-      this.workLight.position.copy(this.stage.camera.position);
+      // Offset from the eye so the channel gets a direction to read, rather than
+      // a flat fill that hides its own depth.
+      const cam = this.stage.camera;
+      this.workLight.position
+        .copy(cam.position)
+        .addScaledVector(RIGHT.setFromMatrixColumn(cam.matrixWorld, 0), 0.62)
+        .addScaledVector(UP_AXIS.setFromMatrixColumn(cam.matrixWorld, 1), 0.2);
     }
     this.crawler?.update(dt);
     this.droplet?.update(dt);

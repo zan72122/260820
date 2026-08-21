@@ -17,6 +17,8 @@ export class Droplet {
   /** Where the wall currently misbehaves and how badly, 0..1. */
   obstacleU: number | null = null;
   obstacleStrength = 0;
+  /** Optional early finish, so a proving run does not have to reach the pool. */
+  stopU = 1;
   onSnag: (() => void) | null = null;
   onFinish: (() => void) | null = null;
 
@@ -59,7 +61,8 @@ export class Droplet {
     this.group.visible = false;
   }
 
-  release(u0: number): void {
+  release(u0: number, stopU = 1): void {
+    this.stopU = stopU;
     this.u = u0;
     this.speed = 0.12;
     this.running = true;
@@ -86,10 +89,17 @@ export class Droplet {
 
   update(dt: number): void {
     if (!this.running) return;
+    // Sub-step so a long frame cannot carry the bead straight through the joint
+    // it is supposed to catch on.
+    const steps = Math.min(8, Math.max(1, Math.ceil(dt / 0.02)));
+    for (let i = 0; i < steps && this.running; i++) this.step(dt / steps);
+  }
+
+  private step(dt: number): void {
     const f = this.slide.frame(this.u);
     const slope = clamp(-f.t.y, -1, 1);
 
-    let target = clamp(0.35 + slope * 9.5, 0.12, 3.4);
+    let target = clamp(0.6 + slope * 22, 0.3, 5.4);
 
     if (this.obstacleU !== null) {
       const distM = (this.obstacleU - this.u) * this.slide.length;
@@ -116,8 +126,8 @@ export class Droplet {
     }
 
     this.u += (this.speed * dt) / this.slide.length;
-    if (this.u >= 0.995) {
-      this.u = 0.995;
+    if (this.u >= Math.min(0.995, this.stopU)) {
+      this.u = Math.min(0.995, this.stopU);
       this.running = false;
       this.group.visible = false;
       this.onFinish?.();
@@ -125,7 +135,7 @@ export class Droplet {
     }
     this.place();
 
-    const stretch = clamp(this.speed / 2.4, 0, 1);
+    const stretch = clamp(this.speed / 4, 0, 1);
     this.bead.scale.set(1.05 - stretch * 0.22, 0.62, 1.25 + stretch * 0.7);
     this.tail.scale.set(1, 0.55, 0.25 + stretch * 1.5);
     (this.tail.material as THREE.MeshPhysicalMaterial).opacity = 0.1 + stretch * 0.38;
@@ -190,7 +200,7 @@ export class Raft {
 
   release(u0: number): void {
     this.u = u0;
-    this.speed = 1.2;
+    this.speed = 2.2;
     this.running = true;
     this.group.visible = true;
     this.place();
@@ -207,9 +217,16 @@ export class Raft {
 
   update(dt: number): void {
     if (!this.running) return;
+    // Sub-step so a long frame cannot carry the bead straight through the joint
+    // it is supposed to catch on.
+    const steps = Math.min(8, Math.max(1, Math.ceil(dt / 0.02)));
+    for (let i = 0; i < steps && this.running; i++) this.step(dt / steps);
+  }
+
+  private step(dt: number): void {
     const f = this.slide.frame(this.u);
     const slope = clamp(-f.t.y, -1, 1);
-    this.speed = damp(this.speed, clamp(1.1 + slope * 13, 0.9, 5.2), 1.9, dt);
+    this.speed = damp(this.speed, clamp(2.4 + slope * 26, 1.6, 8.5), 1.9, dt);
     this.u += (this.speed * dt) / this.slide.length;
     if (this.u >= 0.995) {
       this.running = false;

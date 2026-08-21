@@ -232,10 +232,6 @@ export class BrushStep extends Step {
     this.start = Math.max(0.05, this.ctx.world.active.meanDirt());
   }
 
-  protected roll(): number {
-    return 0;
-  }
-
   protected onMove(w: WorkPoint, t: Touch2D): void {
     if (this.done) return;
     const collar = this.ctx.world.active;

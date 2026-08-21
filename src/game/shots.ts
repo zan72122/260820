@@ -35,10 +35,10 @@ export function makeShots(world: World): Record<string, ShotFn> {
       out.look.y += 1.0;
       out.fov = 54;
     } else {
-      out.pos.set(-33 - drift, 17.5, 2 + drift * 1.6);
-      slide.curve.getPointAt(0.42, out.look);
-      out.look.y -= 0.5;
-      out.fov = 44;
+      out.pos.set(-31 - drift, 16, -2 + drift * 1.6);
+      slide.curve.getPointAt(0.34, out.look);
+      out.look.y -= 1.2;
+      out.fov = 46;
     }
     out.roll = 0;
     out.pitch = 0;
@@ -120,7 +120,7 @@ export function makeShots(world: World): Record<string, ShotFn> {
     out.look.copy(A).addScaledVector(B, 0.02);
     out.fov = fov;
     out.roll = 0;
-    out.pitch = vp.portrait ? -0.15 : -0.04;
+    out.pitch = vp.portrait ? -0.15 : -0.11;
   };
 
   /** Low chase used for the proving droplet after the repair. */
@@ -138,11 +138,11 @@ export function makeShots(world: World): Record<string, ShotFn> {
     const u = world.raft?.running ? world.raft.u : slide.seams[world.activeIndex];
     const f = slide.frame(clamp(u, 0.05, 0.95));
     const side = f.r.clone().setY(0).normalize();
-    const dist = vp.portrait ? 15 : 12;
-    out.pos.copy(f.p).addScaledVector(side, -dist).addScaledVector(f.t, -2.2);
-    out.pos.y = f.p.y + 5.4;
-    out.look.copy(f.p);
-    out.fov = vp.portrait ? 54 : 42;
+    const dist = vp.portrait ? 19 : 15;
+    out.pos.copy(f.p).addScaledVector(side, -dist).addScaledVector(f.t, -3.5);
+    out.pos.y = f.p.y + 5.6;
+    out.look.copy(f.p).addScaledVector(f.t, 2.5);
+    out.fov = vp.portrait ? 50 : 40;
     out.roll = 0;
     out.pitch = 0;
   };

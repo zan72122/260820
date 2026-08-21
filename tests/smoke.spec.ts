@@ -34,7 +34,7 @@ async function until(
     const s = await state(page);
     if (pred(s)) return s;
     if (Date.now() - t0 > ms) throw new Error(`timed out waiting for ${label}: ${JSON.stringify(s)}`);
-    await page.waitForTimeout(250);
+    await page.waitForTimeout(350);
   }
 }
 
@@ -94,21 +94,22 @@ async function driveIn(page: Page, w: number, h: number): Promise<void> {
   await until(page, (s) => s.phase === 'lightSearch', 'lightSearch');
 }
 
-/** Sweeps the lamp knob until the fault is exposed. */
+/** Sweeps the lamp knob across its travel until the fault is exposed. */
 async function findFault(page: Page): Promise<void> {
   const box = await page.locator('.knob').boundingBox();
   if (!box) throw new Error('lamp knob is not on screen');
   const cx = box.x + box.width / 2;
   const cy = box.y + box.height / 2;
-  outer: for (let ring = 1; ring <= 6; ring++) {
-    for (let a = 0; a < 12; a++) {
-      const r = (box.width * 0.34 * ring) / 6;
-      const ang = (a / 12) * Math.PI * 2;
+  const r = box.width * 0.34;
+  outer: for (let iy = 0; iy < 7; iy++) {
+    for (let ix = 0; ix < 5; ix++) {
+      const kx = -0.6 + (1.2 * ix) / 4;
+      const ky = -1 + (2 * iy) / 6;
       await page.mouse.move(cx, cy);
       await page.mouse.down();
-      await page.mouse.move(cx + Math.cos(ang) * r, cy + Math.sin(ang) * r, { steps: 3 });
+      await page.mouse.move(cx + kx * r, cy - ky * r, { steps: 3 });
       await page.mouse.up();
-      await page.waitForTimeout(260);
+      await page.waitForTimeout(220);
       if ((await state(page)).phase !== 'lightSearch') break outer;
     }
   }

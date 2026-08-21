@@ -179,10 +179,6 @@ export class Hud {
     this.applyKnob();
   }
 
-  get knobValue(): { x: number; y: number } {
-    return { x: this.knobX, y: this.knobY };
-  }
-
   showKnob(on: boolean): void {
     this.knob.classList.toggle('on', on);
     this.knob.style.pointerEvents = on ? 'auto' : 'none';

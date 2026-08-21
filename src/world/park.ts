@@ -56,7 +56,7 @@ export class Park {
       new THREE.MeshBasicMaterial({
         color: 0xfff0d4,
         transparent: true,
-        opacity: 0.85,
+        opacity: 0.62,
         depthWrite: false,
         side: THREE.DoubleSide,
       }),
@@ -87,15 +87,13 @@ export class Park {
     const water = new THREE.Mesh(
       new THREE.PlaneGeometry(14, 10, 1, 1),
       new THREE.MeshPhysicalMaterial({
-        color: 0x2ea6c6,
-        roughness: 0.06,
+        color: 0x11748f,
+        roughness: 0.05,
         metalness: 0,
         clearcoat: 1,
         clearcoatRoughness: 0.03,
-        transparent: true,
-        opacity: 0.88,
         envMap,
-        envMapIntensity: 1.5,
+        envMapIntensity: 1,
       }),
     );
     water.rotation.x = -Math.PI / 2;

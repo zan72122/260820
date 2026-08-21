@@ -74,7 +74,6 @@ export class AudioEngine {
   private inside = 0;
   private targetInside = 0;
   private ready = false;
-  private muted = false;
 
   loops: Record<string, NoiseVoice> = {};
 
@@ -134,10 +133,6 @@ export class AudioEngine {
     } catch {
       this.ready = false;
     }
-  }
-
-  get active(): boolean {
-    return this.ready && !this.muted;
   }
 
   private makeNoise(ctx: Ctx, seconds: number): AudioBuffer {
@@ -218,7 +213,7 @@ export class AudioEngine {
     type: BiquadFilterType = 'bandpass',
     dest?: AudioNode,
   ): void {
-    if (!this.ready || !this.ctx || this.muted) return;
+    if (!this.ready || !this.ctx) return;
     const ctx = this.ctx;
     const src = ctx.createBufferSource();
     src.buffer = this.noise;
@@ -242,7 +237,7 @@ export class AudioEngine {
     slideTo?: number,
     delay = 0,
   ): void {
-    if (!this.ready || !this.ctx || this.muted) return;
+    if (!this.ready || !this.ctx) return;
     const ctx = this.ctx;
     const osc = ctx.createOscillator();
     osc.type = type;
@@ -316,22 +311,11 @@ export class AudioEngine {
     this.burst(520, 5, 0.13, 0.09);
   }
 
-  setMuted(m: boolean): void {
-    this.muted = m;
-    if (this.ready) this.master.gain.value = m ? 0 : 0.85;
-  }
-
   loop(name: string): NoiseVoice | null {
     return this.loops[name] ?? null;
   }
 
   silenceTools(): void {
     for (const k of ['peel', 'brush', 'extrude', 'polish']) this.loops[k]?.silence();
-  }
-
-  silenceAll(): void {
-    for (const k of Object.keys(this.loops)) {
-      if (k !== 'breeze') this.loops[k]?.silence();
-    }
   }
 }

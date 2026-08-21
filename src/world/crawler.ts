@@ -101,7 +101,7 @@ export class Crawler {
     this.mast.add(this.turret);
     this.group.add(this.mast);
 
-    this.lamp = new THREE.SpotLight(0xfff0d2, 5.5, 9, 0.42, 0.55, 1.2);
+    this.lamp = new THREE.SpotLight(0xfff5e4, 5.5, 9, 0.42, 0.55, 1.2);
     this.lamp.position.set(0, 0, 0.03);
     this.lamp.castShadow = true;
     this.lamp.shadow.mapSize.set(512, 512);
