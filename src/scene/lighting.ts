@@ -64,6 +64,12 @@ export function buildLights(scene: THREE.Scene, flags: Flags): Lights {
   key.shadow.bias = -0.0004;
   scene.add(key, key.target);
 
+  // 待機エリア（ボールリターン・構え位置）のダウンライト
+  const settee = new THREE.SpotLight(0xffe6c0, 40, 0, 1.0, 0.6, 2);
+  settee.position.set(-0.5, 3.1, -4.2);
+  settee.target.position.set(0.2, 0, -3.0);
+  scene.add(settee, settee.target);
+
   // レーン中盤の灯り（影なし・減衰で奥は暗く）
   for (const [z, i] of [
     [4.5, 30],
@@ -76,9 +82,9 @@ export function buildLights(scene: THREE.Scene, flags: Flags): Lights {
   }
 
   // ピンデッキ照明（マスキング内から下向き。ピンを最も明るく）
-  const pin = new THREE.SpotLight(0xf2ecdd, 26, 0, 0.62, 0.45, 2);
-  pin.position.set(0, 1.55, LANE_LENGTH - 1.35);
-  pin.target.position.set(0, 0.15, LANE_LENGTH + 0.25);
+  const pin = new THREE.SpotLight(0xf2ecdd, 24, 0, 0.56, 0.55, 2);
+  pin.position.set(0, 1.7, LANE_LENGTH - 0.75);
+  pin.target.position.set(0, 0.1, LANE_LENGTH + 0.35);
   pin.castShadow = !flags.fast;
   pin.shadow.mapSize.set(1024, 1024);
   pin.shadow.camera.near = 0.4;

@@ -4,7 +4,9 @@ import { readFlags } from './util/flags';
 import { mulberry32 } from './util/rng';
 import { buildLane } from './scene/lane';
 import { buildEnvironmentMap, buildLights } from './scene/lighting';
-import { LANE_LENGTH } from './util/units';
+import { BALL_RADIUS, LANE_LENGTH, pinPositions } from './util/units';
+import { buildBall } from './scene/ball';
+import { buildPinAssets, makePinMesh } from './scene/pins';
 
 const container = document.getElementById('app');
 if (!container) throw new Error('#app not found');
@@ -25,6 +27,18 @@ buildLights(engine.scene, flags);
 const rng = mulberry32(flags.seed);
 const lane = buildLane(rng, flags.fast);
 engine.scene.add(lane.group);
+
+// ボール（構え位置）とピン10本
+const ball = buildBall(rng, flags.fast);
+ball.position.set(0.2, BALL_RADIUS, -3.2);
+engine.scene.add(ball);
+
+const pinAssets = buildPinAssets(rng, flags.fast);
+for (const p of pinPositions()) {
+  const pin = makePinMesh(pinAssets, rng, flags.fast);
+  pin.position.set(p.x, 0, p.z);
+  engine.scene.add(pin);
+}
 
 engine.camera.position.set(0.2, 1.6, -3.4);
 engine.camera.lookAt(0, 0.25, LANE_LENGTH * 0.75);

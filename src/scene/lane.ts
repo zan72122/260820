@@ -184,10 +184,11 @@ export function buildLane(rng: Rng, fast: boolean): LaneBuild {
     roughness: 0.5,
     envMapIntensity: 0.5,
   });
-  const kickLen = LANE_FULL_LENGTH - gutterLen + 0.6;
+  const kickStart = LANE_LENGTH - 0.72;
+  const kickLen = LANE_FULL_LENGTH - kickStart + 0.45;
   for (const side of [-1, 1]) {
-    const kick = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.6, kickLen), kickMat);
-    kick.position.set(side * (LANE_WIDTH / 2 + 0.045), 0.3 - GUTTER_DEPTH, gutterLen + kickLen / 2 - 0.25);
+    const kick = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.5, kickLen), kickMat);
+    kick.position.set(side * (LANE_WIDTH / 2 + 0.045), 0.25 - GUTTER_DEPTH, kickStart + kickLen / 2);
     kick.castShadow = !fast;
     kick.receiveShadow = true;
     group.add(kick);
