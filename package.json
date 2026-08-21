@@ -1,0 +1,23 @@
+{
+  "name": "park-slide-build",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "公園の滑り台を組み立てるモバイルWebゲーム",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview --host 0.0.0.0 --port 4173",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@types/three": "^0.170.0",
+    "typescript": "^5.6.0",
+    "vite": "^5.4.0"
+  }
+}
