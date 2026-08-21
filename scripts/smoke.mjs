@@ -93,7 +93,31 @@ try {
     press: (v) => ev((p) => window.__wb.press(p), v),
     swipe: () => ev(() => window.__wb.swipe()),
     replay: () => ev(() => window.__wb.replay()),
+    hints: () => ev(() => window.__wb.hints()),
+    audio: () => ev(() => window.__wb.audio()),
+    bagPoints: () => ev(() => window.__wb.bagWorldPoints()),
   };
+
+  /** Drag a ballast bag with the pointer, the way a hand would. */
+  async function dragBagToDeck() {
+    const box = await page.locator('#stage').boundingBox();
+    const toScreen = (p) => ({
+      x: box.x + ((p.x + 1) / 2) * box.width,
+      y: box.y + ((1 - p.y) / 2) * box.height,
+    });
+    const bags = await api.bagPoints();
+    const onBench = bags.find((b) => b.state === 'bench');
+    if (!onBench) return false;
+    const raftDeck = bags.find((b) => b.state === 'deck');
+    const from = toScreen(onBench);
+    // Aim at the raft: either an existing deck bag, or the middle of the ramp.
+    const to = raftDeck ? toScreen(raftDeck) : { x: box.x + box.width * 0.52, y: box.y + box.height * 0.42 };
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(to.x, to.y, { steps: 14 });
+    await page.mouse.up();
+    return true;
+  }
   const shot = async (name, settle = 0) => {
     // Optionally let the rail settle into the shot before capturing it.
     if (settle) await api.step(settle);
@@ -114,13 +138,15 @@ try {
   const inState = (...names) => async () => names.includes(await api.state());
 
   // Real gestures, on the real elements.
+  /** Push the raft itself forward, starting the gesture on the raft. */
   async function realSwipe() {
-    // Start well away from the lever's corner: this is the raft-side swipe.
     const box = await page.locator('#stage').boundingBox();
-    const y = box.y + box.height * 0.32;
-    await page.mouse.move(box.x + box.width * 0.45, y);
+    const p = await ev(() => window.__wb.raftScreen());
+    const x = box.x + ((p.x + 1) / 2) * box.width;
+    const y = box.y + ((1 - p.y) / 2) * box.height;
+    await page.mouse.move(x, y);
     await page.mouse.down();
-    await page.mouse.move(box.x + box.width * 0.72, y, { steps: 8 });
+    await page.mouse.move(x + box.width * 0.22, y + 6, { steps: 8 });
     await page.mouse.up();
   }
   async function realLever(down) {
@@ -142,6 +168,30 @@ try {
   check((await api.bags()) === 1, 'first run carries one test bag', `bags=${await api.bags()}`);
   await shot('02-staging-run1', 1.6);
 
+  note('\n— ballast by hand —');
+  await api.step(2.5); // let the staging framing settle before aiming
+  const bagsBefore = await api.bags();
+  const massBefore = (await api.raft()).mass;
+  const dragged = await dragBagToDeck();
+  await api.step(0.5);
+  check(dragged, 'a bag can be picked up from the bench');
+  check(
+    (await api.bags()) === bagsBefore + 1,
+    'dragging a bag near the deck snaps it aboard',
+    `bags ${bagsBefore} -> ${await api.bags()}`,
+  );
+  check(
+    (await api.raft()).mass > massBefore,
+    'the extra bag makes the raft heavier',
+    `${massBefore}kg -> ${(await api.raft()).mass}kg`,
+  );
+  await shot('02b-ballast-dragged', 0.6);
+  // Put it back so the scripted first run is the designed one.
+  await ev(() => window.__wb.setBags(1));
+  await api.step(0.4);
+  check((await api.bags()) === 1, 'rig can reset the ballast for the run', `bags=${await api.bags()}`);
+
+  note('\n— run 1 continued —');
   await realSwipe();
   await sleep(250);
   check((await api.state()) === 'RAFT_COASTS', 'a real swipe releases the raft', await api.state());
@@ -158,6 +208,14 @@ try {
     await api.state(),
   );
   await shot('04-rests-before-hill', 1.4);
+
+  const hintsBefore = await api.hints();
+  await api.step(3.0);
+  check(
+    (await api.hints()) > hintsBefore,
+    'the rig gives its quiet hint while the raft waits',
+    `hints ${hintsBefore} -> ${await api.hints()}`,
+  );
 
   note('\n— run 1: the rule —');
   const leverBox = await realLever(true);
@@ -203,6 +261,14 @@ try {
   await stepUntil(async () => (await api.finishes()) > 0, 14);
   check((await api.finishes()) === 1, 'raft lands in the runout', await api.state());
   await shot('07-splash-finish', 1.2);
+
+  await api.step(2.6);
+  check(
+    (await api.shot()) === 'review',
+    'the run ends by looking back down the line it drew',
+    await api.shot(),
+  );
+  await shot('07b-trail-review');
 
   note('\n— run 2: one bag lighter —');
   await stepUntil(inState('RELEASE_TEST_RAFT'), 22);
@@ -304,6 +370,9 @@ try {
     );
     await shot(`12-${name}`);
   }
+
+  note('\n— audio —');
+  note(`  note audio context running: ${await api.audio()}`);
 
   note('\n— console and coverage —');
   const filtered = errors.filter((e) => !/Failed to load resource: net::ERR_/.test(e));

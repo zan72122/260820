@@ -23,6 +23,8 @@ export class ChildGuidanceState {
   private hintCount = 0;
   private lastState: GameState = GameState.BOOT;
   private cooldown = 0;
+  /** Total hints given this session, for the smoke test. */
+  hintsGiven = 0;
 
   constructor(private readonly hooks: GuidanceHooks) {}
 
@@ -58,6 +60,7 @@ export class ChildGuidanceState {
           this.hintCount++;
           this.idle = 0;
           this.cooldown = 1.4;
+          this.hintsGiven++;
           const strength = Math.min(0.35 + this.hintCount * 0.15, 0.8);
           this.hooks.nozzlePulse(strength);
           this.hooks.leverShiver(strength);
@@ -72,6 +75,7 @@ export class ChildGuidanceState {
           this.hintCount++;
           this.idle = 0;
           this.cooldown = 2;
+          this.hintsGiven++;
           this.hooks.launchNudge();
         }
         break;

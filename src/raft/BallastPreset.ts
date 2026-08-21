@@ -16,7 +16,7 @@ export interface BallastBag {
   settle: number;
 }
 
-const SNAP_RADIUS = 1.75;
+const SNAP_RADIUS = 2.2;
 const DECK_SLOTS: ReadonlyArray<readonly [number, number, number]> = [
   [0.34, 0.3, 0.0],
   [-0.36, 0.3, 0.0],
@@ -91,7 +91,7 @@ export class BallastRig {
       const mesh = new THREE.Mesh(geo, mat);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
-      const benchPosition = benchOrigin.clone().add(new THREE.Vector3(0, 0, i * 0.86 - 0.86));
+      const benchPosition = benchOrigin.clone().add(new THREE.Vector3(i * 0.92 - 0.92, 0, 0));
       mesh.position.copy(benchPosition);
       if (mesh.morphTargetInfluences) mesh.morphTargetInfluences[0] = 1;
       this.group.add(mesh);
@@ -115,8 +115,10 @@ export class BallastRig {
     return this.dragging !== null;
   }
 
+  /** Only bags waiting on the bench can be picked up. Bags already on the
+   *  deck stay put, so a hand on the raft always means "send it off". */
   meshes(): THREE.Mesh[] {
-    return this.bags.map((b) => b.mesh);
+    return this.bags.filter((b) => b.state === 'bench').map((b) => b.mesh);
   }
 
   /** Put exactly `count` bags on the deck, leaving the rest on the bench. */
@@ -191,7 +193,9 @@ export class BallastRig {
     if (!bag) return;
     this.dragging = null;
     const deck = this.raft.deckPoint(this.tmp);
-    if (bag.mesh.position.distanceTo(deck) < SNAP_RADIUS && this.freeSlot(bag) >= 0) {
+    // Judge the drop by where the finger let go, not by how far the eased
+    // mesh has caught up: on a slow frame those are not the same place.
+    if (bag.worldTarget.distanceTo(deck) < SNAP_RADIUS && this.freeSlot(bag) >= 0) {
       this.placeOnDeck(bag);
     } else {
       this.placeOnBench(bag);
@@ -201,7 +205,7 @@ export class BallastRig {
   pick(raycaster: THREE.Raycaster): BallastBag | null {
     const hits = raycaster.intersectObjects(this.meshes(), false);
     if (!hits.length) return null;
-    return this.bags.find((b) => b.mesh === hits[0].object) ?? null;
+    return this.bags.find((b) => b.mesh === hits[0].object && b.state === 'bench') ?? null;
   }
 
   update(dt: number): void {

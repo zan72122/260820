@@ -20,7 +20,7 @@ function transformed(geo: THREE.BufferGeometry, m: THREE.Matrix4): THREE.BufferG
 export class TestSection {
   readonly group = new THREE.Group();
   readonly holdBack: THREE.Object3D;
-  readonly benchOrigin = new THREE.Vector3(-6.4, 6.12, 2.0);
+  readonly benchOrigin = new THREE.Vector3(-2.6, 6.12, 2.35);
   private readonly steelMat: THREE.MeshStandardMaterial;
 
   constructor(private readonly spline: CourseSpline) {
@@ -36,6 +36,7 @@ export class TestSection {
       normalMap: steel.normalMap,
       envMapIntensity: 0.9,
     });
+    this.steelMat.normalScale.set(0.4, 0.4);
 
     const apronMaps = withRepeat(concrete, 9, 3);
     const concreteMat = new THREE.MeshStandardMaterial({
@@ -329,14 +330,14 @@ export class TestSection {
     }
 
     // Ballast bench: where the test weights live between runs.
-    const bench = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.12, 3.0), this.steelMat);
+    const bench = new THREE.Mesh(new THREE.BoxGeometry(3.1, 0.12, 1.5), this.steelMat);
     bench.position.copy(this.benchOrigin).add(new THREE.Vector3(0, -0.05, 0));
     bench.castShadow = true;
     bench.receiveShadow = true;
     this.group.add(bench);
     const benchLeg = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.72, 0.1), this.steelMat);
-    for (const bx of [-0.55, 0.55]) {
-      for (const bz of [-1.25, 1.25]) {
+    for (const bx of [-1.3, 1.3]) {
+      for (const bz of [-0.55, 0.55]) {
         const leg = benchLeg.clone();
         leg.position.copy(this.benchOrigin).add(new THREE.Vector3(bx, -0.47, bz));
         this.group.add(leg);

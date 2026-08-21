@@ -158,7 +158,7 @@ export class Simulation {
     if (this.armed && Math.abs(this.raft.v) > 0.4 && this.trailTimer > 0.06) {
       this.trailTimer = 0;
       this.spline.positionAt(this.raft.s, this.tmp);
-      this.trail.push(this.tmp.clone().add(new THREE.Vector3(0, 0.28, 0)));
+      this.trail.push(this.tmp.clone().add(new THREE.Vector3(0, 0.55, 0)));
       if (this.trail.length > 420) this.trail.shift();
     }
 

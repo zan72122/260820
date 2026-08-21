@@ -77,6 +77,7 @@ export class NozzleBank {
       normalMap: steel.normalMap,
       envMapIntensity: 1.1,
     });
+    bodyMat.normalScale.set(0.5, 0.5);
     this.bodies = new THREE.InstancedMesh(bodyGeo, bodyMat, count);
     this.bodies.castShadow = true;
     this.bodies.receiveShadow = true;

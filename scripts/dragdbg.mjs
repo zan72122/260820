@@ -1,0 +1,40 @@
+import { chromium } from 'playwright';
+import { spawn } from 'node:child_process';
+import { setTimeout as sleep } from 'node:timers/promises';
+const PORT = 4181;
+const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], {
+  cwd: '/home/user/260820', stdio: ['ignore', 'pipe', 'pipe'],
+});
+server.stdout.on('data', () => {});
+for (let i = 0; i < 40; i++) { try { if ((await fetch(`http://127.0.0.1:${PORT}/`)).ok) break; } catch {} await sleep(300); }
+const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'] });
+const ctx = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+const page = await ctx.newPage();
+page.on('pageerror', e => console.log('ERR', e));
+await page.goto(`http://127.0.0.1:${PORT}/?fast=1`);
+await page.waitForFunction(() => Boolean(window.__wb));
+await sleep(800);
+const ev = (f, a) => page.evaluate(f, a);
+await ev((s) => window.__wb.step(s), 4);
+console.log('state', await ev(() => window.__wb.state()));
+console.log('bags', await ev(() => window.__wb.bagWorldPoints()));
+console.log('deck', await ev(() => window.__wb.deckPoint()));
+const box = await page.locator('#stage').boundingBox();
+const toScreen = (p) => ({ x: box.x + ((p.x + 1) / 2) * box.width, y: box.y + ((1 - p.y) / 2) * box.height });
+const bags = await ev(() => window.__wb.bagWorldPoints());
+const bench = bags.find(b => b.state === 'bench');
+const deck = await ev(() => window.__wb.deckPoint());
+const from = toScreen(bench), to = toScreen(deck);
+console.log('from', from, 'to', to, 'canvas', box);
+await page.mouse.move(from.x, from.y);
+await page.mouse.down();
+await sleep(120);
+console.log('dragging after down?', await ev(() => window.__wb.dragging()));
+await page.mouse.move(to.x, to.y, { steps: 10 });
+await sleep(120);
+console.log('dragging mid?', await ev(() => window.__wb.dragging()), await ev(() => window.__wb.bagWorldPoints()));
+await page.mouse.up();
+await ev((s) => window.__wb.step(s), 0.5);
+console.log('bags after', await ev(() => window.__wb.bags()), await ev(() => window.__wb.bagWorldPoints()));
+await browser.close();
+server.kill('SIGTERM');

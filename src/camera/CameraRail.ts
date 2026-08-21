@@ -152,10 +152,15 @@ export class CameraRail {
       centre: THREE.Vector3,
       dir: THREE.Vector3,
       margin: number,
+      /** Push the subject up the frame, away from the lever in the corner. */
+      lift = 0,
     ) => (ctx: RailContext, rail: CameraRail) => {
       const d = dir.clone().normalize();
       const dist = rail.fitDistance(pts, ctx, d, centre, margin);
-      return { position: centre.clone().addScaledVector(d, dist), target: centre.clone() };
+      return {
+        position: centre.clone().addScaledVector(d, dist),
+        target: centre.clone().setY(centre.y - lift),
+      };
     };
 
     /**
@@ -164,8 +169,11 @@ export class CameraRail {
      * either way up and the near wall of the flume never hides the raft.
      */
     const rig = (ctx: RailContext, dx: number, dy: number, dz: number) => {
-      const k = ctx.portrait ? 1.55 : 1;
-      return new THREE.Vector3(dx, dy * k, dz * k);
+      // Portrait steps back a little and climbs a lot: the tall frame is spent
+      // on the height between the valley and the crest, not on empty sky.
+      const kz = ctx.portrait ? 1.3 : 1;
+      const ky = ctx.portrait ? 2.15 : 1;
+      return new THREE.Vector3(dx, dy * ky, dz * kz);
     };
 
     return {
@@ -187,13 +195,15 @@ export class CameraRail {
         targetLag: 0.7,
         solve: wide(
           [
-            new THREE.Vector3(-8.4, 5.7, 2.8),
-            new THREE.Vector3(2.5, 7.6, -1.8),
-            new THREE.Vector3(-3, 6.0, 0),
+            new THREE.Vector3(-6.4, 5.9, 3.4),
+            new THREE.Vector3(2.6, 7.4, -1.6),
+            new THREE.Vector3(-3.4, 6.1, 0),
+            new THREE.Vector3(-1.0, 6.6, 2.4),
           ],
-          new THREE.Vector3(-3.0, 6.7, 0.2),
-          new THREE.Vector3(0.5, 0.3, 1),
-          1.16,
+          new THREE.Vector3(-2.2, 6.7, 0.8),
+          new THREE.Vector3(0.62, 0.3, 1),
+          1.14,
+          1.5,
         ),
       },
 

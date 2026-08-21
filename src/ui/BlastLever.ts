@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { galvanisedMaps, rubberMaps } from '../world/Textures';
 import { approach, clamp } from '../core/Rng';
 
@@ -75,6 +76,7 @@ export class BlastLever {
       normalMap: steel.normalMap,
       envMapIntensity: 0.9,
     });
+    steelMat.normalScale.set(0.4, 0.4);
     const caseMat = new THREE.MeshStandardMaterial({
       color: 0x6d7a80,
       metalness: 0.3,
@@ -85,28 +87,31 @@ export class BlastLever {
     });
 
     // Pedestal, running out of frame the way real floor-mounted plant does.
-    const column = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.7, 0.075), steelMat);
-    column.position.set(0, -0.42, 0);
-    this.group.add(column);
-    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.03, 0.18), steelMat);
-    foot.position.set(0, -0.76, 0);
-    this.group.add(foot);
+    // The fixed steelwork is merged: this control is on screen every frame.
+    const fixed: THREE.BufferGeometry[] = [];
+    const at = (geo: THREE.BufferGeometry, x: number, y: number, z: number, rx = 0) => {
+      const g = geo.clone();
+      if (rx) g.rotateX(rx);
+      g.translate(x, y, z);
+      fixed.push(g);
+      geo.dispose();
+    };
+    at(new THREE.BoxGeometry(0.075, 0.7, 0.075), 0, -0.42, 0);
+    at(new THREE.BoxGeometry(0.2, 0.03, 0.18), 0, -0.76, 0);
 
     // The console itself: a cast box with the lever slot cut into the top.
     const body = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.13, 0.17), caseMat);
     body.rotation.x = -0.2;
     this.group.add(body);
-    const topPlate = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.012, 0.18), steelMat);
-    topPlate.rotation.x = -0.2;
-    topPlate.position.set(0, 0.068, 0.012);
-    this.group.add(topPlate);
+    at(new THREE.BoxGeometry(0.35, 0.012, 0.18), 0, 0.068, 0.012, -0.2);
     for (const bx of [-0.15, 0.15]) {
       for (const bz of [-0.07, 0.07]) {
-        const bolt = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.009, 0.012, 6), steelMat);
-        bolt.position.set(bx, 0.074, bz);
-        this.group.add(bolt);
+        at(new THREE.CylinderGeometry(0.008, 0.009, 0.012, 6), bx, 0.074, bz);
       }
     }
+    const merged = mergeGeometries(fixed, false);
+    fixed.forEach((g) => g.dispose());
+    if (merged) this.group.add(new THREE.Mesh(merged, steelMat));
     const slot = new THREE.Mesh(
       new THREE.BoxGeometry(0.035, 0.008, 0.1),
       new THREE.MeshStandardMaterial({ color: 0x1c2226, roughness: 0.9 }),
@@ -203,7 +208,7 @@ export class BlastLever {
     const halfW = halfH * this.camera.aspect;
     // The console is bolted to the corner of the test station: it keeps a
     // constant share of the screen, and it never covers the flume.
-    const scale = clamp(halfH * 1.0, 0.3, 0.8);
+    const scale = clamp(halfH * (portrait ? 0.72 : 1.0), 0.28, 0.8);
     this.group.scale.setScalar(scale);
     const x = -halfW + Math.min(halfW * 0.34, 0.24 * scale + 0.1);
     const y = -halfH + (portrait ? 0.2 : 0.16) * scale + 0.02;

@@ -15,11 +15,10 @@ export class TrailReview {
 
   constructor() {
     this.material = new THREE.MeshBasicMaterial({
-      color: 0x9fe2f5,
+      color: 0x37c8f0,
       transparent: true,
       opacity: 0,
       depthWrite: false,
-      blending: THREE.AdditiveBlending,
     });
   }
 
@@ -27,7 +26,7 @@ export class TrailReview {
     this.clear();
     if (points.length < 4) return;
     const curve = new THREE.CatmullRomCurve3(points.map((p) => p.clone()));
-    const geo = new THREE.TubeGeometry(curve, Math.min(220, points.length * 2), 0.055, 6, false);
+    const geo = new THREE.TubeGeometry(curve, Math.min(240, points.length * 2), 0.2, 6, false);
     this.mesh = new THREE.Mesh(geo, this.material);
     this.mesh.renderOrder = 9;
     this.group.add(this.mesh);
@@ -56,7 +55,7 @@ export class TrailReview {
     // Draws on, holds, fades: one pass only.
     const draw = clamp(t / 0.45, 0, 1);
     const fade = 1 - clamp((t - 0.7) / 0.3, 0, 1);
-    this.material.opacity = 0.55 * fade;
+    this.material.opacity = 0.8 * fade;
     const geo = this.mesh.geometry as THREE.TubeGeometry;
     const total = geo.index ? geo.index.count : 0;
     if (total > 0) geo.setDrawRange(0, Math.floor(total * draw));

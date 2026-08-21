@@ -524,7 +524,10 @@ export class Game {
   private handleDragStart(ndc: THREE.Vector2): boolean {
     if (!this.canDragBallast()) return false;
     this.raycaster.setFromCamera(ndc, this.camera);
-    const bag = this.ballast.pick(this.raycaster);
+    // Exact hit first, then anything close by: a four-year-old's finger does
+    // not need to land on the bag, only near it.
+    let bag = this.ballast.pick(this.raycaster);
+    if (!bag) bag = this.nearestBagOnScreen(ndc, 0.16);
     if (!bag) return false;
     this.guidance.notifyActivity();
     bag.mesh.getWorldPosition(this.tmpVec);
@@ -532,6 +535,24 @@ export class Game {
     this.dragPlane.setFromNormalAndCoplanarPoint(this.tmpVec2, this.tmpVec);
     this.ballast.beginDrag(bag);
     return true;
+  }
+
+  /** Closest ballast bag to a screen point, in aspect-corrected NDC. */
+  private nearestBagOnScreen(ndc: THREE.Vector2, radius: number) {
+    let best: ReturnType<BallastRig['pick']> = null;
+    let bestD = radius;
+    for (const bag of this.ballast.bags) {
+      if (bag.state !== 'bench') continue;
+      bag.mesh.getWorldPosition(this.tmpVec).project(this.camera);
+      const dx = (this.tmpVec.x - ndc.x) * this.camera.aspect * 0.5;
+      const dy = this.tmpVec.y - ndc.y;
+      const d = Math.hypot(dx, dy);
+      if (d < bestD) {
+        bestD = d;
+        best = bag;
+      }
+    }
+    return best;
   }
 
   private handleDragMove(ndc: THREE.Vector2): void {
@@ -619,6 +640,29 @@ export class Game {
         }
       },
       quality: () => this.settings,
+      hints: () => this.guidance.hintsGiven,
+      dragging: () => this.ballast.isDragging,
+      raftScreen: () => {
+        const p = this.raftView.group
+          .getWorldPosition(new THREE.Vector3())
+          .add(new THREE.Vector3(0, 0.3, 0))
+          .project(this.camera);
+        return { x: p.x, y: p.y };
+      },
+      deckPoint: () => {
+        const p = this.raftView.deckPoint(new THREE.Vector3()).project(this.camera);
+        return { x: p.x, y: p.y };
+      },
+      setBags: (n: number) => {
+        this.ballast.applyPreset(n);
+        this.sim.raft.bags = this.ballast.deckCount;
+      },
+      audio: () => this.audio.running,
+      bagWorldPoints: () =>
+        this.ballast.bags.map((b) => {
+          const p = b.mesh.getWorldPosition(new THREE.Vector3()).project(this.camera);
+          return { id: b.id, state: b.state, x: p.x, y: p.y };
+        }),
       fast: this.options.fast,
       canvasSize: () => ({ w: this.canvas.clientWidth, h: this.canvas.clientHeight }),
       windowSize: () => ({ w: window.innerWidth, h: window.innerHeight }),
