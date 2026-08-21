@@ -1,0 +1,23 @@
+{
+  "name": "slider-doctor",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Slider Doctor: Tsurutsura Daisakusen - a touch-first 3D repair game for very young players.",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5173",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview --host 127.0.0.1 --port 4173",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@types/three": "^0.185.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.0.2"
+  }
+}
