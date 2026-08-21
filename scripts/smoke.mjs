@@ -417,3 +417,5 @@ if (fail.length) {
   process.exit(1);
 }
 console.log('\nAll smoke checks passed.');
+// The preview server keeps the event loop alive; the run is over.
+process.exit(0);
