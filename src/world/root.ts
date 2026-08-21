@@ -242,8 +242,8 @@ function buildRootGeometry(
       // Non-circular cross-section: cassava roots are slightly lobed.
       const lobe =
         1 +
-        Math.sin(v * 3 + t * 4.1 + seedPhase) * 0.055 +
-        Math.sin(v * 5 - t * 2.7 + seedPhase * 0.6) * 0.032;
+        Math.sin(v * 3 + t * 4.1 + seedPhase) * 0.045 +
+        Math.sin(v * 5 - t * 2.7 + seedPhase * 0.6) * 0.024;
       const r = rBase * lobe;
       tmpN.copy(N).multiplyScalar(Math.cos(v));
       tmpB.copy(B).multiplyScalar(Math.sin(v));

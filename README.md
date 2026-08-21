@@ -166,12 +166,28 @@ staggered lift delay are never reduced at any tier. WebGPU-capable browsers
 get richer particles and filtering only; WebGL 2 is the baseline everything
 runs on.
 
+## Size
+
+The production build is 812 KB on disk, about 212 KB gzipped, and contains no
+images, models or audio files — every surface and every sound is generated at
+runtime.
+
 ## Tests
 
 `tests/play.spec.ts` drives the whole checklist through genuine pointer input
 on the canvas — the tests never call the game's own advance hook to make
 progress, only to read state and to step simulation time. It runs on four
 viewports: iPhone portrait and landscape, iPad portrait and landscape.
+
+Eleven checks per viewport, forty-four in all: the opening withholds the
+roots; the wordless prompt ladder never changes the task; the first pull
+cracks the ground and brings a root shoulder to the surface; the cluster
+climbs rather than jumping; a whole plant runs from first touch to basket and
+straight on to a different plant; mashing and wrong-way drags leave the
+sequence intact; a rotation mid-gesture keeps every bit of progress; sound
+starts on the first touch and not before; reduced motion still plays the whole
+plant through; and no part of the lifted cluster leaves the frame in either
+orientation.
 
 `tests/shots.mjs` is a separate inspection harness that plays the sequence and
 writes a screenshot at every beat.

@@ -528,6 +528,11 @@ export class Session {
     );
     this.sound.update(dt);
 
+    // Belt and braces: the section wall is a double-sided slab of earth, and
+    // a camera that ended up behind it would fill the screen with flat brown.
+    // It exists for exactly one phase, so it is only ever visible in that one.
+    plot.patch.sectionWall.visible = this.phase === 'section';
+
     this.hints.update(dt, this.stage.camera, this.worker);
     if (this.hints.idleTime < 6) this.workerWatchesWork();
     this.worker.update(dt);
