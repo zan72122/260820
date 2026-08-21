@@ -31,7 +31,11 @@ export class Pendulum {
   omega = 0
 
   private damping = 0.055
-  private queuedPumps = 0
+  /** Swipes waiting to be spent, in arbitrary strength units. */
+  private queuedStrength = 0
+  /** Velocity increase still owed to the current pump, in rad/s. */
+  private pumpBudget = 0
+  private pumpDir = 1
   private pumpArmed = false
   private lastThetaSign = 0
   private lastOmegaSign = 0
@@ -70,7 +74,8 @@ export class Pendulum {
   }
 
   queuePump(strength = 1): void {
-    this.queuedPumps = Math.min(3, this.queuedPumps + strength)
+    // Extra swipes stack a little but saturate, so mashing cannot skip the climb.
+    this.queuedStrength = Math.min(1.6, this.queuedStrength + strength * 0.65)
     this.pumpArmed = true
   }
 
@@ -80,7 +85,7 @@ export class Pendulum {
   }
 
   hasQueuedPump(): boolean {
-    return this.queuedPumps > 0.001
+    return this.queuedStrength > 0.001 || this.pumpBudget > 0.001
   }
 
   step(dt: number): void {
@@ -98,23 +103,26 @@ export class Pendulum {
     this.omega += alpha * h
     this.theta += this.omega * h
 
-    // --- pump: spend queued energy through the bottom quarter of the arc ---
-    if (this.queuedPumps > 0) {
-      const nearBottom = Math.abs(this.theta) < Math.max(0.16, this.amplitudeRad * 0.55)
-      if (nearBottom && Math.abs(this.omega) > 0.02) {
-        const amp = this.amplitude01
-        // Big help when the swing is nearly still, gentle top-up when it is already high.
-        const assist = 2.35 * (1 - amp * 0.72) * (0.35 + 0.65 * (1 - amp))
-        const gain = assist * h * 6
-        const spend = Math.min(this.queuedPumps, gain)
-        this.omega += Math.sign(this.omega) * spend * 1.15
-        this.queuedPumps -= spend
-        if (this.queuedPumps <= 0.001) {
-          this.queuedPumps = 0
-          if (this.pumpArmed) {
-            this.pumpArmed = false
-            this.listeners.pumped?.({ amplitude: this.amplitude01 })
-          }
+    // --- pump: one bounded velocity boost, spent through the bottom of the arc ---
+    // The boost shrinks as the arc grows, so the swing climbs over several pushes
+    // instead of snapping to its limit on the first one — and there is no timing
+    // window to miss: the boost simply waits for the next pass if it has to.
+    const window = Math.max(0.18, this.amplitudeRad * 0.6)
+    const nearBottom = Math.abs(this.theta) < window
+    if (this.queuedStrength > 0 && this.pumpBudget <= 0 && nearBottom && Math.abs(this.omega) > 0.02) {
+      this.pumpBudget = 0.4 * (1 - 0.5 * this.amplitude01) * this.queuedStrength
+      this.pumpDir = this.omega >= 0 ? 1 : -1
+      this.queuedStrength = 0
+    }
+    if (this.pumpBudget > 0 && nearBottom) {
+      const d = Math.min(this.pumpBudget, 3.2 * h)
+      this.omega += this.pumpDir * d
+      this.pumpBudget -= d
+      if (this.pumpBudget <= 0.0005) {
+        this.pumpBudget = 0
+        if (this.pumpArmed) {
+          this.pumpArmed = false
+          this.listeners.pumped?.({ amplitude: this.amplitude01 })
         }
       }
     }
@@ -152,7 +160,8 @@ export class Pendulum {
   reset(): void {
     this.theta = 0
     this.omega = 0
-    this.queuedPumps = 0
+    this.queuedStrength = 0
+    this.pumpBudget = 0
     this.pumpArmed = false
     this.lastThetaSign = 0
     this.lastOmegaSign = 0

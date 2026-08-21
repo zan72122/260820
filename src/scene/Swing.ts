@@ -7,6 +7,7 @@ import {
   Matrix4,
   Mesh,
   MeshStandardMaterial,
+  Euler,
   Object3D,
   PlaneGeometry,
   Quaternion,
@@ -17,6 +18,7 @@ import {
 import type { Pendulum } from '../sim/Pendulum'
 import { clamp, damp, lerp } from '../util/math'
 import { makeSwingApronTexture } from '../util/textures'
+import { Batch } from './geom'
 import { materials } from './materials'
 
 const LINKS_PER_CHAIN = 22
@@ -108,31 +110,32 @@ export class Swing {
       this.group.add(cap)
     }
 
-    // A-frame legs at both ends, splayed fore and aft
+    // A-frame legs at both ends, splayed fore and aft. All eight legs, four
+    // footings and two ties share their materials, so they share draw calls.
+    const galv = new Batch()
+    const conc = new Batch()
     for (const sx of [-1, 1]) {
       for (const sz of [-1, 1]) {
         const top = new Vector3(P.x + sx * (beamLen * 0.5 - 0.06), P.y + 0.09, P.z)
         const bottom = new Vector3(P.x + sx * (beamLen * 0.5 + 0.5), 0, P.z + sz * 1.28)
         const dir = new Vector3().subVectors(bottom, top)
         const len = dir.length()
-        const leg = new Mesh(new CylinderGeometry(0.058, 0.07, len, 10), M.steelGalv)
-        leg.position.copy(top).addScaledVector(dir, 0.5)
-        this.quat.setFromUnitVectors(new Vector3(0, 1, 0), dir.clone().normalize())
-        leg.quaternion.copy(this.quat)
-        leg.castShadow = true
-        this.group.add(leg)
-
-        const footing = new Mesh(new CylinderGeometry(0.19, 0.22, 0.16, 10), M.concrete)
-        footing.position.set(bottom.x, 0.05, bottom.z)
-        footing.receiveShadow = true
-        this.group.add(footing)
+        const mid = top.clone().addScaledVector(dir, 0.5)
+        const e = new Euler().setFromQuaternion(
+          this.quat.setFromUnitVectors(new Vector3(0, 1, 0), dir.clone().normalize()),
+        )
+        galv.add(new CylinderGeometry(0.058, 0.07, len, 10), mid, { x: e.x, y: e.y, z: e.z })
+        conc.add(new CylinderGeometry(0.19, 0.22, 0.16, 10), { x: bottom.x, y: 0.05, z: bottom.z })
       }
       // cross tie between the two splayed legs
-      const tie = new Mesh(new CylinderGeometry(0.03, 0.03, 2.2, 6), M.steelGalv)
-      tie.rotation.x = Math.PI / 2
-      tie.position.set(P.x + sx * (beamLen * 0.5 + 0.32), 1.05, P.z)
-      this.group.add(tie)
+      galv.add(
+        new CylinderGeometry(0.03, 0.03, 2.2, 6),
+        { x: P.x + sx * (beamLen * 0.5 + 0.32), y: 1.05, z: P.z },
+        { x: Math.PI / 2, y: 0, z: 0 },
+      )
     }
+    this.group.add(galv.build(M.steelGalv, { cast: true }))
+    this.group.add(conc.build(M.concrete, { receive: true }))
 
     // hanger shackles
     for (const sx of [-1, 1]) {
@@ -310,15 +313,17 @@ export class Swing {
     this.knee = damp(this.knee, travel, 8, dt)
 
     const r = this.rider
-    // lean back going forward, curl forward coming back
-    r.torso.rotation.x = lerp(0.05, -0.40, (this.lean + 1) * 0.5) * (0.35 + amp * 0.9)
-    r.head.rotation.x = -r.torso.rotation.x * 0.45
-    r.hips.rotation.x = this.lean * 0.06 * amp
+    // Lean back going forward, curl forward coming back. The seat itself is
+    // already tilted by up to sixty degrees at the top of the arc, so the pose on
+    // top of that has to stay modest or the child ends up lying down in mid-air.
+    r.torso.rotation.x = lerp(0.06, -0.26, (this.lean + 1) * 0.5) * (0.4 + amp * 0.6)
+    r.head.rotation.x = -r.torso.rotation.x * 0.5
+    r.hips.rotation.x = this.lean * 0.05 * amp
 
     // legs: shoot out on the forward half, tuck under on the return
     const ext = (this.knee + 1) * 0.5
-    const legSwing = lerp(0.55, -0.85, ext) * (0.4 + amp * 0.85)
-    const kneeBend = lerp(1.15, 0.06, ext) * (0.5 + amp * 0.6)
+    const legSwing = lerp(0.5, -0.62, ext) * (0.35 + amp * 0.6)
+    const kneeBend = lerp(1.05, 0.1, ext) * (0.45 + amp * 0.5)
     r.upperLegL.rotation.x = legSwing
     r.upperLegR.rotation.x = legSwing * 0.94
     r.lowerLegL.rotation.x = kneeBend

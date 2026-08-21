@@ -15,6 +15,7 @@ export class AudioEngine {
   private ambientBus!: GainNode
   private noiseBuf!: AudioBuffer
   private started = false
+  private building = false
 
   private birdGain!: GainNode
   private insectGain!: GainNode
@@ -34,18 +35,25 @@ export class AudioEngine {
     return this.started
   }
 
-  /** Must be called from inside a user gesture on mobile. */
+  /**
+   * Must be called from inside a user gesture on mobile. Safe to call repeatedly
+   * and from more than one handler in the same gesture: the whole graph is built
+   * synchronously before anything can await, so a second call can never end up
+   * wiring nodes into a second context.
+   */
   async unlock(): Promise<void> {
     if (this.started) {
-      if (this.ctx?.state === 'suspended') await this.ctx.resume()
+      if (this.ctx?.state === 'suspended') await this.ctx.resume().catch(() => undefined)
       return
     }
+    if (this.building) return
+    this.building = true
+
     type WithWebkit = typeof globalThis & { webkitAudioContext?: typeof AudioContext }
     const Ctor = window.AudioContext ?? (globalThis as WithWebkit).webkitAudioContext
     if (!Ctor) return
     const ctx = new Ctor()
     this.ctx = ctx
-    await ctx.resume().catch(() => undefined)
 
     this.master = ctx.createGain()
     this.master.gain.value = 0.9
@@ -107,6 +115,8 @@ export class AudioEngine {
     }
 
     this.started = true
+    // Only now, with the graph complete, is it safe to yield.
+    await ctx.resume().catch(() => undefined)
   }
 
   private bus(v: number): GainNode {

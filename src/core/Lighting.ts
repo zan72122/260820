@@ -155,18 +155,21 @@ export class LightingState {
 
   private static moonCurve = new Curve([
     [0.0, 0.0],
-    [0.35, 0.02],
-    [0.55, 0.12],
-    [0.78, 0.3],
-    [1.0, 0.42],
+    [0.35, 0.03],
+    [0.55, 0.16],
+    [0.78, 0.32],
+    [1.0, 0.46],
   ])
 
+  // Deliberately floored well above black. The picture has to keep getting
+  // darker, but the swing, the child, the ground and the clock must stay legible
+  // at every point in the evening.
   private static ambientCurve = new Curve([
-    [0.0, 0.95],
-    [0.25, 0.72],
-    [0.5, 0.46],
-    [0.75, 0.32],
-    [1.0, 0.27],
+    [0.0, 1.0],
+    [0.25, 0.82],
+    [0.5, 0.6],
+    [0.75, 0.48],
+    [1.0, 0.44],
   ])
 
   private static exposureCurve = new Curve([
@@ -271,7 +274,7 @@ export class LightingState {
     this.fogDensity = L.fogDensityCurve.at(n)
 
     // Readability floor: never let the near field fall out of legibility.
-    this.readFill = lerp(0.17, 0.44, n)
+    this.readFill = lerp(0.25, 0.78, n)
 
     // Lamp output ramps with darkness so a lamp lit early is dim, not blaring.
     this.lampEmissive = lerp(0.35, 1.0, clamp((n - 0.08) / 0.7))

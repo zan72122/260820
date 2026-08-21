@@ -136,9 +136,16 @@ export class GameState {
    */
   tick(
     amplitude: number,
-    opts: { playerDriven: boolean; countTowardsNight: boolean; nightBoost?: number },
+    opts: {
+      playerDriven: boolean
+      countTowardsNight: boolean
+      nightBoost?: number
+      /** Hold the first discoveries close to the swing, whatever the arc did. */
+      maxTier?: Tier
+    },
   ): TickResult {
-    const tier = GameState.tierForAmplitude(amplitude)
+    const natural = GameState.tierForAmplitude(amplitude)
+    const tier: Tier = opts.maxTier != null && natural > opts.maxTier ? opts.maxTier : natural
     // A longer lever throw catches a tooth further round the ratchet wheel.
     const teeth = tier >= 3 ? 3 : tier >= 2 ? 2 : 1
 

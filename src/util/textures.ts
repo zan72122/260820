@@ -196,6 +196,29 @@ export function makeGlowTexture(size = 128, power = 2.4): CanvasTexture {
   return finish(c, false)
 }
 
+/**
+ * Vertical falloff for a lamp's beam in the evening air: dense at the shade,
+ * gone by the time it reaches the ground.
+ */
+export function makeBeamTexture(w = 32, h = 128): CanvasTexture {
+  const { c, g } = makeCanvas(w, h)
+  const img = g.createImageData(w, h)
+  for (let y = 0; y < h; y++) {
+    // uv.y = 1 at the cone's apex, which is row 0 of the canvas
+    const t = 1 - y / (h - 1)
+    // Brightest just under the shade, not at the shade itself — a hard white apex
+    // reads as a bug, and a real beam is diffuse where the glass ends.
+    const a = Math.pow(t, 2.6) * 0.82 * (1 - Math.pow(Math.max(0, t - 0.86) / 0.14, 1.6) * 0.62)
+    for (let x = 0; x < w; x++) {
+      const o = (y * w + x) * 4
+      img.data[o] = img.data[o + 1] = img.data[o + 2] = 255
+      img.data[o + 3] = a * 255
+    }
+  }
+  g.putImageData(img, 0, 0)
+  return finish(c, false)
+}
+
 /** A single soft dot for the star field. */
 export function makeStarSprite(size = 32): CanvasTexture {
   const { c, g } = makeCanvas(size)

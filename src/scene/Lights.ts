@@ -16,6 +16,7 @@ import { makeGlowTexture } from '../util/textures'
 
 let glowTex: ReturnType<typeof makeGlowTexture> | null = null
 const glow = () => (glowTex ??= makeGlowTexture(128, 2.5))
+const HALO_DIR = new Vector3()
 
 export interface FixtureSpec {
   /** Which GameState lamp group this fixture belongs to. */
@@ -35,6 +36,8 @@ export interface FixtureSpec {
   lightRange?: number
   lightPower?: number
   haloSize?: number
+  /** Scales how hot the glass itself reads. Small globes need less than big panes. */
+  emissiveGain?: number
   /** Radius of the pool of light thrown on the ground. 0 = none. */
   poolRadius?: number
   poolY?: number
@@ -53,7 +56,7 @@ export class Fixture {
 
   /** Steady-state target, 0 or 1. */
   target = 0
-  /** Animated output including warm-up flicker. */
+  /** Animated output including warm-up flicker. Read by anything that follows a lamp. */
   level = 0
 
   private igniting = 0
@@ -66,7 +69,9 @@ export class Fixture {
   private pool: Mesh | null = null
   private light: PointLight | null = null
   private colour: Color
+  private haloLift = 0
   private lightPower: number
+  private emissiveGain: number
 
   constructor(spec: FixtureSpec, parent: Object3D) {
     this.group = spec.group
@@ -76,6 +81,7 @@ export class Fixture {
     this.onLevel = spec.onLevel ?? null
     this.colour = spec.color.clone()
     this.lightPower = spec.lightPower ?? 6
+    this.emissiveGain = spec.emissiveGain ?? 1.15
 
     const haloSize = spec.haloSize ?? 1.1
     if (haloSize > 0) {
@@ -93,6 +99,7 @@ export class Fixture {
       )
       this.halo.position.copy(this.position)
       this.halo.renderOrder = 10
+      this.haloLift = Math.min(0.4, haloSize * 0.3)
       parent.add(this.halo)
     }
 
@@ -159,15 +166,23 @@ export class Fixture {
     const emissive = out * L.lampEmissive
 
     if (this.glass) {
-      this.glass.emissiveIntensity = emissive * 2.4
-      this.glass.color.copy(this.colour).multiplyScalar(0.28 + emissive * 0.4)
+      this.glass.emissiveIntensity = emissive * this.emissiveGain
+      this.glass.color.copy(this.colour).multiplyScalar(0.24 + emissive * 0.3)
     }
     this.onLevel?.(emissive, L)
 
     if (this.halo) {
       const m = this.halo.material as MeshBasicMaterial
-      m.opacity = emissive * lerp(0.16, 0.42, L.starVisibility)
+      m.opacity = emissive * lerp(0.12, 0.3, L.starVisibility)
       this.halo.quaternion.copy(camera.quaternion)
+      // Floated a little towards the viewer: a billboard sitting exactly inside a
+      // lamp shade gets sliced into a crescent by it.
+      this.halo.position.copy(this.position)
+      if (this.haloLift > 0) {
+        HALO_DIR.subVectors(camera.position, this.position)
+        const len = HALO_DIR.length() || 1
+        this.halo.position.addScaledVector(HALO_DIR, this.haloLift / len)
+      }
     }
     if (this.pool) {
       const m = this.pool.material as MeshBasicMaterial

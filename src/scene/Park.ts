@@ -1,18 +1,23 @@
 import {
+  AdditiveBlending,
   BoxGeometry,
   Color,
+  ConeGeometry,
   CylinderGeometry,
+  DoubleSide,
   Group,
   IcosahedronGeometry,
   Mesh,
+  MeshBasicMaterial,
   MeshStandardMaterial,
   PlaneGeometry,
   SphereGeometry,
   Vector3,
 } from 'three'
 import { Rng, TAU } from '../util/math'
+import { Batch } from './geom'
 import { CREST_Z } from './Town'
-import { makeBarkTexture, makeGroundTexture } from '../util/textures'
+import { makeBarkTexture, makeBeamTexture, makeGroundTexture } from '../util/textures'
 import type { LightRig } from './Lights'
 import { materials } from './materials'
 
@@ -26,9 +31,10 @@ const COOL_LAMP = new Color('#f2e6c8')
 export class Park {
   readonly group = new Group()
   readonly leafMaterial: MeshStandardMaterial
+  /** The visible cone of light under each tall lamp, brightened as night falls. */
+  private beams: { mat: MeshBasicMaterial; fixture: () => number }[] = []
 
   constructor(rig: LightRig) {
-    const M = materials()
     const rng = new Rng(20260821)
 
     // --- ground ------------------------------------------------------------
@@ -53,44 +59,48 @@ export class Park {
       const t = i / 16
       pathPts.push(new Vector3(-11 + t * 24, 0.014, 5.6 - Math.sin(t * 2.3) * 4.6 - t * 2.4))
     }
+    const pathBatch = new Batch()
     for (let i = 0; i < pathPts.length - 1; i++) {
       const a = pathPts[i]
       const b = pathPts[i + 1]
       const len = a.distanceTo(b)
-      const seg = new Mesh(new PlaneGeometry(len * 1.08, 1.9), pathMat)
-      seg.rotation.x = -Math.PI / 2
-      seg.rotation.z = -Math.atan2(b.z - a.z, b.x - a.x)
-      seg.position.copy(a).add(b).multiplyScalar(0.5).setY(0.014)
-      seg.receiveShadow = true
-      this.group.add(seg)
+      const mid = a.clone().add(b).multiplyScalar(0.5).setY(0.014)
+      pathBatch.add(
+        new PlaneGeometry(len * 1.08, 1.9),
+        mid,
+        { x: -Math.PI / 2, y: 0, z: -Math.atan2(b.z - a.z, b.x - a.x) },
+      )
     }
+    this.group.add(pathBatch.build(pathMat, { receive: true }))
 
     // --- edge fence: this is a hilltop, and the drop is real ----------------
-    const fence = new Group()
-    this.group.add(fence)
+    // One mesh for the whole fence: 27 posts and 52 rails would otherwise be 79
+    // draw calls for something that never moves.
+    const fence = new Batch()
+    const postGeo = new CylinderGeometry(0.055, 0.06, 0.95, 7)
+    const railGeo = new BoxGeometry(1.58, 0.07, 0.045)
     for (let i = -13; i <= 13; i++) {
       const x = i * 1.55
       const z = CREST_Z + 1.6 - Math.cos(i * 0.14) * 1.1
-      const post = new Mesh(new CylinderGeometry(0.055, 0.06, 0.95, 7), M.wood)
-      post.position.set(x, 0.47, z)
-      post.castShadow = true
-      fence.add(post)
+      fence.add(postGeo, { x, y: 0.47, z })
       if (i < 13) {
         for (const y of [0.86, 0.55]) {
-          const rail = new Mesh(new BoxGeometry(1.58, 0.07, 0.045), M.wood)
-          rail.position.set(x + 0.775, y, z - 0.02)
-          rail.rotation.y = 0.02
-          fence.add(rail)
+          fence.add(railGeo, { x: x + 0.775, y, z: z - 0.02 }, { x: 0, y: 0.02, z: 0 })
         }
       }
     }
+    this.group.add(fence.build(materials().wood, { cast: true }))
 
     // --- benches -----------------------------------------------------------
     const benchSpots: [number, number, number][] = [
       [4.2, 3.6, -0.55],
       [-6.6, -2.6, 0.9],
     ]
-    for (const [bx, bz, ry] of benchSpots) this.group.add(this.makeBench(bx, bz, ry))
+    const woodBatch = new Batch()
+    const steelBatch = new Batch()
+    for (const [bx, bz, ry] of benchSpots) this.addBench(woodBatch, steelBatch, bx, bz, ry)
+    this.group.add(woodBatch.build(materials().wood, { cast: true, receive: true }))
+    this.group.add(steelBatch.build(materials().steelDark, { cast: true }))
 
     // --- trees -------------------------------------------------------------
     const barkTex = makeBarkTexture(128)
@@ -116,16 +126,18 @@ export class Park {
       [-20.5, 3.5, 1.25],
       [20.5, 4.5, 1.15],
     ]
-    for (const [tx, tz, s] of treeSpots) {
-      this.group.add(this.makeTree(tx, tz, s, barkMat, rng))
-    }
+    const trunks = new Batch()
+    const foliage = new Batch()
+    for (const [tx, tz, s] of treeSpots) this.addTree(trunks, foliage, tx, tz, s, rng)
+    this.group.add(trunks.build(barkMat, { cast: true }))
+    this.group.add(foliage.build(this.leafMaterial, { cast: true }))
 
     // --- tier 0: path bollards, right at the child's feet -------------------
     const bollardSpots: [number, number][] = [
-      [-1.15, 2.35],
-      [1.05, 0.55],
+      [-0.6, 2.9],
+      [1.6, 0.4],
       [-5.9, 1.7],
-      [3.5, -1.4],
+      [3.9, -1.8],
       [-8.6, 3.6],
     ]
     bollardSpots.forEach(([x, z], i) => {
@@ -140,6 +152,7 @@ export class Park {
         // and cost nothing, which keeps the light budget for the tall lamps.
         lightRange: 5.2,
         lightPower: 2.6,
+        emissiveGain: 0.9,
         haloSize: 0.9,
         poolRadius: 2.2,
       })
@@ -152,8 +165,8 @@ export class Park {
       [7.6, -4.2],
     ]
     lampSpots.forEach(([x, z], i) => {
-      const { glass, y } = this.makeLampPost(x, z)
-      rig.add({
+      const { glass, y, beam } = this.makeLampPost(x, z)
+      const f = rig.add({
         group: 'benchLamps',
         index: i,
         position: new Vector3(x, y, z),
@@ -162,75 +175,69 @@ export class Park {
         dynamic: true,
         lightRange: 13,
         lightPower: 9,
-        haloSize: 2.4,
+        emissiveGain: 0.75,
+        haloSize: 0.95,
         poolRadius: 4.6,
       })
+      this.beams.push({ mat: beam, fixture: () => f.level })
     })
   }
 
-  private makeBench(x: number, z: number, ry: number): Group {
-    const M = materials()
-    const g = new Group()
-    g.position.set(x, 0, z)
-    g.rotation.y = ry
+  private addBench(wood: Batch, steel: Batch, x: number, z: number, ry: number): void {
+    const rot = { x: 0, y: ry, z: 0 }
+    const place = (lx: number, ly: number, lz: number) => ({
+      x: x + lx * Math.cos(ry) + lz * Math.sin(ry),
+      y: ly,
+      z: z - lx * Math.sin(ry) + lz * Math.cos(ry),
+    })
     for (const sx of [-1, 1]) {
-      const leg = new Mesh(new BoxGeometry(0.07, 0.42, 0.5), M.steelDark)
-      leg.position.set(sx * 0.68, 0.21, 0.02)
-      leg.castShadow = true
-      g.add(leg)
-      const backLeg = new Mesh(new BoxGeometry(0.06, 0.55, 0.06), M.steelDark)
-      backLeg.position.set(sx * 0.68, 0.62, -0.2)
-      backLeg.rotation.x = -0.16
-      g.add(backLeg)
+      steel.add(new BoxGeometry(0.07, 0.42, 0.5), place(sx * 0.68, 0.21, 0.02), rot)
+      steel.add(new BoxGeometry(0.06, 0.55, 0.06), place(sx * 0.68, 0.62, -0.2), {
+        x: -0.16,
+        y: ry,
+        z: 0,
+      })
     }
     for (let i = 0; i < 4; i++) {
-      const slat = new Mesh(new BoxGeometry(1.6, 0.045, 0.11), M.wood)
-      slat.position.set(0, 0.44, -0.18 + i * 0.14)
-      slat.castShadow = true
-      slat.receiveShadow = true
-      g.add(slat)
+      wood.add(new BoxGeometry(1.6, 0.045, 0.11), place(0, 0.44, -0.18 + i * 0.14), rot)
     }
     for (let i = 0; i < 3; i++) {
-      const slat = new Mesh(new BoxGeometry(1.6, 0.09, 0.04), M.wood)
-      slat.position.set(0, 0.66 + i * 0.14, -0.24 - i * 0.022)
-      slat.rotation.x = -0.16
-      g.add(slat)
+      wood.add(new BoxGeometry(1.6, 0.09, 0.04), place(0, 0.66 + i * 0.14, -0.24 - i * 0.022), {
+        x: -0.16,
+        y: ry,
+        z: 0,
+      })
     }
-    return g
   }
 
-  private makeTree(
+  private addTree(
+    trunks: Batch,
+    foliage: Batch,
     x: number,
     z: number,
     scale: number,
-    bark: MeshStandardMaterial,
     rng: Rng,
-  ): Group {
-    const g = new Group()
-    g.position.set(x, 0, z)
-    g.scale.setScalar(scale)
-    g.rotation.y = rng.range(0, TAU)
-
-    const h = rng.range(3.0, 4.4)
-    const trunk = new Mesh(new CylinderGeometry(0.12, 0.24, h, 8), bark)
-    trunk.position.y = h / 2
-    trunk.castShadow = true
-    g.add(trunk)
-
-    const clusters = 4
-    for (let i = 0; i < clusters; i++) {
-      const r = rng.range(0.95, 1.5)
-      const blob = new Mesh(new IcosahedronGeometry(r, 1), this.leafMaterial)
-      blob.position.set(
-        rng.range(-0.9, 0.9),
-        h * 0.86 + rng.range(-0.25, 0.85),
-        rng.range(-0.9, 0.9),
+  ): void {
+    const yaw = rng.range(0, TAU)
+    const h = rng.range(3.0, 4.4) * scale
+    trunks.add(
+      new CylinderGeometry(0.12 * scale, 0.24 * scale, h, 8),
+      { x, y: h / 2, z },
+      { x: 0, y: yaw, z: 0 },
+    )
+    for (let i = 0; i < 4; i++) {
+      const r = rng.range(0.95, 1.5) * scale
+      foliage.add(
+        new IcosahedronGeometry(r, 1),
+        {
+          x: x + rng.range(-0.9, 0.9) * scale,
+          y: h * 0.86 + rng.range(-0.25, 0.85) * scale,
+          z: z + rng.range(-0.9, 0.9) * scale,
+        },
+        { x: 0, y: yaw + i, z: 0 },
+        { x: 1, y: rng.range(0.68, 0.9), z: 1 },
       )
-      blob.scale.set(1, rng.range(0.68, 0.9), 1)
-      blob.castShadow = true
-      g.add(blob)
     }
-    return g
   }
 
   private makeBollard(x: number, z: number): { glass: MeshStandardMaterial } {
@@ -266,7 +273,10 @@ export class Park {
     return { glass }
   }
 
-  private makeLampPost(x: number, z: number): { glass: MeshStandardMaterial; y: number } {
+  private makeLampPost(
+    x: number,
+    z: number,
+  ): { glass: MeshStandardMaterial; y: number; beam: MeshBasicMaterial } {
     const M = materials()
     const g = new Group()
     g.position.set(x, 0, z)
@@ -285,10 +295,15 @@ export class Park {
     arm.position.set(0.2, H + 0.12, 0)
     g.add(arm)
 
-    const shade = new Mesh(new CylinderGeometry(0.26, 0.1, 0.2, 12, 1, true), M.steelPaint)
-    shade.position.set(0.4, H + 0.06, 0)
+    // Flared downward over the globe, the way a park lamp shade actually is —
+    // the other way round the globe pokes through its neck and glares.
+    const shade = new Mesh(new CylinderGeometry(0.1, 0.32, 0.24, 14, 1, true), M.steelPaint)
+    shade.position.set(0.4, H + 0.16, 0)
     shade.castShadow = true
     g.add(shade)
+    const shadeCap = new Mesh(new CylinderGeometry(0.1, 0.1, 0.03, 14), M.steelPaint)
+    shadeCap.position.set(0.4, H + 0.28, 0)
+    g.add(shadeCap)
 
     const glass = new MeshStandardMaterial({
       color: new Color('#3d3626'),
@@ -299,17 +314,35 @@ export class Park {
       transparent: true,
       opacity: 0.92,
     })
-    const globe = new Mesh(new SphereGeometry(0.13, 14, 10), glass)
-    globe.position.set(0.4, H - 0.03, 0)
+    const globe = new Mesh(new SphereGeometry(0.125, 14, 10), glass)
+    globe.position.set(0.4, H - 0.02, 0)
     g.add(globe)
 
-    return { glass, y: H - 0.03 }
+    // The beam itself: a shaft of light in the evening air, reaching the ground.
+    // This is what makes the lamp read as a light source rather than a bright dot.
+    const beam = new MeshBasicMaterial({
+      map: makeBeamTexture(),
+      color: WARM_LAMP.clone(),
+      transparent: true,
+      blending: AdditiveBlending,
+      depthWrite: false,
+      side: DoubleSide,
+      opacity: 0,
+    })
+    const cone = new Mesh(new ConeGeometry(2.3, H - 0.2, 18, 1, true), beam)
+    cone.position.set(0.4, (H - 0.03) - (H - 0.2) / 2, 0)
+    cone.renderOrder = 5
+    g.add(cone)
+
+    return { glass, y: H - 0.03, beam }
   }
 
-  /** Leaves pick up a cold rim as the moon rises. */
-  update(moonAmount: number): void {
-    this.leafMaterial.metalness = 0.06 + moonAmount * 0.16
-    this.leafMaterial.roughness = 0.62 - moonAmount * 0.12
+  /** Leaves pick up a cold rim as the moon rises; lamp beams thicken as it darkens. */
+  update(moonAmount: number, airGlow: number): void {
+    // Enough sheen for the moon to find the leaves, not enough to look like frost.
+    this.leafMaterial.metalness = 0.04 + moonAmount * 0.035
+    this.leafMaterial.roughness = 0.66 - moonAmount * 0.05
+    for (const b of this.beams) b.mat.opacity = b.fixture() * airGlow * 0.075
   }
 }
 

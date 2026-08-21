@@ -254,7 +254,7 @@ export class Sky {
     this.moon.position.set(0, 0, -760)
     this.moon.renderOrder = -80
 
-    const haloTex = makeGlowTexture(128, 3.1)
+    const haloTex = makeGlowTexture(128, 5.2)
     this.moonHalo = new Mesh(
       new PlaneGeometry(150, 150),
       new MeshBasicMaterial({
@@ -363,7 +363,7 @@ export class Sky {
       .normalize()
 
     // brightness is relative to the sky it sits in, so it never blows out
-    const target = lerp(0.1, 1.0, clamp(L.starVisibility * 0.62 + moonReveal * 0.45))
+    const target = lerp(0.1, 0.86, clamp(L.starVisibility * 0.62 + moonReveal * 0.45))
     this.moonMat.uniforms.uBrightness.value = damp(
       this.moonMat.uniforms.uBrightness.value,
       target,
@@ -372,7 +372,7 @@ export class Sky {
     )
     L.skyColorAt(L.moonDir, this.moonMat.uniforms.uSkyTint.value as Color)
     const haloMat = this.moonHalo.material as MeshBasicMaterial
-    haloMat.opacity = clamp(moonReveal * (0.1 + L.starVisibility * 0.30))
+    haloMat.opacity = clamp(moonReveal * (0.06 + L.starVisibility * 0.26))
     haloMat.color.copy(L.zenith).lerp(new Color('#dbe4ff'), 0.65)
 
     // the cloud slides off the moon once, then keeps drifting

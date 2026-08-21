@@ -21,6 +21,7 @@ import {
 import type { LightingState } from '../core/Lighting'
 import { clamp, damp, lerp, Rng, smoothstep } from '../util/math'
 import { makeGlowTexture } from '../util/textures'
+import { Batch } from './geom'
 import type { LightRig } from './Lights'
 import { materials } from './materials'
 
@@ -73,7 +74,7 @@ void main() {
   float face = abs(n.y) > 0.5 ? 2.0 : (abs(n.x) > 0.5 ? 0.0 : 1.0);
   vFace = face;
   vec2 sz = face == 0.0 ? vec2(aSize.z, aSize.y) : vec2(aSize.x, aSize.y);
-  vCells = max(vec2(1.0), floor(sz / vec2(3.1, 3.5)));
+  vCells = max(vec2(1.0), floor(sz / vec2(4.8, 4.4)));
 
   vec4 world = modelMatrix * instanceMatrix * vec4(position, 1.0);
   vWorld = world.xyz;
@@ -141,14 +142,18 @@ void main() {
     float r = hash21(cell + vec2(vSeed * 17.3, vSeed * 5.7));
     // the breath sweeps across the valley rather than snapping on everywhere
     float wave = smoothstep(uBreathFront - 90.0, uBreathFront + 30.0, vWave);
-    float thresh = clamp(uLitLevel * vLitBias + uBreath * wave * 1.1, 0.0, 1.0);
+    // Deliberately capped well below 1: a town where every single window is lit
+    // reads as a neon grid, not as people being home.
+    float thresh = clamp(uLitLevel * vLitBias * 0.52 + uBreath * wave * 0.22, 0.0, 0.74);
     float on = step(r, thresh);
     float inW =
-      step(0.20, f.x) * step(f.x, 0.74) *
-      step(0.24, f.y) * step(f.y, 0.80);
+      step(0.30, f.x) * step(f.x, 0.64) *
+      step(0.28, f.y) * step(f.y, 0.68);
     float warmth = hash21(cell + vec2(vSeed * 2.9, 11.0));
-    vec3 wc = mix(uWarm, uWarm * vec3(1.06, 0.94, 0.74), warmth);
-    emissive = wc * on * inW * uWindowEmissive * (0.55 + warmth * 0.7);
+    // most windows are warm; a few are the cool white of a kitchen or a stairwell
+    vec3 wc = mix(uWarm, vec3(0.80, 0.86, 0.96), step(0.86, warmth));
+    wc = mix(wc, wc * vec3(1.04, 0.92, 0.72), warmth * 0.5);
+    emissive = wc * on * inW * uWindowEmissive * (0.34 + warmth * 0.42);
   }
 
   // Aerial perspective. The haze thins as the town lights itself, so contrast in
@@ -520,17 +525,18 @@ export class Town {
     roadDefs.push({ pts: mk((t) => [26 + Math.sin(t * 1.6) * 40, -116 - t * 150], 22), lamps: 16 })
 
     const lampPts: Vector3[][] = [[], [], [], [], []]
+    const roadBatch = new Batch()
     let strip = 0
     for (const rd of roadDefs) {
       for (let i = 0; i < rd.pts.length - 1; i++) {
         const a = rd.pts[i]
         const b = rd.pts[i + 1]
         const len = a.distanceTo(b)
-        const seg = new Mesh(new PlaneGeometry(len * 1.06, 6.5), roadMat)
-        seg.rotation.x = -Math.PI / 2
-        seg.rotation.z = -Math.atan2(b.z - a.z, b.x - a.x)
-        seg.position.copy(a).add(b).multiplyScalar(0.5)
-        this.group.add(seg)
+        roadBatch.add(new PlaneGeometry(len * 1.06, 6.5), a.clone().add(b).multiplyScalar(0.5), {
+          x: -Math.PI / 2,
+          y: 0,
+          z: -Math.atan2(b.z - a.z, b.x - a.x),
+        })
       }
       for (let i = 0; i < rd.lamps; i++) {
         const t = (i + 0.5) / rd.lamps
@@ -542,6 +548,8 @@ export class Town {
         strip++
       }
     }
+
+    this.group.add(roadBatch.build(roadMat))
 
     lampPts.forEach((pts, i) => {
       if (!pts.length) return
@@ -595,8 +603,8 @@ export class Town {
     this.group.add(this.beacon)
 
     const ringPts: Vector3[] = []
-    for (let i = 0; i < 10; i++) {
-      const a = (i / 10) * Math.PI * 2
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2
       ringPts.push(new Vector3(x + Math.cos(a) * 6.5, gy + 47.5, z + Math.sin(a) * 6.5))
     }
     const ring = new LightCluster(ringPts, 5, new Color('#ffd9a8'), this.group)
@@ -608,7 +616,7 @@ export class Town {
       color: new Color('#ffd9a8'),
       haloSize: 0,
       onLevel: (v) => {
-        ring.setLevel(v * 0.9)
+        ring.setLevel(v * 0.45)
         this.beaconMat.userData.level = v
       },
     })
@@ -617,30 +625,34 @@ export class Town {
   private buildHarbour(rig: LightRig): void {
     const M = materials()
     const clusters: Vector3[][] = [[], [], []]
+    const timber = new Batch()
     const rng = new Rng(4242)
     // three jetties reaching into the water, each with its own run of lamps
     for (let j = 0; j < 3; j++) {
       const bx = -78 + j * 80
       const bz = -286 - j * 6
       const len = 44 + j * 10
-      const deck = new Mesh(new BoxGeometry(9, 1.4, len), M.wood)
-      deck.position.set(bx, WATER_Y + 1.4, bz - len / 2)
-      this.group.add(deck)
+      timber.add(new BoxGeometry(9, 1.4, len), { x: bx, y: WATER_Y + 1.4, z: bz - len / 2 })
       for (let k = 0; k < 6; k++) {
         const pz = bz - (k / 5) * (len - 6) - 3
-        const pile = new Mesh(new CylinderGeometry(0.8, 0.8, 7, 6), M.wood)
-        pile.position.set(bx + (k % 2 ? 4 : -4), WATER_Y - 1.4, pz)
-        this.group.add(pile)
+        timber.add(new CylinderGeometry(0.8, 0.8, 7, 6), {
+          x: bx + (k % 2 ? 4 : -4),
+          y: WATER_Y - 1.4,
+          z: pz,
+        })
         clusters[j].push(new Vector3(bx + (k % 2 ? 4.6 : -4.6), WATER_Y + 5.4, pz))
       }
       // a few moored hulls
       for (let b = 0; b < 3; b++) {
-        const hull = new Mesh(new BoxGeometry(4, 2.2, 11), M.wood)
-        hull.position.set(bx + rng.range(-16, 16), WATER_Y + 1, bz - rng.range(6, len))
-        hull.rotation.y = rng.range(-0.4, 0.4)
-        this.group.add(hull)
+        timber.add(
+          new BoxGeometry(4, 2.2, 11),
+          { x: bx + rng.range(-16, 16), y: WATER_Y + 1, z: bz - rng.range(6, len) },
+          { x: 0, y: rng.range(-0.4, 0.4), z: 0 },
+        )
       }
     }
+    this.group.add(timber.build(M.wood))
+
     clusters.forEach((pts, i) => {
       const c = new LightCluster(pts, 7, new Color('#ffe2b0'), this.group)
       this.clusters.push(c)
@@ -761,7 +773,10 @@ export class Town {
         position: new Vector3(x, gy + 5.4, z + d / 2 + 0.4),
         color: new Color('#ffcf90'),
         glass,
-        haloSize: 6.5,
+        // A lit window seen from a hundred metres is a small bright rectangle,
+        // not a lamp: keep it well under the near fixtures.
+        emissiveGain: 0.5,
+        haloSize: 5.0,
         poolRadius: 0,
       })
     })

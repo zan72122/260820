@@ -26,22 +26,27 @@ import { clamp, damp } from './util/math'
 const SAVE_KEY = 'moon-pendulum-clock/v1'
 
 /** Where the machine stands, and where its sensor mast watches the swing from. */
-/** Near field: the swing bay, set at an angle so its arc reads across the frame. */
-const SWING_POS = new Vector3(-3.1, 0, 0.9)
-const SWING_YAW = -0.75
-/** Middle ground: the machine, well clear of the swing's arc. */
-const CLOCK_POS = new Vector3(0.4, 0, -6.0)
+/**
+ * Near field: the swing bay. Its heading is chosen so the arc reads clearly
+ * across the frame *and* both ends of the swing stay inside the narrow portrait
+ * field even at full amplitude — a seat that leaves the frame breaks the one
+ * thing this game has to keep visible.
+ */
+const SWING_POS = new Vector3(-2.4, 0, 0.6)
+const SWING_YAW = -0.45
+/** Middle ground: the machine, three metres clear of the arc beyond its guard rail. */
+const CLOCK_POS = new Vector3(0.6, 0, -6.8)
 /** Heading that turns the dial towards the authored viewpoint. */
-const CLOCK_YAW = 0.28
+const CLOCK_YAW = 0.06
 /** The machine is scaled up: this is a public sculpture, not a station clock. */
 const CLOCK_SCALE = 1.45
 /**
  * The sensor mast, in the machine's local frame. It stands beside the swing,
  * outside the arc, and watches the seat go past without touching it.
  */
-const SENSOR_LOCAL = new Vector3(-0.68, 0, 2.13)
+const SENSOR_LOCAL = new Vector3(-0.81, 0, 5.84)
 /** What the sensor head is pointed at: the swing's pivot, in the machine's frame. */
-const SENSOR_AIM = new Vector3(-3.63, 0, 3.91)
+const SENSOR_AIM = new Vector3(-2.37, 0, 4.97)
 
 export class Game {
   readonly scene = new Scene()
@@ -144,6 +149,9 @@ export class Game {
     this.moonLight.shadow.camera.far = 90
     this.moonLight.shadow.bias = -0.0012
     this.moonLight.shadow.normalBias = 0.04
+    // Moonlight throws a shadow, but a soft, shallow one — a hard black cut-out
+    // under the swing frame at night reads as a bug, not as night.
+    this.moonLight.shadow.intensity = 0.42
     this.scene.add(this.moonLight, this.moonLight.target)
 
     // A soft fill from behind the camera. It exists for one reason: the child must
@@ -172,8 +180,8 @@ export class Game {
       },
     })
 
-    this.restore()
     this.buildReplayButton()
+    this.restore()
 
     window.addEventListener('resize', this.onResize)
     window.addEventListener('orientationchange', this.onResize)
@@ -235,7 +243,7 @@ export class Game {
 
     this.swing.update(dt)
     this.clock.update(dt, this.L, this.clockDialLevel)
-    this.park.update(this.L.moonGlow * this.L.starVisibility)
+    this.park.update(this.L.moonGlow * this.L.starVisibility, this.L.groundPool)
     this.breathPulse = damp(this.breathPulse, 0, 0.35, dt)
     this.town.update(
       dt,
@@ -350,7 +358,7 @@ export class Game {
     // Never a failure: a backwards swipe still pumps, just a little less.
     const strength = 0.55 + length * 0.55 + Math.max(0, alignment) * 0.45
     this.pendulum.queuePump(strength)
-    if (this.pendulum.amplitude01 < 0.04) this.pendulum.nudge(0.5)
+    if (this.pendulum.amplitude01 < 0.02) this.pendulum.nudge(0.3)
   }
 
   /**
@@ -392,6 +400,10 @@ export class Game {
       countTowardsNight: true,
       // The very first push the child makes has to visibly move the sky.
       nightBoost: firstRealTick ? 3 : 0,
+      // The first two discoveries stay at the child's feet, however big the arc
+      // happened to be: cause and effect have to be seen together before the
+      // night is allowed to run off to the far side of the valley.
+      maxTier: firstRealTick ? 0 : s.stage === 'confirm' ? 1 : undefined,
     })
 
     this.clock.advance(result.teeth)
@@ -523,6 +535,9 @@ export class Game {
     if (!raw) return
     if (!this.state.restore(raw)) return
     this.lightRig.syncInstant((g) => this.state.litOf(g))
+    // Put the mechanism where the restored time says it should be, without a
+    // visible rewind spin of the ratchet and the index ring.
+    this.clock.setTeeth(this.state.teeth)
     if (this.state.stage === 'mystery' || this.state.stage === 'hint') this.state.stage = 'hint'
     if (this.state.stage === 'finale' || this.state.stage === 'night') {
       this.state.stage = 'night'
@@ -536,10 +551,43 @@ export class Game {
     this.onSwipe(strength, 1)
   }
 
+  /**
+   * Jump the evening to a given point without swinging for it. Used by the
+   * end-to-end checks so a night-time frame does not cost ten minutes of ticks.
+   */
+  debugSkipTo(night: number, litFraction = night): void {
+    const s = this.state
+    s.stage = night >= 0.999 ? 'play' : 'play'
+    s.understood = true
+    s.playerCycles = Math.max(2, s.playerCycles)
+    s.nightTeeth = Math.round(night * 26)
+    s.teeth = s.nightTeeth + 1
+    s.night = clamp(night)
+    for (const g of s.groups.values()) g.lit = Math.round(g.count * clamp(litFraction))
+    if (night > 0.6) {
+      s.moonRevealed = true
+      s.moonReveal = 1
+    }
+    this.lightRig.syncInstant((g) => s.litOf(g))
+    this.L.update(s, 30, this.rig.framing())
+  }
+
+  /** Current on-screen direction of the seat's travel, in pixels. */
+  debugSwingDir(): { x: number; y: number } {
+    return this.input.swingDir
+  }
+
+  /** Seat position in normalised screen space; |x|,|y| > 1 means off-frame. */
+  debugSeatScreen(): { x: number; y: number } {
+    const v = this.swing.seatWorld.clone().project(this.rig.camera)
+    return { x: v.x, y: v.y }
+  }
+
   debugInfo(): Record<string, unknown> {
     return {
       stage: this.state.stage,
       teeth: this.state.teeth,
+      cycles: this.state.cycles,
       nightTeeth: this.state.nightTeeth,
       night: +this.state.night.toFixed(3),
       amplitude: +this.pendulum.amplitude01.toFixed(3),
@@ -550,6 +598,12 @@ export class Game {
       clock: this.L.clockHands(),
       exposure: +this.renderer.gl.toneMappingExposure.toFixed(3),
       pixelScale: +this.renderer.pixelScale.toFixed(2),
+      replayVisible: this.replayEl?.style.opacity === '1',
+      // Structural cost, which is meaningful on any rasteriser: it must not grow
+      // as the valley lights up.
+      calls: this.renderer.gl.info.render.calls,
+      triangles: this.renderer.gl.info.render.triangles,
+      programs: this.renderer.gl.info.programs?.length ?? 0,
     }
   }
 }

@@ -1,9 +1,15 @@
 import {
   BufferGeometry,
+  Euler,
   ExtrudeGeometry,
+  type Material,
+  Matrix4,
+  Mesh,
   Path,
+  Quaternion,
   Shape,
   Vector2,
+  Vector3,
 } from 'three'
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 import { TAU } from '../util/math'
@@ -132,4 +138,59 @@ export function mergeAll(geos: BufferGeometry[]): BufferGeometry {
   if (!merged) throw new Error('merge failed')
   for (const g of geos) g.dispose()
   return merged
+}
+
+/**
+ * Collects repeated static parts — fence posts, dial marks, road segments — into
+ * one geometry so they cost one draw call instead of eighty. Everything added
+ * here must share a single material and never move independently.
+ */
+export class Batch {
+  private parts: BufferGeometry[] = []
+  private m = new Matrix4()
+  private q = new Quaternion()
+  private e = new Euler()
+  private s = new Vector3(1, 1, 1)
+
+  add(
+    geo: BufferGeometry,
+    position: Vector3Like,
+    rotation?: Vector3Like,
+    scale?: Vector3Like,
+  ): this {
+    this.e.set(rotation?.x ?? 0, rotation?.y ?? 0, rotation?.z ?? 0)
+    this.q.setFromEuler(this.e)
+    this.s.set(scale?.x ?? 1, scale?.y ?? 1, scale?.z ?? 1)
+    this.m.compose(
+      new Vector3(position.x, position.y, position.z),
+      this.q,
+      this.s,
+    )
+    this.parts.push(geo.clone().applyMatrix4(this.m))
+    return this
+  }
+
+  /** Adds a geometry already positioned in the batch's own frame. */
+  addRaw(geo: BufferGeometry): this {
+    this.parts.push(geo)
+    return this
+  }
+
+  get size(): number {
+    return this.parts.length
+  }
+
+  build(material: Material, opts: { cast?: boolean; receive?: boolean } = {}): Mesh {
+    const mesh = new Mesh(mergeAll(this.parts), material)
+    mesh.castShadow = !!opts.cast
+    mesh.receiveShadow = !!opts.receive
+    this.parts = []
+    return mesh
+  }
+}
+
+export interface Vector3Like {
+  x: number
+  y: number
+  z: number
 }

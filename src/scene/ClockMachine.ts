@@ -19,6 +19,7 @@ import type { LightingState } from '../core/Lighting'
 import { clamp, damp, lerp, TAU } from '../util/math'
 import { makeGlowTexture } from '../util/textures'
 import {
+  Batch,
   makeGearGeometry,
   makeHandGeometry,
   makeIndexRingGeometry,
@@ -124,15 +125,14 @@ export class ClockMachine {
     // anchor bolts: the thing is bolted to the ground, not floating
     const boltGeo = new CylinderGeometry(0.032, 0.032, 0.09, 6)
     const nutGeo = new CylinderGeometry(0.05, 0.05, 0.035, 6)
+    const bolts = new Batch()
     for (const sx of [-1, 1]) {
       for (const sz of [-1, 1]) {
-        const b = new Mesh(boltGeo, M.steelGalv)
-        b.position.set(sx * 0.82, 0.375, sz * 0.5)
-        const n = new Mesh(nutGeo, M.steelGalv)
-        n.position.set(sx * 0.82, 0.35, sz * 0.5)
-        this.group.add(b, n)
+        bolts.add(boltGeo, { x: sx * 0.82, y: 0.375, z: sz * 0.5 })
+        bolts.add(nutGeo, { x: sx * 0.82, y: 0.35, z: sz * 0.5 })
       }
     }
+    this.group.add(bolts.build(M.steelGalv))
   }
 
   private buildFrame(M: ReturnType<typeof materials>): void {
@@ -172,22 +172,9 @@ export class ClockMachine {
       [0.07, H, D, -W / 2, 0, 0],
       [0.07, H, D, W / 2, 0, 0],
     ]
-    for (const [w, h, d, x, y, z] of caseParts) {
-      const m = new Mesh(new BoxGeometry(w, h, d), M.brassOuter)
-      m.position.set(x, y, z)
-      m.castShadow = true
-      box.add(m)
-    }
     const back = new Mesh(new BoxGeometry(W, H, 0.05), M.brassFitting)
     back.position.set(0, 0, -D / 2 + 0.02)
     box.add(back)
-
-    // sloped weather hood — rain has to run off somewhere
-    const hood = new Mesh(new BoxGeometry(W + 0.16, 0.05, D + 0.2), M.brassOuter)
-    hood.position.set(0, H / 2 + 0.08, 0.03)
-    hood.rotation.x = -0.09
-    hood.castShadow = true
-    box.add(hood)
 
     // --- the movement itself, all of it inside the case ---
     const mech = new Group()
@@ -291,6 +278,7 @@ export class ClockMachine {
     box.add(sheen)
 
     // glazing bead holding the pane in
+    const beads = new Batch()
     const beadGeo = [
       new BoxGeometry(W - 0.05, 0.035, 0.05),
       new BoxGeometry(W - 0.05, 0.035, 0.05),
@@ -303,11 +291,11 @@ export class ClockMachine {
       [-(W - 0.1) / 2, 0],
       [(W - 0.1) / 2, 0],
     ]
-    beadGeo.forEach((g, i) => {
-      const b = new Mesh(g, M.brassOuter)
-      b.position.set(beadPos[i][0], beadPos[i][1], D / 2 + 0.01)
-      box.add(b)
-    })
+    beadGeo.forEach((g, i) => beads.add(g, { x: beadPos[i][0], y: beadPos[i][1], z: D / 2 + 0.01 }))
+    // the case shell shares one material, so it can share one draw call too
+    for (const [w, h, d, x, y, z] of caseParts) beads.add(new BoxGeometry(w, h, d), { x, y, z })
+    beads.add(new BoxGeometry(W + 0.16, 0.05, D + 0.2), { x: 0, y: H / 2 + 0.08, z: 0.03 }, { x: -0.09, y: 0, z: 0 })
+    box.add(beads.build(M.brassOuter, { cast: true }))
 
     // --- maintenance access: hinged door with an escutcheon, on the service side ---
     const door = new Mesh(new BoxGeometry(0.05, H - 0.24, D - 0.16), M.steelPaint)
@@ -430,8 +418,10 @@ export class ClockMachine {
     head.add(crystal)
 
     // internal dial illumination, dark until the clock's own lamp is switched on
-    this.dialLight = new PointLight(new Color('#ffdca8'), 0, 7.5, 2)
-    this.dialLight.position.set(0, 0, 0.5)
+    // Placed well clear of the face: the dial is lit from *within* (emissive), and
+    // this light exists only to spill onto the column, the rail and the ground.
+    this.dialLight = new PointLight(new Color('#ffdca8'), 0, 9, 2)
+    this.dialLight.position.set(0, -0.6, 1.5)
     head.add(this.dialLight)
 
     this.dialGlow = new Mesh(
@@ -460,8 +450,9 @@ export class ClockMachine {
   private buildGuardRail(M: ReturnType<typeof materials>): void {
     // a low rail keeping the standing distance from the cabinet
     const postGeo = new CylinderGeometry(0.038, 0.038, 0.78, 8)
-    const rail = new Group()
-    this.group.add(rail)
+    const baseGeo = new CylinderGeometry(0.07, 0.08, 0.06, 8)
+    const steel = new Batch()
+    const foot = new Batch()
     const R = 1.55
     const from = -1.15
     const to = 1.15
@@ -471,26 +462,24 @@ export class ClockMachine {
       const a = lerp(from, to, i / (N - 1))
       const p = new Vector3(Math.sin(a) * R, 0, Math.cos(a) * R)
       pts.push(p)
-      const post = new Mesh(postGeo, M.steelPaint)
-      post.position.set(p.x, 0.39, p.z)
-      post.castShadow = true
-      rail.add(post)
-      const base = new Mesh(new CylinderGeometry(0.07, 0.08, 0.06, 8), M.concrete)
-      base.position.set(p.x, 0.03, p.z)
-      rail.add(base)
+      steel.add(postGeo, { x: p.x, y: 0.39, z: p.z })
+      foot.add(baseGeo, { x: p.x, y: 0.03, z: p.z })
     }
     for (let i = 0; i < N - 1; i++) {
       const a = pts[i]
       const b = pts[i + 1]
       for (const y of [0.72, 0.42]) {
         const len = a.distanceTo(b)
-        const bar = new Mesh(new CylinderGeometry(0.022, 0.022, len, 6), M.steelPaint)
-        bar.position.copy(a).add(b).multiplyScalar(0.5).setY(y)
-        bar.rotation.z = Math.PI / 2
-        bar.rotation.y = -Math.atan2(b.z - a.z, b.x - a.x)
-        rail.add(bar)
+        const mid = a.clone().add(b).multiplyScalar(0.5).setY(y)
+        steel.add(new CylinderGeometry(0.022, 0.022, len, 6), mid, {
+          x: 0,
+          y: -Math.atan2(b.z - a.z, b.x - a.x),
+          z: Math.PI / 2,
+        })
       }
     }
+    this.group.add(steel.build(M.steelPaint, { cast: true }))
+    this.group.add(foot.build(M.concrete))
   }
 
   private buildSensorPost(
@@ -674,13 +663,22 @@ export class ClockMachine {
     // dial illumination
     this.dialLit = damp(this.dialLit, dialLitTarget, 2.2, dt)
     const glowAmount = this.dialLit * L.lampEmissive
-    this.dialFace.emissiveIntensity = glowAmount * 0.85
+    this.dialFace.emissiveIntensity = glowAmount * 0.42
     this.tmpColor.setHex(0xffd9a0)
     this.dialLight.color.copy(this.tmpColor)
-    this.dialLight.intensity = glowAmount * 4.2 * L.lampLightIntensity
-    ;(this.dialGlow.material as MeshBasicMaterial).opacity = glowAmount * 0.22
+    this.dialLight.intensity = glowAmount * 2.6 * L.lampLightIntensity
+    ;(this.dialGlow.material as MeshBasicMaterial).opacity = glowAmount * 0.13
     this.glassSheen.opacity = 0.03 + L.starVisibility * 0.035
     this.mechLight.intensity = 0.34 + L.readFill * 0.55 + glowAmount * 0.7
+  }
+
+  /** Place the train at a given tooth count instantly — used when restoring a session. */
+  setTeeth(teeth: number): void {
+    this.mechTarget = TOOTH_ANGLE * teeth
+    this.mechCurrent = this.mechTarget
+    this.handCurrent = this.mechTarget
+    this.mechVel = 0
+    this.handVel = 0
   }
 
   /** Reset for replay: hands return to the opening time without a visible rewind spin. */
