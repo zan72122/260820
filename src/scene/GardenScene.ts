@@ -1,15 +1,12 @@
 import {
   BoxGeometry,
-  Color,
-  DirectionalLight,
-  HemisphereLight,
   Mesh,
   MeshStandardMaterial,
   PlaneGeometry,
   Scene,
 } from 'three'
 import type { Flags } from '../core/flags'
-import { sunDirection } from './layout'
+import { createGoldenHourRig } from '../lighting/GoldenHourRig'
 
 /**
  * Assembles the world into the scene. Milestone 0 contents: a ground plane,
@@ -23,8 +20,7 @@ export interface SceneHandles {
 }
 
 export function buildGardenScene(scene: Scene, flags: Flags): SceneHandles {
-  void flags
-  scene.background = new Color('#c9a27c')
+  createGoldenHourRig(scene, flags)
 
   const ground = new Mesh(
     new PlaneGeometry(30, 30),
@@ -34,16 +30,11 @@ export function buildGardenScene(scene: Scene, flags: Flags): SceneHandles {
   ground.receiveShadow = true
   scene.add(ground)
 
-  const sun = new DirectionalLight('#ffb066', 2.5)
-  const dir = sunDirection()
-  sun.position.set(dir.x * 50, dir.y * 50, dir.z * 50)
-  scene.add(sun)
-  scene.add(new HemisphereLight('#7d87ae', '#7a5c40', 0.4))
-
   // Depth-layer proxies (near 5 m / mid 30 m / far 300 m), removed in M3+.
   const proxyMat = new MeshStandardMaterial({ color: '#9c8f7a', roughness: 0.9 })
   const near = new Mesh(new BoxGeometry(1, 1, 1), proxyMat)
   near.position.set(2, 0.5, -3)
+  near.castShadow = true
   const mid = new Mesh(new BoxGeometry(6, 4, 6), proxyMat)
   mid.position.set(-12, 2, -28)
   const far = new Mesh(new BoxGeometry(120, 60, 40), proxyMat)
