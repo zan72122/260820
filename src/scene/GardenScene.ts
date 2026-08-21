@@ -1,6 +1,5 @@
 import {
   BoxGeometry,
-  Group,
   Mesh,
   MeshStandardMaterial,
   PlaneGeometry,
@@ -19,6 +18,8 @@ import { buildTsukubai } from '../builders/garden/tsukubai'
 import { buildVegBeds, type VegBedHandles } from '../builders/garden/vegBed'
 import { buildClutter } from '../builders/props/clutter'
 import { buildTools, type ToolHandles } from '../builders/props/tools'
+import { buildMidLayer } from '../builders/backdrop/midLayer'
+import { buildSatoyama } from '../builders/backdrop/satoyama'
 import type { Flags } from '../core/flags'
 import { deriveRng } from '../core/rng'
 import { createGoldenHourRig } from '../lighting/GoldenHourRig'
@@ -115,16 +116,9 @@ export function buildGardenScene(scene: Scene, flags: Flags): SceneHandles {
   groundMesh.name = 'ground'
   scene.add(groundMesh)
 
-  // --- 奥行き検証用の中景・遠景プロキシ（M5で実ジオメトリに置換） ---------
-  const proxies = new Group()
-  proxies.name = 'backdropProxies'
-  const proxyMat = new MeshStandardMaterial({ color: '#8a8274', roughness: 0.95 })
-  const mid = new Mesh(new BoxGeometry(7, 4.5, 7), proxyMat)
-  mid.position.set(-16, 2.25, -26)
-  const far = new Mesh(new PlaneGeometry(400, 90), proxyMat)
-  far.position.set(0, 45, -420)
-  proxies.add(mid, far)
-  scene.add(proxies)
+  // --- 中景・遠景 ---------------------------------------------------------
+  scene.add(buildMidLayer(kit, deriveRng(flags.seed, 'midlayer')))
+  scene.add(buildSatoyama(flags.seed))
 
   // --- プレイヤーの仮置き（M6で本リグに置換） -----------------------------
   const playerRoot = new Mesh(

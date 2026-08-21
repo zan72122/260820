@@ -38,8 +38,8 @@ export const HEMI_SKY_COLOR = '#7d87ae'
 export const HEMI_GROUND_COLOR = '#7a5c40'
 export const HEMI_INTENSITY = 0.42
 export const FOG_COLOR = '#c99a78'
-export const FOG_NEAR = 30
-export const FOG_FAR = 520
+export const FOG_NEAR = 25
+export const FOG_FAR = 340
 
 const SKY_RADIUS = 820
 
@@ -84,7 +84,7 @@ export function createGoldenHourRig(scene: Scene, flags: Flags): GoldenHourRig {
       fog: false,
       uniforms: {
         uSunDir: { value: sunDir.clone() },
-        uHorizon: { value: new Color('#e8a06a') },
+        uHorizon: { value: new Color('#dfa077') },
         uZenith: { value: new Color('#5a6a96') },
         uGroundHaze: { value: new Color('#b98f6e') },
         uSunTint: { value: new Color('#ffcf9c') },
