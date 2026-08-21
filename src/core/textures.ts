@@ -141,6 +141,8 @@ export interface TextureSet {
   lightPool: THREE.Texture
   contact: THREE.Texture
   leaf: THREE.Texture
+  edgeRadial: THREE.Texture
+  edgeStrip: THREE.Texture
   glow: THREE.Texture
   windows: THREE.Texture
 }
@@ -280,20 +282,21 @@ function buildGround(): {
     const c = coarse(u * 6, v * 6)
     const g = grit(u * 40, v * 40)
     const w = smoothstep(0.5, 0.78, damp(u * 4, v * 4))
-    // Compacted decomposed-granite park surface.
-    let r = 0.128 + c * 0.055 + (g - 0.5) * 0.035
-    let gg = 0.114 + c * 0.05 + (g - 0.5) * 0.033
-    let b = 0.098 + c * 0.04 + (g - 0.5) * 0.03
+    // Compacted decomposed granite: pale and dusty, so a worn path reads
+    // lighter than the turf around it even before any lamp reaches it.
+    let r = 0.152 + c * 0.062 + (g - 0.5) * 0.04
+    let gg = 0.138 + c * 0.056 + (g - 0.5) * 0.038
+    let b = 0.12 + c * 0.046 + (g - 0.5) * 0.034
     // Damp ground reads darker and a touch cooler.
-    r = lerp(r, r * 0.55, w)
-    gg = lerp(gg, gg * 0.57, w)
-    b = lerp(b, b * 0.66, w)
+    r = lerp(r, r * 0.6, w)
+    gg = lerp(gg, gg * 0.62, w)
+    b = lerp(b, b * 0.7, w)
     // Dry leaf litter drifted into low spots. Kept low-contrast: under a lamp
     // a busy ground texture reads as noise, not as a surface.
     const leaf = smoothstep(0.74, 0.93, litter(u * 26, v * 26)) * (1 - w * 0.7)
-    r = lerp(r, 0.172, leaf)
-    gg = lerp(gg, 0.126, leaf)
-    b = lerp(b, 0.082, leaf)
+    r = lerp(r, 0.222, leaf)
+    gg = lerp(gg, 0.16, leaf)
+    b = lerp(b, 0.1, leaf)
     return [r, gg, b]
   })
 
@@ -422,6 +425,10 @@ function buildLightPool(): THREE.Texture {
   t.colorSpace = THREE.NoColorSpace
   t.wrapS = THREE.ClampToEdgeWrapping
   t.wrapT = THREE.ClampToEdgeWrapping
+  // No mip chain: a minified pool would average toward its bright centre and
+  // the decal would read as a lit rectangle instead of a pool of light.
+  t.generateMipmaps = false
+  t.minFilter = THREE.LinearFilter
   t.needsUpdate = true
   return t
 }
@@ -448,6 +455,45 @@ function buildContact(): THREE.Texture {
   x.putImageData(img, 0, 0)
   const t = new THREE.CanvasTexture(c)
   t.colorSpace = THREE.NoColorSpace
+  t.generateMipmaps = false
+  t.minFilter = THREE.LinearFilter
+  t.needsUpdate = true
+  return t
+}
+
+/** Radial and lateral alpha ramps that feather one ground surface into another. */
+function buildEdgeFade(strip: boolean): THREE.Texture {
+  const S = 128
+  const { c, x } = makeCanvas(S)
+  const wobble = fbm(3167, 6, 3)
+  const img = x.createImageData(S, S)
+  const d = img.data
+  for (let j = 0; j < S; j++) {
+    for (let i = 0; i < S; i++) {
+      const u = i / S
+      const v = j / S
+      let a: number
+      if (strip) {
+        a = smoothstep(0, 0.42, u) * smoothstep(1, 0.58, u)
+      } else {
+        const r = Math.hypot(u - 0.5, v - 0.5) * 2
+        a = smoothstep(1.0, 0.1, r)
+      }
+      // Ragged rather than machined: worn ground never ends on a clean curve.
+      a *= 0.72 + 0.5 * wobble(u * 6, v * 6)
+      const k = (j * S + i) * 4
+      const c8 = clamp01(a) * 255
+      d[k] = c8
+      d[k + 1] = c8
+      d[k + 2] = c8
+      d[k + 3] = 255
+    }
+  }
+  x.putImageData(img, 0, 0)
+  const t = new THREE.CanvasTexture(c)
+  t.colorSpace = THREE.NoColorSpace
+  t.wrapS = strip ? THREE.RepeatWrapping : THREE.ClampToEdgeWrapping
+  t.wrapT = THREE.RepeatWrapping
   t.needsUpdate = true
   return t
 }
@@ -486,6 +532,8 @@ function buildGlow(): THREE.Texture {
   x.fillRect(0, 0, S, S)
   const t = new THREE.CanvasTexture(c)
   t.colorSpace = THREE.NoColorSpace
+  t.generateMipmaps = false
+  t.minFilter = THREE.LinearFilter
   t.needsUpdate = true
   return t
 }
@@ -550,6 +598,8 @@ export function buildTextures(): TextureSet {
     lightPool: buildLightPool(),
     contact: buildContact(),
     leaf: buildLeaf(),
+    edgeRadial: buildEdgeFade(false),
+    edgeStrip: buildEdgeFade(true),
     glow: buildGlow(),
     windows: buildWindows(),
   }

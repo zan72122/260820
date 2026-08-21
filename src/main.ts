@@ -34,13 +34,16 @@ async function main(): Promise<void> {
 
   await game.start()
 
-  if (new URLSearchParams(location.search).get('debug') === '1') {
+  const params = new URLSearchParams(location.search)
+  if (params.get('debug') === '1') {
     const { mountDebug } = await import('./debug/debug')
     mountDebug(game, uiRoot)
   }
-
-  // Expose the instance for the automated smoke test only.
-  ;(window as Window & { __game?: Game }).__game = game
+  // Automation hook for the play-through and screenshot harnesses. Never
+  // attached during normal play, so a shipped page exposes nothing.
+  if (params.get('debug') === '1' || params.get('e2e') === '1') {
+    ;(window as Window & { __game?: Game }).__game = game
+  }
 }
 
 void main().catch((err) => {

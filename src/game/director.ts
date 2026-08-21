@@ -17,6 +17,8 @@ interface Frame {
   fov: number
 }
 
+const _proj = new THREE.Vector3()
+
 const frame = (): Frame => ({ pos: new THREE.Vector3(), target: new THREE.Vector3(), fov: 50 })
 
 type ShotFn = (ctx: ShotContext, out: Frame) => void
@@ -40,12 +42,12 @@ const SHOTS: Record<string, ShotFn> = {
     const drift = Math.sin(ctx.time * 0.1) * 0.45
     const t = ctx.tall
     out.pos.set(
-      lerp(-8.4, -4.6, t) + drift,
-      lerp(4.4, 5.2, t),
-      lerp(-9.6, -12.4, t) - drift * 0.3,
+      lerp(-10.2, -5.9, t) + drift,
+      lerp(5.4, 4.7, t),
+      lerp(-13.0, -13.2, t) - drift * 0.3,
     )
-    out.target.set(lerp(0.9, 0.6, t), lerp(1.1, 0.9, t), lerp(4.6, 5.6, t))
-    out.fov = lerp(50, 58, t)
+    out.target.set(lerp(0.6, 0.5, t), lerp(1.0, 1.3, t), lerp(4.0, 4.4, t))
+    out.fov = lerp(52, 58, t)
   },
 
   /* Climbing: a side follow that keeps the safety lamps and the steps legible. */
@@ -85,8 +87,8 @@ const SHOTS: Record<string, ShotFn> = {
 
   /* Stopped at the run-out. The new lamps read, but the bed stays in shot. */
   firstLight: pair(
-    [-3.3, 1.55, -0.7, 1.1, 0.75, 6.2, 54],
-    [-1.5, 1.9, -2.2, 0.7, 0.6, 6.4, 64],
+    [-3.4, 1.6, -1.2, 1.0, 0.75, 6.4, 54],
+    [-1.15, 2.0, -3.1, 0.8, 0.7, 6.8, 62],
   ),
 
   /* Rollers, shaft, generator needle and one lamp in a single composition. */
@@ -101,11 +103,13 @@ const SHOTS: Record<string, ShotFn> = {
     // The lens sits close enough that a small hand can find the plates, and
     // orbits the box slowly so each of the three zones passes behind them.
     const t = ctx.tall
-    const orbit = Math.sin(ctx.time * 0.3) * lerp(0.07, 0.3, t)
+    // Aimed into the park and orbiting the box slowly, so the plates stay put
+    // in the lower frame while each of the three zones drifts through behind.
+    const orbit = Math.sin(ctx.time * 0.24) * lerp(0.4, 0.6, t)
     const cx = -2.55
     const cz = 1.72
-    const radius = lerp(1.35, 1.75, t)
-    const ang = -2.5 + orbit
+    const radius = lerp(1.45, 1.8, t)
+    const ang = Math.PI + 0.09 + orbit
     out.pos.set(cx + Math.sin(ang) * radius, lerp(1.32, 1.62, t), cz + Math.cos(ang) * radius)
     out.target.set(
       cx - Math.sin(ang) * lerp(5.5, 6.5, t),
@@ -115,13 +119,23 @@ const SHOTS: Record<string, ShotFn> = {
     out.fov = lerp(58, 66, t)
   },
 
-  /* Wide, human-height view of the park once it carries its own light. */
+  /*
+   * Wide, a little above eye height, looking into the lit park rather than down
+   * at it. A wide frame holds all three zones at once; a tall frame cannot, so
+   * the lens pans slowly across them instead of cropping one out.
+   */
   finale: (ctx, out) => {
     const t = ctx.tall
-    const drift = Math.sin(ctx.time * 0.08) * 0.4
-    out.pos.set(lerp(-5.6, -2.8, t) + drift, lerp(2.35, 2.8, t), lerp(-4.6, -7.4, t))
-    out.target.set(lerp(1.2, 0.8, t), lerp(1.0, 0.9, t), lerp(7.0, 6.8, t))
-    out.fov = lerp(58, 66, t)
+    const px = lerp(-3.2, -2.2, t)
+    const pz = lerp(-3.6, -2.6, t)
+    out.pos.set(px, lerp(2.9, 3.05, t), pz)
+    const dx = 0.9 - px
+    const dz = 8.6 - pz
+    const len = Math.hypot(dx, dz)
+    const sweep = Math.sin(ctx.time * 0.21) * lerp(0.04, 0.78, t)
+    const a = Math.atan2(dx, dz) + sweep
+    out.target.set(px + Math.sin(a) * len, lerp(0.9, 0.85, t), pz + Math.cos(a) * len)
+    out.fov = lerp(62, 66, t)
   },
 }
 
@@ -253,11 +267,15 @@ export class CameraDirector {
     return this.now.target
   }
 
-  /** Screen-space position of a world point, in 0..1 with the origin top-left. */
+  /**
+   * Screen-space position of a world point, in 0..1 with the origin top-left.
+   * Returns false when the point is off screen, so a prompt is never pinned to
+   * an edge for something the player cannot actually see.
+   */
   project(point: THREE.Vector3, out: THREE.Vector2): boolean {
-    const p = point.clone().project(this.camera)
+    const p = _proj.copy(point).project(this.camera)
     out.set((p.x + 1) / 2, (-p.y + 1) / 2)
-    return p.z < 1 && Math.abs(p.x) < 1.6 && Math.abs(p.y) < 1.6
+    return p.z < 1 && Math.abs(p.x) < 0.94 && Math.abs(p.y) < 0.94
   }
 
   static zoneAnchor(id: CircuitId): THREE.Vector3 {

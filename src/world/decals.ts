@@ -33,12 +33,15 @@ export class LightPools {
   constructor(capacity: number) {
     const tex = buildTextures()
     const geo = new THREE.PlaneGeometry(1, 1)
+    // Fog must stay off on an additive decal: mixing towards the fog colour
+    // adds light across the whole quad, so the pool would read as a lit
+    // rectangle at distance instead of fading away.
     const mat = new THREE.MeshBasicMaterial({
       map: tex.lightPool,
       transparent: true,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
-      fog: true,
+      fog: false,
     })
     this.mesh = new THREE.InstancedMesh(geo, mat, Math.max(1, capacity))
     this.mesh.frustumCulled = false

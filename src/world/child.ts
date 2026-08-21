@@ -209,8 +209,4 @@ export class Child {
       }
     }
   }
-
-  setVisible(v: boolean): void {
-    this.root.visible = v
-  }
 }

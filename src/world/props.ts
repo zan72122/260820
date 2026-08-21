@@ -29,10 +29,11 @@ export function buildTrees(root: THREE.Group, contacts: ContactShadows): void {
   const trunks = new THREE.InstancedMesh(trunkGeo, m.bark, TREES.length)
   const branches = new THREE.InstancedMesh(branchGeo, m.bark, TREES.length * BRANCHES)
   const blobs = new THREE.InstancedMesh(blobGeo, m.foliage, TREES.length * BLOBS)
-  trunks.castShadow = true
-  branches.castShadow = true
-  blobs.castShadow = true
-  blobs.receiveShadow = true
+  // Nothing out in the park casts into the key light's shadow map: it is a
+  // small map aimed at the slide, and distant casters only smear it.
+  trunks.castShadow = false
+  branches.castShadow = false
+  blobs.castShadow = false
 
   let bi = 0
   let ci = 0
@@ -109,7 +110,6 @@ export function buildBenches(root: THREE.Group, contacts: ContactShadows): void 
         new THREE.Vector3(1, 1, 1),
       )
       merger.add(geo, mat, new THREE.Matrix4().multiplyMatrices(g, local), {
-        cast: true,
         receive: true,
       })
     }
@@ -142,7 +142,7 @@ export function buildPavilion(root: THREE.Group, contacts: ContactShadows): void
     for (const sz of [-1, 1]) {
       const px = x + (sx * width) / 2
       const pz = z + (sz * depth) / 2
-      merger.addAt(postGeo, m.wood, px, postHeight / 2 + 0.11, pz, 0, 0, 0, { cast: true })
+      merger.addAt(postGeo, m.wood, px, postHeight / 2 + 0.11, pz)
       merger.addAt(baseGeo, m.darkSteel, px, 0.16, pz)
       contacts.add(px, 0, pz, 0.3, 0.5)
     }
@@ -152,10 +152,10 @@ export function buildPavilion(root: THREE.Group, contacts: ContactShadows): void
   const beamX = new THREE.BoxGeometry(width + 0.24, 0.14, 0.1)
   const beamZ = new THREE.BoxGeometry(0.1, 0.14, depth + 0.24)
   for (const sz of [-1, 1]) {
-    merger.addAt(beamX, m.wood, x, postHeight + 0.14, z + (sz * depth) / 2, 0, 0, 0, { cast: true })
+    merger.addAt(beamX, m.wood, x, postHeight + 0.14, z + (sz * depth) / 2)
   }
   for (const sx of [-1, 1]) {
-    merger.addAt(beamZ, m.wood, x + (sx * width) / 2, postHeight + 0.14, z, 0, 0, 0, { cast: true })
+    merger.addAt(beamZ, m.wood, x + (sx * width) / 2, postHeight + 0.14, z)
   }
   const rafter = new THREE.BoxGeometry(width + 0.4, 0.07, 0.06)
   for (let i = 0; i < 5; i++) {
@@ -178,13 +178,10 @@ export function buildPavilion(root: THREE.Group, contacts: ContactShadows): void
       postHeight + 0.3 + roofHeight / 2,
       z + (sz * (depth / 2 + 0.5)) / 2,
       sz * tilt,
-      0,
-      0,
-      { cast: true },
     )
   }
   const ridge = new THREE.BoxGeometry(width + 1.2, 0.08, 0.12)
-  merger.addAt(ridge, m.paintedSteel, x, postHeight + 0.3 + roofHeight, z, 0, 0, 0, { cast: true })
+  merger.addAt(ridge, m.paintedSteel, x, postHeight + 0.3 + roofHeight, z)
 
   merger.build(root, 'pavilion')
 }

@@ -69,10 +69,6 @@ export class RenderSystem {
     if (this.bloomPass) this.bloomPass.strength = strength
   }
 
-  get bloomStrength(): number {
-    return this.bloomPass ? this.bloomPass.strength : 0
-  }
-
   setExposure(v: number): void {
     this.renderer.toneMappingExposure = v
   }

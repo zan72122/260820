@@ -12,6 +12,7 @@ export interface MaterialSet {
   conduit: THREE.MeshStandardMaterial
   concrete: THREE.MeshStandardMaterial
   ground: THREE.MeshStandardMaterial
+  groundStrip: THREE.MeshStandardMaterial
   grass: THREE.MeshStandardMaterial
   bark: THREE.MeshStandardMaterial
   foliage: THREE.MeshStandardMaterial
@@ -102,7 +103,10 @@ export function buildMaterials(): MaterialSet {
     color: 0xffffff,
   })
 
-  const ground = new THREE.MeshStandardMaterial({
+  // Two variants of the same worn surface: one feathered radially for the bare
+  // patches, one feathered across its width for the walk. Hard edges between
+  // ground materials are the fastest way to make a park look assembled.
+  const groundBase = {
     map: tex.groundMap,
     roughnessMap: tex.groundRough,
     normalMap: tex.groundNormal,
@@ -110,10 +114,22 @@ export function buildMaterials(): MaterialSet {
     roughness: 1,
     metalness: 0,
     color: 0xffffff,
+  }
+  const ground = new THREE.MeshStandardMaterial({
+    ...groundBase,
+    alphaMap: tex.edgeRadial,
+    transparent: true,
+    depthWrite: false,
+  })
+  const groundStrip = new THREE.MeshStandardMaterial({
+    ...groundBase,
+    alphaMap: tex.edgeStrip,
+    transparent: true,
+    depthWrite: false,
   })
 
   const grass = new THREE.MeshStandardMaterial({
-    color: 0x2c3a26,
+    color: 0x2e3927,
     roughness: 0.96,
     metalness: 0,
   })
@@ -213,6 +229,7 @@ export function buildMaterials(): MaterialSet {
     conduit,
     concrete,
     ground,
+    groundStrip,
     grass,
     bark,
     foliage,

@@ -3,15 +3,15 @@
 import { chromium } from 'playwright'
 import { mkdirSync } from 'node:fs'
 
-const URL = process.env.URL ?? 'http://localhost:5173/?debug=0'
+const URL = process.env.URL ?? 'http://localhost:5173/?e2e=1'
 const OUT = process.env.OUT ?? 'shots'
 mkdirSync(OUT, { recursive: true })
 
 const DEVICES = {
-  iphone: { width: 390, height: 844, dpr: 3 },
-  iphoneL: { width: 844, height: 390, dpr: 3 },
-  ipad: { width: 820, height: 1180, dpr: 2 },
-  ipadL: { width: 1180, height: 820, dpr: 2 },
+  iphone: { width: 390, height: 844, dpr: 2 },
+  iphoneL: { width: 844, height: 390, dpr: 1 },
+  ipad: { width: 820, height: 1180, dpr: 1 },
+  ipadL: { width: 1180, height: 820, dpr: 1 },
 }
 
 const device = DEVICES[process.env.DEVICE ?? 'iphone']
@@ -45,6 +45,14 @@ await page.click('#boot .start')
 await page.waitForFunction(() => Boolean(window.__game), null, { timeout: 60000 })
 await page.waitForTimeout(1500)
 
+if (process.env.SHADOWS === '0') {
+  await page.evaluate(() => {
+    window.__game.render.renderer.shadowMap.enabled = false
+    window.__game.scene.traverse((o) => { if (o.material) o.material.needsUpdate = true })
+  })
+  await page.waitForTimeout(1200)
+}
+
 if (process.env.FILL) {
   await page.evaluate((v) => window.__game.fillCircuits(Number(v)), process.env.FILL)
   await page.waitForTimeout(2500)
@@ -52,7 +60,7 @@ if (process.env.FILL) {
 
 for (const shot of shots) {
   await page.evaluate((s) => window.__game.jumpToShot(s), shot)
-  await page.waitForTimeout(2600)
+  await page.waitForTimeout(7000)
   await page.screenshot({ path: `${OUT}/${process.env.DEVICE ?? 'iphone'}-${shot}.png` })
   console.log('captured', shot)
 }

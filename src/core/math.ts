@@ -4,24 +4,17 @@ export const clamp01 = (v: number): number => (v < 0 ? 0 : v > 1 ? 1 : v)
 
 export const lerp = (a: number, b: number, t: number): number => a + (b - a) * t
 
-export const invLerp = (a: number, b: number, v: number): number =>
-  a === b ? 0 : clamp01((v - a) / (b - a))
-
+/** Ramps from 0 to 1 across the edges, clamped outside them. Edges may descend. */
 export const smoothstep = (edge0: number, edge1: number, v: number): number => {
-  const t = invLerp(edge0, edge1, v)
+  const t = edge0 === edge1 ? 0 : clamp01((v - edge0) / (edge1 - edge0))
   return t * t * (3 - 2 * t)
 }
 
-export const smootherstep = (edge0: number, edge1: number, v: number): number => {
-  const t = invLerp(edge0, edge1, v)
-  return t * t * t * (t * (t * 6 - 15) + 10)
+/** Quintic ease, used for every camera transition. */
+export const easeInOut = (t: number): number => {
+  const k = clamp01(t)
+  return k * k * k * (k * (k * 6 - 15) + 10)
 }
-
-export const easeInOut = (t: number): number => smootherstep(0, 1, t)
-
-export const easeOutCubic = (t: number): number => 1 - Math.pow(1 - clamp01(t), 3)
-
-export const easeInCubic = (t: number): number => Math.pow(clamp01(t), 3)
 
 /** Frame-rate independent exponential approach. `rate` = fraction remaining after 1 second. */
 export const damp = (current: number, target: number, rate: number, dt: number): number =>
@@ -52,11 +45,4 @@ export class Rng {
     return a + (b - a) * this.next()
   }
 
-  int(a: number, b: number): number {
-    return Math.floor(this.range(a, b + 1))
-  }
-
-  pick<T>(items: readonly T[]): T {
-    return items[Math.min(items.length - 1, Math.floor(this.next() * items.length))]
-  }
 }

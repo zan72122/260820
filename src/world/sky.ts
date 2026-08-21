@@ -104,16 +104,16 @@ export class Sky {
 
     // A single low key from the afterglow side: enough to model the machinery
     // without ever reading as daylight.
-    this.key = new THREE.DirectionalLight(0xa9b6d6, 1.15)
+    this.key = new THREE.DirectionalLight(0xa9b6d6, 0.8)
     this.key.position.set(-16, 7.5, -13)
     this.key.target.position.set(0, 0.6, -1)
     scene.add(this.key)
     scene.add(this.key.target)
 
-    this.hemi = new THREE.HemisphereLight(0x4a5a7a, 0x14170f, 1.05)
+    this.hemi = new THREE.HemisphereLight(0x4a5a7a, 0x14170f, 1.35)
     scene.add(this.hemi)
 
-    scene.environmentIntensity = 0.9
+    scene.environmentIntensity = 1.0
   }
 
   enableShadows(mapSize: number): void {
@@ -122,16 +122,16 @@ export class Sky {
     const cam = this.key.shadow.camera
     // Tight bounds around the slide and its run-out: nothing else needs a
     // cast shadow, and a small frustum keeps the map crisp on a phone.
-    cam.left = -9
-    cam.right = 9
-    cam.top = 12
-    cam.bottom = -12
-    cam.near = 4
-    cam.far = 46
+    cam.left = -6.5
+    cam.right = 6.5
+    cam.top = 13
+    cam.bottom = -13
+    cam.near = 6
+    cam.far = 44
     cam.updateProjectionMatrix()
     this.key.shadow.bias = -0.0009
     this.key.shadow.normalBias = 0.028
-    this.key.shadow.radius = 2
+    this.key.shadow.radius = 3
   }
 
   /** Builds a small equirectangular probe from the same palette used by the dome. */
@@ -202,15 +202,11 @@ export class Sky {
     ;(u.uGlow.value as THREE.Color).lerpColors(DUSK.glow, NIGHT.glow, n)
     u.uExposure.value = scale
 
-    this.key.intensity = lerp(1.15, 0.4, n) * scale
-    this.hemi.intensity = lerp(1.05, 0.42, n) * scale
-    this.scene.environmentIntensity = lerp(0.9, 0.38, n) * scale
+    this.key.intensity = lerp(0.8, 0.3, n) * scale
+    this.hemi.intensity = lerp(1.35, 0.52, n) * scale
+    this.scene.environmentIntensity = lerp(1.0, 0.42, n) * scale
     this.fog.density = lerp(0.0135, 0.021, n)
     this.fog.color.setRGB(lerp(0.055, 0.03, n), lerp(0.07, 0.039, n), lerp(0.105, 0.06, n))
-  }
-
-  get night(): number {
-    return this.nightAmount
   }
 
   dispose(): void {

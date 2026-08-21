@@ -9,7 +9,6 @@ import {
   SHAFT,
   SLIDE,
   STAIR,
-  bedPitch,
   bedPoint,
   distanceAtU,
   slideLength,
@@ -223,6 +222,12 @@ export function buildSlideStructure(root: THREE.Group, contacts: ContactShadows)
   }
   contacts.add(0, 0, (STAIR.z0 + STAIR.z1) / 2, 1.1, 0.45, 1.3)
   contacts.add(0, 0, _p.z + 0.6, 1.5, 0.4)
+  // A soft strip of occlusion under the whole run, so the bed is grounded even
+  // where the key light's small shadow map does not reach.
+  for (let d = 0.6; d < slideLength; d += 1.2) {
+    bedPoint(uAtDistance(d), _p)
+    contacts.add(0, 0, _p.z, 0.78, 0.3, 0.9)
+  }
 
   merger.build(root, 'slide-structure')
 }
@@ -395,12 +400,4 @@ export class RollerBank {
     return clamp01(peak / 60)
   }
 
-  stopAll(): void {
-    this.omega.fill(0)
-  }
-}
-
-/** Pitch of the bed at a given arc-length station, for seating the child. */
-export function pitchAtDistance(d: number): number {
-  return bedPitch(uAtDistance(d))
 }

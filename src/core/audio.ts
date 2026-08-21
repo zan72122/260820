@@ -36,7 +36,6 @@ export class AudioSystem {
   private genOsc: OscillatorNode | null = null
   private windGain: GainNode | null = null
   private ready = false
-  private muted = false
 
   private lastCricket = 0
 
@@ -105,19 +104,12 @@ export class AudioSystem {
     this.ready = true
   }
 
-  setMuted(m: boolean): void {
-    this.muted = m
-    if (this.master && this.ctx) {
-      this.master.gain.setTargetAtTime(m ? 0.0001 : 0.85, this.ctx.currentTime, 0.15)
-    }
-  }
-
   suspend(): void {
     void this.ctx?.suspend().catch(() => undefined)
   }
 
   resume(): void {
-    if (!this.muted) void this.ctx?.resume().catch(() => undefined)
+    void this.ctx?.resume().catch(() => undefined)
   }
 
   /** `speed` is a 0..1 normalised roller surface speed. */

@@ -244,8 +244,8 @@ export class Machinery {
     // The dial is lit from inside by the machine it reports on, so the needle
     // is only readable once the shaft is actually turning.
     this.dialMaterial = new THREE.MeshStandardMaterial({
-      color: 0xcfc9ba,
-      emissive: new THREE.Color(0xffd9a4),
+      color: 0x9d978a,
+      emissive: new THREE.Color(0xffd2a0),
       emissiveIntensity: 0,
       roughness: 0.72,
       metalness: 0,
@@ -575,7 +575,7 @@ export class Machinery {
     // The needle is a real moving-iron movement: it lags and it never snaps.
     this.needleAngle = approach(this.needleAngle, clamp01(output), 0.16, dt)
     this.needle.rotation.z = -lerp(-1.05, 1.05, this.needleAngle)
-    this.dialMaterial.emissiveIntensity = Math.min(1.15, 0.1 + this.needleAngle * 1.5)
+    this.dialMaterial.emissiveIntensity = Math.min(0.68, 0.06 + this.needleAngle * 0.9)
 
     const n = this.storageSegments.length
     for (let i = 0; i < n; i++) {

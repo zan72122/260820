@@ -144,11 +144,6 @@ export class CircuitModel {
     for (const l of this.safety) l.level = approach(l.level, l.target, 1.4, dt)
   }
 
-  /** Number of fixtures on a circuit that are currently carrying light. */
-  litCount(id: CircuitId): number {
-    return this.circuits[id].lamps.reduce((n, l) => n + (l.level > 0.35 ? 1 : 0), 0)
-  }
-
   /** Fixtures held on by stored charge alone. */
   latchedCount(id: CircuitId): number {
     return this.circuits[id].lamps.reduce((n, l) => n + (l.latched ? 1 : 0), 0)

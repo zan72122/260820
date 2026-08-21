@@ -133,10 +133,6 @@ export const ROLLERS: RollerDef[] = (() => {
   return out
 })()
 
-export const DRIVE_INDICES: number[] = ROLLERS.map((r, i) => (r.drive ? i : -1)).filter(
-  (i) => i >= 0,
-)
-
 /* ------------------------------------------------------------------ *
  * Machinery anchors
  * ------------------------------------------------------------------ */
@@ -280,10 +276,11 @@ export const FIXTURES: FixtureDef[] = [
   f('pav-2', 'pavilion', 'lantern', -7.55, 2.18, 8.35, 0, 2, WARM_LANTERN, 21, 2.5),
 
   // --- tree circuit --------------------------------------------------
-  f('tree-0', 'tree', 'uplight', 6.35, 0, 4.9, 0.4, 0, WARM_TREE, 12, 1.35, 0.2, 0.25),
-  f('tree-1', 'tree', 'uplight', 8.7, 0, 8.35, 0.9, 1, WARM_TREE, 12, 1.35, 0.2, 0.25),
-  f('tree-2', 'tree', 'uplight', 5.7, 0, 11.4, 0.2, 2, WARM_TREE, 12, 1.35, 0.2, 0.25),
-  f('tree-3', 'tree', 'uplight', 9.6, 0, 12.9, 0.6, 3, WARM_TREE, 12, 1.35, 0.2, 0.25),
+  // Set back from each trunk and aimed at it, the way a recessed uplight is.
+  f('tree-0', 'tree', 'uplight', 5.78, 0, 4.44, 0.9, 0, WARM_TREE, 13, 1.25, 0.35, 0.28),
+  f('tree-1', 'tree', 'uplight', 8.13, 0, 7.89, 0.9, 1, WARM_TREE, 13, 1.25, 0.35, 0.28),
+  f('tree-2', 'tree', 'uplight', 5.13, 0, 10.94, 0.9, 2, WARM_TREE, 13, 1.25, 0.35, 0.28),
+  f('tree-3', 'tree', 'uplight', 9.03, 0, 12.44, 0.9, 3, WARM_TREE, 13, 1.25, 0.35, 0.28),
 
   // --- permanent night-safety lighting on the stair tower ------------
   f('safe-0', 'safety', 'safety', -0.86, 1.95, -13.1, 0.5, 0, SAFETY_WHITE, 4.5, 1.15),
@@ -343,14 +340,12 @@ export interface BenchDef {
   x: number
   z: number
   yaw: number
-  /** Fixture id of the under-seat lamp, when this bench carries one. */
-  lamp?: string
 }
 
 export const BENCHES: BenchDef[] = [
   { x: 1.72, z: 2.55, yaw: -1.5 },
-  { x: 3.15, z: 8.2, yaw: -1.5, lamp: 'path-5' },
-  { x: -7.55, z: 7.2, yaw: 0, lamp: undefined },
+  { x: 3.15, z: 8.2, yaw: -1.5 },
+  { x: -7.55, z: 7.2, yaw: 0 },
 ]
 
 export const PAVILION = {

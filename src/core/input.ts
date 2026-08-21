@@ -153,13 +153,6 @@ export class InputSystem {
     this.dy = 0
   }
 
-  /** Forgets the current gesture without waiting for a release. */
-  cancel(): void {
-    this.active = false
-    this.pointerId = -1
-    this.dx = this.dy = 0
-  }
-
   dispose(): void {
     this.el.removeEventListener('pointerdown', this.onDown)
     this.el.removeEventListener('pointermove', this.onMove)

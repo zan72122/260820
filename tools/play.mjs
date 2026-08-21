@@ -3,7 +3,7 @@
 import { chromium } from 'playwright'
 import { mkdirSync } from 'node:fs'
 
-const URL = process.env.URL ?? 'http://localhost:5173/'
+const URL = process.env.URL ?? 'http://localhost:5173/?e2e=1'
 const OUT = process.env.OUT ?? 'shots/play'
 mkdirSync(OUT, { recursive: true })
 

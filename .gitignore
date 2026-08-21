@@ -5,3 +5,6 @@ dist
 .vite
 test-results
 playwright-report
+
+# Development capture output
+shots

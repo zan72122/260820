@@ -18,8 +18,6 @@ export interface FixtureVisual {
   poolGain: number
 }
 
-const _v = new THREE.Vector3()
-
 function diffuserMaterial(colour: number): THREE.MeshStandardMaterial {
   const { tex } = buildMaterials()
   return new THREE.MeshStandardMaterial({
@@ -42,7 +40,7 @@ function glowSprite(colour: number, size: number): THREE.Sprite {
     blending: THREE.AdditiveBlending,
     depthWrite: false,
     opacity: 0,
-    fog: true,
+    fog: false,
   })
   const s = new THREE.Sprite(mat)
   s.scale.setScalar(size)
@@ -64,7 +62,6 @@ function buildBollard(def: FixtureDef): { group: THREE.Group; diffuser: THREE.Me
 
   const post = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.042, 0.5, 12), m.galvanised)
   post.position.y = 0.325
-  post.castShadow = true
   g.add(post)
 
   // Two service bolts where the head clamps onto the post.
@@ -95,7 +92,6 @@ function buildBollard(def: FixtureDef): { group: THREE.Group; diffuser: THREE.Me
 
   const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.096, 0.072, 14), m.paintedSteel)
   cap.position.y = 0.722
-  cap.castShadow = true
   g.add(cap)
 
   const glow = glowSprite(def.colour, 0.3)
@@ -147,7 +143,6 @@ function buildLantern(def: FixtureDef): { group: THREE.Group; diffuser: THREE.Me
   const cap = new THREE.Mesh(new THREE.ConeGeometry(0.125, 0.085, 4), m.paintedSteel)
   cap.rotation.y = Math.PI / 4
   cap.position.y = 0.128
-  cap.castShadow = true
   g.add(cap)
 
   const diffuser = diffuserMaterial(def.colour)
@@ -197,11 +192,11 @@ function buildUplight(def: FixtureDef): { group: THREE.Group; diffuser: THREE.Me
   gland.position.z = -0.075
   can.add(gland)
 
-  const glow = glowSprite(def.colour, 0.22)
-  glow.position.set(0, 0.1, 0.05)
+  const glow = glowSprite(def.colour, 0.2)
+  glow.position.set(0, 0.1, 0.06)
   g.add(glow)
 
-  return { group: g, diffuser, anchor: new THREE.Vector3(0, 0.14, 0.05), glow }
+  return { group: g, diffuser, anchor: new THREE.Vector3(0, 0.2, 0.24), glow }
 }
 
 function buildSafetyLamp(def: FixtureDef): { group: THREE.Group; diffuser: THREE.MeshStandardMaterial; anchor: THREE.Vector3; glow: THREE.Sprite } {
@@ -219,8 +214,7 @@ function buildSafetyLamp(def: FixtureDef): { group: THREE.Group; diffuser: THREE
       m.galvanised,
     )
     post.position.set(0, -(def.pos.y - 0.06) / 2 - 0.05, -0.1)
-    post.castShadow = true
-    g.add(post)
+      g.add(post)
     const base = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 0.06, 10), m.concrete)
     base.position.set(0, -def.pos.y + 0.03, -0.1)
     g.add(base)
@@ -229,7 +223,6 @@ function buildSafetyLamp(def: FixtureDef): { group: THREE.Group; diffuser: THREE
   const body = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.13, 12, 1, false, 0, Math.PI), m.paintedSteel)
   body.rotation.z = Math.PI / 2
   body.rotation.y = Math.PI / 2
-  body.castShadow = true
   g.add(body)
 
   const diffuser = diffuserMaterial(def.colour)
@@ -387,13 +380,17 @@ export class FixtureSystem {
         { squash: def.kind === 'bench' ? 0.65 : 1, yaw: def.yaw },
       )
 
-      // Tree uplights also wash the trunk they are aimed at.
+      // Tree uplights also wash the trunk they are aimed at: a narrow vertical
+      // decal standing on the trunk itself, not a slab hanging behind it.
       let washIndex = -1
       if (def.kind === 'uplight') {
-        washIndex = this.pools.add(def.pos.x - 0.05, 1.55, def.pos.z - 0.55, 1.15, {
-          squash: 1.9,
-          billboard: true,
-        })
+        washIndex = this.pools.add(
+          def.pos.x + Math.sin(def.yaw) * 0.62,
+          1.45,
+          def.pos.z + Math.cos(def.yaw) * 0.62,
+          0.34,
+          { squash: 3.8, billboard: true },
+        )
       }
 
       const emissiveGain = def.kind === 'uplight' ? 2.6 : def.kind === 'bench' ? 1.5 : def.kind === 'safety' ? 1.3 : 2.0
@@ -442,19 +439,9 @@ export class FixtureSystem {
       v.glow.visible = level > 0.02
 
       this.pools.setLevel(v.poolIndex, v.def.colour, level * v.poolGain)
-      if (v.washIndex >= 0) this.pools.setLevel(v.washIndex, v.def.colour, level * 0.5)
+      if (v.washIndex >= 0) this.pools.setLevel(v.washIndex, v.def.colour, level * 0.4)
     }
     this.pools.update(camera)
     this.budget.update(dt, camera, this.visuals, this.levels)
-  }
-
-  get(id: string): FixtureVisual | undefined {
-    return this.byId.get(id)
-  }
-
-  /** World position of a fitting, for camera framing. */
-  anchorOf(id: string, out = _v): THREE.Vector3 {
-    const v = this.byId.get(id)
-    return out.copy(v ? v.anchor : new THREE.Vector3())
   }
 }

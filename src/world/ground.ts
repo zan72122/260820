@@ -81,16 +81,16 @@ export function buildGround(quality: QualitySettings): GroundBuild {
   root.add(turf)
 
   // Compacted decomposed granite where people actually walk.
-  const walk = new THREE.Mesh(ribbon(PATH_CURVE, 0.95, 48), m.ground)
+  const walk = new THREE.Mesh(ribbon(PATH_CURVE, 1.15, 48), m.groundStrip)
   walk.receiveShadow = true
   root.add(walk)
 
-  const branch = new THREE.Mesh(ribbon(PAVILION_PATH, 0.8, 32), m.ground)
+  const branch = new THREE.Mesh(ribbon(PAVILION_PATH, 0.95, 32), m.groundStrip)
   branch.receiveShadow = true
   root.add(branch)
 
   // The worn apron around the slide, where grass never survives.
-  const apronGeo = new THREE.CircleGeometry(4.4, 28)
+  const apronGeo = new THREE.CircleGeometry(4.9, 28)
   apronGeo.rotateX(-Math.PI / 2)
   apronGeo.scale(1, 1, 1.7)
   const apron = new THREE.Mesh(apronGeo, m.ground)
@@ -98,7 +98,7 @@ export function buildGround(quality: QualitySettings): GroundBuild {
   apron.receiveShadow = true
   root.add(apron)
 
-  const exitApron = new THREE.CircleGeometry(2.9, 24)
+  const exitApron = new THREE.CircleGeometry(3.4, 24)
   exitApron.rotateX(-Math.PI / 2)
   const exitPatch = new THREE.Mesh(exitApron, m.ground)
   exitPatch.position.set(0, 0.01, 2.4)
@@ -174,7 +174,7 @@ export class Moths {
       blending: THREE.AdditiveBlending,
       depthWrite: false,
       opacity: 0.55,
-      fog: true,
+      fog: false,
     })
     this.points = new THREE.Points(geo, mat)
     this.points.frustumCulled = false
