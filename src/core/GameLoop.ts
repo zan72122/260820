@@ -15,7 +15,7 @@ export class GameLoop {
       /** Advance the simulation by exactly one tick. */
       update: () => void
       render: () => void
-      /** False under E2E_FAST: ticks only happen via step(). */
+      /** False whenever the test seam is installed: ticks only via step(). */
       autoTick: boolean
       tickSeconds: number
     },

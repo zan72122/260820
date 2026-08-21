@@ -36,5 +36,11 @@ test('boots, steps deterministic time, and reacts to real input', async ({ page 
   expect(info.calls).toBeLessThan(170)
   expect(info.triangles).toBeLessThan(220_000)
 
+  // 手続きテクスチャのフォールバックが全ファミリーで機能している
+  // （E2E_FASTはネットワーク非依存＝全てフォールバックのはず、重複なし）
+  const fallbacks = await page.evaluate(() => window.__game!.usedFallbackTextures())
+  expect(fallbacks.length).toBeGreaterThan(5)
+  expect(new Set(fallbacks).size).toBe(fallbacks.length)
+
   expect(errors).toEqual([])
 })

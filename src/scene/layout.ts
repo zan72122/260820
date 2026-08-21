@@ -50,8 +50,9 @@ export const SHOJI_KUMIKO_PITCH = 0.21
 export const EAVE_WALL_H = 2.6
 /** 屋根勾配: 4寸勾配 = atan(4/10) ≈ 21.8° */
 export const ROOF_PITCH = Math.atan(4 / 10)
-/** 軒の出: 750mm（縁側を雨から守る深い庇） */
-export const EAVE_OVERHANG = 0.75
+/** 軒の出: 4尺=1212mm。3尺の縁側を雨から守るには縁側より深い庇が要る
+ *  （雨落ちの線は縁側の外に落ちるという雨仕舞の必然） */
+export const EAVE_OVERHANG = 4 * SHAKU
 /** 桟瓦: 53判の働き寸法 約265×235mm */
 export const KAWARA_WORKING_W = 0.265
 export const KAWARA_WORKING_L = 0.235
@@ -99,8 +100,9 @@ export const GATE_CENTER_X = 3.2
 // ---------------------------------------------------------------------------
 // 飛石・沓脱石
 // ---------------------------------------------------------------------------
-/** 沓脱石: 600×400×露出200（縁側の半分の高さ=昇降の実用寸法） */
-export const KUTSUNUGI = { x: -1.82, z: -3.3, w: 0.6, d: 0.4, h: 0.2 }
+/** 沓脱石: 600×400×露出200（縁側の半分の高さ=昇降の実用寸法）。
+ *  雨落ちの砂利帯のすぐ外に据える。 */
+export const KUTSUNUGI = { x: -1.82, z: -3.1, w: 0.6, d: 0.4, h: 0.2 }
 /** 飛石: 径350〜450、露出30〜60mm、歩幅ピッチ約450mm */
 export const TOBIISHI_D_MIN = 0.35
 export const TOBIISHI_D_MAX = 0.45
@@ -245,8 +247,9 @@ export const COLLIDERS: readonly Collider[] = [
 // ---------------------------------------------------------------------------
 /** 太陽高度: 12°（長い影と暖色のレーキング光） */
 export const SUN_ELEVATION = (12 * Math.PI) / 180
-/** 太陽方位: 285°（西北西）。方位は北=0、時計回り。 */
-export const SUN_AZIMUTH = (285 * Math.PI) / 180
+/** 太陽方位: 248°（西南西）。方位は北=0、時計回り。
+ *  北緯35°の晩秋、高度12°の夕日の実際の方位（日没方位は約254°）。 */
+export const SUN_AZIMUTH = (248 * Math.PI) / 180
 
 /** 太陽の方向ベクトル（シーン→太陽へ向く単位ベクトル）。
  *  +X=東, +Z=南, 方位azは北(-Z)から時計回り。 */

@@ -48,12 +48,21 @@ export interface SceneHandles {
 }
 
 /** Assembles the whole world. Build order matters: object builders stamp
- * their footprints into the ground before its geometry bakes. */
-export function buildGardenScene(scene: Scene, flags: Flags): SceneHandles {
+ * their footprints into the ground before its geometry bakes.
+ * `deps` lets Node unit tests inject DOM-free materials (stub kit) and hash
+ * the whole scene for seed determinism. */
+export function buildGardenScene(
+  scene: Scene,
+  flags: Flags,
+  deps: {
+    kit?: MatKit
+    groundMaterial?: import('three').MeshStandardMaterial
+  } = {},
+): SceneHandles {
   createGoldenHourRig(scene, flags)
 
   const registry = new TextureRegistry(flags.seed, flags)
-  const kit = createMatKit(registry)
+  const kit = deps.kit ?? createMatKit(registry)
   const rng = deriveRng(flags.seed, 'scene')
   const ground = new GroundBuilder(flags.seed)
 
@@ -106,7 +115,10 @@ export function buildGardenScene(scene: Scene, flags: Flags): SceneHandles {
   }
 
   // --- 地面（最後に焼く: 上のスタンプを反映） -----------------------------
-  const groundMesh = new Mesh(ground.buildGeometry(), makeGroundMaterial(registry))
+  const groundMesh = new Mesh(
+    ground.buildGeometry(),
+    deps.groundMaterial ?? makeGroundMaterial(registry),
+  )
   groundMesh.receiveShadow = true
   groundMesh.name = 'ground'
   scene.add(groundMesh)

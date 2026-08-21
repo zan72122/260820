@@ -26,6 +26,8 @@ export class TextureRegistry {
   private readonly cache = new Map<FamilyName, PbrMaps>()
   private readonly fallbacks: string[] = []
   private manifest: Promise<Set<string>> | null = null
+  /** 配布したUVクローン: アップグレード時に全員へ届けるための台帳 */
+  private readonly clones = new Map<Texture, Texture[]>()
 
   constructor(
     private readonly seed: number,
@@ -34,6 +36,15 @@ export class TextureRegistry {
 
   usedFallbackTextures(): string[] {
     return [...this.fallbacks]
+  }
+
+  /** repeat違いのクローンを登録付きで作る（CC0差し替えが全クローンに届く） */
+  trackClone(tex: Texture): Texture {
+    const clone = tex.clone()
+    const list = this.clones.get(tex)
+    if (list) list.push(clone)
+    else this.clones.set(tex, [clone])
+    return clone
   }
 
   get(family: FamilyName): PbrMaps {
@@ -92,9 +103,13 @@ export class TextureRegistry {
         colorSpace: typeof SRGBColorSpace | typeof NoColorSpace,
       ) => {
         const fresh = await loader.loadAsync(`/textures/${family}/${file}`)
+        // 画像はSourceを共有する全クローンに反映されるが、GPUへの再転送は
+        // テクスチャごとの version 更新が必要 — 台帳の全員を起こす。
         target.image = fresh.image
-        target.colorSpace = colorSpace
-        target.needsUpdate = true
+        for (const t of [target, ...(this.clones.get(target) ?? [])]) {
+          t.colorSpace = colorSpace
+          t.needsUpdate = true
+        }
       }
       await Promise.all([
         swap(maps.map, 'albedo.webp', SRGBColorSpace),

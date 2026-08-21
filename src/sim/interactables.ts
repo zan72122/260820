@@ -35,7 +35,8 @@ export function listInteractables(): Interactable[] {
     id: 'canOut',
     x: CAN_OUT.x,
     z: CAN_OUT.z,
-    radius: 0.75,
+    // 0.55: 隣のトマトの収穫位置（南側）と干渉しない半径
+    radius: 0.55,
     prompt: (s) =>
       s.tools.wateringCan === 'out' && s.player.held === null
         ? '如雨露を取る'

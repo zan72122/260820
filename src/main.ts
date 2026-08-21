@@ -92,7 +92,8 @@ function render(): void {
 const loop = new GameLoop({
   update,
   render,
-  autoTick: !flags.e2eFast,
+  // テストシームが入っている時は step() だけが時を進める（決定性の契約）
+  autoTick: !flags.test,
   tickSeconds: DT,
 })
 

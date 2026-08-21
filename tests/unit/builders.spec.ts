@@ -122,6 +122,30 @@ describe('瓦屋根 (roof)', () => {
   })
 })
 
+describe('シーン全体のシード決定性', () => {
+  it('同一シードなら全ジオメトリがバイト一致、別シードなら異なる', async () => {
+    const { Scene, MeshStandardMaterial } = await import('three')
+    const { buildGardenScene } = await import('../../src/scene/GardenScene')
+    const flagsFor = (seed: number) => ({
+      e2eFast: true,
+      test: true,
+      seed,
+      debug: null,
+    })
+    const hashScene = (seed: number) => {
+      const scene = new Scene()
+      buildGardenScene(scene, flagsFor(seed), {
+        kit: createStubMatKit(),
+        groundMaterial: new MeshStandardMaterial(),
+      })
+      return positionsHash(scene)
+    }
+    const a = hashScene(42)
+    expect(hashScene(42)).toBe(a)
+    expect(hashScene(43)).not.toBe(a)
+  })
+})
+
 describe('地面 (ground)', () => {
   it('起伏は±3cm、設置痕は指定深さだけ沈む', () => {
     const g = new GroundBuilder(42)

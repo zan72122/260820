@@ -32,12 +32,15 @@ export function buildFacade(kit: MatKit, rng: Rng): Group {
   const recess = 0.03 // 壁面は柱面から30mm引っ込む
 
   // --- 柱 -----------------------------------------------------------------
+  // 起伏する地面（±3cm）に対して基部を 8cm 埋める: 実際は土台・布基礎に
+  // 載るが、露出部が浮かないことをジオメトリで保証する。
+  const bury = 0.08
   const pillarParts = []
   for (let x = HOUSE_WEST_X; x <= HOUSE_EAST_X + 0.001; x += KEN) {
-    const geo = chamferBox(PILLAR_SQ, EAVE_WALL_H, PILLAR_SQ, 0.003)
+    const geo = chamferBox(PILLAR_SQ, EAVE_WALL_H + bury, PILLAR_SQ, 0.003)
     offsetUvs(geo, rng() * 2, rng() * 2)
     setVertexColor(geo, tintJitter(rng, '#6f5e4b', 0.05))
-    moveGeo(geo, x, EAVE_WALL_H / 2, wallZ)
+    moveGeo(geo, x, (EAVE_WALL_H + bury) / 2 - bury, wallZ)
     pillarParts.push(geo)
   }
   const pillars = new Mesh(mergeParts(pillarParts), kit.woodDark)
@@ -55,10 +58,10 @@ export function buildFacade(kit: MatKit, rng: Rng): Group {
     const w = KEN - PILLAR_SQ
     const isShojiBay = x0 >= ENGAWA_WEST_X - 0.001 && x1 <= ENGAWA_EAST_X + 0.001
     if (isShojiBay) continue
-    const wainscot = chamferBox(w, WAINSCOT_H, 0.02, 0.002)
+    const wainscot = chamferBox(w, WAINSCOT_H + bury, 0.02, 0.002)
     offsetUvs(wainscot, rng() * 2, rng() * 2)
     setVertexColor(wainscot, tintJitter(rng, '#5f4f3d', 0.05))
-    moveGeo(wainscot, cx, WAINSCOT_H / 2, wallZ - recess)
+    moveGeo(wainscot, cx, (WAINSCOT_H + bury) / 2 - bury, wallZ - recess)
     wainscotParts.push(wainscot)
 
     const plasterH = EAVE_WALL_H - WAINSCOT_H
@@ -71,6 +74,7 @@ export function buildFacade(kit: MatKit, rng: Rng): Group {
         uv.setXY(i, pos.getX(i) + cx, pos.getY(i))
       }
     }
+    setVertexColor(plaster, tintJitter(rng, '#f2ecdd', 0.02))
     moveGeo(plaster, cx, WAINSCOT_H + plasterH / 2, wallZ - recess)
     plasterParts.push(plaster)
   }
@@ -117,6 +121,7 @@ export function buildFacade(kit: MatKit, rng: Rng): Group {
     const uv = kabe.getAttribute('uv')
     const pos = kabe.getAttribute('position')
     for (let i = 0; i < uv.count; i++) uv.setXY(i, pos.getX(i), pos.getY(i))
+    setVertexColor(kabe, tintJitter(rng, '#f2ecdd', 0.02))
     moveGeo(
       kabe,
       (ENGAWA_WEST_X + ENGAWA_EAST_X) / 2,

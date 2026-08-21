@@ -34,7 +34,7 @@ export class Hud {
       const lines = [
         '— 夕方の仕事 —',
         `${mark(state.chores.watered)} 畑に水をやる`,
-        `${mark(state.chores.harvested >= 3)} 収穫する（${state.chores.harvested}/3）`,
+        `${mark(state.chores.harvested >= 3)} 収穫する（${Math.min(state.chores.harvested, 3)}/3）`,
         `${mark(state.chores.toolsTidy)} 道具を片付ける`,
       ].join('\n')
       if (lines !== this.lastChores) {

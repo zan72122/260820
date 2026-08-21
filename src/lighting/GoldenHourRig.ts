@@ -17,8 +17,8 @@ import { sunDirection } from '../scene/layout'
 /**
  * 夕方の斜光に固定したライティング。
  *
- * - 太陽: 高度12°/方位285°(西北西)の DirectionalLight。長い影がシルエット
- *   分離の主役。影フラスタムは近景の庭にタイトフィット。
+ * - 太陽: 高度12°/方位248°(西南西=晩秋の実際の夕日)の DirectionalLight。
+ *   長い影がシルエット分離の主役。影フラスタムは近景の庭にタイトフィット。
  * - 環境光: HemisphereLight のみ（天頂=冷、地面=暖の照り返し）。夕暮れの
  *   実際の環境光構造で、フラットな AmbientLight は使わない。
  * - 空: グラデーションドーム＋控えめな太陽ディスク。ブルーム等の後処理は
@@ -83,12 +83,14 @@ export function createGoldenHourRig(scene: Scene, flags: Flags): GoldenHourRig {
       depthWrite: false,
       fog: false,
       uniforms: {
+        // AgX を通る前提の作業色: 彩度・強度を上げて授ける（トーンマッパが
+        // ハイライトを丸める分を見込む）
         uSunDir: { value: sunDir.clone() },
-        uHorizon: { value: new Color('#dfa077') },
-        uZenith: { value: new Color('#5a6a96') },
-        uGroundHaze: { value: new Color('#b98f6e') },
-        uSunTint: { value: new Color('#ffcf9c') },
-        uSunDisc: { value: new Color('#fff0d4') },
+        uHorizon: { value: new Color('#ff8830').multiplyScalar(1.8) },
+        uZenith: { value: new Color('#243465') },
+        uGroundHaze: { value: new Color('#b06a32').multiplyScalar(1.2) },
+        uSunTint: { value: new Color('#ff9d4d').multiplyScalar(3.0) },
+        uSunDisc: { value: new Color('#fff0d4').multiplyScalar(1.6) },
       },
       vertexShader: /* glsl */ `
         varying vec3 vDir;
@@ -120,6 +122,9 @@ export function createGoldenHourRig(scene: Scene, flags: Flags): GoldenHourRig {
           float disc = smoothstep(0.999955, 0.999985, sunAmount);
           sky += uSunDisc * disc * 2.2;
           gl_FragColor = vec4(sky, 1.0);
+          // 空も他の全マテリアルと同じ AgX・sRGB のパイプラインを通す
+          #include <tonemapping_fragment>
+          #include <colorspace_fragment>
         }
       `,
     }),

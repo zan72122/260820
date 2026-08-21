@@ -29,7 +29,9 @@ export default defineConfig({
   webServer: {
     command: 'npm run build && npm run preview',
     url: 'http://127.0.0.1:4173',
-    reuseExistingServer: true,
+    // CIでは必ずビルドし直す。ローカルの再利用時は自分でビルド済みである
+    // こと（さもないと古いdistを検証してしまう）。
+    reuseExistingServer: !process.env.CI,
     timeout: 240_000,
   },
 })

@@ -46,7 +46,7 @@ export function makeMat(
     for (const key of ['map', 'roughnessMap', 'normalMap', 'metalnessMap'] as const) {
       const tex = mat[key]
       if (tex) {
-        const clone = tex.clone()
+        const clone = reg.trackClone(tex)
         clone.repeat.set(rx, ry)
         clone.needsUpdate = true
         mat[key] = clone
@@ -65,14 +65,18 @@ export function makeGroundMaterial(reg: TextureRegistry): MeshStandardMaterial {
   const soil = reg.get('soilPacked')
   const mossMaps = reg.get('moss')
   const mat = new MeshStandardMaterial({
-    map: soil.map.clone(),
-    roughnessMap: soil.roughnessMap,
-    normalMap: soil.normalMap,
+    map: reg.trackClone(soil.map),
+    roughnessMap: reg.trackClone(soil.roughnessMap),
+    normalMap: reg.trackClone(soil.normalMap),
     roughness: 1,
     metalness: 0,
   })
-  mat.map!.repeat.setScalar(1 / TEX_WORLD_SIZE.soilPacked)
-  mat.map!.needsUpdate = true
+  // UVはメートル単位: 全マップを同じ物理サイズで敷く
+  for (const key of ['map', 'roughnessMap', 'normalMap'] as const) {
+    const tex = mat[key]!
+    tex.repeat.setScalar(1 / TEX_WORLD_SIZE.soilPacked)
+    tex.needsUpdate = true
+  }
 
   mat.onBeforeCompile = (shader) => {
     shader.uniforms.uMossMap = { value: mossMaps.map }

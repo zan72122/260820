@@ -3,6 +3,7 @@ import {
   BufferGeometry,
   Color,
   CylinderGeometry,
+  DoubleSide,
   Group,
   Mesh,
   MeshStandardMaterial,
@@ -142,10 +143,11 @@ function leafMaterial(kit: MatKit): MeshStandardMaterial {
     color: '#54682f',
     roughness: 0.85,
     vertexColors: true,
+    side: DoubleSide,
   })
 }
 
-/** 葉body: 中肋で軽く折れた菱形の葉。 */
+/** 葉body: 中肋で軽く折れた菱形の葉（両面は DoubleSide で描く）。 */
 function leafGeo(rng: Rng, len: number, w: number): BufferGeometry {
   const bend = 0.25 + rng() * 0.3
   const positions = new Float32Array([
@@ -154,7 +156,7 @@ function leafGeo(rng: Rng, len: number, w: number): BufferGeometry {
     0, len * bend * 0.4, len,
     -w / 2, len * 0.12, len * 0.45,
   ])
-  const indices = [0, 1, 2, 0, 2, 3, 0, 2, 1, 0, 3, 2]
+  const indices = [0, 1, 2, 0, 2, 3]
   const geo = new BufferGeometry()
   geo.setAttribute('position', new BufferAttribute(positions, 3))
   geo.setAttribute(

@@ -78,15 +78,15 @@ export function buildPlayerRig(kit: MatKit, rng: Rng): RigJoints {
     const torso = chamferBox(0.3, TORSO_LEN, 0.21, 0.045)
     setVertexColor(torso, tintJitter(rng, '#3c4867', 0.03))
     moveGeo(torso, 0, TORSO_LEN / 2 + 0.06, 0)
-    // 作務衣の襟（前合わせ）: 細い帯を斜めに
+    // 作務衣の襟（前合わせ）: 細い帯を斜めに。前は -Z（キャラの向き）
     const collarL = chamferBox(0.05, 0.2, 0.02, 0.005)
     setVertexColor(collarL, tintJitter(rng, '#2a3350', 0.03))
     collarL.rotateZ(0.42)
-    moveGeo(collarL, -0.05, TORSO_LEN - 0.02, 0.1)
+    moveGeo(collarL, -0.05, TORSO_LEN - 0.02, -0.1)
     const collarR = chamferBox(0.05, 0.2, 0.02, 0.005)
     setVertexColor(collarR, tintJitter(rng, '#2a3350', 0.03))
     collarR.rotateZ(-0.42)
-    moveGeo(collarR, 0.05, TORSO_LEN - 0.02, 0.1)
+    moveGeo(collarR, 0.05, TORSO_LEN - 0.02, -0.1)
     const torsoMesh = new Mesh(mergeParts([torso, collarL, collarR]), cloth)
     torsoMesh.castShadow = true
     spine.add(torsoMesh)

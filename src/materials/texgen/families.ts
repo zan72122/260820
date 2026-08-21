@@ -429,11 +429,13 @@ function metalTin(seed: number, size: number): FamilyBytes {
     { t: 0.5, rgb: rgb('#9aa1a4') },
     { t: 1, rgb: rgb('#b8bcbd') },
   ]
+  // 風化した亜鉛めっきは酸化被膜で誘電体寄りに振る舞う（環境マップの無い
+  // シーンで metalness≈1 は黒く沈むだけ、という描画上の必然too）
   const roughVar = cloneField(f)
-  mapField(roughVar, (v) => 0.42 + (v - 0.5) * 0.25)
+  mapField(roughVar, (v) => 0.58 + (v - 0.5) * 0.22)
   // 白錆・汚れで金属性が落ちる斑
   const metal = cloneField(spangle)
-  mapField(metal, (v) => (v < 0.15 ? 0.55 : 0.95))
+  mapField(metal, (v) => (v < 0.15 ? 0.18 : 0.42))
   const height = cloneField(f)
   mapField(height, (v) => v * 0.12)
   return {
