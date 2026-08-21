@@ -37,15 +37,15 @@ function pair(
 const SHOTS: Record<string, ShotFn> = {
   /* Opening: the slide and the three unlit zones in one three-quarter view. */
   overview: (ctx, out) => {
-    const drift = Math.sin(ctx.time * 0.1) * 0.5
+    const drift = Math.sin(ctx.time * 0.1) * 0.45
     const t = ctx.tall
     out.pos.set(
-      lerp(-10.6, -5.2, t) + drift,
-      lerp(5.6, 6.4, t),
-      lerp(-12.6, -16.4, t) - drift * 0.3,
+      lerp(-8.4, -4.6, t) + drift,
+      lerp(4.4, 5.2, t),
+      lerp(-9.6, -12.4, t) - drift * 0.3,
     )
-    out.target.set(lerp(0.6, 0.5, t), lerp(1.3, 0.9, t), lerp(4.2, 5.4, t))
-    out.fov = lerp(52, 60, t)
+    out.target.set(lerp(0.9, 0.6, t), lerp(1.1, 0.9, t), lerp(4.6, 5.6, t))
+    out.fov = lerp(50, 58, t)
   },
 
   /* Climbing: a side follow that keeps the safety lamps and the steps legible. */
@@ -91,36 +91,37 @@ const SHOTS: Record<string, ShotFn> = {
 
   /* Rollers, shaft, generator needle and one lamp in a single composition. */
   discovery: pair(
-    [-2.1, 0.95, -2.6, -0.35, 0.45, 1.6, 42],
-    [-0.2, 1.5, -2.6, 0.4, 0.35, 2.4, 60],
+    [-1.3, 1.15, -1.45, -0.95, 0.3, 2.05, 50],
+    [-0.6, 1.5, -2.5, -1.05, 0.28, 2.2, 66],
   ),
 
   /* Selectors in the foreground with the park behind. In a tall frame the shot
      orbits the box slowly so each zone passes through without losing the levers. */
   selector: (ctx, out) => {
+    // The lens sits close enough that a small hand can find the plates, and
+    // orbits the box slowly so each of the three zones passes behind them.
     const t = ctx.tall
-    const orbit = Math.sin(ctx.time * 0.38) * lerp(0.05, 0.26, t)
+    const orbit = Math.sin(ctx.time * 0.3) * lerp(0.07, 0.3, t)
     const cx = -2.55
     const cz = 1.72
-    const radius = lerp(2.4, 3.5, t)
-    const base = lerp(-2.85, -2.72, t)
-    const ang = base + orbit
-    out.pos.set(cx + Math.sin(ang) * radius, lerp(1.35, 2.15, t), cz + Math.cos(ang) * radius)
+    const radius = lerp(1.35, 1.75, t)
+    const ang = -2.5 + orbit
+    out.pos.set(cx + Math.sin(ang) * radius, lerp(1.32, 1.62, t), cz + Math.cos(ang) * radius)
     out.target.set(
-      cx + Math.sin(ang + Math.PI) * lerp(3.6, 6.4, t) * 0.42,
-      lerp(1.05, 0.95, t),
-      cz + Math.cos(ang + Math.PI) * lerp(3.6, 6.4, t) * 0.42 + lerp(1.5, 2.6, t),
+      cx - Math.sin(ang) * lerp(5.5, 6.5, t),
+      lerp(1.0, 0.86, t),
+      cz - Math.cos(ang) * lerp(5.5, 6.5, t),
     )
-    out.fov = lerp(60, 68, t)
+    out.fov = lerp(58, 66, t)
   },
 
   /* Wide, human-height view of the park once it carries its own light. */
   finale: (ctx, out) => {
     const t = ctx.tall
     const drift = Math.sin(ctx.time * 0.08) * 0.4
-    out.pos.set(lerp(-6.4, -3.2, t) + drift, lerp(2.55, 3.0, t), lerp(-6.2, -9.4, t))
-    out.target.set(lerp(1.1, 0.7, t), lerp(1.0, 0.9, t), lerp(6.4, 6.2, t))
-    out.fov = lerp(56, 64, t)
+    out.pos.set(lerp(-5.6, -2.8, t) + drift, lerp(2.35, 2.8, t), lerp(-4.6, -7.4, t))
+    out.target.set(lerp(1.2, 0.8, t), lerp(1.0, 0.9, t), lerp(7.0, 6.8, t))
+    out.fov = lerp(58, 66, t)
   },
 }
 

@@ -212,6 +212,20 @@ function buildSafetyLamp(def: FixtureDef): { group: THREE.Group; diffuser: THREE
   bracket.position.z = -0.055
   g.add(bracket)
 
+  // A low fitting has nothing to bolt to, so it gets its own short post.
+  if (def.pos.y < 1.4) {
+    const post = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.026, 0.032, def.pos.y - 0.06, 8),
+      m.galvanised,
+    )
+    post.position.set(0, -(def.pos.y - 0.06) / 2 - 0.05, -0.1)
+    post.castShadow = true
+    g.add(post)
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.11, 0.06, 10), m.concrete)
+    base.position.set(0, -def.pos.y + 0.03, -0.1)
+    g.add(base)
+  }
+
   const body = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.13, 12, 1, false, 0, Math.PI), m.paintedSteel)
   body.rotation.z = Math.PI / 2
   body.rotation.y = Math.PI / 2
@@ -382,8 +396,8 @@ export class FixtureSystem {
         })
       }
 
-      const emissiveGain = def.kind === 'uplight' ? 2.6 : def.kind === 'bench' ? 1.5 : 2.0
-      const poolGain = def.kind === 'safety' ? 0.5 : 0.85
+      const emissiveGain = def.kind === 'uplight' ? 2.6 : def.kind === 'bench' ? 1.5 : def.kind === 'safety' ? 1.3 : 2.0
+      const poolGain = def.kind === 'safety' ? 0.18 : 0.5
 
       const visual: FixtureVisual = {
         def,

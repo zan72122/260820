@@ -245,13 +245,13 @@ function buildPaintedSteel(): { map: THREE.Texture; rough: THREE.Texture } {
   const { c: mc, x: mx } = makeCanvas(S)
   writePixels(mx, S, (u, v) => {
     // Park green enamel over primer; chips reveal grey primer, not bare colour.
-    const base: [number, number, number] = [0.115, 0.168, 0.148]
+    const base: [number, number, number] = [0.082, 0.121, 0.108]
     const c = smoothstep(0.78, 0.93, chip(u * 14, v * 14))
     const d = smoothstep(0.4, 0.95, dirt(u * 6, v * 6)) * 0.16
     const p = (orangePeel(u * 48, v * 48) - 0.5) * 0.02
-    const r = lerp(base[0], 0.29, c) + p - d * 0.4
-    const g = lerp(base[1], 0.285, c) + p - d * 0.35
-    const b = lerp(base[2], 0.278, c) + p - d * 0.3
+    const r = lerp(base[0], 0.2, c) + p - d * 0.4
+    const g = lerp(base[1], 0.196, c) + p - d * 0.35
+    const b = lerp(base[2], 0.19, c) + p - d * 0.3
     return [r, g, b]
   })
   const { c: rc, x: rx } = makeCanvas(S)
@@ -288,11 +288,12 @@ function buildGround(): {
     r = lerp(r, r * 0.55, w)
     gg = lerp(gg, gg * 0.57, w)
     b = lerp(b, b * 0.66, w)
-    // Dry leaf litter drifted into low spots.
-    const leaf = smoothstep(0.72, 0.88, litter(u * 26, v * 26)) * (1 - w * 0.7)
-    r = lerp(r, 0.2, leaf)
-    gg = lerp(gg, 0.135, leaf)
-    b = lerp(b, 0.072, leaf)
+    // Dry leaf litter drifted into low spots. Kept low-contrast: under a lamp
+    // a busy ground texture reads as noise, not as a surface.
+    const leaf = smoothstep(0.74, 0.93, litter(u * 26, v * 26)) * (1 - w * 0.7)
+    r = lerp(r, 0.172, leaf)
+    gg = lerp(gg, 0.126, leaf)
+    b = lerp(b, 0.082, leaf)
     return [r, gg, b]
   })
 
@@ -300,7 +301,7 @@ function buildGround(): {
   writePixels(rx, S, (u, v) => {
     const w = smoothstep(0.5, 0.78, damp(u * 4, v * 4))
     const g = grit(u * 40, v * 40)
-    const r = lerp(0.94, 0.3, w) + (g - 0.5) * 0.1
+    const r = lerp(0.95, 0.52, w) + (g - 0.5) * 0.08
     return [r, r, r]
   })
 
@@ -404,10 +405,10 @@ function buildLightPool(): THREE.Texture {
       const v = j / S - 0.5
       const r = Math.hypot(u, v) * 2
       // Inverse-square-ish falloff, clipped at the edge so the quad has no seam.
-      let a = 1 / (1 + 14 * r * r) - 0.07
-      a *= smoothstep(1.0, 0.62, r)
+      let a = 0.72 / (1 + 7 * r * r) - 0.08
+      a *= smoothstep(1.0, 0.5, r)
       // Break the perfect circle with slow noise: real pools are uneven.
-      a *= 0.72 + 0.28 * break0(i / S * 7, j / S * 7)
+      a *= 0.84 + 0.16 * break0((i / S) * 5, (j / S) * 5)
       const k = (j * S + i) * 4
       const c8 = clamp01(a) * 255
       d[k] = c8

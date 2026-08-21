@@ -20,7 +20,7 @@ const BAND = 0.085
 const LIVE_BOOST = 0.35
 
 /** Charge gained per second at full generator output. */
-const CHARGE_RATE = 0.147
+const CHARGE_RATE = 0.58
 
 /** Time constant of the live-output follower: the residual glow after stopping. */
 const LIVE_TAU = 0.62
@@ -66,8 +66,11 @@ export class CircuitModel {
   /** Circuit currently armed by the selector. */
   active: CircuitId = 'path'
 
-  /** Hard ceiling applied while the discovery step is running. */
-  chargeCeiling = 1
+  /**
+   * Ceiling on stored charge. The bank is deliberately small at the start so a
+   * first run lights three lamps and no more, whatever speed the child carries.
+   */
+  chargeCeiling = 0.47
 
   /** Fixtures that crossed their ignition point during the last update. */
   readonly ignitions: IgnitionEvent[] = []

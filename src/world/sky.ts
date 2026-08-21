@@ -55,15 +55,15 @@ export interface SkyPalette {
 
 /** Dusk, and the deeper blue the park settles into once the lamps carry it. */
 const DUSK: SkyPalette = {
-  zenith: new THREE.Color(0.052, 0.075, 0.145),
-  horizon: new THREE.Color(0.2, 0.165, 0.16),
-  glow: new THREE.Color(0.46, 0.26, 0.14),
+  zenith: new THREE.Color(0.058, 0.086, 0.168),
+  horizon: new THREE.Color(0.24, 0.2, 0.196),
+  glow: new THREE.Color(0.62, 0.34, 0.17),
 }
 
 const NIGHT: SkyPalette = {
-  zenith: new THREE.Color(0.021, 0.031, 0.066),
-  horizon: new THREE.Color(0.085, 0.075, 0.088),
-  glow: new THREE.Color(0.24, 0.13, 0.075),
+  zenith: new THREE.Color(0.024, 0.036, 0.078),
+  horizon: new THREE.Color(0.1, 0.09, 0.106),
+  glow: new THREE.Color(0.32, 0.17, 0.09),
 }
 
 export class Sky {
@@ -104,16 +104,16 @@ export class Sky {
 
     // A single low key from the afterglow side: enough to model the machinery
     // without ever reading as daylight.
-    this.key = new THREE.DirectionalLight(0xa9b6d6, 0.42)
+    this.key = new THREE.DirectionalLight(0xa9b6d6, 1.15)
     this.key.position.set(-16, 7.5, -13)
     this.key.target.position.set(0, 0.6, -1)
     scene.add(this.key)
     scene.add(this.key.target)
 
-    this.hemi = new THREE.HemisphereLight(0x38455f, 0x0b0d0c, 0.34)
+    this.hemi = new THREE.HemisphereLight(0x4a5a7a, 0x14170f, 1.05)
     scene.add(this.hemi)
 
-    scene.environmentIntensity = 0.34
+    scene.environmentIntensity = 0.9
   }
 
   enableShadows(mapSize: number): void {
@@ -202,11 +202,11 @@ export class Sky {
     ;(u.uGlow.value as THREE.Color).lerpColors(DUSK.glow, NIGHT.glow, n)
     u.uExposure.value = scale
 
-    this.key.intensity = lerp(0.42, 0.15, n) * scale
-    this.hemi.intensity = lerp(0.34, 0.14, n) * scale
-    this.scene.environmentIntensity = lerp(0.34, 0.15, n) * scale
-    this.fog.density = lerp(0.0165, 0.024, n)
-    this.fog.color.setRGB(lerp(0.048, 0.026, n), lerp(0.062, 0.034, n), lerp(0.092, 0.052, n))
+    this.key.intensity = lerp(1.15, 0.4, n) * scale
+    this.hemi.intensity = lerp(1.05, 0.42, n) * scale
+    this.scene.environmentIntensity = lerp(0.9, 0.38, n) * scale
+    this.fog.density = lerp(0.0135, 0.021, n)
+    this.fog.color.setRGB(lerp(0.055, 0.03, n), lerp(0.07, 0.039, n), lerp(0.105, 0.06, n))
   }
 
   get night(): number {

@@ -25,7 +25,6 @@ import {
   ZONES,
   bedPitch,
   bedPoint,
-  distanceAtU,
   slideLength,
   uAtDistance,
   type CircuitId,
@@ -45,21 +44,21 @@ type Phase =
 
 /** Physical constants of the run. Tuned so a run reads as calm, never fast. */
 const GRAVITY = 9.81
-const FRICTION = 0.3
-const DRAG = 0.16
+const FRICTION = 0.16
+const DRAG = 0.14
 const MAT_FRICTION = 0.62
 const RUNOUT = 0.75
 
 /** Shaft speed treated as the generator's rated output. */
-const RATED_SHAFT = 20.5
+const RATED_SHAFT = 17
 
 /** Route the child trots along to get back to the foot of the stairs. */
 const RETURN_ROUTE: THREE.Vector3[] = [
-  new THREE.Vector3(0, 0, 2.5),
-  new THREE.Vector3(2.15, 0, 1.1),
-  new THREE.Vector3(2.5, 0, -4.0),
-  new THREE.Vector3(2.0, 0, -10.0),
-  new THREE.Vector3(0.6, 0, -13.9),
+  new THREE.Vector3(0, 0, 2.15),
+  new THREE.Vector3(1.9, 0, 0.9),
+  new THREE.Vector3(2.1, 0, -5.0),
+  new THREE.Vector3(1.7, 0, -12.0),
+  new THREE.Vector3(0.7, 0, -14.9),
   CLIMB_ROUTE[0].clone(),
 ]
 
@@ -145,7 +144,7 @@ export class Game {
   /* --- debug-adjustable values, all shipped at their tuned defaults --- */
   debugSkyBrightness = 1
   debugLampGain = 1
-  debugExposure = 1.06
+  debugExposure = 1.45
   debugChargeScale = 1
   debugRollerScale = 1
 
@@ -212,18 +211,21 @@ export class Game {
       opacity: 0,
     })
 
-    // Finger target over the drive rollers, sized to the band the shaft serves.
-    const zFrom = SLIDE.driveZFrom - 0.2
-    const zTo = SLIDE.driveZTo + 0.2
-    bedPoint(uAtDistance(distanceAtU(1) - 0.2), _v)
-    const proxyGeo = new THREE.BoxGeometry(SLIDE.width + 0.5, 0.4, zTo - zFrom)
-    this.rollerProxy = new THREE.Mesh(proxyGeo, invisible)
-    const midU = uAtDistance(
-      (distanceAtU(uForZ(zFrom)) + distanceAtU(uForZ(zTo))) / 2,
+    // Finger target over the drive rollers, sized to the band the shaft serves
+    // and generous enough for a four-year-old to hit without aiming.
+    const zFrom = SLIDE.driveZFrom - 0.25
+    const zTo = SLIDE.driveZTo + 0.25
+    const midZ = (zFrom + zTo) / 2
+    const yFrom = bedPoint(uForZ(zFrom), _v).y
+    const yTo = bedPoint(uForZ(zTo), _v2).y
+    const proxyGeo = new THREE.BoxGeometry(
+      SLIDE.width + 0.55,
+      0.34,
+      Math.hypot(zTo - zFrom, yTo - yFrom),
     )
-    bedPoint(midU, _v)
-    this.rollerProxy.position.set(0, _v.y + 0.05, (zFrom + zTo) / 2)
-    this.rollerProxy.rotation.x = -bedPitch(midU) * 0.3
+    this.rollerProxy = new THREE.Mesh(proxyGeo, invisible)
+    this.rollerProxy.position.set(0, (yFrom + yTo) / 2 + 0.04, midZ)
+    this.rollerProxy.rotation.x = -Math.atan2(yFrom - yTo, zTo - zFrom)
     this.rollerProxy.renderOrder = -10
     this.scene.add(this.rollerProxy)
 
@@ -246,6 +248,10 @@ export class Game {
   /* ------------------------------------------------------------------ */
 
   async start(): Promise<void> {
+    // Measure after the first layout: at construction the canvas may still be
+    // zero-sized, which would bake in the wrong aspect for the whole session.
+    this.render.resize()
+    this.applyViewport()
     this.ui.setLoadProgress(0.5)
     // Compile shaders before the first visible frame so the opening does not hitch.
     this.sky.buildEnvironment(this.render.renderer)
@@ -254,6 +260,8 @@ export class Game {
     this.ui.setLoadProgress(1)
 
     await this.ui.waitForStart()
+    this.render.resize()
+    this.applyViewport()
     await this.audio.unlock()
     this.ui.dismissBoot()
 
@@ -267,7 +275,16 @@ export class Game {
     window.addEventListener('resize', this.onResize)
     window.addEventListener('orientationchange', this.onResize)
     document.addEventListener('visibilitychange', this.onVisibility)
+    // iOS resizes the canvas without a window resize event when the address bar
+    // collapses, and the first layout can land after construction, so watch the
+    // element itself rather than trusting a single measurement.
+    if (typeof ResizeObserver !== 'undefined') {
+      this.observer = new ResizeObserver(this.onResize)
+      this.observer.observe(this.render.canvas)
+    }
   }
+
+  private observer: ResizeObserver | null = null
 
   private readonly onResize = (): void => {
     this.render.resize()
@@ -412,7 +429,10 @@ export class Game {
     this.riderPos.copy(this.child.root.position).add(_v.set(0, 0.55, 0))
     if (this.phaseTime > 3.4) {
       this.hintSwipeUp()
-      if (this.input.active && this.input.totalDy < -26) {
+      // A flick can begin and end inside a single slow frame, so the released
+      // gesture counts as well as the one still under the finger.
+      const swipe = this.input.active ? this.input.totalDy : (this.input.released?.totalDy ?? 0)
+      if (swipe < -26) {
         this.director.play('climb', 2.0)
         this.setPhase('climb')
       }
@@ -437,7 +457,7 @@ export class Game {
     }
     const total = this.climbAcc[this.climbAcc.length - 1]
     let moved = false
-    if (this.input.active && this.input.dy < 0) {
+    if (this.input.dy < 0) {
       const gain = -this.input.dy / (this.render.viewport.height * 0.85)
       this.climbProgress = clamp01(this.climbProgress + gain)
       moved = true
@@ -478,9 +498,9 @@ export class Game {
     }
   }
 
+  /** While the child trots back there is nothing to ask of the player. */
   private hintWaitForReturn(): void {
-    _v.copy(this.child.root.position).add(_v2.set(0, 1.1, 0))
-    if (this.director.project(_v, _screen)) this.ui.showHint(0, 'hold', _screen.x, _screen.y)
+    this.ui.hideAllHints()
   }
 
   /* ---------------- seated at the top ---------------- */
@@ -504,15 +524,13 @@ export class Game {
     }
     if (this.phaseTime < 0.9) return
     // Any release starts the run; holding simply waits, exactly as at a real slide.
-    if (this.input.justUp && this.input.released && !this.input.released.moved) {
-      this.beginRide()
-    } else if (this.input.justUp && this.input.released && this.input.released.totalDy > 20) {
-      this.beginRide()
-    }
+    if (this.input.justUp) this.beginRide()
   }
 
   private beginRide(): void {
     this.rideSpeed = 0.45
+    this.pulledBack = false
+    this.walkedBack = false
     this.child.setPose('slide')
     this.child.setPosture(0.25, 0)
     this.director.play('ride', 1.1)
@@ -568,10 +586,14 @@ export class Game {
   /* ---------------- arriving ---------------- */
 
   private updateArrive(): void {
-    if (this.phaseTime > 1.15 && this.phaseTime < 1.2) {
+    if (this.phaseTime > 1.15 && !this.pulledBack) {
+      this.pulledBack = true
       this.director.play('firstLight', 2.2)
     }
-    if (this.phaseTime > 2.4 && !this.returning) this.beginReturnWalk()
+    if (this.phaseTime > 1.7 && !this.returning && !this.walkedBack) {
+      this.walkedBack = true
+      this.beginReturnWalk()
+    }
     if (this.phaseTime > 4.6) {
       if (this.runCount === 1) {
         this.circuits.chargeCeiling = 0.66
@@ -590,8 +612,7 @@ export class Game {
     this.handleCrank(dt)
 
     // Point at the rollers, not at the generator: the link is for the child to find.
-    bedPoint(uAtDistance(distanceAtU(uForZ(0)) ), _v)
-    _v.set(0, _v.y + 0.14, 0)
+    this.crankHintPoint(_v)
     if (this.crankTime < 0.4 && this.director.project(_v, _screen)) {
       this.ui.showHint(0, 'side', _screen.x, _screen.y)
     } else {
@@ -611,24 +632,38 @@ export class Game {
     }
   }
 
+  private crankHintPoint(out: THREE.Vector3): void {
+    const z = (SLIDE.driveZFrom + SLIDE.driveZTo) / 2 + 0.6
+    bedPoint(uForZ(z), out)
+    out.set(0, out.y + 0.13, z)
+  }
+
   private handleCrank(dt: number): void {
     if (this.input.justDown) {
-      this.raycaster.setFromCamera(this.input.ndc, this.director.camera)
+      // Test where the finger landed, not where it has already dragged to.
+      this.raycaster.setFromCamera(this.input.startNdc, this.director.camera)
       const hit = this.raycaster.intersectObject(this.rollerProxy, false)[0]
       this.crankIndex = hit ? this.rollers.nearestTo(hit.point) : -1
     }
-    if (!this.input.active) {
-      if (this.crankIndex >= 0) this.crankReleased = this.crankTime > 0.5
-      this.crankIndex = -1
+    if (this.crankIndex < 0) {
       this.crankOmega = approach(this.crankOmega, 0, 0.2, dt)
       return
     }
-    if (this.crankIndex < 0) return
+    if (!this.input.active) {
+      this.crankReleased = this.crankTime > 0.5
+      // Spend the last frame's travel before letting go, then release.
+      if (Math.abs(this.input.dx) < 0.5) {
+        this.crankIndex = -1
+        this.crankOmega = approach(this.crankOmega, 0, 0.2, dt)
+        return
+      }
+    }
 
-    // Screen-horizontal travel across the roller is the surface speed of a hand.
-    const perPixel = 74 / Math.max(1, this.render.viewport.width)
-    const target = clamp(-this.input.dx * perPixel * (1 / Math.max(dt, 0.008)) * 0.02, -30, 30)
-    this.crankOmega = approach(this.crankOmega, target, 0.02, dt)
+    // Screen-horizontal travel across the roller is the surface speed of a hand:
+    // dragging one screen width per second turns the roller at a brisk hand pace.
+    const widthsPerSecond = -this.input.dx / dt / Math.max(1, this.render.viewport.width)
+    const target = clamp((widthsPerSecond * 1.7) / SLIDE.rollerRadius, -34, 34)
+    this.crankOmega = approach(this.crankOmega, target, 0.07, dt)
     this.rollers.driveByHand(this.crankIndex, this.crankOmega, dt)
     if (Math.abs(this.crankOmega) > 2.5) this.crankTime += dt
   }
@@ -648,29 +683,29 @@ export class Game {
       return
     }
 
-    this.machinery.levers.forEach((lever, i) => {
-      lever.handle.getWorldPosition(_v)
-      if (this.director.project(_v, _screen)) {
-        this.ui.showHint(i, 'pull', _screen.x, _screen.y - 0.02)
-      } else {
-        this.ui.hideHint(i)
-      }
+    const spots = this.leverScreenPositions()
+    spots.forEach((spot, i) => {
+      if (spot) this.ui.showHint(i, 'pull', spot.x, spot.y)
+      else this.ui.hideHint(i)
     })
   }
 
   private handleLeverDrag(): void {
     if (this.input.justDown) {
-      this.raycaster.setFromCamera(this.input.ndc, this.director.camera)
-      const handles = this.machinery.levers.map((l) => l.handle)
-      const hit = this.raycaster.intersectObjects(handles, false)[0]
+      // Test where the finger landed: on a slow frame the whole gesture can
+      // arrive at once, and by then the pointer has already travelled.
+      this.raycaster.setFromCamera(this.input.startNdc, this.director.camera)
+      const grabs = this.machinery.levers.map((l) => l.grab)
+      const hit = this.raycaster.intersectObjects(grabs, false)[0]
       if (hit) {
-        this.draggingLever = this.machinery.levers.find((l) => l.handle === hit.object) ?? null
-        this.leverStartY = this.input.y
+        this.draggingLever = this.machinery.levers.find((l) => l.grab === hit.object) ?? null
+        this.leverStartY = this.input.startY
       }
     }
     if (!this.draggingLever) return
 
-    const travel = (this.input.y - this.leverStartY) / (this.render.viewport.height * 0.16)
+    const y = this.input.active ? this.input.y : (this.input.released?.y ?? this.leverStartY)
+    const travel = (y - this.leverStartY) / (this.render.viewport.height * 0.16)
     const angle = lerp(-0.42, 0.5, clamp01(travel))
     this.machinery.setLeverAngle(this.draggingLever, angle)
 
@@ -746,8 +781,7 @@ export class Game {
 
   private updateFreeCrank(dt: number): void {
     this.handleCrank(dt)
-    bedPoint(uAtDistance(distanceAtU(uForZ(0))), _v)
-    _v.set(0, _v.y + 0.14, 0)
+    this.crankHintPoint(_v)
     if (this.crankTime < 0.4 && this.director.project(_v, _screen)) {
       this.ui.showHint(0, 'side', _screen.x, _screen.y)
     } else {
@@ -774,7 +808,10 @@ export class Game {
   private updateReturnWalk(dt: number): void {
     if (!this.returning) return
     const total = this.returnAcc[this.returnAcc.length - 1]
-    this.returnDistance += dt * 1.95
+    // Swiping up while the child is still trotting back hurries them along, so
+    // the player is never left holding a gesture that does nothing.
+    const hurry = this.phase === 'climb' && this.input.dy < 0 ? 2.8 : 0
+    this.returnDistance += dt * (2.3 + hurry)
     const { yaw } = samplePath(RETURN_ROUTE, this.returnAcc, this.returnDistance, _v)
     this.child.root.position.copy(_v)
     this.child.root.rotation.set(0, yaw, 0)
@@ -802,6 +839,8 @@ export class Game {
   }
 
   private lastDt = 0.016
+  private pulledBack = false
+  private walkedBack = false
 
   setExposure(v: number): void {
     this.debugExposure = v
@@ -818,6 +857,14 @@ export class Game {
 
   setRenderScale(v: number): void {
     this.render.setRenderScale(v)
+  }
+
+  /** Screen positions of the three selector plates, 0..1 from the top-left. */
+  leverScreenPositions(): Array<{ x: number; y: number } | null> {
+    return this.machinery.levers.map((lever) => {
+      lever.handle.getWorldPosition(_v)
+      return this.director.project(_v, _screen) ? { x: _screen.x, y: _screen.y } : null
+    })
   }
 
   jumpToShot(name: string): void {

@@ -74,7 +74,7 @@ export function buildGround(quality: QualitySettings): GroundBuild {
   root.name = 'ground'
 
   // Turf: the default surface of the park.
-  const turfGeo = new THREE.CircleGeometry(78, 48)
+  const turfGeo = new THREE.CircleGeometry(230, 56)
   turfGeo.rotateX(-Math.PI / 2)
   const turf = new THREE.Mesh(turfGeo, m.grass)
   turf.receiveShadow = true

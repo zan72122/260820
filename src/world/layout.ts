@@ -6,18 +6,18 @@ import { clamp01, lerp, smoothstep } from '../core/math'
  * ------------------------------------------------------------------ */
 
 export const SLIDE = {
-  topZ: -11.4,
-  topY: 4.25,
+  topZ: -10.2,
+  topY: 3.62,
   exitZ: 2.0,
   exitY: 0.42,
   /** Clear width between the side rails. */
   width: 0.66,
   rollerRadius: 0.079,
   rollerLength: 0.6,
-  rollerSpacing: 0.176,
+  rollerSpacing: 0.196,
   /** Rollers inside this z range drive the line shaft. */
-  driveZFrom: -0.95,
-  driveZTo: 0.92,
+  driveZFrom: -2.55,
+  driveZTo: 1.5,
 } as const
 
 const SAMPLES = 257
@@ -145,33 +145,48 @@ export const DRIVE_INDICES: number[] = ROLLERS.map((r, i) => (r.drive ? i : -1))
  * Line shaft: the drive rollers carry their axles through the left beam and end
  * in friction discs, whose faces turn the rubber wheels on this shaft.
  */
+const shaftHeightAt = (z: number): number =>
+  bedPoint(clamp01((z - SLIDE.topZ) / (SLIDE.exitZ - SLIDE.topZ)), new THREE.Vector3()).y - 0.048
+
 export const SHAFT = {
-  x: -0.525,
+  x: -0.5,
   radius: 0.018,
   /** Radius of the rubber wheels riding on the roller end discs. */
-  wheelRadius: 0.075,
+  wheelRadius: 0.05,
   /** Radius of the steel disc on the extended roller axle. */
-  discRadius: 0.075,
+  discRadius: 0.055,
   discX: -0.44,
-  zFrom: -1.2,
-  zTo: 2.86,
-  /** Shaft centreline height at each end. */
-  yFrom: 0.565,
-  yTo: 0.3,
+  zFrom: -2.85,
+  zTo: 1.62,
+  /**
+   * The bed is curved, so the line shaft is built from straight sections joined
+   * by muff couplings, exactly as a real one would be.
+   */
+  breaks: [-2.85, -0.35, 1.62],
+  /** Drop of the shaft centreline below the roller axis line. */
+  drop: 0.048,
+  heightAt: shaftHeightAt,
+  /** Where the shaft ends and the right-angle drive box starts. */
   /** Turns of the shaft per turn of a roller. */
   ratio: 0.42,
 } as const
 
+/**
+ * The generator hangs outboard of the left leg frame, level with the drive
+ * rollers, and is turned through a right-angle box on the end of the shaft.
+ * Keeping it here is what lets one camera hold rollers, shaft, needle and lamp.
+ */
 export const GENERATOR = {
-  /** Weatherproof housing on a plinth just past the run-out, on the shaft line. */
-  pos: new THREE.Vector3(SHAFT.x, 0.3, 3.08),
-  size: new THREE.Vector3(0.34, 0.3, 0.42),
+  pos: new THREE.Vector3(-1.12, 0.34, 1.62),
+  size: new THREE.Vector3(0.34, 0.3, 0.4),
+  /** Right-angle drive box where the line shaft ends. */
+  bevelPos: new THREE.Vector3(SHAFT.x, 0, 1.62),
 } as const
 
 /** Small storage box on the cable run between the generator and the conduit. */
 export const STORAGE_BOX = {
-  pos: new THREE.Vector3(-1.06, 0.52, 2.72),
-  yaw: 0.5,
+  pos: new THREE.Vector3(-0.92, 0.58, 2.62),
+  yaw: 0.35,
   segments: 5,
 } as const
 
@@ -215,7 +230,7 @@ export interface FixtureDef {
 const WARM_PATH = 0xffb066
 const WARM_LANTERN = 0xffa54e
 const WARM_TREE = 0xffc48a
-const SAFETY_WHITE = 0xd9dcc9
+const SAFETY_WHITE = 0xf0dfbe
 
 function f(
   id: string,
@@ -252,28 +267,28 @@ function f(
  */
 export const FIXTURES: FixtureDef[] = [
   // --- path circuit -------------------------------------------------
-  f('path-0', 'path', 'bollard', 1.05, 0, 4.3, -0.16, 0, WARM_PATH, 2.1, 1.9),
-  f('path-1', 'path', 'bollard', 1.42, 0, 7.05, -0.12, 1, WARM_PATH, 2.1, 1.9),
-  f('path-2', 'path', 'bollard', 1.94, 0, 9.8, -0.1, 2, WARM_PATH, 2.1, 1.9),
-  f('path-3', 'path', 'bench', 1.62, 0, 2.42, -1.45, 3, WARM_PATH, 1.15, 1.3, -0.4, 0),
-  f('path-4', 'path', 'bollard', 2.62, 0, 12.5, -0.08, 4, WARM_PATH, 2.1, 1.9),
-  f('path-5', 'path', 'bench', 3.15, 0, 8.2, -1.5, 5, WARM_PATH, 1.15, 1.25, -0.35, 0),
+  f('path-0', 'path', 'bollard', 1.05, 0, 4.3, -0.16, 0, WARM_PATH, 16, 1.9),
+  f('path-1', 'path', 'bollard', 1.42, 0, 7.05, -0.12, 1, WARM_PATH, 16, 1.9),
+  f('path-2', 'path', 'bollard', 1.94, 0, 9.8, -0.1, 2, WARM_PATH, 16, 1.9),
+  f('path-3', 'path', 'bollard', -1.92, 0, 2.98, 0.62, 3, WARM_PATH, 16, 1.85),
+  f('path-4', 'path', 'bollard', 2.62, 0, 12.5, -0.08, 4, WARM_PATH, 16, 1.9),
+  f('path-5', 'path', 'bench', 3.15, 0, 8.2, -1.5, 5, WARM_PATH, 9, 1.3, -0.4, 0),
 
   // --- pavilion circuit ---------------------------------------------
-  f('pav-0', 'pavilion', 'lantern', -8.55, 2.18, 6.05, 0, 0, WARM_LANTERN, 2.6, 2.5),
-  f('pav-1', 'pavilion', 'lantern', -6.55, 2.18, 6.05, 0, 1, WARM_LANTERN, 2.6, 2.5),
-  f('pav-2', 'pavilion', 'lantern', -7.55, 2.18, 8.35, 0, 2, WARM_LANTERN, 2.6, 2.5),
+  f('pav-0', 'pavilion', 'lantern', -8.55, 2.18, 6.05, 0, 0, WARM_LANTERN, 21, 2.5),
+  f('pav-1', 'pavilion', 'lantern', -6.55, 2.18, 6.05, 0, 1, WARM_LANTERN, 21, 2.5),
+  f('pav-2', 'pavilion', 'lantern', -7.55, 2.18, 8.35, 0, 2, WARM_LANTERN, 21, 2.5),
 
   // --- tree circuit --------------------------------------------------
-  f('tree-0', 'tree', 'uplight', 6.35, 0, 4.9, 0.4, 0, WARM_TREE, 1.5, 1.35, 0.2, 0.25),
-  f('tree-1', 'tree', 'uplight', 8.7, 0, 8.35, 0.9, 1, WARM_TREE, 1.5, 1.35, 0.2, 0.25),
-  f('tree-2', 'tree', 'uplight', 5.7, 0, 11.4, 0.2, 2, WARM_TREE, 1.5, 1.35, 0.2, 0.25),
-  f('tree-3', 'tree', 'uplight', 9.6, 0, 12.9, 0.6, 3, WARM_TREE, 1.5, 1.35, 0.2, 0.25),
+  f('tree-0', 'tree', 'uplight', 6.35, 0, 4.9, 0.4, 0, WARM_TREE, 12, 1.35, 0.2, 0.25),
+  f('tree-1', 'tree', 'uplight', 8.7, 0, 8.35, 0.9, 1, WARM_TREE, 12, 1.35, 0.2, 0.25),
+  f('tree-2', 'tree', 'uplight', 5.7, 0, 11.4, 0.2, 2, WARM_TREE, 12, 1.35, 0.2, 0.25),
+  f('tree-3', 'tree', 'uplight', 9.6, 0, 12.9, 0.6, 3, WARM_TREE, 12, 1.35, 0.2, 0.25),
 
   // --- permanent night-safety lighting on the stair tower ------------
-  f('safe-0', 'safety', 'safety', -0.92, 2.42, -12.55, 0.6, 0, SAFETY_WHITE, 0.9, 1.5),
-  f('safe-1', 'safety', 'safety', 0.94, 3.42, -11.95, -0.6, 1, SAFETY_WHITE, 0.9, 1.4),
-  f('safe-2', 'safety', 'safety', -1.12, 0.62, 2.35, 0.9, 2, SAFETY_WHITE, 0.55, 1.1),
+  f('safe-0', 'safety', 'safety', -0.86, 1.95, -13.1, 0.5, 0, SAFETY_WHITE, 4.5, 1.15),
+  f('safe-1', 'safety', 'safety', 0.9, 2.9, -11.35, -0.5, 1, SAFETY_WHITE, 4.5, 1.05),
+  f('safe-2', 'safety', 'safety', -2.62, 0.92, 0.42, 1.35, 2, SAFETY_WHITE, 3.4, 1.05),
 ]
 
 /** Fixture that answers the hand-crank: the bench lamp beside the slide exit. */
@@ -306,18 +321,22 @@ export interface TreeDef {
 }
 
 export const TREES: TreeDef[] = [
+  // The four the tree circuit uplights, clustered off the far side of the walk.
   { x: 6.35, z: 4.9, height: 4.6, spread: 2.1, seed: 11 },
   { x: 8.7, z: 8.35, height: 5.3, spread: 2.5, seed: 12 },
   { x: 5.7, z: 11.4, height: 4.2, spread: 2.0, seed: 13 },
   { x: 9.6, z: 12.9, height: 5.0, spread: 2.4, seed: 14 },
-  { x: -5.4, z: -2.4, height: 5.4, spread: 2.6, seed: 15 },
-  { x: -10.3, z: 1.6, height: 6.0, spread: 2.9, seed: 16 },
-  { x: 7.2, z: -3.6, height: 5.0, spread: 2.3, seed: 17 },
-  { x: -3.9, z: 12.6, height: 5.6, spread: 2.7, seed: 18 },
-  { x: 12.4, z: 1.2, height: 5.8, spread: 2.8, seed: 19 },
-  { x: -12.0, z: 9.4, height: 6.2, spread: 3.0, seed: 20 },
-  { x: -8.6, z: -7.2, height: 5.2, spread: 2.5, seed: 21 },
-  { x: 11.0, z: -8.0, height: 5.5, spread: 2.6, seed: 22 },
+  // Framing trees, kept out of every camera line through the park.
+  { x: -11.6, z: 2.6, height: 6.0, spread: 2.9, seed: 15 },
+  { x: -13.2, z: 9.6, height: 6.2, spread: 3.0, seed: 16 },
+  { x: -14.4, z: -7.5, height: 5.6, spread: 2.7, seed: 17 },
+  { x: -13.8, z: -1.6, height: 5.2, spread: 2.5, seed: 18 },
+  { x: 12.6, z: -2.4, height: 5.8, spread: 2.8, seed: 19 },
+  { x: 13.8, z: 6.4, height: 5.4, spread: 2.6, seed: 20 },
+  { x: -4.6, z: 16.2, height: 5.5, spread: 2.6, seed: 21 },
+  { x: 3.4, z: 18.4, height: 5.9, spread: 2.8, seed: 22 },
+  { x: 13.2, z: -11.0, height: 5.3, spread: 2.5, seed: 23 },
+  { x: -12.0, z: -13.5, height: 5.7, spread: 2.7, seed: 24 },
 ]
 
 export interface BenchDef {
@@ -329,7 +348,7 @@ export interface BenchDef {
 }
 
 export const BENCHES: BenchDef[] = [
-  { x: 1.62, z: 2.42, yaw: -1.45, lamp: 'path-3' },
+  { x: 1.72, z: 2.55, yaw: -1.5 },
   { x: 3.15, z: 8.2, yaw: -1.5, lamp: 'path-5' },
   { x: -7.55, z: 7.2, yaw: 0, lamp: undefined },
 ]
@@ -342,18 +361,20 @@ export const PAVILION = {
   postHeight: 2.45,
 } as const
 
-/** Ground-level route the child walks from the park up to the slide seat. */
-export const CLIMB_ROUTE: THREE.Vector3[] = [
-  new THREE.Vector3(-0.02, 0, -14.35),
-  new THREE.Vector3(-0.02, 0.04, -13.85),
-  new THREE.Vector3(-0.02, 4.16, -12.16),
-  new THREE.Vector3(-0.02, 4.2, -11.72),
-]
-
 export const STAIR = {
-  z0: -13.85,
-  z1: -12.16,
-  top: 4.16,
-  width: 0.86,
-  steps: 12,
+  z0: -14.66,
+  z1: -10.86,
+  top: 3.52,
+  width: 0.9,
+  steps: 16,
 } as const
+
+/** Centre of the top platform deck. */
+export const PLATFORM = { z: -10.92, depth: 1.32, width: 1.22 } as const
+
+export const CLIMB_ROUTE: THREE.Vector3[] = [
+  new THREE.Vector3(-0.02, 0, -15.2),
+  new THREE.Vector3(-0.02, 0.05, STAIR.z0),
+  new THREE.Vector3(-0.02, STAIR.top - 0.04, STAIR.z1),
+  new THREE.Vector3(-0.02, STAIR.top, -10.5),
+]

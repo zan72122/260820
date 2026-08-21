@@ -18,14 +18,14 @@ const _e = new THREE.Euler()
 export function buildTrees(root: THREE.Group, contacts: ContactShadows): void {
   const m = buildMaterials()
 
-  const trunkGeo = new THREE.CylinderGeometry(0.1, 0.21, 1, 9, 1, false)
+  const trunkGeo = new THREE.CylinderGeometry(0.14, 0.26, 1, 10, 1, false)
   trunkGeo.translate(0, 0.5, 0)
-  const branchGeo = new THREE.CylinderGeometry(0.035, 0.075, 1, 6)
+  const branchGeo = new THREE.CylinderGeometry(0.045, 0.1, 1, 6)
   branchGeo.translate(0, 0.5, 0)
   const blobGeo = new THREE.IcosahedronGeometry(1, 1)
 
-  const BRANCHES = 3
-  const BLOBS = 4
+  const BRANCHES = 4
+  const BLOBS = 6
   const trunks = new THREE.InstancedMesh(trunkGeo, m.bark, TREES.length)
   const branches = new THREE.InstancedMesh(branchGeo, m.bark, TREES.length * BRANCHES)
   const blobs = new THREE.InstancedMesh(blobGeo, m.foliage, TREES.length * BLOBS)
@@ -43,29 +43,31 @@ export function buildTrees(root: THREE.Group, contacts: ContactShadows): void {
 
     _p.set(t.x, 0, t.z)
     _q.setFromEuler(_e.set(lean, spin, rng.range(-0.05, 0.05)))
-    _s.set(1, t.height * 0.58, 1)
+    _s.set(1, t.height * 0.46, 1)
     _m.compose(_p, _q, _s)
     trunks.setMatrixAt(i, _m)
 
     for (let b = 0; b < BRANCHES; b++) {
       const a = spin + (b / BRANCHES) * Math.PI * 2 + rng.range(-0.4, 0.4)
-      const h = t.height * rng.range(0.34, 0.52)
+      const h = t.height * rng.range(0.3, 0.44)
       _p.set(t.x, h, t.z)
-      _q.setFromEuler(_e.set(rng.range(0.5, 0.95), a, 0, 'YXZ'))
-      const len = t.spread * rng.range(0.5, 0.8)
-      _s.set(0.8, len, 0.8)
+      _q.setFromEuler(_e.set(rng.range(0.6, 1.05), a, 0, 'YXZ'))
+      const len = t.spread * rng.range(0.45, 0.7)
+      _s.set(0.85, len, 0.85)
       _m.compose(_p, _q, _s)
       branches.setMatrixAt(bi++, _m)
     }
 
     for (let c = 0; c < BLOBS; c++) {
-      const a = spin + (c / BLOBS) * Math.PI * 2 + rng.range(-0.5, 0.5)
-      const rad = t.spread * rng.range(0.25, 0.55)
-      const h = t.height * rng.range(0.66, 0.94)
+      // Crowns are built from overlapping blobs low on the trunk, so the tree
+      // reads as one mass against the sky rather than a ball on a stick.
+      const a = spin + (c / BLOBS) * Math.PI * 2 + rng.range(-0.45, 0.45)
+      const rad = t.spread * rng.range(0.16, 0.46)
+      const h = t.height * rng.range(0.5, 0.82)
       _p.set(t.x + Math.cos(a) * rad, h, t.z + Math.sin(a) * rad)
       _q.setFromEuler(_e.set(rng.range(0, 1), rng.range(0, 3), rng.range(0, 1)))
-      const sc = t.spread * rng.range(0.42, 0.64)
-      _s.set(sc, sc * rng.range(0.7, 0.95), sc)
+      const sc = t.spread * rng.range(0.5, 0.78)
+      _s.set(sc, sc * rng.range(0.72, 0.95), sc)
       _m.compose(_p, _q, _s)
       blobs.setMatrixAt(ci++, _m)
     }
@@ -197,11 +199,11 @@ export function buildHorizon(root: THREE.Group): void {
   const rng = new Rng(777)
 
   const blob = new THREE.IcosahedronGeometry(1, 0)
-  for (let i = 0; i < 90; i++) {
-    const a = (i / 90) * Math.PI * 2 + rng.range(-0.03, 0.03)
-    const r = rng.range(36, 52)
-    const h = rng.range(4.5, 9.5)
-    const w = rng.range(2.6, 5.2)
+  for (let i = 0; i < 76; i++) {
+    const a = (i / 76) * Math.PI * 2 + rng.range(-0.03, 0.03)
+    const r = rng.range(50, 70)
+    const h = rng.range(5.5, 11.5)
+    const w = rng.range(3.4, 6.4)
     _p.set(Math.cos(a) * r, h * 0.55, Math.sin(a) * r)
     _q.setFromEuler(_e.set(rng.range(0, 1), rng.range(0, 3), rng.range(0, 1)))
     _s.set(w, h * 0.5, w)

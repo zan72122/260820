@@ -18,6 +18,7 @@ export interface MaterialSet {
   wood: THREE.MeshStandardMaterial
   glassDark: THREE.MeshStandardMaterial
   needle: THREE.MeshStandardMaterial
+  relief: THREE.MeshStandardMaterial
   dial: THREE.MeshStandardMaterial
   skinTone: THREE.MeshStandardMaterial
   jacket: THREE.MeshStandardMaterial
@@ -43,12 +44,14 @@ export function buildMaterials(): MaterialSet {
     color: 0xffffff,
   })
 
+  // Weathered hot-dip galvanising, not chrome: at night it reads as dark grey
+  // with a soft sheen, which is what stops the guard rails from glowing.
   const galvanised = new THREE.MeshStandardMaterial({
     map: tex.galvMap,
     roughnessMap: tex.galvRough,
     roughness: 1,
-    metalness: 0.82,
-    color: 0xffffff,
+    metalness: 0.5,
+    color: 0x9aa0a4,
   })
 
   const paintedSteel = new THREE.MeshStandardMaterial({
@@ -87,8 +90,8 @@ export function buildMaterials(): MaterialSet {
     map: tex.galvMap,
     roughnessMap: tex.galvRough,
     roughness: 1,
-    metalness: 0.75,
-    color: 0xc8ccd0,
+    metalness: 0.5,
+    color: 0xa8adb2,
   })
 
   const concrete = new THREE.MeshStandardMaterial({
@@ -103,14 +106,14 @@ export function buildMaterials(): MaterialSet {
     map: tex.groundMap,
     roughnessMap: tex.groundRough,
     normalMap: tex.groundNormal,
-    normalScale: new THREE.Vector2(0.65, 0.65),
+    normalScale: new THREE.Vector2(0.42, 0.42),
     roughness: 1,
     metalness: 0,
     color: 0xffffff,
   })
 
   const grass = new THREE.MeshStandardMaterial({
-    color: 0x1c2a1a,
+    color: 0x2c3a26,
     roughness: 0.96,
     metalness: 0,
   })
@@ -124,7 +127,7 @@ export function buildMaterials(): MaterialSet {
   })
 
   const foliage = new THREE.MeshStandardMaterial({
-    color: 0x16211a,
+    color: 0x1d2a20,
     roughness: 1,
     metalness: 0,
     flatShading: true,
@@ -142,6 +145,13 @@ export function buildMaterials(): MaterialSet {
     color: 0x2b2f33,
     roughness: 0.35,
     metalness: 0.1,
+  })
+
+  // Mid-grey enamel used for the raised pictograms on the selector plates.
+  const relief = new THREE.MeshStandardMaterial({
+    color: 0x8e8a7e,
+    roughness: 0.68,
+    metalness: 0,
   })
 
   const needle = new THREE.MeshStandardMaterial({
@@ -188,7 +198,7 @@ export function buildMaterials(): MaterialSet {
 
   // Far treeline and rooftops: pure occluders against the dusk sky, no shading cost.
   const silhouette = new THREE.MeshBasicMaterial({
-    color: 0x0b0f16,
+    color: 0x11161f,
     fog: false,
   })
 
@@ -209,6 +219,7 @@ export function buildMaterials(): MaterialSet {
     wood,
     glassDark,
     needle,
+    relief,
     dial,
     skinTone,
     jacket,
