@@ -371,7 +371,7 @@ export class RollerBank {
   update(dt: number): void {
     // Bearing drag: rollers coast for a good while after the child has passed,
     // which is what keeps the generator turning long enough to see.
-    const decay = Math.pow(0.42, dt)
+    const decay = Math.pow(0.5, dt)
     for (let i = 0; i < this.count; i++) {
       this.omega[i] *= decay
       if (Math.abs(this.omega[i]) < 0.02) this.omega[i] = 0

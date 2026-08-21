@@ -98,7 +98,9 @@ export class InputSystem {
       this.y = p.y
       this.totalDx = this.x - this.startX
       this.totalDy = this.y - this.startY
-      if (Math.hypot(this.totalDx, this.totalDy) > 8) this.moved = true
+      // Generous: a four-year-old's tap wanders, and a wandering tap must
+      // still count as a tap.
+      if (Math.hypot(this.totalDx, this.totalDy) > 15) this.moved = true
       setNdc(this.ndc, p.x, p.y)
       e.preventDefault()
     }

@@ -81,8 +81,7 @@ function samplePath(
   const span = acc[i] - acc[i - 1] || 1
   const f = (t - acc[i - 1]) / span
   out.copy(route[i - 1]).lerp(route[i], f)
-  const dir = route[i].clone().sub(route[i - 1])
-  return { yaw: Math.atan2(dir.x, dir.z) }
+  return { yaw: Math.atan2(route[i].x - route[i - 1].x, route[i].z - route[i - 1].z) }
 }
 
 const _v = new THREE.Vector3()
@@ -368,8 +367,11 @@ export class Game {
 
   /* ------------------------------------------------------------------ */
 
+  private readonly mothAnchors: THREE.Vector3[] = []
+
   private updateMoths(): void {
-    const anchors: THREE.Vector3[] = []
+    const anchors = this.mothAnchors
+    anchors.length = 0
     for (const v of this.fixtures.visuals) {
       if (v.def.kind === 'uplight' || v.def.kind === 'safety') continue
       const lamp = this.circuits.all.get(v.def.id)

@@ -96,6 +96,12 @@ npm run preview    # build 済みの確認
 撮影します。どちらも Playwright + Chromium で動きます。
 
 ```bash
-node tools/play.mjs                 # 通し確認（要 npm run dev）
-DEVICE=ipadL node tools/shoot.mjs   # 画面サイズ別のショット確認
+node tools/play.mjs                          # 通し確認（要 npm run dev）
+URL='http://localhost:4173/?e2e=1' \
+  node tools/play.mjs                        # production build に対して通す
+DEVICE=ipadL node tools/shoot.mjs            # 画面サイズ別のショット確認
+node tools/orient.mjs                        # 途中で画面を回して再構図を確認
 ```
+
+いずれも `?e2e=1` を付けたときだけ有効になる自動化用のフックを使います。
+通常のプレイでは何も公開しません。
