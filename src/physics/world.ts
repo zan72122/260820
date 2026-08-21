@@ -279,6 +279,13 @@ export class PhysicsWorld {
     });
   }
 
+  /** デッドウッドのみ撤去。立っているピンは現位置に残す（実機のピンセッター同様） */
+  clearDeadwood(standing: boolean[]): void {
+    this.pinBodies.forEach((b, i) => {
+      if (!standing[i]) b.setEnabled(false);
+    });
+  }
+
   /** 転倒・跳ね回りが収まったか（投球後の判定タイミング用） */
   isSettled(): boolean {
     const bt = this.ballBody.translation();
@@ -292,7 +299,12 @@ export class PhysicsWorld {
       if (!b.isEnabled()) continue;
       const v = b.linvel();
       const w = b.angvel();
-      if (Math.hypot(v.x, v.y, v.z) > 0.09 || Math.hypot(w.x, w.y, w.z) > 0.6) return false;
+      const speed = Math.hypot(v.x, v.y, v.z);
+      const spin = Math.hypot(w.x, w.y, w.z);
+      const t2 = b.translation();
+      const onDeck = t2.z > LANE_LENGTH - 0.7 && t2.y > -0.02;
+      // デッキ上のピンは静止を要求。場外（ガター/ピット）はゆっくりなら無視
+      if (onDeck ? speed > 0.12 || spin > 1.0 : speed > 0.6) return false;
     }
     return true;
   }
