@@ -123,9 +123,9 @@ function plaster(seed: number, size: number): FamilyBytes {
   // ヘアクラック: セル境界のごく細い線を稀に
   const cracks = createField(size, size)
   worley(cracks, seed + 23, 8, 'edge')
-  mapField(cracks, (v) => (v < 0.02 ? 1 : 0))
+  mapField(cracks, (v) => (v < 0.015 ? 1 : 0))
   for (let i = 0; i < f.data.length; i++) {
-    f.data[i] = (f.data[i] as number) - (cracks.data[i] as number) * 0.18
+    f.data[i] = (f.data[i] as number) - (cracks.data[i] as number) * 0.09
   }
   const stops: ColorStop[] = [
     { t: 0, rgb: rgb('#cfc7b4') },

@@ -21,10 +21,12 @@ export function buildSatoyama(seed: number): Group {
   const group = new Group()
   group.name = 'satoyama'
 
+  // 夕暮れの遠山は空より暗いシルエット側に沈む。層が遠いほど霞むが、
+  // 空の明度は超えない。
   const layers = [
-    { dist: 170, height: 48, color: '#4f4c45', haze: 0.3, detail: 1.0 },
-    { dist: 320, height: 78, color: '#6d655c', haze: 0.55, detail: 0.6 },
-    { dist: 540, height: 108, color: '#9c8873', haze: 0.75, detail: 0.3 },
+    { dist: 170, height: 48, color: '#2e2d28', haze: 0.07, detail: 1.0 },
+    { dist: 320, height: 74, color: '#37342e', haze: 0.13, detail: 0.6 },
+    { dist: 540, height: 88, color: '#403b34', haze: 0.2, detail: 0.3 },
   ]
   const fog = new Color(FOG_COLOR)
 
@@ -51,9 +53,7 @@ export function buildSatoyama(seed: number): Group {
       return Math.max(0.03, (0.6 + big * 0.4 + trees) * taper)
     }
 
-    const base = new Color(layer.color)
-    const hazed = base.clone().lerp(fog, layer.haze)
-    const bottom = hazed.clone().lerp(fog, 0.5)
+    const hazed = new Color(layer.color).lerp(fog, layer.haze)
 
     for (let i = 0; i <= n; i++) {
       const t = i / n
@@ -62,19 +62,18 @@ export function buildSatoyama(seed: number): Group {
       const z = -Math.cos(az) * layer.dist
       const top = layer.height * profile(t) + layer.height * 0.06 * (rng() - 0.5)
       positions.push(x, -3, z, x, top, z)
-      colors.push(bottom.r, bottom.g, bottom.b, hazed.r, hazed.g, hazed.b)
       if (i < n) {
         const a = i * 2
         indices.push(a, a + 2, a + 1, a + 1, a + 2, a + 3)
       }
     }
+    void colors
     const geo = new BufferGeometry()
     geo.setAttribute('position', new BufferAttribute(new Float32Array(positions), 3))
-    geo.setAttribute('color', new BufferAttribute(new Float32Array(colors), 3))
     geo.setIndex(indices)
     const mesh = new Mesh(
       geo,
-      new MeshBasicMaterial({ vertexColors: true, fog: false, side: 2 }),
+      new MeshBasicMaterial({ color: hazed, fog: false, side: 2 }),
     )
     group.add(mesh)
   })

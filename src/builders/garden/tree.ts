@@ -92,7 +92,7 @@ export function buildKakiTree(kit: MatKit, rng: Rng, ground: GroundBuilder): Tre
   {
     let bDir = new Vector3(0.9, 0.12, 0.35).normalize()
     let bBase = new Vector3(0.05, 1.35, 0.02)
-    let bR = radius * 0.5
+    let bR = radius * 0.68
     for (let s = 0; s < 2; s++) {
       const len = 0.65
       const nextR = bR * 0.65

@@ -19,6 +19,8 @@ export interface TestSeam {
   usedFallbackTextures(): string[]
   /** Live camera position, for camera-containment assertions. */
   getCameraPos(): { x: number; y: number; z: number }
+  /** Draw-call / triangle budget of the last rendered frame. */
+  getRenderInfo(): { calls: number; triangles: number }
 }
 
 declare global {

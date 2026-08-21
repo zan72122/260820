@@ -192,16 +192,16 @@ export function buildMidLayer(kit: MatKit, rng: Rng): Group {
   {
     const parts: BufferGeometry[] = []
     const pole = new CylinderGeometry(0.09, 0.14, 9, 8)
-    setVertexColor(pole, new Color('#8d8a84'))
+    setVertexColor(pole, new Color('#605e59'))
     pole.translate(0, 4.5, 0)
     parts.push(pole)
     const arm = chamferBox(1.6, 0.08, 0.08, 0.01)
-    setVertexColor(arm, new Color('#6f6c66'))
+    setVertexColor(arm, new Color('#4d4b46'))
     moveGeo(arm, 0, 8.1, 0)
     parts.push(arm)
     for (const ox of [-0.6, 0, 0.6]) {
       const ins = new CylinderGeometry(0.045, 0.055, 0.12, 6)
-      setVertexColor(ins, new Color('#d8d4c8'))
+      setVertexColor(ins, new Color('#a8a496'))
       ins.translate(ox, 8.22, 0)
       parts.push(ins)
     }

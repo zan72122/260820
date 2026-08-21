@@ -38,7 +38,7 @@ export class App {
     // neon orange — important for a low-sun scene. (ACES kept as fallback for
     // older three versions.)
     this.renderer.toneMapping = AgXToneMapping ?? ACESFilmicToneMapping
-    this.renderer.toneMappingExposure = 1.1
+    this.renderer.toneMappingExposure = 1.22
     this.renderer.shadowMap.enabled = !flags.e2eFast
     this.renderer.shadowMap.type = PCFSoftShadowMap
 

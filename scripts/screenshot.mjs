@@ -56,6 +56,17 @@ if (process.env.SHOT_OPS) {
     }
   }, process.env.SHOT_OPS)
 }
+// SHOT_HIDE="name1,name2" hides scene objects by name before the shot.
+if (process.env.SHOT_HIDE) {
+  await page.evaluate((names) => {
+    for (const name of names.split(',')) {
+      window.__scene?.traverse?.((o) => {
+        if (o.name === name) o.visible = false
+      })
+    }
+    window.__game.step(1)
+  }, process.env.SHOT_HIDE)
+}
 await page.screenshot({ path: out })
 await browser.close()
 console.log(`saved ${out}`)

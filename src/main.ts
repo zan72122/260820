@@ -97,6 +97,8 @@ const loop = new GameLoop({
 })
 
 if (flags.test) {
+  // 検分用: シーングラフへの直接アクセス（テストビルドのみ）
+  ;(window as unknown as { __scene?: unknown }).__scene = app.scene
   installTestSeam({
     isReady: false,
     seed: flags.seed,
@@ -109,6 +111,10 @@ if (flags.test) {
       x: app.camera.position.x,
       y: app.camera.position.y,
       z: app.camera.position.z,
+    }),
+    getRenderInfo: () => ({
+      calls: app.renderer.info.render.calls,
+      triangles: app.renderer.info.render.triangles,
     }),
   })
 }

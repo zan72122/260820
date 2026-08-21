@@ -31,5 +31,10 @@ test('boots, steps deterministic time, and reacts to real input', async ({ page 
   const z1 = await page.evaluate(() => window.__game!.getState().player.z)
   expect(z1).toBeLessThan(z0)
 
+  // 描画バジェット（SwiftShaderでも快適な上限。実測 ~149calls/131k tris）
+  const info = await page.evaluate(() => window.__game!.getRenderInfo())
+  expect(info.calls).toBeLessThan(170)
+  expect(info.triangles).toBeLessThan(220_000)
+
   expect(errors).toEqual([])
 })

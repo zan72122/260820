@@ -85,6 +85,8 @@ export function makeStone(rng: Rng, opts: StoneOpts): BufferGeometry {
     // 個体内の色ムラ
     const mottle = 0.92 + 0.16 * ((bump(pos.getX(i) * 3, y * 3, pos.getZ(i) * 3) + 1) / 2)
     tmp.multiplyScalar(mottle)
+    // 天端は雨に洗われて明るい（上向き面ほど埃と苔が流される）
+    if (ny > 0.6) tmp.multiplyScalar(1 + (ny - 0.6) * 0.35)
     // 苔: 陰面（太陽と逆向きの法線）かつ低所
     const shadeFacing = Math.max(0, -(nx * sun.x + ny * sun.y + nz * sun.z))
     const lowness = Math.max(0, 1 - y / Math.max(height * 0.7, 1e-3))
