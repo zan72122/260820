@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Rng, clamp } from '../core/Rng';
-import { dropletSprite, foamSprite } from '../world/Textures';
+import { foamSprite } from '../world/Textures';
 
 interface Particle {
   life: number;
@@ -82,13 +82,12 @@ export class FoamField {
     const dropGeo = new THREE.SphereGeometry(0.032, 6, 4);
     dropGeo.scale(1, 1.35, 1);
     const dropMat = new THREE.MeshStandardMaterial({
-      color: 0xdff0fa,
-      roughness: 0.06,
+      color: 0xe8f6ff,
+      roughness: 0.05,
       metalness: 0,
       transparent: true,
-      opacity: 0.85,
-      envMapIntensity: 2.0,
-      map: dropletSprite(),
+      opacity: 0.7,
+      envMapIntensity: 2.2,
     });
     this.drops = new THREE.InstancedMesh(dropGeo, dropMat, maxDrops);
     this.drops.frustumCulled = false;

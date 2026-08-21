@@ -158,10 +158,17 @@ export class BallastRig {
   }
 
   private placeOnBench(bag: BallastBag): void {
+    const wasOnDeck = bag.state === 'deck';
     bag.state = 'bench';
     bag.slot = -1;
-    if (bag.mesh.parent !== this.group) this.group.add(bag.mesh);
-    bag.mesh.position.copy(bag.benchPosition);
+    if (bag.mesh.parent !== this.group) {
+      // Keep the bag where it is in the world and let it glide back, so the
+      // child sees the rig take the weight off rather than vanish it.
+      bag.mesh.getWorldPosition(this.tmp);
+      this.group.add(bag.mesh);
+      bag.mesh.position.copy(this.tmp);
+    }
+    if (!wasOnDeck) bag.mesh.position.copy(bag.benchPosition);
     bag.worldTarget.copy(bag.benchPosition);
     bag.mesh.rotation.set(0, 0.3, 0);
   }

@@ -329,13 +329,20 @@ export class TestSection {
       this.group.add(steelwork);
     }
 
-    // Ballast bench: where the test weights live between runs.
-    const bench = new THREE.Mesh(new THREE.BoxGeometry(3.1, 0.12, 1.5), this.steelMat);
+    // Ballast bench: where the test weights live between runs. Painted, not
+    // galvanised, so it reads as a table rather than as more water.
+    const benchMat = new THREE.MeshStandardMaterial({
+      color: 0x8e9498,
+      roughness: 0.62,
+      metalness: 0.15,
+      envMapIntensity: 0.6,
+    });
+    const bench = new THREE.Mesh(new THREE.BoxGeometry(3.1, 0.12, 1.5), benchMat);
     bench.position.copy(this.benchOrigin).add(new THREE.Vector3(0, -0.05, 0));
     bench.castShadow = true;
     bench.receiveShadow = true;
     this.group.add(bench);
-    const benchLeg = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.72, 0.1), this.steelMat);
+    const benchLeg = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.42, 0.09), benchMat);
     for (const bx of [-1.3, 1.3]) {
       for (const bz of [-0.55, 0.55]) {
         const leg = benchLeg.clone();

@@ -331,6 +331,11 @@ try {
     'replay control returns to staging in one tap',
     `${afterReplay} -> ${await api.state()}`,
   );
+  check(
+    (await api.run()) === 2,
+    'after the fourth run the sequence keeps offering one changed variable',
+    `run=${await api.run()} bags=${await api.bags()}`,
+  );
 
   note('\n— screen sizes —');
   // Rotate while a raft is actually running, so state preservation is real.
@@ -370,6 +375,9 @@ try {
     );
     await shot(`12-${name}`);
   }
+
+  note('\n— boot —');
+  note(`  note scene build took ${Math.round(await ev(() => window.__wb.bootMs()))} ms (software GL)`);
 
   note('\n— audio —');
   note(`  note audio context running: ${await api.audio()}`);

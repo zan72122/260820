@@ -116,8 +116,10 @@ const cache: Record<string, SurfaceMaps | THREE.Texture> = {};
 export function frpMaps(): SurfaceMaps {
   const key = 'frp';
   if (cache[key]) return cache[key] as SurfaceMaps;
-  const size = 512;
-  const grain = fbm(11, 6, 4);
+  // 256 is plenty at the tiling these surfaces use, and it keeps the whole
+  // procedural set inside a fraction of a second on a phone.
+  const size = 256;
+  const grain = fbm(11, 6, 3);
   const streak = valueNoise(31, 14);
   const wear = fbm(57, 3, 3);
 
@@ -166,9 +168,9 @@ export function frpMaps(): SurfaceMaps {
 export function concreteMaps(): SurfaceMaps {
   const key = 'concrete';
   if (cache[key]) return cache[key] as SurfaceMaps;
-  const size = 512;
+  const size = 256;
   const agg = valueNoise(97, 120);
-  const blotch = fbm(131, 4, 4);
+  const blotch = fbm(131, 4, 3);
   const damp = fbm(151, 2, 3);
 
   const map = writePixels(size, (x, y, i, d) => {
@@ -245,7 +247,7 @@ export function rubberMaps(): SurfaceMaps {
   const key = 'rubber';
   if (cache[key]) return cache[key] as SurfaceMaps;
   const size = 256;
-  const pebble = valueNoise(307, 140);
+  const pebble = valueNoise(307, 42);
   const wear = fbm(331, 3, 3);
   const map = writePixels(size, (x, y, i, d) => {
     const p = pebble(x, y);
@@ -264,7 +266,7 @@ export function rubberMaps(): SurfaceMaps {
     d[i + 2] = v;
     d[i + 3] = 255;
   });
-  const normal = normalFromHeight(size, (x, y) => pebble(x, y) * 0.7 + wear(x, y) * 0.3, 14);
+  const normal = normalFromHeight(size, (x, y) => pebble(x, y) * 0.7 + wear(x, y) * 0.3, 6);
   const maps: SurfaceMaps = {
     map: toTexture(map, 1, true),
     roughnessMap: toTexture(rough, 1),
@@ -342,27 +344,6 @@ export function foamSprite(): THREE.Texture {
     d[i + 1] = 255;
     d[i + 2] = 255;
     d[i + 3] = clamp(a, 0, 1) * 255;
-  });
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  cache[key] = tex;
-  return tex;
-}
-
-/** Single water droplet, slightly elongated by gravity. */
-export function dropletSprite(): THREE.Texture {
-  const key = 'drop';
-  if (cache[key]) return cache[key] as THREE.Texture;
-  const size = 64;
-  const canvas = writePixels(size, (x, y, i, d) => {
-    const dx = (x - 0.5) * 2.6;
-    const dy = (y - 0.5) * 1.7;
-    const r = Math.hypot(dx, dy);
-    const a = clamp(1 - r, 0, 1);
-    d[i] = 236;
-    d[i + 1] = 248;
-    d[i + 2] = 255;
-    d[i + 3] = Math.pow(a, 1.2) * 255;
   });
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;

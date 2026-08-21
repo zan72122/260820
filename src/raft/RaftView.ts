@@ -214,7 +214,7 @@ export class RaftView {
 
     // The band that rides in the water reads permanently wet.
     const wetMat = new THREE.MeshStandardMaterial({
-      color: 0x8f9a9c,
+      color: 0xbcc5c6,
       roughness: 0.11,
       metalness: 0.0,
       map: maps.map,
@@ -244,7 +244,7 @@ export class RaftView {
       polygonOffsetUnits: -1,
     });
     this.strake = new THREE.Mesh(
-      makeGeometry((v) => Math.cos(v.ringAngle) > 0.9 && Math.sin(v.ringAngle) > -0.34),
+      makeGeometry((v) => Math.cos(v.ringAngle) > 0.945 && Math.sin(v.ringAngle) > -0.3),
       strakeMat,
     );
     this.strake.castShadow = true;
