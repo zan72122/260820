@@ -30,7 +30,8 @@ export class Game {
   state: GameState = 'aim';
   score = new BowlingGame();
   private d: Deps;
-  private aimX = 0.2;
+  /** 右投げの自然な立ち位置（板10付近 = ボウラーの右寄り = -x） */
+  private aimX = -0.2;
   private throwStartStep = 0;
   private sweepStartStep = 0;
   private standingBefore = 10;
@@ -73,7 +74,8 @@ export class Game {
     } else {
       // 構え中: ポインタxに追従
       if (this.d.swing.phase === 'dragging') {
-        const nx = (this.d.swing.currentX - 0.5) * (LANE_WIDTH + 0.5);
+        // 画面右へのドラッグ = ボウラーの右（-x）
+        const nx = (0.5 - this.d.swing.currentX) * (LANE_WIDTH + 0.5);
         this.aimX = Math.max(-LANE_WIDTH / 2 + 0.11, Math.min(LANE_WIDTH / 2 - 0.11, nx));
       }
       const p = this.d.ballMesh.position;

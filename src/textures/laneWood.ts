@@ -22,9 +22,13 @@ export interface LaneMaps {
 
 export const LANE_FULL_LENGTH = LANE_LENGTH + PIN_DECK_EXTRA;
 
-/** ワールドx(m, 中央0) → キャンバスx(px)。板1が右端（右投げ基準） */
+/** ワールドx(m, 中央0) → キャンバスx(px)。板1はボウラーの右端 = x=-W/2 = px0 */
 function xToPx(x: number, w: number): number {
   return ((x + LANE_WIDTH / 2) / LANE_WIDTH) * w;
+}
+/** 板番号（右端=1）→ 板中心のワールドx */
+export function boardToX(board: number): number {
+  return -LANE_WIDTH / 2 + (board - 0.5) * (LANE_WIDTH / BOARD_COUNT);
 }
 /** ワールドz(m, ファウルライン0) → キャンバスy(px) */
 function zToPx(z: number, h: number, length: number): number {
@@ -139,10 +143,10 @@ function drawGrain(c: Ctx2D, rng: Rng, spans: BoardSpan[], length: number): void
 
 /** 右投げのボールトラック中心（板8〜12帯→ポケットへ）: z(m)→x(m) */
 export function trackCenterX(z: number): number {
-  const startX = LANE_WIDTH / 2 - 10.5 * (LANE_WIDTH / BOARD_COUNT);
-  const pocketX = LANE_WIDTH / 2 - 17.5 * (LANE_WIDTH / BOARD_COUNT);
+  const startX = boardToX(10.5);
+  const pocketX = boardToX(17.5);
   const breakZ = 12.5;
-  if (z <= breakZ) return startX + (z / breakZ) * 0.02;
+  if (z <= breakZ) return startX - (z / breakZ) * 0.02;
   const t = Math.min(1, (z - breakZ) / (LANE_LENGTH - breakZ));
   return startX + (pocketX - startX) * t * t;
 }
@@ -195,7 +199,7 @@ function drawMarkings(c: Ctx2D, length: number): void {
   ctx.fillStyle = ink;
   for (let i = 0; i < 7; i++) {
     const board = 5 + i * 5;
-    const px = w - (board - 0.5) * bw;
+    const px = (board - 0.5) * bw;
     const z = 15.5 * FT - Math.abs(i - 3) * 0.85 * FT;
     const tipY = zToPx(z + 12 * IN, h, length);
     const baseY = zToPx(z, h, length);
@@ -211,7 +215,7 @@ function drawMarkings(c: Ctx2D, length: number): void {
   const dotY = zToPx(7 * FT, h, length);
   const dotR = ((0.75 * IN) / LANE_WIDTH) * w;
   for (const b of dotBoards) {
-    const px = w - (b - 0.5) * bw;
+    const px = (b - 0.5) * bw;
     ctx.beginPath();
     ctx.arc(px, dotY, dotR, 0, Math.PI * 2);
     ctx.fill();

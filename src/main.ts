@@ -7,6 +7,7 @@ import { buildEnvironmentMap, buildLights } from './scene/lighting';
 import { pinPositions } from './util/units';
 import { buildBall } from './scene/ball';
 import { buildPinAssets, makePinMesh } from './scene/pins';
+import { buildCenterEnvironment } from './scene/environment';
 import { PhysicsWorld, type ThrowParams } from './physics/world';
 import { Game } from './game/game';
 import { Hud } from './ui/hud';
@@ -43,6 +44,8 @@ async function boot(): Promise<void> {
     engine.scene.add(pin);
     return pin;
   });
+
+  engine.scene.add(buildCenterEnvironment(rng, flags.fast, pinAssets));
 
   const physics = await PhysicsWorld.create();
   const hud = new Hud(document.body);

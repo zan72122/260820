@@ -8,8 +8,8 @@ import { buildBallMaps } from '../textures/ballSurface';
  * ハウスボール。指穴3つはCSGで実際に開ける（どの角度から見ても実ジオメトリ）。
  * グリップ中心を +Y 極付近に置き、穴はボール中心へ向けて掘る。
  */
-export function buildBall(rng: Rng, fast: boolean): THREE.Mesh {
-  const maps = buildBallMaps(rng, fast);
+export function buildBall(rng: Rng, fast: boolean, baseHue?: number): THREE.Mesh {
+  const maps = buildBallMaps(rng, fast, baseHue);
   const ballMat = new THREE.MeshPhysicalMaterial({
     map: maps.map,
     roughnessMap: maps.roughnessMap,

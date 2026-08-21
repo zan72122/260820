@@ -34,8 +34,8 @@ export class CameraRig {
       this.targetLook.set(ballPos.x * 0.75, 0.18, ballPos.z + 2.2);
     } else {
       // ピン手前でカメラを止めてピンアクションを見せる
-      this.targetPos.set(ballPos.x * 0.3, 0.78, LANE_LENGTH - 6.4);
-      this.targetLook.set(0, 0.28, LANE_LENGTH + 0.2);
+      this.targetPos.set(ballPos.x * 0.3, 0.74, LANE_LENGTH - 5.1);
+      this.targetLook.set(0, 0.3, LANE_LENGTH + 0.1);
     }
   }
 

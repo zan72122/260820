@@ -11,7 +11,7 @@ export interface MaskingMaps {
  * マスキングユニット前面（塗装鋼板）。
  * 装飾は実在物に即して最小限: 塗り分けバンド＋レーン番号＋使用による当たり傷。
  */
-export function buildMaskingMaps(rng: Rng, fast: boolean): MaskingMaps {
+export function buildMaskingMaps(rng: Rng, fast: boolean, laneNo = 7): MaskingMaps {
   const w = fast ? 256 : 1024;
   const h = fast ? 64 : 256;
   const c = makeCanvas(w, h);
@@ -56,7 +56,7 @@ export function buildMaskingMaps(rng: Rng, fast: boolean): MaskingMaps {
   ctx.font = `bold ${Math.round(plateH * 0.74)}px system-ui, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('7', w * 0.035 + plateW / 2, h * 0.14 + plateH * 0.55);
+  ctx.fillText(String(laneNo), w * 0.035 + plateW / 2, h * 0.14 + plateH * 0.55);
 
   // ラフネス: 半艶塗装。傷部はやや粗い
   const r = makeCanvas(fast ? 128 : 256, fast ? 32 : 64);

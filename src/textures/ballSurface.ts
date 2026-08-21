@@ -12,14 +12,14 @@ export interface BallMaps {
  * 使用感: 全周の微細スクラッチ＋転がり軌道（トラック）の艶引けリング。
  * リングは指穴軸とは無関係な向きに置く（実物どおり非対称）。
  */
-export function buildBallMaps(rng: Rng, fast: boolean): BallMaps {
+export function buildBallMaps(rng: Rng, fast: boolean, baseHue = 222): BallMaps {
   const w = fast ? 256 : 1024;
   const h = fast ? 128 : 512;
   const c = makeCanvas(w, h);
   const { ctx } = c;
 
   // 基調: 深い青。マーブルは大きなうねり＋細かい脈
-  const baseH = 222;
+  const baseH = baseHue;
   ctx.fillStyle = hsl(baseH, 0.5, 0.32);
   ctx.fillRect(0, 0, w, h);
 

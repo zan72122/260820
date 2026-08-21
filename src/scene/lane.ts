@@ -70,6 +70,10 @@ function makeGutterCapGeometry(): THREE.ShapeGeometry {
   return new THREE.ShapeGeometry(shape, 1);
 }
 
+/** 仕切り幅 10.5in。レーンピッチ = LANE_WIDTH + 2*GUTTER_WIDTH + CAPPING_WIDTH */
+export const CAPPING_WIDTH = 10.5 * 0.0254;
+export const LANE_PITCH = LANE_WIDTH + 2 * GUTTER_WIDTH + CAPPING_WIDTH;
+
 export interface LaneBuild {
   group: THREE.Group;
   /** 物理コライダー生成に使う寸法情報 */
@@ -79,7 +83,7 @@ export interface LaneBuild {
   };
 }
 
-export function buildLane(rng: Rng, fast: boolean): LaneBuild {
+export function buildLane(rng: Rng, fast: boolean, laneNo = 7): LaneBuild {
   const group = new THREE.Group();
   const laneMaps = buildLaneMaps(rng, fast);
   const approachMaps = buildApproachMaps(rng, fast);
@@ -162,27 +166,29 @@ export function buildLane(rng: Rng, fast: boolean): LaneBuild {
     group.add(flat);
   }
 
-  // ---- 仕切りキャッピング（隣レーンとの間の平板） ----
+  // ---- 仕切りキャッピング（実寸: レーンピッチ=レーン+ガター2+仕切り10.5in） ----
   const capMat = new THREE.MeshStandardMaterial({
-    color: 0x2b2119,
-    roughness: 0.5,
-    envMapIntensity: 0.6,
+    color: 0x35281c,
+    roughness: 0.42,
+    envMapIntensity: 0.7,
   });
+  const capW = CAPPING_WIDTH;
   for (const side of [-1, 1]) {
-    const strip = new THREE.Mesh(
-      new THREE.BoxGeometry(0.3, 0.03, LANE_FULL_LENGTH),
-      capMat,
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(capW, 0.03, LANE_FULL_LENGTH), capMat);
+    strip.position.set(
+      side * (LANE_WIDTH / 2 + GUTTER_WIDTH + capW / 2),
+      -0.012,
+      LANE_FULL_LENGTH / 2,
     );
-    strip.position.set(side * (LANE_WIDTH / 2 + GUTTER_WIDTH + 0.15), -0.015, LANE_FULL_LENGTH / 2);
     strip.receiveShadow = true;
     group.add(strip);
   }
 
   // ---- キックバック（ピンデッキ側壁） ----
   const kickMat = new THREE.MeshStandardMaterial({
-    color: 0x17171a,
-    roughness: 0.5,
-    envMapIntensity: 0.5,
+    color: 0x1c1c1f,
+    roughness: 0.38,
+    envMapIntensity: 0.9,
   });
   const kickStart = LANE_LENGTH - 0.72;
   const kickLen = LANE_FULL_LENGTH - kickStart + 0.45;
@@ -205,7 +211,7 @@ export function buildLane(rng: Rng, fast: boolean): LaneBuild {
   group.add(pit);
 
   // ---- マスキングユニット ----
-  const maskingMaps = buildMaskingMaps(rng, fast);
+  const maskingMaps = buildMaskingMaps(rng, fast, laneNo);
   const maskingMat = new THREE.MeshStandardMaterial({
     map: maskingMaps.map,
     roughnessMap: maskingMaps.roughnessMap,

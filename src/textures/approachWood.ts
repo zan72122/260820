@@ -44,10 +44,11 @@ export function buildApproachMaps(rng: Rng, fast: boolean): ApproachMaps {
     }
   }
 
-  // スライド痕: ファウルライン手前0〜1.2m、中央より左寄り。細長い擦過を重ねる
+  // スライド痕: ファウルライン手前0〜1.2m。右投げのスライド足（左足）は
+  // 中央よりわずかに左（+x）に落ちる
   const zToPy = (zBehind: number): number => ch - (zBehind / APPROACH_LENGTH) * ch;
   for (let i = 0; i < 140; i++) {
-    const xm = uniform(rng, -0.16, 0.06) + (rng() < 0.25 ? uniform(rng, 0.05, 0.2) : 0);
+    const xm = uniform(rng, -0.06, 0.16) + (rng() < 0.25 ? uniform(rng, -0.2, -0.05) : 0);
     const px = ((xm + LANE_WIDTH / 2) / LANE_WIDTH) * cw;
     const py = zToPy(uniform(rng, 0.02, 1.3));
     ctx.strokeStyle = `rgba(70,58,44,${uniform(rng, 0.03, 0.09)})`;

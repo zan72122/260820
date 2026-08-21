@@ -13,7 +13,7 @@ export function frictionAt(x: number, z: number): number {
   if (z < 0) return 0.2; // アプローチ
   const taperStart = OIL_LENGTH - 8 * FT;
   // 横方向: 板番号に換算し、外側(1-8, 32-39)は薄い
-  const board = (0.5 - x / LANE_WIDTH) * BOARD_COUNT; // 右端=0, 左端=39
+  const board = (x / LANE_WIDTH + 0.5) * BOARD_COUNT; // ボウラーの右端(x=-W/2)=0, 左端=39
   const edgeDist = Math.min(board, BOARD_COUNT - board); // 端からの板数
   const edgeFactor = Math.min(1, Math.max(0, (edgeDist - 5) / 6)); // 板5〜11で0→1
   const muOiled = MU_OIL_EDGE + (MU_OIL_CENTER - MU_OIL_EDGE) * edgeFactor;

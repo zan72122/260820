@@ -3,8 +3,9 @@ import { PhysicsWorld, type ThrowParams } from '../../src/physics/world';
 import { frictionAt, MU_DRY } from '../../src/physics/oilPattern';
 import { FT, LANE_WIDTH } from '../../src/util/units';
 
+// 右投げ: 板10付近(-x)から投げ、バックエンドで左(+x)のポケットへ
 const POCKET_SHOT: ThrowParams = {
-  x: 0.2,
+  x: -0.2,
   speed: 8.5,
   angleDeg: 0,
   revRate: 24,
@@ -56,16 +57,16 @@ describe('PhysicsWorld', () => {
   }, 60000);
 
   it('大きく外した球はガターに落ちピンは倒れない', async () => {
-    const { world, standing } = await runShot({ x: 0.4, speed: 7, angleDeg: -2.5, revRate: 5, axisDeg: 0 });
+    const { world, standing } = await runShot({ x: -0.4, speed: 7, angleDeg: -2.5, revRate: 5, axisDeg: 0 });
     expect(standing).toBe(10);
     const bp = world.ballPose();
     expect(Math.abs(bp.position.x)).toBeGreaterThan(LANE_WIDTH / 2);
   }, 30000);
 
-  it('フックボールはドライバックエンドで左へ曲がる', async () => {
+  it('フックボールはドライバックエンドでボウラーの左(+x)へ曲がる', async () => {
     const world = await PhysicsWorld.create();
     world.rackPins();
-    world.throwBall({ x: 0.26, speed: 8.0, angleDeg: 0, revRate: 26, axisDeg: 38 });
+    world.throwBall({ x: -0.26, speed: 8.0, angleDeg: 0, revRate: 26, axisDeg: 38 });
     let xAt40ft = NaN;
     let xAtOil = NaN;
     for (let i = 0; i < 120 * 6; i++) {
@@ -77,9 +78,9 @@ describe('PhysicsWorld', () => {
         break;
       }
     }
-    // オイル上ではほぼ直進、バックエンドで左（-x）へ動く
-    expect(xAtOil).toBeGreaterThan(0.26 - 0.06);
-    expect(xAt40ft).toBeLessThan(xAtOil - 0.03);
+    // オイル上ではほぼ直進、バックエンドで左（+x）へ動く
+    expect(xAtOil).toBeLessThan(-0.26 + 0.06);
+    expect(xAt40ft).toBeGreaterThan(xAtOil + 0.03);
   }, 30000);
 
   it('再ラックで指定ピンだけ立つ', async () => {

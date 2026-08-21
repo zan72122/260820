@@ -41,7 +41,7 @@ export function computeThrow(samples: SwingSample[], ballX: number): ThrowParams
   // 球速: 画面高さの約1.5倍/秒のフリックで最大
   const speed = Math.min(MAX_SPEED, MIN_SPEED + (MAX_SPEED - MIN_SPEED) * (vyUp / 1.5));
 
-  // 投球角: リリース横速度。右へ振れば右へ（-角）
+  // 投球角: リリース横速度。画面右へ振ればボウラーの右（-x = 負角）へ
   const angleDeg = Math.max(-MAX_ANGLE, Math.min(MAX_ANGLE, (-vx / Math.max(vyUp, 0.001)) * 28));
 
   // フック: ストローク前半と後半の横速度差（湾曲）

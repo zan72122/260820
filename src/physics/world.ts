@@ -197,13 +197,14 @@ export class PhysicsWorld {
     const axis = (p.axisDeg * Math.PI) / 180;
     this.ballBody.setEnabled(true);
     this.ballBody.setTranslation({ x: p.x, y: BALL_RADIUS + 0.002, z: 0.02 }, true);
+    // angleDeg 正 = ボウラーの左（+x）へ。axisDeg 正 = 左（+x）へ曲がるフック
     this.ballBody.setLinvel(
-      { x: -Math.sin(rad) * p.speed, y: 0, z: Math.cos(rad) * p.speed },
+      { x: Math.sin(rad) * p.speed, y: 0, z: Math.cos(rad) * p.speed },
       true,
     );
-    // 前転成分 +x / サイドロール成分 +z（右投げのフックは-x方向へ曲がる）
+    // 前転成分 +x / サイドロール成分 -z（ω_z<0 → 接地点スリップ-x → 摩擦+x → 左へフック）
     this.ballBody.setAngvel(
-      { x: Math.cos(axis) * p.revRate, y: 0, z: Math.sin(axis) * p.revRate },
+      { x: Math.cos(axis) * p.revRate, y: 0, z: -Math.sin(axis) * p.revRate },
       true,
     );
   }
