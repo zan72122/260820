@@ -369,7 +369,7 @@ export class App {
         this.input.toNdc(this.collarWorld, ringCentre);
         ringStart = this.input.angleAround(ringCentre);
         ringFrom = this.state.ringAngle;
-        this.grabFocus('ring', 1.0, 3.0);
+        this.grabFocus('ring', 1.0, 4.5);
         this.bumpLab('ring');
       },
       onMove: () => {
@@ -399,7 +399,7 @@ export class App {
         this.audio.start();
         valveStart = ctx.screen.y;
         valveFrom = this.state.waterFlow;
-        this.grabFocus('water', 1.0, 3.6);
+        this.grabFocus('water', 1.0, 5.0);
         this.bumpLab('water');
       },
       onMove: (ctx) => {
@@ -427,6 +427,8 @@ export class App {
 
     this.input.onIdleBreak = () => {
       this.hintOn = 0;
+      // any touch at all unlocks audio on iOS, even one that hits nothing
+      this.audio.start();
     };
   }
 
@@ -555,7 +557,7 @@ export class App {
   /* ---------------------------- camera ----------------------------- */
 
   /** an interaction owns the camera for a moment, then the phase takes it back */
-  private grabFocus(f: Focus, dur: number, hold = 3.2): void {
+  private grabFocus(f: Focus, dur: number, hold = 4.5): void {
     this.focusHold = hold;
     this.setFocus(f, dur);
   }
@@ -811,7 +813,7 @@ export class App {
     u.uLTCloud.value = st.cloudCover;
     u.uLTTime.value = st.time;
     u.uLTGain.value = st.panelKind === null ? 1.45 : 2.45;
-    u.uLTMouthGain.value = 0.8 * (1 - 0.5 * st.cloudCover);
+    u.uLTMouthGain.value = 1.0 * (1 - 0.5 * st.cloudCover);
 
     // light that has landed spills on to everything around it
     u.uLTBounceAt.value.copy(this.patch);
@@ -915,8 +917,12 @@ export class App {
         }
         break;
       case 'lab':
-        // one variable at a time: plate, then angle, then water, then send a raft
-        if (this.labRound < 3 && this.labChanges >= (this.labRound === 0 ? 1 : 2)) {
+        // one variable at a time: plate, then angle, then water, then send a raft.
+        // a long quiet spell also moves on, so the shot never gets stuck
+        if (
+          this.labRound < 3 &&
+          (this.labChanges >= (this.labRound === 0 ? 1 : 2) || this.phaseTime > 34)
+        ) {
           this.labChanges = 0;
           this.labRound += 1;
           this.phaseTime = 0;

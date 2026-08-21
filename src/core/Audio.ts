@@ -12,14 +12,23 @@ export class GameAudio {
   private noise: AudioBuffer | null = null;
   private started = false;
 
-  /** Must be called from inside a user gesture. */
+  /** Must be called from inside a user gesture. Never allowed to throw:
+   *  a device with no audio must not break the touch that reached it. */
   start(): void {
     if (this.started) return;
+    this.started = true;
+    try {
+      this.build();
+    } catch {
+      this.ctx = null;
+    }
+  }
+
+  private build(): void {
     const Ctor =
       window.AudioContext ??
       (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!Ctor) return;
-    this.started = true;
     const ctx = new Ctor();
     this.ctx = ctx;
     this.master = ctx.createGain();
