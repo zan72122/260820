@@ -1,0 +1,23 @@
+{
+  "name": "under-the-ridge",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "畝の裏側 — a 3D mobile web game about digging, shaking and inverting peanut plants",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview --host 0.0.0.0",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@types/three": "^0.185.4",
+    "typescript": "^7.0.2",
+    "vite": "^8.2.2"
+  }
+}

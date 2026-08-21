@@ -1,1 +1,14 @@
 .DS_Store
+node_modules
+dist
+test-results
+playwright-report
+*.log
+
+# local iteration scripts (not part of the game)
+look.mjs
+snap.mjs
+hint.mjs
+shots2.mjs
+idle.mjs
+final.sh
