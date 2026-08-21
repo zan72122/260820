@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <title>ゆうぐれのローラーすべりだい</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#10131c" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="description" content="夕暮れの公園。ローラー滑り台を滑ると、その回転で小さな灯りがともります。" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="scene"></canvas>
+      <div id="ui" aria-hidden="true"></div>
+      <div id="boot">
+        <div class="boot-inner">
+          <svg class="boot-mark" viewBox="0 0 64 64" aria-hidden="true">
+            <path d="M6 50 L40 14" />
+            <path d="M6 54 L44 16" />
+            <circle cx="52" cy="46" r="6" />
+            <circle cx="52" cy="46" r="11" class="halo" />
+          </svg>
+          <div class="boot-bar"><span id="boot-bar-fill"></span></div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
