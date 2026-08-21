@@ -24,6 +24,19 @@ await page.waitForFunction(() => window.__game?.isReady === true, undefined, {
 })
 // A few frames so shadows/materials settle.
 await page.waitForTimeout(700)
+// SHOT_DRIVE="dx,dz,ticks" walks the player before the shot (mid-stride pose).
+if (process.env.SHOT_DRIVE) {
+  const [dx, dz, ticks] = process.env.SHOT_DRIVE.split(',').map(Number)
+  await page.evaluate(
+    ([mx, mz, n]) => {
+      for (let i = 0; i < n; i++) {
+        window.__game.dispatch({ type: 'move', dirX: mx, dirZ: mz })
+        window.__game.step(1)
+      }
+    },
+    [dx, dz, ticks],
+  )
+}
 await page.screenshot({ path: out })
 await browser.close()
 console.log(`saved ${out}`)

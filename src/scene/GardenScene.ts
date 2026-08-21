@@ -1,10 +1,5 @@
-import {
-  BoxGeometry,
-  Mesh,
-  MeshStandardMaterial,
-  PlaneGeometry,
-  Scene,
-} from 'three'
+import { Mesh, PlaneGeometry, Scene } from 'three'
+import { buildPlayerRig, type RigJoints } from '../character/PlayerRig'
 import { buildEngawa } from '../builders/house/engawa'
 import { buildFacade } from '../builders/house/facade'
 import { buildKawaraRoof } from '../builders/house/roof'
@@ -43,7 +38,7 @@ import {
 } from './layout'
 
 export interface SceneHandles {
-  playerRoot: Mesh
+  player: RigJoints
   ground: GroundBuilder
   registry: TextureRegistry
   kit: MatKit
@@ -120,16 +115,11 @@ export function buildGardenScene(scene: Scene, flags: Flags): SceneHandles {
   scene.add(buildMidLayer(kit, deriveRng(flags.seed, 'midlayer')))
   scene.add(buildSatoyama(flags.seed))
 
-  // --- プレイヤーの仮置き（M6で本リグに置換） -----------------------------
-  const playerRoot = new Mesh(
-    new BoxGeometry(0.4, 1.3, 0.3),
-    new MeshStandardMaterial({ color: '#3a4a6b', roughness: 0.9 }),
-  )
-  playerRoot.castShadow = true
-  playerRoot.position.y = 0.65
-  scene.add(playerRoot)
+  // --- プレイヤー ---------------------------------------------------------
+  const player = buildPlayerRig(kit, deriveRng(flags.seed, 'player'))
+  scene.add(player.root)
 
-  return { playerRoot, ground, registry, kit, vegBeds, tree, tools }
+  return { player, ground, registry, kit, vegBeds, tree, tools }
 }
 
 /** 砂利の雨落ち帯: 起伏に沿う細長いリボン、縁は不規則。 */

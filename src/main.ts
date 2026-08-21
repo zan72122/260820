@@ -9,6 +9,9 @@ import { createInitialState } from './sim/GameState'
 import { DT, simulate, type SimWorld } from './sim/simulate'
 import { buildGardenScene } from './scene/GardenScene'
 import { COLLIDERS, WALKABLE } from './scene/layout'
+import { tobiishiTopAt } from './builders/garden/tobiishi'
+import { applyIdlePose, applyWalkPose, CYCLE_LEN } from './character/walkCycle'
+import { FollowCamera } from './camera/FollowCamera'
 
 const flags = readFlags(window.location.search)
 const canvas = document.getElementById('game') as HTMLCanvasElement
@@ -21,29 +24,61 @@ const input = new KeyboardInput(window)
 
 const handles = buildGardenScene(app.scene, flags)
 
-// Provisional camera until FollowCamera lands (M6): stand in the garden
-// looking north toward the house. ?cam=x,y,z&look=x,y,z overrides (layout
-// inspection from fixed angles; SwiftShader smoke checks only).
-{
-  const q = new URLSearchParams(window.location.search)
-  const cam = (q.get('cam') ?? '2.4,1.6,3.8').split(',').map(Number)
-  const look = (q.get('look') ?? '-1.4,1.1,-3.6').split(',').map(Number)
+// ?cam=x,y,z&look=x,y,z が指定されたら固定カメラ（レイアウト検分用）。
+const debugQ = new URLSearchParams(window.location.search)
+const staticCam = debugQ.has('cam')
+if (staticCam) {
+  const cam = (debugQ.get('cam') ?? '').split(',').map(Number)
+  const look = (debugQ.get('look') ?? '0,1,0').split(',').map(Number)
   app.camera.position.set(cam[0] ?? 2.4, cam[1] ?? 1.6, cam[2] ?? 3.8)
-  app.camera.lookAt(look[0] ?? -1.4, look[1] ?? 1.1, look[2] ?? -3.6)
+  app.camera.lookAt(look[0] ?? 0, look[1] ?? 1, look[2] ?? 0)
 }
+const followCam = new FollowCamera(app.camera, canvas)
+followCam.yaw = state.player.heading
+
+// 描画側の状態（シムには入れない）
+let walkPhase = 0
+let visualY = 0
+let idleTime = 0
+let lastFrame: number | null = null
 
 function update(): void {
   const actions = queuedActions.splice(0)
-  const move = input.moveDir(0)
+  const move = input.moveDir(followCam.yaw)
   if (move) actions.push({ type: 'move', ...move })
   if (input.takeInteract()) actions.push({ type: 'interact' })
   state = simulate(state, actions, world)
+  walkPhase += (state.player.speed / CYCLE_LEN) * Math.PI * 2 * DT
+  idleTime += DT
 }
 
 function render(): void {
-  const groundY = handles.ground.heightAt(state.player.x, state.player.z)
-  handles.playerRoot.position.set(state.player.x, groundY + 0.65, state.player.z)
-  handles.playerRoot.rotation.y = state.player.heading
+  const now = performance.now()
+  const dt = flags.e2eFast
+    ? 1 / 60
+    : Math.min(0.1, lastFrame === null ? 1 / 60 : (now - lastFrame) / 1000)
+  lastFrame = now
+
+  const p = state.player
+  const stoneTop = tobiishiTopAt(handles.ground, p.x, p.z)
+  const groundY = Math.max(
+    handles.ground.heightAt(p.x, p.z),
+    stoneTop ?? -Infinity,
+  )
+  visualY += (groundY - visualY) * Math.min(1, dt * 12)
+
+  const rig = handles.player
+  rig.root.position.set(p.x, visualY, p.z)
+  rig.root.rotation.y = p.heading
+  if (p.speed > 0.05) {
+    applyWalkPose(rig, walkPhase, p.speed)
+  } else {
+    applyIdlePose(rig, idleTime)
+  }
+
+  if (!staticCam) {
+    followCam.update(dt, { x: p.x, y: visualY, z: p.z, heading: p.heading })
+  }
   app.render()
 }
 
