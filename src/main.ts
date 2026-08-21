@@ -22,9 +22,15 @@ const input = new KeyboardInput(window)
 const handles = buildGardenScene(app.scene, flags)
 
 // Provisional camera until FollowCamera lands (M6): stand in the garden
-// looking north toward the house.
-app.camera.position.set(2.4, 1.6, 3.8)
-app.camera.lookAt(-1.4, 1.1, -3.6)
+// looking north toward the house. ?cam=x,y,z&look=x,y,z overrides (layout
+// inspection from fixed angles; SwiftShader smoke checks only).
+{
+  const q = new URLSearchParams(window.location.search)
+  const cam = (q.get('cam') ?? '2.4,1.6,3.8').split(',').map(Number)
+  const look = (q.get('look') ?? '-1.4,1.1,-3.6').split(',').map(Number)
+  app.camera.position.set(cam[0] ?? 2.4, cam[1] ?? 1.6, cam[2] ?? 3.8)
+  app.camera.lookAt(look[0] ?? -1.4, look[1] ?? 1.1, look[2] ?? -3.6)
+}
 
 function update(): void {
   const actions = queuedActions.splice(0)

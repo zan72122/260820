@@ -9,7 +9,16 @@ import {
 import { buildEngawa } from '../builders/house/engawa'
 import { buildFacade } from '../builders/house/facade'
 import { buildKawaraRoof } from '../builders/house/roof'
+import { buildItabei } from '../builders/fence/itabei'
+import { buildTakegaki } from '../builders/fence/takegaki'
 import { GroundBuilder } from '../builders/garden/ground'
+import { buildLantern } from '../builders/garden/lantern'
+import { buildTobiishi } from '../builders/garden/tobiishi'
+import { buildKakiTree, type TreeHandles } from '../builders/garden/tree'
+import { buildTsukubai } from '../builders/garden/tsukubai'
+import { buildVegBeds, type VegBedHandles } from '../builders/garden/vegBed'
+import { buildClutter } from '../builders/props/clutter'
+import { buildTools, type ToolHandles } from '../builders/props/tools'
 import type { Flags } from '../core/flags'
 import { deriveRng } from '../core/rng'
 import { createGoldenHourRig } from '../lighting/GoldenHourRig'
@@ -21,12 +30,15 @@ import {
   ENGAWA_EAST_X,
   ENGAWA_FRONT_Z,
   ENGAWA_WEST_X,
+  FENCE_SOUTH_Z,
   FENCE_WEST_X,
+  GATE_CENTER_X,
   HOUSE_EAST_X,
   HOUSE_WALL_Z,
   HOUSE_WEST_X,
   KEN,
   RAIN_GRAVEL_W,
+  TOBIISHI_PATH,
 } from './layout'
 
 export interface SceneHandles {
@@ -34,6 +46,9 @@ export interface SceneHandles {
   ground: GroundBuilder
   registry: TextureRegistry
   kit: MatKit
+  vegBeds: VegBedHandles
+  tree: TreeHandles
+  tools: ToolHandles
 }
 
 /** Assembles the whole world. Build order matters: object builders stamp
@@ -72,6 +87,28 @@ export function buildGardenScene(scene: Scene, flags: Flags): SceneHandles {
   ground.addMoss(FENCE_WEST_X + 0.5, -2.4, 0.9, 0.4)
   ground.addMoss(FENCE_WEST_X + 0.9, -3.4, 0.7, 0.5)
 
+  // --- 庭の近景 -----------------------------------------------------------
+  scene.add(buildTobiishi(kit, deriveRng(flags.seed, 'tobiishi'), ground))
+  scene.add(buildItabei(kit, deriveRng(flags.seed, 'itabei'), ground))
+  scene.add(buildTakegaki(kit, deriveRng(flags.seed, 'takegaki'), ground))
+  const vegBeds = buildVegBeds(kit, deriveRng(flags.seed, 'vegbeds'), ground)
+  scene.add(vegBeds.group)
+  scene.add(buildTsukubai(kit, deriveRng(flags.seed, 'tsukubai'), ground))
+  scene.add(buildLantern(kit, deriveRng(flags.seed, 'lantern'), ground))
+  const tree = buildKakiTree(kit, deriveRng(flags.seed, 'tree'), ground)
+  scene.add(tree.group)
+  const tools = buildTools(kit, deriveRng(flags.seed, 'tools'), ground)
+  scene.add(tools.group)
+  scene.add(buildClutter(kit, deriveRng(flags.seed, 'clutter'), ground))
+
+  // 木戸から縁側への動線: 毎日歩く道は草が禿げて土が締まる
+  for (const p of TOBIISHI_PATH) ground.addWear(p.x, p.z, 0.55, 0.22)
+  ground.addWear(GATE_CENTER_X, FENCE_SOUTH_Z - 0.5, 0.6, 0.4)
+  // 塀の際は人が歩かず、雨だれで湿る
+  for (let z = -3.5; z < FENCE_SOUTH_Z - 0.4; z += 1.1) {
+    ground.addMoss(FENCE_WEST_X + 0.28 + (rng() - 0.5) * 0.15, z + rng() * 0.4, 0.4, 0.3)
+  }
+
   // --- 地面（最後に焼く: 上のスタンプを反映） -----------------------------
   const groundMesh = new Mesh(ground.buildGeometry(), makeGroundMaterial(registry))
   groundMesh.receiveShadow = true
@@ -98,7 +135,7 @@ export function buildGardenScene(scene: Scene, flags: Flags): SceneHandles {
   playerRoot.position.y = 0.65
   scene.add(playerRoot)
 
-  return { playerRoot, ground, registry, kit }
+  return { playerRoot, ground, registry, kit, vegBeds, tree, tools }
 }
 
 /** 砂利の雨落ち帯: 起伏に沿う細長いリボン、縁は不規則。 */

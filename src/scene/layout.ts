@@ -139,6 +139,20 @@ export const TAKEGAKI_X = -1.5
 export const TAKEGAKI_Z_FROM = 0.6
 export const TAKEGAKI_Z_TO = 5.6
 
+/** 作物の植え付け位置（GameState.crops のidと1:1） */
+export const CROPS: ReadonlyArray<{
+  id: string
+  kind: 'daikon' | 'negi' | 'tomato'
+  x: number
+  z: number
+}> = [
+  { id: 'daikon1', kind: 'daikon', x: -3.6, z: 1.65 },
+  { id: 'daikon2', kind: 'daikon', x: -3.6, z: 2.2 },
+  { id: 'daikon3', kind: 'daikon', x: -3.6, z: 2.75 },
+  { id: 'negi1', kind: 'negi', x: -2.4, z: 1.75 },
+  { id: 'tomato1', kind: 'tomato', x: -2.4, z: 2.75 },
+]
+
 // ---------------------------------------------------------------------------
 // 点景（それぞれ役割を持つ）
 // ---------------------------------------------------------------------------
