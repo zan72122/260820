@@ -15,9 +15,8 @@ export const TABLE_Y = 0.78;
 export const SAND_Y = 0.9;          // world height of sand surface
 export const FLASK_WALL_H = 0.17;
 export const FLASK_WALL_T = 0.045;
-export const RAM_TRAVEL_TOP = 1.62; // pattern bottom when raised
 export const CARRIAGE_HOME_X = 0.5; // pattern parked to the right
-export const BEAM_Y = 1.98;
+const BEAM_Y = 1.98;
 
 export interface FoundryRefs {
   group: THREE.Group;

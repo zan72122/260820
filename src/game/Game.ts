@@ -306,6 +306,12 @@ export class Game {
   }
 
   private placeTrophy() {
+    // bench space is finite - after that, old casts just leave the shot
+    if (this.trophies.length >= 5) {
+      this.castPivot.parent?.remove(this.castPivot);
+      this.foundry.gripper.remove(this.castPivot);
+      return;
+    }
     const m = buildFinishedMesh(this.glyph);
     const s = 0.42;
     m.scale.setScalar(s);
