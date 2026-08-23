@@ -77,6 +77,7 @@ declare global {
       resume: () => void;
       render: () => void;
       pick: (nx: number, ny: number) => string[];
+      letterScreenPos: () => { x: number; y: number };
       debug: () => unknown;
     };
   }
@@ -114,6 +115,14 @@ if (E2E) {
       paused = false;
     },
     render: () => renderer.render(game.scene, game.rig.camera),
+    letterScreenPos: () => {
+      const p = game.letterCenter();
+      const v = new THREE.Vector3(p.x, p.y, p.z).project(game.rig.camera);
+      return {
+        x: ((v.x + 1) / 2) * window.innerWidth,
+        y: ((1 - v.y) / 2) * window.innerHeight,
+      };
+    },
     debug: () => {
       let casters = 0;
       game.scene.traverse((o) => {

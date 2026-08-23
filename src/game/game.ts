@@ -240,6 +240,12 @@ export class Game {
     return this.body ? { x: this.body.x, y: this.body.y } : null;
   }
 
+  /** world center of the movable letter (for tests / input helpers). */
+  letterCenter(): { x: number; y: number; z: number } {
+    const rx = rightGlyphX(this.pair, this.spacingVisual);
+    return { x: rx + glyphWidthM(this.pair.right) / 2, y: BASE_Y + EM * 0.45, z: 0 };
+  }
+
   // ------------------------------------------------------------- controls
   /** Pointer drag moves the letter along its rail. dx in world meters. */
   dragBy(dx: number): void {
