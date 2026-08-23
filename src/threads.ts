@@ -97,7 +97,12 @@ export class Droplet {
     const s = this.baseR / 0.028 * lerp(0.35, 1, Math.pow(frac, 0.7));
     this.mesh.scale.set(s * w, s * 1.15 / w, s * w);
     this.hang.visible = !this.hooked && this.turnsLeft > 0.05;
-    if (this.hang.visible) this.rebuildHang(t);
+    if (this.hang.visible) {
+      this.rebuildHang(t);
+      // rare, quiet glints as the fibre catches the sun — the only invitation
+      const glint = Math.pow(Math.max(0, Math.sin(t * 0.9 + this.sway * 3)), 12);
+      this.hangMat.uniforms.uBoost.value = 1 + glint * 1.6;
+    }
   }
 
   /** Called when its thread is exhausted: the drop is spent water again. */

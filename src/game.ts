@@ -16,7 +16,7 @@ export type GameState =
   | 'TEST' | 'TESTING' | 'CROSSREADY' | 'CROSSING' | 'AFTER';
 
 const WIND_RATIO = 4;          // quarter of a finger-circle = one wrap on the horn
-const NEED_TURNS = 10;         // enough thread to span the crevasse
+const NEED_TURNS = 12;         // 4 support lines + weave + the closing wrap
 const WEAVE_TURNS = 1.5;       // finger circles to weave the deck
 const HOOK_DIST = 0.16;
 
@@ -712,9 +712,9 @@ export class Game {
     switch (this.state) {
       case 'INTRO':
       case 'DISCOVER':
-        // wide 3/4: unicorn, crevasse, and the far meadow in one view
-        if (portrait) { pos = P(u.x + 2.1, 1.7, u.z + 2.9); look = P(u.x - 0.9, 0.55, u.z - 3.4); fov = 62; }
-        else { pos = P(u.x + 2.7, 1.5, u.z + 2.5); look = P(u.x - 1.0, 0.6, u.z - 3.2); }
+        // wide 3/4: her profile and gaze, the droplet grass, crevasse and far meadow
+        if (portrait) { pos = P(u.x + 2.75, 1.4, u.z + 1.3); look = P(u.x - 1.0, 0.65, u.z - 2.9); fov = 62; }
+        else { pos = P(u.x + 2.9, 1.35, u.z + 1.1); look = P(u.x - 1.1, 0.6, u.z - 2.8); }
         if (this.state === 'DISCOVER' && (this.pointerDown || this.aimHold > 0)) {
           // lean toward the horn as the child reaches out
           pos = pos.lerp(off(head, 1.1, 0.7, 0.15), 0.55);

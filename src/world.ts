@@ -288,7 +288,8 @@ function buildGrass(scene: THREE.Scene): WorldRefs['grassUniforms'] {
   const blade = new THREE.PlaneGeometry(0.024, 1, 1, 3);
   blade.translate(0, 0.5, 0);
   const mat = new THREE.MeshStandardMaterial({
-    color: 0x46543a, roughness: 0.5, metalness: 0, side: THREE.DoubleSide, envMapIntensity: 0.55
+    color: 0x46543a, roughness: 0.5, metalness: 0, side: THREE.DoubleSide, envMapIntensity: 0.55,
+    emissive: 0x24301f, emissiveIntensity: 0.55   // blades read green even back-lit
   });
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uTime = uniforms.uTime;
