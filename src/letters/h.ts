@@ -14,7 +14,7 @@ export const letterH: LetterSpec = {
   parts: [
     { kind: 'rod', a: [-0.36, 0.94], za: 2.08, b: [-0.36, 1.86], zb: 2.2, strokeW: 0.085 },
     { kind: 'rod', a: [0.36, 0.94], za: 2.42, b: [0.36, 1.86], zb: 2.3, strokeW: 0.085 },
-    { kind: 'rod', a: [-0.4, 1.4], za: 3.48, b: [0.4, 1.4], zb: 3.52, strokeW: 0.08 },
+    { kind: 'rod', a: [-0.37, 1.4], za: 3.48, b: [0.37, 1.4], zb: 3.52, strokeW: 0.08 },
   ],
   feet: [
     { part: 0, u: 0 },

@@ -51,8 +51,8 @@ export function installTestHooks(game: Game, rig: CameraRig, renderer: THREE.Web
       st.tableVel = 0;
     },
     setLever: (y: number) => {
-      const st = game.active;
-      st.lightY = st.lightTarget = y;
+      // set only the target so the physical carriage (and spotlight) follow
+      game.active.lightTarget = y;
     },
     wheel: (d: number) => game.active.applyWheelDelta(d),
     solveActive: () => {
