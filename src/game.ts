@@ -180,6 +180,13 @@ export class Game {
         this.audio.creak();
         this.active.hintNudge();
       }
+    } else if (this.state === 'awaitSwipe') {
+      this.idleTime += dt;
+      if (this.idleTime > 6) {
+        this.idleTime = 0;
+        this.active.wiggleFlag();
+        this.audio.leverTick();
+      }
     }
 
     this.rig.update(dt, this.active.group.position.x, this.active.closeness());

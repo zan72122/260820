@@ -106,6 +106,7 @@ export class Station {
   private lastTickAngle = 0;
   private lastLeverTickY = 0;
   private settleTime = 0;
+  private flagWiggleT = 0;
   private M: MatLib;
   private S: StationSounds;
   private nominalLightY = 1.5;
@@ -903,6 +904,10 @@ export class Station {
     this.lightTarget = t;
   }
 
+  wiggleFlag(): void {
+    this.flagWiggleT = 0.8;
+  }
+
   /** nudge toward the solution — used by the physical hint system */
   hintNudge(): void {
     if (!this.spec || this.solved) return;
@@ -1021,11 +1026,15 @@ export class Station {
       }
     }
 
-    // flag animation
+    // flag animation (wiggle timer nudges the raised flag as a swipe cue)
     if (this.flag) {
       const arm = (this.flag as unknown as { arm: THREE.Group }).arm;
-      const want = this.flagUp ? 0.06 : -Math.PI / 2;
-      arm.rotation.z += (want - arm.rotation.z) * Math.min(1, dt * 5);
+      let want = this.flagUp ? 0.06 : -Math.PI / 2;
+      if (this.flagWiggleT > 0) {
+        this.flagWiggleT -= dt;
+        want += Math.sin(this.flagWiggleT * 26) * 0.14;
+      }
+      arm.rotation.z += (want - arm.rotation.z) * Math.min(1, dt * 7);
     }
 
     // light + beam + dust
