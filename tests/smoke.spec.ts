@@ -123,24 +123,25 @@ test('full causal chain: collect → anchor → span (stepwise) → weave → cl
   expect(br2.deck).toBeGreaterThanOrEqual(1);
 
   // hoof test: deck must respond to load
-  const restY = await page.evaluate(() => window.__game.deckYAt(0.15));
+  // (drive time purely via __tick — real RAF is starved under SwiftShader)
+  const restY = await page.evaluate(() => window.__game.deckYAt(0.5));
   await page.evaluate(() => { window.__game.test(); });
-  await page.evaluate(() => window.__tick(200));
-  await page.waitForFunction(() => window.__game.state() === 'CROSSREADY', undefined, { timeout: 30_000 });
+  for (let i = 0; i < 60; i++) {
+    await page.evaluate(() => window.__tick(30));
+    if (await page.evaluate(() => window.__game.state()) === 'CROSSREADY') break;
+  }
+  expect(await page.evaluate(() => window.__game.state())).toBe('CROSSREADY');
 
   await page.evaluate(() => { window.__game.cross(); });
   // deck should dip under her weight at some point during crossing
   let dipped = false;
-  for (let i = 0; i < 120; i++) {
+  for (let i = 0; i < 200; i++) {
     await page.evaluate(() => window.__tick(10));
-    const y = await page.evaluate(() => window.__game.deckYAt(0.5));
-    if (y < (await page.evaluate(() => window.__game.deckYAt(0.5) + 0.001)) && restY - y > 0.005) { /* noop */ }
-    const pos = await page.evaluate(() => window.__game.unicornPos());
     const dy = await page.evaluate(() => window.__game.deckYAt(0.5));
     if (restY - dy > 0.004) dipped = true;
-    if (pos.z < -8.5) break;
+    if (await page.evaluate(() => window.__game.state()) === 'AFTER') break;
   }
-  await page.waitForFunction(() => window.__game.state() === 'AFTER', undefined, { timeout: 30_000 });
+  expect(await page.evaluate(() => window.__game.state())).toBe('AFTER');
   expect(dipped).toBe(true);
 
   const pos = await page.evaluate(() => window.__game.unicornPos());
