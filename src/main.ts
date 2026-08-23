@@ -70,7 +70,7 @@ scene.add(rain.group);
 
 const unicorn = new Unicorn();
 const START = new THREE.Vector3(17, 0, -17);
-const WORK = new THREE.Vector3(6.8, 0, -22.4);
+const WORK = new THREE.Vector3(6.0, 0, -22.2);
 unicorn.root.position.set(START.x, terrainHeight(START.x, START.z), START.z);
 scene.add(unicorn.root);
 
@@ -228,6 +228,16 @@ const unicornInput = {
 
 function knotCenter(): THREE.Vector3 {
   return cloud.loops[1].center;
+}
+
+/** waiting (dry) flowers below a loop, nearest-first — first drops aim here */
+function nearestFlowerTargets(center: THREE.Vector3, n: number): THREE.Vector3[] {
+  return veg.flowers
+    .filter((f) => !f.woken && Math.abs(f.pos.x - center.x) < 7 && f.pos.z > center.z - 2)
+    .sort((a, b) =>
+      Math.abs(a.pos.x - center.x) - Math.abs(b.pos.x - center.x))
+    .slice(0, n)
+    .map((f) => f.pos);
 }
 
 function tick(dt: number) {
@@ -450,9 +460,9 @@ function handleUnwinding(dt: number) {
         L.releasedHero = true;
         if (!firstLoopOpened && heroSequence === 0) {
           heroSequence = 1;
-          rain.releaseHero(L.center, 4);
+          rain.releaseHero(L.center, 4, nearestFlowerTargets(L.center, 2));
         } else {
-          rain.releaseHero(L.center, 2);
+          rain.releaseHero(L.center, 2, nearestFlowerTargets(L.center, 1));
         }
       }
       // big circles bleed a little slack into neighbours & make the unicorn step
@@ -582,7 +592,7 @@ if (E2E) (window as any).__debug = { cloud, scene, director, unicorn, THREE };
       if (!firstLoopOpened) {
         firstLoopOpened = true;
         heroSequence = 1;
-        rain.releaseHero(L.center, 4);
+        rain.releaseHero(L.center, 4, nearestFlowerTargets(L.center, 2));
       }
     }
   },

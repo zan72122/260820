@@ -176,7 +176,7 @@ const TERRAIN_FRAG = /* glsl */ `
     float wet = 0.0;
     if (wuv.x > 0.0 && wuv.x < 1.0 && wuv.y > 0.0 && wuv.y < 1.0)
       wet = texture2D(wetMask, wuv).r;
-    alb = mix(alb, alb * vec3(0.42, 0.46, 0.55), clamp(wet, 0.0, 1.0) * 0.85);
+    alb = mix(alb, alb * vec3(0.55, 0.56, 0.62), clamp(wet, 0.0, 1.0) * 0.6);
 
     // --- lighting ---
     float ndl = max(dot(n, sunDir), 0.0);

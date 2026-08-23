@@ -76,18 +76,28 @@ export class RainSystem {
     this.group.add(this.splashMesh);
   }
 
-  /** Fire the scripted first release: a handful of slow, readable drops. */
-  releaseHero(from: THREE.Vector3, count = 4) {
+  /**
+   * Fire the scripted first release: a handful of slow, readable drops.
+   * Optional targets pin the first drops right above waiting plants so the
+   * ground answer is guaranteed, not left to scatter luck.
+   */
+  releaseHero(from: THREE.Vector3, count = 4, targets: THREE.Vector3[] = []) {
     let fired = 0;
     for (const d of this.drops) {
       if (d.active) continue;
       d.active = true;
       d.hero = true;
-      d.pos.set(
-        from.x + (this.rand() - 0.5) * 1.6,
-        from.y - 1.2 - this.rand() * 0.6,
-        from.z + (this.rand() - 0.5) * 1.2 + 0.8
-      );
+      const t = targets[fired];
+      if (t) {
+        // start above the target, compensating the slight forward drift
+        d.pos.set(t.x + (this.rand() - 0.5) * 0.3, from.y - 1.2, t.z - 0.5);
+      } else {
+        d.pos.set(
+          from.x + (this.rand() - 0.5) * 1.6,
+          from.y - 1.2 - this.rand() * 0.6,
+          from.z + (this.rand() - 0.5) * 1.2 + 0.8
+        );
+      }
       d.vel.set((this.rand() - 0.5) * 0.3, -3.2 - this.rand() * 0.8, 0.35);
       if (++fired >= count) break;
     }
@@ -139,7 +149,7 @@ export class RainSystem {
       const speed = -d.vel.y;
       this.dummy.position.copy(d.pos);
       this.dummy.rotation.set(0, 0, 0);
-      this.dummy.scale.set(d.hero ? 4.5 : 1.2, clamp(speed * 0.075, 0.3, 1.3) * (d.hero ? 2.2 : 1), 1);
+      this.dummy.scale.set(d.hero ? 2.8 : 1.2, clamp(speed * 0.075, 0.3, 1.3) * (d.hero ? 1.7 : 1), 1);
       this.dummy.updateMatrix();
       this.streakMesh.setMatrixAt(count++, this.dummy.matrix);
     }
@@ -163,7 +173,7 @@ export class RainSystem {
     }
     this.splashMesh.count = sc;
     this.splashMesh.instanceMatrix.needsUpdate = true;
-    (this.splashMesh.material as THREE.MeshBasicMaterial).opacity = 0.45;
+    (this.splashMesh.material as THREE.MeshBasicMaterial).opacity = 0.35;
   }
 
   private spawnSplash(x: number, y: number, z: number) {
