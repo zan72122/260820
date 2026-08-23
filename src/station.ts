@@ -1099,22 +1099,6 @@ export class Station {
     return this.group.localToWorld(out);
   }
 
-  getLeverCenterWorld(out: THREE.Vector3): THREE.Vector3 {
-    if (this.leverProxy) {
-      out.copy(this.leverProxy.position);
-      return this.group.localToWorld(out);
-    }
-    return this.getWheelCenterWorld(out);
-  }
-}
-
-/** verification helper: compute solved-state screen strokes of a spec (for tests) */
-export function solvedStrokes(spec: LetterSpec): { a: [number, number]; b: [number, number] }[] {
-  const out: { a: [number, number]; b: [number, number] }[] = [];
-  for (const p of spec.parts) {
-    if (p.kind === 'rod') out.push({ a: p.a, b: p.b });
-  }
-  return out;
 }
 
 export type { PartSpec };
