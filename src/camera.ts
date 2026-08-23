@@ -62,15 +62,16 @@ export class CameraRig {
   operatePose(sx: number): Pose {
     return this.portrait
       // high over the machine: parts low in frame, screen above them —
-      // the line of sight to the screen clears the parts
-      ? pose(sx + 0.42, 2.55, 5.32, sx - 0.02, 1.22, 1.25, 66)
+      // the line of sight to the screen clears the parts, and the handwheel
+      // sits clearly in the bottom third
+      ? pose(sx + 0.5, 2.7, 5.6, sx + 0.0, 1.26, 1.1, 64)
       // machine left, screen right; the handwheel rides the lower left corner
       : pose(sx + 2.35, 2.05, 5.15, sx - 0.78, 1.28, 0.9, 55);
   }
 
   nearPose(sx: number): Pose {
     return this.portrait
-      ? pose(sx + 0.3, 2.4, 4.62, sx - 0.02, 1.3, 0.85, 60)
+      ? pose(sx + 0.35, 2.56, 4.9, sx + 0.0, 1.32, 0.8, 58)
       : pose(sx + 1.72, 1.95, 4.5, sx - 0.6, 1.34, 0.7, 50);
   }
 

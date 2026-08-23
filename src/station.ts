@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 import {
-  LetterSpec, PartSpec, LIGHT_Z, TABLE_Z, TABLE_TOP_Y,
+  LetterSpec, PartSpec, RodSpec, LIGHT_Z, TABLE_Z, TABLE_TOP_Y,
   SCREEN_BOTTOM, SCREEN_TOP, SCREEN_HALF_W, SCREEN_CY,
   RAIL_Z_A, RAIL_Z_B, WHEEL_TABLE_RATIO,
 } from './const';
-import { backproject } from './mathProj';
+import { backproject, intersectSegs2D, segCircleParams, rodParamAtScreenL } from './mathProj';
 import { MatLib, makeScaleTexture, makeScreenTexture, rand } from './materials';
 
 export interface StationSounds {
@@ -122,6 +122,8 @@ export class Station {
     this.lensMat = M.lens.clone();
 
     this.spot = new THREE.SpotLight(0xfff2dc, 0);
+    this.spot.angle = 0.25;
+    this.spot.penumbra = 0.32;
     this.buildScreen();
     this.buildTurntable();
     this.buildPedestal();
@@ -149,8 +151,8 @@ export class Station {
         uShadowMatrix: { value: new THREE.Matrix4() },
         uLightPos: { value: new THREE.Vector3() },
         uLightDir: { value: new THREE.Vector3(0, 0, -1) },
-        uCosOuter: { value: Math.cos(0.265) },
-        uCosInner: { value: Math.cos(0.265 * 0.62) },
+        uCosOuter: { value: Math.cos(this.spot.angle) },
+        uCosInner: { value: Math.cos(this.spot.angle * 0.62) },
         uIntensity: { value: 0 },
         uAmbient: { value: 0.045 },
         uTexel: { value: 1 / 2048 },
@@ -241,9 +243,10 @@ export class Station {
     );
     b1.castShadow = b2.castShadow = false;
     g.add(b1, b2);
-    // legs: raked steel tubes to floor plates, anchor bolts
+    // legs: raked steel tubes to floor plates, anchor bolts — raked BEHIND
+    // the screen plane so they never cross the projection light
     for (const sx of [-1, 1]) {
-      const foot = new THREE.Vector3(sx * (w / 2 + 0.28), 0, 0.34);
+      const foot = new THREE.Vector3(sx * (w / 2 + 0.28), 0, -0.36);
       const leg = rodMesh(
         new THREE.Vector3(sx * (w / 2 - 0.02), SCREEN_CY + 0.35, -0.03),
         foot.clone().setY(0.02), 0.021, M.steelPaintedDark, false,
@@ -358,7 +361,7 @@ export class Station {
   private buildPedestal(): void {
     const M = this.M;
     const g = new THREE.Group();
-    const P = new THREE.Vector3(0.62, 0, 4.3);
+    const P = new THREE.Vector3(0.52, 0, 4.18);
 
     // column + flange
     g.add(cyl(0.085, 0.11, 1.24, M.steelPainted, P.x, 0.62, P.z, 16));
@@ -410,7 +413,7 @@ export class Station {
     wg.position.copy(W);
     _q.setFromUnitVectors(new THREE.Vector3(0, 0, 1), wheelDir);
     wg.quaternion.copy(_q);
-    const RIM = 0.215;
+    const RIM = 0.24;
     const rim = new THREE.Mesh(new THREE.TorusGeometry(RIM, 0.02, 12, 40), M.ironRim);
     rim.castShadow = true;
     wg.add(rim);
@@ -624,8 +627,6 @@ export class Station {
 
     // spotlight (the one real shadow light)
     const spot = this.spot;
-    spot.angle = 0.265;
-    spot.penumbra = 0.4;
     spot.decay = 0;
     spot.distance = 0;
     spot.castShadow = true;
@@ -829,18 +830,48 @@ export class Station {
       parts.add(boss);
     }
 
-    // ray-aligned struts: rigid ties invisible in the solved shadow
-    for (const s of spec.struts) {
-      const P1 = backproject(s.screen[0], s.screen[1], s.z1, ly);
-      const P2 = backproject(s.screen[0], s.screen[1], s.z2, ly);
-      const strut = rodMesh(this.toTable(P1), this.toTable(P2), 0.008, M.matteBlack, false);
-      parts.add(strut);
-      for (const e of [P1, P2]) {
-        const kn = new THREE.Mesh(new THREE.SphereGeometry(0.0125, 10, 8), M.steelDark);
-        kn.position.copy(this.toTable(e));
-        kn.castShadow = true;
-        parts.add(kn);
+    // ray-aligned tie struts at stroke crossings, derived from the letter
+    // geometry itself: each strut lies exactly on the light ray through a
+    // crossing, so its solved shadow collapses to a point inside the strokes
+    if (spec.autoStruts) {
+      const addStrut = (sx: number, sy: number, z1: number, z2: number): void => {
+        if (Math.abs(z1 - z2) < 0.04) return;
+        const P1 = backproject(sx, sy, z1, ly);
+        const P2 = backproject(sx, sy, z2, ly);
+        parts.add(rodMesh(this.toTable(P1), this.toTable(P2), 0.008, M.matteBlack, false));
+        for (const e of [P1, P2]) {
+          const kn = new THREE.Mesh(new THREE.SphereGeometry(0.01, 10, 8), M.steelDark);
+          kn.position.copy(this.toTable(e));
+          kn.castShadow = true;
+          parts.add(kn);
+        }
+      };
+      const zOnRod = (idx: number, sx: number, sy: number): number => {
+        const { A, B } = worldPts[idx];
+        const u = rodParamAtScreenL(A, B, sx, sy, ly);
+        return A.z + u * (B.z - A.z);
+      };
+      const rods = spec.parts
+        .map((p, i) => ({ p, i }))
+        .filter((x) => x.p.kind === 'rod') as { p: RodSpec; i: number }[];
+      for (let i = 0; i < rods.length; i++) {
+        for (let j = i + 1; j < rods.length; j++) {
+          const r1 = rods[i].p, r2 = rods[j].p;
+          const hit = intersectSegs2D(r1.a, r1.b, r2.a, r2.b);
+          if (!hit || hit.ta < -0.02 || hit.ta > 1.02 || hit.tb < -0.02 || hit.tb > 1.02) continue;
+          addStrut(hit.s[0], hit.s[1], zOnRod(rods[i].i, hit.s[0], hit.s[1]), zOnRod(rods[j].i, hit.s[0], hit.s[1]));
+        }
       }
+      spec.parts.forEach((rp, ri) => {
+        if (rp.kind !== 'ring') return;
+        for (const rod of rods) {
+          for (const t of segCircleParams(rod.p.a, rod.p.b, rp.center, rp.radius)) {
+            const sx = rod.p.a[0] + t * (rod.p.b[0] - rod.p.a[0]);
+            const sy = rod.p.a[1] + t * (rod.p.b[1] - rod.p.a[1]);
+            addStrut(sx, sy, worldPts[ri].A.z, zOnRod(rod.i, sx, sy));
+          }
+        }
+      });
     }
 
     // engineered braces (shadow hides behind a stroke or leaves the screen)

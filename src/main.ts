@@ -69,7 +69,7 @@ function frame(now: number): void {
   game.update(dt);
   renderer.render(scene, rig.camera);
   frames++;
-  if (frames === 3 && loader) loader.classList.add('hidden');
+  if (frames === 2 && loader) loader.classList.add('hidden');
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

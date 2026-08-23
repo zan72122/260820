@@ -200,8 +200,8 @@ export function makeMaterials(): MatLib {
   return {
     // cast iron: dark, rough, slightly speckled tone
     castIron: new THREE.MeshStandardMaterial({ color: 0x2e2f31, roughness: 0.74, metalness: 0.72 }),
-    // handwheel rim polished by hands
-    ironRim: new THREE.MeshStandardMaterial({ color: 0x4a4c4f, roughness: 0.34, metalness: 0.85 }),
+    // handwheel rim polished by hands — reads bright against the dark table
+    ironRim: new THREE.MeshStandardMaterial({ color: 0x686c71, roughness: 0.28, metalness: 0.85 }),
     // machine-tool grey-green paint
     steelPainted: new THREE.MeshStandardMaterial({ color: 0x6d7269, roughness: 0.52, metalness: 0.12 }),
     steelPaintedDark: new THREE.MeshStandardMaterial({ color: 0x4b5049, roughness: 0.56, metalness: 0.12 }),

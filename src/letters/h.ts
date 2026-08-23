@@ -7,24 +7,25 @@ import { LetterSpec } from '../const';
 // uprights stand parallel. Stage 2: the tall lever frees and the lamp
 // height walks the crossbar into the middle.
 // The crossbar hangs from two vertical columns whose shadows are vertical
-// lines hidden exactly behind the uprights' strokes at every lamp height.
+// lines hidden exactly behind the uprights' strokes at every lamp height,
+// so no automatic tie struts are needed.
 
 export const letterH: LetterSpec = {
   letter: 'H',
   parts: [
-    { kind: 'rod', a: [-0.36, 0.94], za: 2.08, b: [-0.36, 1.86], zb: 2.2, strokeW: 0.085 },
-    { kind: 'rod', a: [0.36, 0.94], za: 2.42, b: [0.36, 1.86], zb: 2.3, strokeW: 0.085 },
-    { kind: 'rod', a: [-0.37, 1.4], za: 3.48, b: [0.37, 1.4], zb: 3.52, strokeW: 0.08 },
+    { kind: 'rod', a: [-0.36, 1.02], za: 2.08, b: [-0.36, 1.86], zb: 2.2, strokeW: 0.085 },
+    { kind: 'rod', a: [0.36, 1.02], za: 2.42, b: [0.36, 1.86], zb: 2.3, strokeW: 0.085 },
+    { kind: 'rod', a: [-0.37, 1.42], za: 3.48, b: [0.37, 1.42], zb: 3.52, strokeW: 0.08 },
   ],
   feet: [
     { part: 0, u: 0 },
     { part: 1, u: 0 },
   ],
-  struts: [],
+  autoStruts: false,
   braces: [
     // crossbar support columns; shadows stay inside the upright strokes
-    { a: [-0.36, 1.4], za: 3.485, b: [-0.36, -0.538], zb: 3.485, r: 0.0065 },
-    { a: [0.36, 1.4], za: 3.515, b: [0.36, -0.538], zb: 3.515, r: 0.0065 },
+    { a: [-0.36, 1.42], za: 3.485, b: [-0.36, -0.555], zb: 3.485, r: 0.0065 },
+    { a: [0.36, 1.42], za: 3.515, b: [0.36, -0.555], zb: 3.515, r: 0.0065 },
   ],
   lightY: 1.42,
   lightY0: 1.66,

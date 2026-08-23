@@ -45,12 +45,6 @@ export interface FootSpec {
   r?: number; // column radius
 }
 
-/** rigid connector aligned with a light ray (invisible in the solved shadow) */
-export interface StrutSpec {
-  screen: [number, number];
-  z1: number;
-  z2: number;
-}
 
 /**
  * support brace expressed like a rod (screen anchor + depth per end) whose
@@ -68,7 +62,8 @@ export interface LetterSpec {
   letter: string;
   parts: PartSpec[];
   feet: FootSpec[];
-  struts: StrutSpec[];
+  /** ray-aligned tie rods at stroke crossings, derived at build time */
+  autoStruts: boolean;
   braces: BraceSpec[];
   lightY: number; // solved lamp height (nominal for fixed-lamp stations)
   lightY0?: number; // starting lamp height (lever stations)
