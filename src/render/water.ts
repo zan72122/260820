@@ -32,7 +32,7 @@ export class WaterRibbon {
     this.tex = makeStripeAlpha();
     this.tex.repeat.set(1, 3);
     this.mat = new THREE.MeshBasicMaterial({
-      color: 0xe6f1f2,
+      color: 0xcfdcda,
       transparent: true,
       opacity: 0,
       alphaMap: this.tex,
@@ -89,7 +89,7 @@ export class WaterRibbon {
 
   update(dt: number, target: number): void {
     this.visibleAmount += (target - this.visibleAmount) * Math.min(1, dt * 4);
-    this.mat.opacity = 0.5 * this.visibleAmount;
+    this.mat.opacity = 0.42 * this.visibleAmount;
     this.tex.offset.y -= dt * 2.6;
   }
 }

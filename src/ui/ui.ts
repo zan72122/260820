@@ -45,9 +45,9 @@ export class Ui {
       <svg viewBox="0 0 100 100" style="width:100%;height:100%">
         <defs>
           <radialGradient id="kcv" cx="38%" cy="34%">
-            <stop offset="0%" stop-color="#aeb6bc"/>
-            <stop offset="70%" stop-color="#7b838a"/>
-            <stop offset="100%" stop-color="#5c636a"/>
+            <stop offset="0%" stop-color="#c8d0d6"/>
+            <stop offset="70%" stop-color="#8d959c"/>
+            <stop offset="100%" stop-color="#666d74"/>
           </radialGradient>
         </defs>
         <rect x="44" y="72" width="12" height="24" rx="2" fill="#6a7178"/>
@@ -143,8 +143,17 @@ export class Ui {
     const gl = getGlyph(left);
     const gr = getGlyph(right);
     const total = (gl.width + gr.width) * 104 + 18;
-    drawGlyph(left, (240 - total) / 2);
-    drawGlyph(right, (240 - total) / 2 + gl.width * 104 + 18);
+    drawGlyph(left, (218 - total) / 2);
+    drawGlyph(right, (218 - total) / 2 + gl.width * 104 + 18);
+    // small chevron so the plate reads as "go on", not as a counter
+    ctx.strokeStyle = 'rgba(232,230,223,0.9)';
+    ctx.lineWidth = 9;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(206, 56);
+    ctx.lineTo(226, 80);
+    ctx.lineTo(206, 104);
+    ctx.stroke();
     this.next.appendChild(c);
     this.next.style.opacity = '1';
     this.next.style.transform = 'translateY(0)';

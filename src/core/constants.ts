@@ -8,8 +8,9 @@ export const LETTER_DEPTH = 0.45;
 export const CAPSULE_R = 0.12;
 /** Safety net rest height (m). */
 export const NET_Y = 0.07;
-/** Water surface height inside the recovery tray (m). */
-export const TRAY_WATER_Y = 0.19;
+/** Water surface height inside the recovery tray (m) — level with the
+ * low observation weir at the tray front. */
+export const TRAY_WATER_Y = 0.165;
 /** Tray rim height (m). */
 export const TRAY_TOP_Y = 0.27;
 /** Height the capsule + water are released from (m). */

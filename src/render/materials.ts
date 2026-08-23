@@ -49,14 +49,30 @@ export function concreteCanvas(seed: number, size = 512): HTMLCanvasElement {
   }
 
   // form panel seams (horizontal) with slight offset — cast in lifts
-  ctx.strokeStyle = 'rgba(90,86,80,0.28)';
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = 'rgba(84,80,74,0.45)';
+  ctx.lineWidth = 2;
   for (let i = 0; i < 3; i++) {
     const y = size * (0.22 + i * 0.3) + rng() * 14;
     ctx.beginPath();
     ctx.moveTo(0, y);
     ctx.lineTo(size, y + rng() * 4 - 2);
     ctx.stroke();
+  }
+  // form-tie holes on a loose grid, patched with mortar rings
+  for (const ty of [0.3, 0.62]) {
+    for (const tx of [0.22, 0.55, 0.86]) {
+      const x = size * tx + rng() * 10 - 5;
+      const y = size * ty + rng() * 10 - 5;
+      ctx.fillStyle = 'rgba(96,92,86,0.55)';
+      ctx.beginPath();
+      ctx.arc(x, y, 4.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(150,146,138,0.5)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(x, y, 6.5, 0, Math.PI * 2);
+      ctx.stroke();
+    }
   }
 
   // aggregate speckle + bug holes
@@ -150,7 +166,7 @@ export function steelCanvas(seed: number, size = 256): HTMLCanvasElement {
 export function woodCanvas(seed: number, size = 256): HTMLCanvasElement {
   const rng = makeRng(seed);
   const [c, ctx] = makeCanvas(size);
-  ctx.fillStyle = '#c9a878';
+  ctx.fillStyle = '#cfa057';
   ctx.fillRect(0, 0, size, size);
   for (let i = 0; i < 26; i++) {
     const y = (i / 26) * size + rng() * 6;
@@ -204,7 +220,7 @@ export function applyWetness(mat: THREE.MeshStandardMaterial): WetUniforms {
         float kcWx = smoothstep(uWetHalf, uWetHalf * 0.3, abs(vKcWorld.x - uWetCenter));
         float kcWy = smoothstep(uWetTopY + 0.3, uWetTopY - 0.4, vKcWorld.y);
         float kcWet = clamp(uWetAmount, 0.0, 1.0) * kcWx * kcWy;
-        diffuseColor.rgb *= mix(1.0, 0.5, kcWet);`,
+        diffuseColor.rgb *= mix(1.0, 0.42, kcWet);`,
       )
       .replace(
         '#include <roughnessmap_fragment>',
@@ -230,9 +246,9 @@ export function makeSteelMaterial(seed: number): THREE.MeshStandardMaterial {
   const map = toTexture(steelCanvas(seed), 1.4);
   return new THREE.MeshStandardMaterial({
     map,
-    color: 0xd9dde0,
-    roughness: 0.52,
-    metalness: 0.82,
+    color: 0xb2bbc3,
+    roughness: 0.46,
+    metalness: 0.85,
   });
 }
 
@@ -282,8 +298,8 @@ export function floorCanvas(seed: number, size = 1024): HTMLCanvasElement {
   }
 
   // expansion joints
-  ctx.strokeStyle = 'rgba(60,58,54,0.5)';
-  ctx.lineWidth = 3;
+  ctx.strokeStyle = 'rgba(70,68,64,0.26)';
+  ctx.lineWidth = 2;
   for (let i = 1; i < 4; i++) {
     ctx.beginPath();
     ctx.moveTo((size * i) / 4 + rng() * 8, 0);
@@ -303,7 +319,7 @@ export function floorCanvas(seed: number, size = 1024): HTMLCanvasElement {
     ctx.lineTo(x, cy + 60 + rng() * 46);
   }
   ctx.closePath();
-  ctx.fillStyle = 'rgba(52,52,50,0.34)';
+  ctx.fillStyle = 'rgba(58,58,56,0.2)';
   ctx.fill();
   ctx.restore();
 

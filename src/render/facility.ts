@@ -132,6 +132,27 @@ export function buildFacility(lowQuality: boolean): Facility {
   beamRail.position.set(0, 2.93, -0.75);
   gantry.add(beamRail);
   group.add(gantry);
+  // soft contact blobs under the gantry columns (grounding that does not
+  // depend on the shadow-map path)
+  const blobCanvas = document.createElement('canvas');
+  blobCanvas.width = 64;
+  blobCanvas.height = 64;
+  const bctx = blobCanvas.getContext('2d')!;
+  const bg = bctx.createRadialGradient(32, 32, 2, 32, 32, 31);
+  bg.addColorStop(0, 'rgba(0,0,0,0.8)');
+  bg.addColorStop(1, 'rgba(0,0,0,0)');
+  bctx.fillStyle = bg;
+  bctx.fillRect(0, 0, 64, 64);
+  const blobTexF = new THREE.CanvasTexture(blobCanvas);
+  for (const xx of [-3.4, 3.4]) {
+    const b = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.7, 0.7),
+      new THREE.MeshBasicMaterial({ map: blobTexF, transparent: true, opacity: 0.45, depthWrite: false, color: 0x14161a }),
+    );
+    b.rotation.x = -Math.PI / 2;
+    b.position.set(xx, 0.012, -0.75);
+    group.add(b);
+  }
 
   // traveling chute trolley: rollers + arm reaching over the gap + hopper
   const chute = new THREE.Group();
@@ -167,7 +188,7 @@ export function buildFacility(lowQuality: boolean): Facility {
   const back = new THREE.Group();
   const houseMat = makeConcreteMaterial(300, 0.25);
   const house = new THREE.Mesh(new THREE.BoxGeometry(5.4, 2.7, 3.2), houseMat);
-  house.position.set(-6.3, 1.35, -8.6);
+  house.position.set(-8.1, 1.35, -8.6);
   house.castShadow = true;
   house.receiveShadow = true;
   back.add(house);
@@ -175,10 +196,10 @@ export function buildFacility(lowQuality: boolean): Facility {
     new THREE.PlaneGeometry(1.9, 2.2),
     new THREE.MeshStandardMaterial({ color: 0x7c8288, roughness: 0.6, metalness: 0.5 }),
   );
-  door.position.set(-5.7, 1.1, -6.98);
+  door.position.set(-7.5, 1.1, -6.98);
   back.add(door);
   const roofEdge = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.18, 3.4), new THREE.MeshStandardMaterial({ color: 0x63676b, roughness: 0.8 }));
-  roofEdge.position.set(-6.3, 2.76, -8.6);
+  roofEdge.position.set(-8.1, 2.76, -8.6);
   back.add(roofEdge);
 
   // supply pipes running from the pump house along the back
@@ -204,21 +225,21 @@ export function buildFacility(lowQuality: boolean): Facility {
 
   // service walkway with railing behind the rails
   const walk = new THREE.Mesh(new THREE.BoxGeometry(12, 0.12, 1.1), concrete);
-  walk.position.set(0, 0.06, -2.5);
+  walk.position.set(0, 0.06, -4.3);
   walk.receiveShadow = true;
   back.add(walk);
   const railPostGeo = new THREE.CylinderGeometry(0.022, 0.022, 1.0, 8);
   const nPosts = 12;
   const posts = new THREE.InstancedMesh(railPostGeo, steel, nPosts);
   for (let i = 0; i < nPosts; i++) {
-    m4.makeTranslation(-5.5 + i * 1.0, 0.62, -3.0);
+    m4.makeTranslation(-5.5 + i * 1.0, 0.55, -4.8);
     posts.setMatrixAt(i, m4);
   }
   posts.castShadow = true;
   back.add(posts);
-  for (const hy of [1.1, 0.75]) {
+  for (const hy of [0.98, 0.64]) {
     const r = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 11.4, 8).rotateZ(Math.PI / 2), steel);
-    r.position.set(0, hy, -3.0);
+    r.position.set(0, hy, -4.8);
     back.add(r);
   }
   group.add(back);

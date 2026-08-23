@@ -92,7 +92,7 @@ export class Game {
         new THREE.MeshBasicMaterial({
           map: this.blobTex,
           transparent: true,
-          opacity: 0.32,
+          opacity: 0.5,
           depthWrite: false,
           color: 0x14161a,
         }),
@@ -189,7 +189,7 @@ export class Game {
     this.pairIndex = index;
     const pair = this.pair;
     this.leftRig = buildLetter(pair.left, 11 + index * 17);
-    this.rightRig = buildLetter(pair.right, 29 + index * 23);
+    this.rightRig = buildLetter(pair.right, 29 + index * 23, true);
     this.scene.add(this.leftRig.group);
     this.scene.add(this.rightRig.group);
     this.leftRig.group.position.x = pair.leftX;
@@ -315,7 +315,7 @@ export class Game {
       this.cleared[this.pair.id] = true;
       this.audio.splash();
       const cx = this.trayCenterX();
-      this.foam.burst(cx, TRAY_WATER_Y + 0.06, 0.1, 18, 1.4);
+      this.foam.burst(cx, TRAY_WATER_Y + 0.08, 0.1, 30, 1.9);
       if (this.tray) this.tray.water.scale.set(1.06, 1.06, 1);
     } else if (outcome === 'fell') {
       this.audio.thud();
@@ -647,10 +647,11 @@ export class Game {
       // settle into the tray water and bob
       const cx = this.trayCenterX();
       b.x = damp(b.x, cx, 6, dt);
-      b.y = damp(b.y, TRAY_WATER_Y + CAPSULE_R * 0.55 + Math.sin(this.phaseT * 2.2) * 0.008, 6, dt);
+      b.y = damp(b.y, TRAY_WATER_Y + CAPSULE_R * 0.7 + Math.sin(this.phaseT * 2.1) * 0.02, 6, dt);
       b.vx = 0;
       b.vy = 0;
-      this.capsuleVis.group.position.set(b.x, b.y, 0);
+      this.capsuleVis.group.position.set(b.x, b.y, 0.06);
+      this.capsuleVis.group.rotation.z += dt * 0.7;
       return;
     }
     this.capsuleVis.syncFromBody(b, dt);
@@ -677,7 +678,10 @@ export class Game {
       target = 0.4;
     }
     if (target > 0.01) {
-      this.water.setPath(this.computeWaterPath(), 0.06, 0.11);
+      const path = this.computeWaterPath();
+      this.water.setPath(path, 0.06, 0.11);
+      const end = path[path.length - 1];
+      if (end && this.waterOn) this.foam.burst(end.x, end.y + 0.03, 0.06, 2, 0.7);
       // wet the channel walls while water runs
       if (this.leftRig && this.rightRig && this.waterOn) {
         for (const rig of [this.leftRig, this.rightRig]) {
@@ -729,7 +733,6 @@ export class Game {
     }
     const endY = Math.abs(x - this.trayCenterX()) < p.trayHalf ? TRAY_WATER_Y : NET_Y;
     for (let y = BASE_Y + EM * 0.02; y > endY; y -= 0.12) path.push({ x, y });
-    this.foam.burst(x + (Math.sin(this.phaseT * 9) * 0.03), endY + 0.03, 0.05, 1, 0.5);
     return path;
   }
 
@@ -751,7 +754,7 @@ export class Game {
     b2.position.x = gapC;
     const closeness = 1 - smoothstep(0.35, 0.95, this.clearance);
     b2.scale.set(Math.max(0.001, (this.clearance + 0.5) * 1.4), 0.95, 1);
-    (b2.material as THREE.MeshBasicMaterial).opacity = 0.3 * closeness;
+    (b2.material as THREE.MeshBasicMaterial).opacity = 0.42 * closeness;
   }
 
   private updateChute(dt: number): void {

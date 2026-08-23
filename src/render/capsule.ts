@@ -17,7 +17,9 @@ export class CapsuleVisual {
   constructor() {
     this.group = new THREE.Group();
     const wood = makeWoodMaterial(31);
-    this.ball = new THREE.Mesh(new THREE.SphereGeometry(CAPSULE_R, 26, 18), wood);
+    // rendered a touch larger than the physics circle so it stays salient
+    // against the big letters; the 1 cm visual overlap is imperceptible
+    this.ball = new THREE.Mesh(new THREE.SphereGeometry(CAPSULE_R * 1.09, 26, 18), wood);
     this.ball.castShadow = true;
     this.group.add(this.ball);
     const rubber = makeRubberMaterial();

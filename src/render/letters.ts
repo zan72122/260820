@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { getGlyph } from '../core/glyphs';
+import { getGlyph, scanline } from '../core/glyphs';
 import { EM, BASE_Y, LETTER_DEPTH, TRAY_TOP_Y, TRAY_WATER_Y } from '../core/constants';
 import {
   makeConcreteMaterial,
@@ -26,7 +26,7 @@ export interface LetterRig {
  * The glyph contour drives the extrusion; chamfer is kept to 12 mm so the
  * silhouette stays faithful to the typeface.
  */
-export function buildLetter(glyphName: string, seed: number): LetterRig {
+export function buildLetter(glyphName: string, seed: number, movable = false): LetterRig {
   const glyph = getGlyph(glyphName);
   const rng = makeRng(seed);
   const group = new THREE.Group();
@@ -68,15 +68,27 @@ export function buildLetter(glyphName: string, seed: number): LetterRig {
   const steel = makeSteelMaterial(seed + 3);
   const rubber = makeRubberMaterial();
 
-  // lifting anchor sockets left in the face (patched but visible)
+  // lifting anchor sockets left in the face (patched but visible).
+  // Placed only where the glyph is actually solid — sampled via scanline.
   const socketGeo = new THREE.CylinderGeometry(0.028, 0.028, 0.015, 12);
   const socketMat = new THREE.MeshStandardMaterial({ color: 0x6e6a63, roughness: 0.8, metalness: 0.25 });
   const w = glyph.width * EM;
-  for (let i = 0; i < 2; i++) {
+  let placed = 0;
+  for (let attempt = 0; attempt < 10 && placed < 2; attempt++) {
+    const ey = 0.35 + rng() * 0.5;
+    const span = scanline(glyph, ey);
+    if (!span) continue;
+    const [minX, maxX] = span;
+    if (maxX - minX < 0.1) continue;
+    const ex = minX + 0.3 * (maxX - minX) + rng() * 0.4 * (maxX - minX);
+    // require solid material around the socket, not just a crossing
+    const span2 = scanline(glyph, ey + 0.03);
+    if (!span2 || ex < span2[0] + 0.03 || ex > span2[1] - 0.03) continue;
     const s = new THREE.Mesh(socketGeo, socketMat);
     s.rotation.x = Math.PI / 2;
-    s.position.set(w * (0.3 + 0.4 * i) + (rng() - 0.5) * 0.1, BASE_Y + EM * (0.72 + rng() * 0.16), LETTER_DEPTH / 2 + 0.002);
+    s.position.set(ex * EM, BASE_Y + ey * EM, LETTER_DEPTH / 2 + 0.002);
     group.add(s);
+    placed++;
   }
 
   // ---- transfer bogie -------------------------------------------------
@@ -114,18 +126,21 @@ export function buildLetter(glyphName: string, seed: number): LetterRig {
     }
   }
 
-  // grout pads clamping the letter to the frame
-  const padGeo = new THREE.BoxGeometry(0.11, 0.06, 0.1);
+  // grout pads clamping the letter to the frame — small, so they never
+  // swallow a letter's foot silhouette
+  const padGeo = new THREE.BoxGeometry(0.07, 0.035, 0.06);
   const padMat = new THREE.MeshStandardMaterial({ color: 0x8f8b84, roughness: 0.9 });
-  for (const xx of [w * 0.2, w * 0.8]) {
-    for (const zz of [-LETTER_DEPTH / 2 - 0.01, LETTER_DEPTH / 2 + 0.01]) {
+  for (const xx of [w * 0.18, w * 0.82]) {
+    for (const zz of [-LETTER_DEPTH / 2 - 0.02, LETTER_DEPTH / 2 + 0.02]) {
       const p = new THREE.Mesh(padGeo, padMat);
-      p.position.set(xx, BASE_Y - 0.01, zz);
+      p.position.set(xx, BASE_Y + 0.005, zz);
       bogie.add(p);
     }
   }
 
-  // push handle on the bogie front — the drag affordance
+  // push handle on the bogie front — the drag affordance. Only the movable
+  // letter's handling points wear the yard's worn safety-yellow paint, so
+  // "grab this one" reads without any UI.
   const handle = new THREE.Group();
   const barMat = makeWornSteelMaterial(seed + 21);
   const post = new THREE.CylinderGeometry(0.02, 0.02, 0.26, 10);
@@ -139,7 +154,10 @@ export function buildLetter(glyphName: string, seed: number): LetterRig {
   const bar = new THREE.Mesh(barGeo, barMat);
   bar.position.y = 0.27;
   handle.add(bar);
-  const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.3, 12).rotateZ(Math.PI / 2), rubber);
+  const gripMat = movable
+    ? new THREE.MeshStandardMaterial({ color: 0xc9a227, roughness: 0.62, metalness: 0.12 })
+    : rubber;
+  const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.034, 0.3, 12).rotateZ(Math.PI / 2), gripMat);
   grip.position.y = 0.27;
   handle.add(grip);
   handle.position.set(w / 2, BASE_Y - 0.16, LETTER_DEPTH / 2 + 0.24);
@@ -147,6 +165,18 @@ export function buildLetter(glyphName: string, seed: number): LetterRig {
     m.castShadow = true;
   });
   bogie.add(handle);
+  if (movable) {
+    // chipped yellow marking band on the bogie frame edge
+    const bandMat = new THREE.MeshStandardMaterial({ color: 0xb8942e, roughness: 0.78, metalness: 0.05 });
+    const band = new THREE.Mesh(new THREE.BoxGeometry(bw + 0.006, 0.035, 0.02), bandMat);
+    band.position.set(w / 2, BASE_Y - 0.05, (LETTER_DEPTH + 0.28) / 2 + 0.002);
+    bogie.add(band);
+    for (const xx of [-bw / 2 + 0.07, bw / 2 - 0.07]) {
+      const corner = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, 0.02), bandMat);
+      corner.position.set(w / 2 + xx, BASE_Y - 0.09, (LETTER_DEPTH + 0.28) / 2 + 0.002);
+      bogie.add(corner);
+    }
+  }
   // generous invisible hit pad around the handle
   const hitPad = new THREE.Mesh(
     new THREE.BoxGeometry(0.8, 0.55, 0.5),
@@ -186,14 +216,16 @@ export function buildTray(halfWidth: number, seed: number): TrayRig {
   bottom.castShadow = true;
   bottom.receiveShadow = true;
   group.add(bottom);
-  for (const [dx, dz, ww, dd] of [
-    [-W / 2 + wallT / 2, 0, wallT, D],
-    [W / 2 - wallT / 2, 0, wallT, D],
-    [0, -D / 2 + wallT / 2, W, wallT],
-    [0, D / 2 - wallT / 2, W, wallT],
+  for (const [dx, dz, ww, dd, hh] of [
+    [-W / 2 + wallT / 2, 0, wallT, D, H],
+    [W / 2 - wallT / 2, 0, wallT, D, H],
+    [0, -D / 2 + wallT / 2, W, wallT, H],
+    // observation weir: the front wall is low so the recovered capsule is
+    // visible bobbing in the water from the play camera
+    [0, D / 2 - wallT / 2, W, wallT, 0.07],
   ] as const) {
-    const wall = new THREE.Mesh(new THREE.BoxGeometry(ww, H, dd), steel);
-    wall.position.set(dx, 0.1 + H / 2, dz);
+    const wall = new THREE.Mesh(new THREE.BoxGeometry(ww, hh, dd), steel);
+    wall.position.set(dx, 0.1 + hh / 2, dz);
     wall.castShadow = true;
     wall.receiveShadow = true;
     group.add(wall);
