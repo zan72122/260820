@@ -53,12 +53,40 @@ export class Bridge {
   railProgress = [0, 0];
   private railColors: number[][] = [[], []];
 
-  constructor(private scene: THREE.Scene, near: THREE.Vector3, far: THREE.Vector3, private rng: () => number) {
+  private tiesBuilt = false;
+
+  constructor(
+    private scene: THREE.Scene,
+    near: THREE.Vector3,
+    far: THREE.Vector3,
+    private rng: () => number,
+    /** the actual rock anchors the thread is tied off to (for visible load path) */
+    private tieRocks?: { near: THREE.Vector3; far: THREE.Vector3 }
+  ) {
     this.near = near.clone();
     this.far = far.clone();
     this.span = near.distanceTo(far);
     const dir = far.clone().sub(near); dir.y = 0; dir.normalize();
     this.side = new THREE.Vector3().crossVectors(dir, new THREE.Vector3(0, 1, 0)).normalize();
+  }
+
+  /** Short tie-off strands: bridge end → anchor stone. The load path made visible. */
+  private buildTies(): void {
+    if (this.tiesBuilt || !this.tieRocks) return;
+    this.tiesBuilt = true;
+    const mk = (a: THREE.Vector3, b: THREE.Vector3, colorIdx: number) => {
+      for (let k = 0; k < 3; k++) {
+        const jitter = new THREE.Vector3((this.rng() - 0.5) * 0.08, (this.rng() - 0.5) * 0.05, (this.rng() - 0.5) * 0.08);
+        const pts = sagCurve(a.clone().add(jitter), b, 0.03, 8);
+        const geo = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 10, 0.005, 5);
+        const mat = makeThreadMaterial(THREAD_COLORS[(colorIdx + k) % 3].color, { opacity: 0.9 });
+        const m = new THREE.Mesh(geo, mat);
+        m.frustumCulled = false;
+        this.scene.add(m);
+      }
+    };
+    mk(this.near, this.tieRocks.near, 0);
+    mk(this.far, this.tieRocks.far, 1);
   }
 
   get linesDone(): boolean {
@@ -141,7 +169,10 @@ export class Bridge {
     }
     line.progress = clamp(line.progress + dProgress, 0, 1);
     const locked = line.progress >= 1;
-    if (locked && !line.locked) line.locked = true;
+    if (locked && !line.locked) {
+      line.locked = true;
+      this.buildTies();
+    }
     this.rebuildLine(line);
     return locked;
   }

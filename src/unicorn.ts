@@ -119,7 +119,7 @@ export class Unicorn {
   private buildBody(): void {
     const tex = dappleTexture();
     this.coatMat = new THREE.MeshStandardMaterial({
-      map: tex, color: 0xcfcbc2, roughness: 0.62, metalness: 0.0, envMapIntensity: 0.45
+      map: tex, color: 0xbab5ab, roughness: 0.68, metalness: 0.0, envMapIntensity: 0.4
     });
     const darkMat = new THREE.MeshStandardMaterial({ color: 0x55504b, roughness: 0.5, envMapIntensity: 0.4 });
     const hoofMat = new THREE.MeshStandardMaterial({ color: 0x3b3733, roughness: 0.35, envMapIntensity: 0.7 });
@@ -184,8 +184,9 @@ export class Unicorn {
     // eyes: dark, on the sides (horse anatomy), with a wet catchlight from env
     const eyeMat = new THREE.MeshStandardMaterial({ color: 0x1c1a18, roughness: 0.08, envMapIntensity: 1.6 });
     for (const s of [-1, 1]) {
-      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.026, 10, 8), eyeMat);
-      eye.position.set(0.082 * s, 0.045, -0.075);
+      const eye = new THREE.Mesh(new THREE.SphereGeometry(0.023, 10, 8), eyeMat);
+      eye.position.set(0.072 * s, 0.012, -0.095);
+      eye.scale.set(0.55, 1, 1);
       this.head.add(eye);
     }
 

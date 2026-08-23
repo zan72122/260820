@@ -119,10 +119,31 @@ function buildSky(scene: THREE.Scene): { sun: THREE.DirectionalLight; sunDir: TH
   scene.add(sun.target);
   sun.target.position.set(0, 0.5, 0);
 
-  const hemi = new THREE.HemisphereLight(0xbfd0e2, 0x4c5648, 0.85);
+  const hemi = new THREE.HemisphereLight(0xbfd0e2, 0x55604f, 1.1);
   scene.add(hemi);
 
   const sunDir = sun.position.clone().sub(sun.target.position).normalize();
+
+  // visible cloud-break glow, guaranteed to sit where the light comes from
+  const glowTex = (() => {
+    const c = document.createElement('canvas'); c.width = 256; c.height = 256;
+    const g = c.getContext('2d')!;
+    const gr = g.createRadialGradient(128, 128, 8, 128, 128, 126);
+    gr.addColorStop(0, 'rgba(255,248,225,0.95)');
+    gr.addColorStop(0.25, 'rgba(255,242,205,0.5)');
+    gr.addColorStop(0.6, 'rgba(250,242,222,0.16)');
+    gr.addColorStop(1, 'rgba(250,242,222,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
+  })();
+  const glow = new THREE.Sprite(new THREE.SpriteMaterial({
+    map: glowTex, transparent: true, opacity: 0.9, depthWrite: false, fog: false
+  }));
+  glow.position.copy(sunDir).multiplyScalar(75);
+  glow.position.y = Math.max(glow.position.y, 26);
+  glow.scale.set(55, 55, 1);
+  scene.add(glow);
+
   return { sun, sunDir };
 }
 
@@ -153,8 +174,9 @@ function buildTerrain(scene: THREE.Scene): void {
     c.lerp(cMud, smoothstep(0.65, 0.95, wet) * 0.4);                    // muddy hollows
     const rockCol = cRock.clone().lerp(cRockWet, wet);
     c.lerp(rockCol, rockness);
-    // darken toward crevasse floor
-    c.multiplyScalar(1 - smoothstep(0.9, 2.0, depth) * 0.45);
+    // darken toward crevasse floor (kept readable — no black pit)
+    c.multiplyScalar(1 - smoothstep(0.9, 2.2, depth) * 0.22);
+    c.lerp(new THREE.Color(0x6c675e), smoothstep(0.4, 1.6, depth) * 0.35);
     colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b;
   }
   geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
@@ -224,7 +246,7 @@ function buildAnchors(scene: THREE.Scene): {
   nearAnchor: WorldRefs['nearAnchor']; farAnchor: WorldRefs['farAnchor'];
 } {
   // near anchor: a split standing stone right at the rim — the crack is the groove
-  const nx = 1.35, nz = -1.62;
+  const nx = 1.62, nz = -1.62;
   const ny = groundHeight(nx, nz);
   const g1 = distortedRock(0.42, 3.7, 0.75);
   g1.scale.set(0.75, 1.55, 0.8);
@@ -263,10 +285,10 @@ function buildAnchors(scene: THREE.Scene): {
 function buildGrass(scene: THREE.Scene): WorldRefs['grassUniforms'] {
   const uniforms = { uTime: { value: 0 }, uGust: { value: 0 } };
 
-  const blade = new THREE.PlaneGeometry(0.035, 1, 1, 3);
+  const blade = new THREE.PlaneGeometry(0.024, 1, 1, 3);
   blade.translate(0, 0.5, 0);
   const mat = new THREE.MeshStandardMaterial({
-    color: 0x4d6342, roughness: 0.55, metalness: 0, side: THREE.DoubleSide, envMapIntensity: 0.5
+    color: 0x46543a, roughness: 0.5, metalness: 0, side: THREE.DoubleSide, envMapIntensity: 0.55
   });
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uTime = uniforms.uTime;
@@ -285,18 +307,20 @@ function buildGrass(scene: THREE.Scene): WorldRefs['grassUniforms'] {
         transformed.x += h * h * (lean * 0.35 + sway);
         transformed.z += h * h * (lean * 0.22 * cos(phase));
         transformed.y -= h * h * lean * 0.25;
+        vGrassTint = 0.78 + 0.3 * sin(phase * 4.7) * sin(phase * 1.3);
       }`
     );
-    // darker base, lighter wet-sheen tips
+    // darker base, lighter wet-sheen tips, per-clump tint variation
     sh.fragmentShader = sh.fragmentShader.replace(
       '#include <color_fragment>',
       `#include <color_fragment>
-       diffuseColor.rgb *= 0.55 + 0.65 * vGrassH;`
+       diffuseColor.rgb *= (0.5 + 0.7 * vGrassH) * vGrassTint;
+       diffuseColor.g *= 0.94 + 0.12 * vGrassTint;`
     );
     sh.vertexShader = sh.vertexShader.replace(
-      '#include <common>', '#include <common>\nvarying float vGrassH;'
-    ).replace('#include <begin_vertex>', 'vGrassH = position.y;\n#include <begin_vertex>');
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vGrassH;');
+      '#include <common>', '#include <common>\nvarying float vGrassH;\nvarying float vGrassTint;'
+    ).replace('#include <begin_vertex>', 'vGrassH = position.y;\nvGrassTint = 1.0;\n#include <begin_vertex>');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying float vGrassH;\nvarying float vGrassTint;');
   };
 
   const COUNT = 5200;
@@ -446,23 +470,32 @@ function buildFarSide(scene: THREE.Scene): void {
   trunks.count = n; crowns.count = n;
   scene.add(trunks, crowns);
 
-  // mountain ridges: flat silhouettes fading into aerial haze
-  const ridge = (dist: number, h: number, col: number, op: number) => {
-    const shape = new THREE.Shape();
-    shape.moveTo(-70, -6);
-    for (let x = -70; x <= 70; x += 4) {
-      shape.lineTo(x, h * (0.4 + fbm(x * 0.03 + dist, dist, 3)));
+  // mountain ridges: silhouettes on a wide arc so no flat plane edge ever shows
+  const ridge = (radius: number, h: number, col: number, op: number, seed: number) => {
+    const N = 72;
+    const positions: number[] = [];
+    const index: number[] = [];
+    for (let i = 0; i <= N; i++) {
+      const a = Math.PI * (0.02 + 0.96 * (i / N)) + Math.PI; // arc across the whole -Z half
+      const x = Math.cos(a) * radius;
+      const z = Math.sin(a) * radius;
+      const top = h * (0.35 + fbm(i * 0.18 + seed, seed, 3));
+      positions.push(x, -8, z, x, top, z);
+      if (i < N) {
+        const b = i * 2;
+        index.push(b, b + 1, b + 2, b + 1, b + 3, b + 2);
+      }
     }
-    shape.lineTo(70, -6);
-    const g = new THREE.ShapeGeometry(shape);
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+    g.setIndex(index);
     const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({
-      color: col, transparent: true, opacity: op, fog: false, depthWrite: false
+      color: col, transparent: true, opacity: op, fog: false, depthWrite: false, side: THREE.DoubleSide
     }));
-    m.position.set(0, 0, -dist);
     return m;
   };
-  scene.add(ridge(58, 11, 0x8494a8, 0.9));
-  scene.add(ridge(48, 8, 0x76879c, 0.85));
+  scene.add(ridge(72, 12, 0x8494a8, 0.9, 3.1));
+  scene.add(ridge(60, 8, 0x76879c, 0.85, 9.4));
 
   // drifting mist in the crevasse and along the far rim
   const mistTex = (() => {

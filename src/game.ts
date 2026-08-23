@@ -112,7 +112,13 @@ export class Game {
     this.spool = new HornSpool(this.unicorn.hornSpec);
     this.liveThread = new ActiveThread(scene);
     this.anchorThread = new ActiveThread(scene);
-    this.bridge = new Bridge(scene, this.world.nearAnchor.groove, this.world.farAnchor.pos, this.rng);
+    // bridge ends sit at the rim, clear of the stones; short ties carry the
+    // load into the rock anchors so the force path stays readable
+    const bNear = this.world.nearAnchor.groove.clone().add(new THREE.Vector3(-0.45, -0.28, -0.55));
+    const bFar = this.world.farAnchor.pos.clone().add(new THREE.Vector3(0.15, -0.35, 0.45));
+    this.bridge = new Bridge(scene, bNear, bFar, this.rng, {
+      near: this.world.nearAnchor.groove, far: this.world.farAnchor.pos
+    });
 
     this.unicorn.onFootfall = (pos, soft) => {
       const deck = this.bridge.deckInfo(pos.x, pos.z);
@@ -273,6 +279,18 @@ export class Game {
       // guide the horn tip with the finger
       const p = this.aimPoint(x, y, 2.8);
       if (p) {
+        // magnet: droplets sit at slightly different depths than the aim
+        // plane, so pull the target onto the nearest fibre end
+        const tipV = new THREE.Vector3();
+        let magnet: THREE.Vector3 | null = null;
+        let bestD = 0.5;
+        for (const d of this.droplets.list) {
+          if (d.dead || d.turnsLeft <= 0.05) continue;
+          d.tipWorld(tipV);
+          const dist = Math.hypot(tipV.x - p.x, tipV.y - p.y);
+          if (dist < bestD) { bestD = dist; magnet = tipV.clone(); }
+        }
+        if (magnet) p.copy(magnet);
         this.unicorn.setAimTarget(p);
         this.aimHold = 0.8;
         // does the fibre catch on the horn tip?
@@ -308,11 +326,10 @@ export class Game {
 
     const turns = Math.abs(dTheta) / (Math.PI * 2) * WIND_RATIO;
     if (dir === this.windSign) {
-      const avail = Math.min(turns, this.hooked.turnsLeft);
-      let wound = this.spool.rewindLoose(avail, this.gestureSpeed);
-      if (wound < avail) {
-        wound += this.spool.wind(avail - wound, this.gestureSpeed);
-      }
+      // a dangling loop rewinds first (it came off the horn, not the drop)
+      let rem = turns - this.spool.rewindLoose(turns, this.gestureSpeed);
+      const avail = Math.min(rem, this.hooked.turnsLeft);
+      const wound = this.spool.wind(avail, this.gestureSpeed);
       if (wound > 0) {
         this.hooked.turnsLeft -= wound;
         this.pingProgress(wound);
@@ -517,10 +534,10 @@ export class Game {
   private beginTest(): void {
     this.enter('TESTING');
     const start = this.bridge.centerAt(0);
-    const stand = new THREE.Vector3(start.x - 0.1, 0, start.z + 1.15);
+    const stand = new THREE.Vector3(start.x - 0.38, 0, start.z + 0.6);
     this.unicorn.setAimTarget(null);
     this.unicorn.walkTo([stand], () => {
-      this.unicorn.faceToward(this.bridge.centerAt(0.5));
+      this.unicorn.faceToward(this.bridge.centerAt(0.35));
       this.unicorn.startTestHoof(
         (load, hx, hz) => {
           const info = this.bridge.deckInfo(hx, hz) ?? { s: 0.06, y: 0 };
@@ -548,7 +565,7 @@ export class Game {
     this.unicorn.setGroundFn(this.groundWithDeck);
     const pts: THREE.Vector3[] = [];
     const start = this.bridge.centerAt(0);
-    pts.push(new THREE.Vector3(start.x, 0, start.z + 0.7));
+    pts.push(new THREE.Vector3(start.x - 0.3, 0, start.z + 0.55));
     for (let s = 0.12; s <= 1; s += 0.22) {
       const c = this.bridge.centerAt(s);
       pts.push(new THREE.Vector3(c.x, 0, c.z));
@@ -684,66 +701,76 @@ export class Game {
     const u = this.unicorn.position;
     const head = this.unicorn.headWorld(new THREE.Vector3());
     const groove = this.world.nearAnchor.groove;
+    const yaw = this.unicorn.yaw;
+    const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+    const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
     const P = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z);
+    const off = (base: THREE.Vector3, r: number, f: number, up: number) =>
+      base.clone().addScaledVector(right, r).addScaledVector(fwd, f).add(new THREE.Vector3(0, up, 0));
     let pos: THREE.Vector3, look: THREE.Vector3, fov = portrait ? 56 : 46, rate = 1.6;
 
     switch (this.state) {
       case 'INTRO':
       case 'DISCOVER':
-        if (portrait) { pos = P(u.x + 1.9, 1.75, u.z + 3.4); look = P(0, 0.9, -3.5); fov = 60; }
-        else { pos = P(u.x + 2.8, 1.6, u.z + 3.1); look = P(-0.2, 0.8, -3); }
+        // wide 3/4: unicorn, crevasse, and the far meadow in one view
+        if (portrait) { pos = P(u.x + 2.1, 1.7, u.z + 2.9); look = P(u.x - 0.9, 0.55, u.z - 3.4); fov = 62; }
+        else { pos = P(u.x + 2.7, 1.5, u.z + 2.5); look = P(u.x - 1.0, 0.6, u.z - 3.2); }
         if (this.state === 'DISCOVER' && (this.pointerDown || this.aimHold > 0)) {
           // lean toward the horn as the child reaches out
-          pos = pos.lerp(P(head.x + 1.0, head.y + 0.25, head.z + 1.5), 0.5);
-          look = look.lerp(head, 0.6);
+          pos = pos.lerp(off(head, 1.1, 0.7, 0.15), 0.55);
+          look = look.lerp(off(head, 0, 0.2, 0.1), 0.65);
         }
         break;
       case 'FIRSTWIND': {
-        // close on the horn: its axis crosses the frame diagonally
-        pos = portrait ? P(head.x + 0.85, head.y + 0.18, head.z + 1.05)
-          : P(head.x + 1.0, head.y + 0.3, head.z + 1.1);
-        look = P(head.x - 0.15, head.y + 0.22, head.z - 0.4);
-        fov = portrait ? 50 : 42;
+        // close side-on: horn axis crossing the frame diagonally, droplet below
+        pos = off(head, portrait ? 0.8 : 0.95, 0.62, 0.1);
+        look = off(head, -0.08, 0.12, 0.16);
+        fov = portrait ? 52 : 44;
         rate = 2.2;
         break;
       }
       case 'COLLECT':
-        pos = portrait ? P(head.x + 1.15, head.y + 0.35, head.z + 1.6)
-          : P(head.x + 1.5, head.y + 0.45, head.z + 1.7);
-        look = P(head.x - 0.2, head.y + 0.05, head.z - 0.6);
-        fov = portrait ? 54 : 46;
+        pos = off(head, portrait ? 1.15 : 1.4, 0.85, 0.3);
+        look = off(head, -0.1, 0.1, 0.05);
+        fov = portrait ? 55 : 46;
         break;
       case 'GOANCHOR':
       case 'ANCHORED':
-        pos = portrait ? P(groove.x + 1.5, groove.y + 0.7, groove.z + 2.6)
-          : P(groove.x + 2.1, groove.y + 0.8, groove.z + 2.4);
-        look = P(groove.x - 0.2, groove.y, groove.z - 0.6);
+        // stone, groove and her head together
+        pos = portrait ? P(groove.x + 1.6, groove.y + 0.55, groove.z + 2.3)
+          : P(groove.x + 2.0, groove.y + 0.65, groove.z + 2.1);
+        look = P(groove.x - 0.35, groove.y - 0.1, groove.z + 0.15);
+        fov = portrait ? 54 : 46;
         break;
       case 'SPAN':
         if (portrait) {
           // near-bottom → far-top depth composition down the span
-          pos = P(groove.x + 1.35, groove.y + 0.85, groove.z + 2.0);
-          look = P(this.world.farAnchor.pos.x, this.world.farAnchor.pos.y - 0.4, this.world.farAnchor.pos.z);
-          fov = 62;
+          pos = P(groove.x + 0.85, groove.y + 1.65, groove.z + 3.6);
+          look = this.bridge.centerAt(0.35); look.y += 0.1;
+          fov = 63;
         } else {
-          pos = P(-3.6, 1.9, -1.2);
-          look = P(0.9, 0.35, -4.6);
+          pos = P(-3.4, groove.y + 1.4, -0.4);
+          look = this.bridge.centerAt(0.5);
         }
         break;
       case 'WEAVE':
       case 'CLOSE': {
-        const mid = this.bridge.centerAt(0.4);
-        pos = portrait ? P(mid.x + 1.7, mid.y + 1.15, mid.z + 2.6) : P(mid.x + 2.5, mid.y + 1.2, mid.z + 2.2);
-        look = P(mid.x, mid.y, mid.z - 0.4);
+        // keep the near anchor in frame so cause (unwinding horn) and effect
+        // (growing weave) share the shot
+        const a0 = this.bridge.centerAt(0.05);
+        pos = portrait ? P(a0.x + 1.9, a0.y + 1.15, a0.z + 2.4) : P(a0.x + 2.4, a0.y + 1.2, a0.z + 2.0);
+        look = this.bridge.centerAt(0.42);
         break;
       }
       case 'TEST':
       case 'TESTING': {
-        // low: forehoof, deck and support lines in one view
-        const a = this.bridge.centerAt(0.08);
-        pos = P(a.x + (portrait ? 1.3 : 1.8), a.y + 0.35, a.z + 1.5);
-        look = P(a.x - 0.3, a.y - 0.05, a.z - 0.9);
-        fov = portrait ? 58 : 48;
+        // low lateral: forehoof, deck edge and support lines in one view
+        // from over the gap looking back: forehoof, deck and lines converge on her
+        const a = this.bridge.centerAt(0.5);
+        const b = this.bridge.centerAt(0.05);
+        pos = P(a.x + (portrait ? 1.25 : 1.6), a.y + 0.55, a.z);
+        look = P(b.x - 0.25, b.y + 0.25, b.z + 0.4);
+        fov = portrait ? 54 : 46;
         break;
       }
       case 'CROSSREADY':

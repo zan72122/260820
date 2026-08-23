@@ -47,8 +47,8 @@ export class Droplet {
     this.sway = seed * 12.9;
 
     const dropMat = new THREE.MeshStandardMaterial({
-      color: 0xe8f2fa, roughness: 0.05, metalness: 0.08,
-      transparent: true, opacity: 0.6, envMapIntensity: 2.2
+      color: 0xdceefc, roughness: 0.03, metalness: 0.12,
+      transparent: true, opacity: 0.42, envMapIntensity: 3.2
     });
     this.mesh = new THREE.Mesh(new THREE.SphereGeometry(this.baseR, 12, 10), dropMat);
     this.mesh.scale.y = 1.15; // gravity-stretched drop, not a balloon
