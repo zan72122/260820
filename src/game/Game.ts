@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { Phase } from './state';
 import { getGlyph, GlyphDef } from './glyphs';
 import { buildMoldField, MoldField } from './moldField';
@@ -104,11 +105,17 @@ export class Game {
     this.scene.background = new THREE.Color(0x1b1712);
     this.scene.fog = new THREE.Fog(0x1b1712, 4.5, 9.5);
 
+    // image-based ambient so metals and glass read as materials
+    const pmrem = new THREE.PMREMGenerator(this.renderer);
+    this.scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+    this.scene.environmentIntensity = 0.45;
+    pmrem.dispose();
+
     // lights
-    const hemi = new THREE.HemisphereLight(0xcfd4d8, 0x54452f, 0.6);
+    const hemi = new THREE.HemisphereLight(0xcfd4d8, 0x54452f, 0.5);
     this.scene.add(hemi);
-    this.dirLight = new THREE.DirectionalLight(0xfff1de, 2.4);
-    this.dirLight.position.set(1.7, 3.1, 1.5);
+    this.dirLight = new THREE.DirectionalLight(0xfff1de, 2.7);
+    this.dirLight.position.set(0.9, 3.4, 0.9);
     this.dirLight.castShadow = true;
     this.dirLight.shadow.mapSize.set(2048, 2048);
     this.dirLight.shadow.camera.left = -1.7;
@@ -142,6 +149,7 @@ export class Game {
     this.castPivot.position.y = SAND_Y;
     this.castPivot.add(this.cast.mesh, this.cast.runner);
     this.scene.add(this.castPivot);
+    this.syncCastEnv();
 
     this.scene.add(this.particles.points);
 
@@ -156,7 +164,7 @@ export class Game {
     const sGeo = new THREE.CylinderGeometry(0.011, 0.016, 1, 10, 1, true);
     sGeo.translate(0, -0.5, 0);
     this.streamMat = new THREE.MeshStandardMaterial({
-      color: 0x351505, emissive: 0xff7d26, emissiveIntensity: 3.4, roughness: 0.3, metalness: 0.2,
+      color: 0x351505, emissive: 0xff5a10, emissiveIntensity: 1.6, roughness: 0.3, metalness: 0.2,
     });
     this.stream = new THREE.Mesh(sGeo, this.streamMat);
     this.stream.visible = false;
@@ -246,14 +254,14 @@ export class Game {
 
   /** start (or restart) a full cycle with a letter */
   startCycle(letter: string) {
-    this.letter = letter;
-    this.glyph = getGlyph(letter);
-    this.field = buildMoldField(this.glyph);
-
-    // retire the previous cast as a bench trophy
+    // retire the previous cast as a bench trophy (uses the OLD glyph)
     if (this.completed.size > 0 && this.cast.mesh.parent) {
       this.placeTrophy();
     }
+
+    this.letter = letter;
+    this.glyph = getGlyph(letter);
+    this.field = buildMoldField(this.glyph);
 
     // fresh sand
     this.sand.setField(this.field);
@@ -273,6 +281,7 @@ export class Game {
     if (this.castPivot.parent !== this.scene) this.scene.add(this.castPivot);
     this.cast = buildCastMesh(this.glyph, this.field);
     this.castPivot.add(this.cast.mesh, this.cast.runner);
+    this.syncCastEnv();
 
     // rig reset
     this.lever = 0;
@@ -611,7 +620,7 @@ export class Game {
     // ambient motion: robot head scanning, melt surface shimmer
     this.foundry.robotHead.rotation.y = Math.sin(this.clock.elapsedTime * 0.4) * 0.5;
     const ms = this.foundry.meltSurface.material as THREE.MeshStandardMaterial;
-    ms.emissiveIntensity = 2.0 + Math.sin(this.clock.elapsedTime * 2.3) * 0.25;
+    ms.emissiveIntensity = 1.4 + Math.sin(this.clock.elapsedTime * 2.3) * 0.2;
     this.foundry.furnaceGlow.intensity = 1.5 + Math.sin(this.clock.elapsedTime * 3.1) * 0.18;
 
     this.particles.update(dt, SAND_Y + 0.004);
@@ -619,6 +628,13 @@ export class Game {
     this.director.update(dt);
     this.renderer.render(this.scene, this.director.camera);
     this.trackFps(dt);
+  }
+
+  /** hot metal barely mirrors the (bright) shop - fade reflections in as it cools */
+  private syncCastEnv() {
+    const t = this.cast.uniforms.uTemp.value;
+    const m = this.cast.mesh.material as THREE.MeshStandardMaterial;
+    m.envMapIntensity = 1 - t * 0.92;
   }
 
   private updatePour(dt: number) {
@@ -662,13 +678,14 @@ export class Game {
     this.stream.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), dir.clone().normalize());
     this.stream.scale.set(1, len, 1);
     const w = 0.75 + Math.sin(this.clock.elapsedTime * 21) * 0.18;
-    this.streamMat.emissiveIntensity = 3.0 * w + 1.2;
+    this.streamMat.emissiveIntensity = 1.1 * w + 0.5;
   }
 
   private updateCool(dt: number) {
     this.temp = Math.max(0, this.temp - dt / this.durCool);
     const eased = this.temp * this.temp * (3 - 2 * this.temp);
     this.cast.uniforms.uTemp.value = eased;
+    this.syncCastEnv();
     this.streamMat.emissiveIntensity = 0;
     if (this.phaseT > this.coolTickAt) {
       this.foley.coolTick();

@@ -22,38 +22,38 @@ export function poseFor(phase: Phase, portrait: boolean): CamPose {
   switch (phase) {
     case Phase.TITLE:
     case Phase.ALIGN:
-      // near-frontal mid shot: whole letter readable, lever visible right
+      // mid shot: sand centre-left, pattern + lever right, crucible far left
       return portrait
-        ? { pos: V(0.34, 1.72, 1.9), target: V(0.05, 1.15, -0.2), fov: 46 }
-        : { pos: V(0.4, 1.62, 1.72), target: V(0.05, 1.12, -0.2), fov: 44 };
+        ? { pos: V(0.5, 1.5, 1.95), target: V(0.18, 1.05, -0.05), fov: 56 }
+        : { pos: V(0.55, 1.42, 1.7), target: V(0.12, 1.02, -0.05), fov: 47 };
     case Phase.PRESS:
-      // 3/4 view: letter thickness + sinking into sand + lever
+      // 3/4 view, above the pattern: ring shape + thickness + sinking + lever
       return portrait
-        ? { pos: V(0.66, 1.5, 1.15), target: V(0.02, S + 0.22, 0), fov: 46 }
-        : { pos: V(0.72, 1.42, 1.05), target: V(0.05, S + 0.2, 0), fov: 42 };
+        ? { pos: V(0.62, 1.68, 1.34), target: V(0.08, 1.0, -0.02), fov: 52 }
+        : { pos: V(0.68, 1.6, 1.2), target: V(0.06, 0.99, -0.02), fov: 45 };
     case Phase.RAISE:
       // slightly higher: cavity + islands revealed while the pattern lifts
       return portrait
-        ? { pos: V(0.3, 1.78, 0.95), target: V(0, S + 0.1, -0.03), fov: 46 }
-        : { pos: V(0.36, 1.66, 0.9), target: V(0, S + 0.08, -0.03), fov: 42 };
+        ? { pos: V(0.3, 1.62, 0.98), target: V(0, S + 0.06, -0.03), fov: 48 }
+        : { pos: V(0.36, 1.55, 0.94), target: V(0, S + 0.05, -0.03), fov: 43 };
     case Phase.BRUSH:
       return portrait
-        ? { pos: V(0.12, 1.72, 0.78), target: V(0, S, -0.02), fov: 45 }
-        : { pos: V(0.18, 1.6, 0.76), target: V(0, S, -0.02), fov: 41 };
+        ? { pos: V(0.1, 1.6, 0.8), target: V(0, S - 0.02, -0.03), fov: 46 }
+        : { pos: V(0.16, 1.52, 0.78), target: V(0, S - 0.02, -0.03), fov: 42 };
     case Phase.POUR:
       // one frame holds: crucible + gate + groove + islands
       return portrait
-        ? { pos: V(-0.4, 1.78, 0.98), target: V(-0.22, S + 0.1, -0.02), fov: 50 }
-        : { pos: V(-0.5, 1.62, 0.95), target: V(-0.2, S + 0.08, -0.02), fov: 46 };
+        ? { pos: V(-0.42, 1.62, 1.1), target: V(-0.3, S + 0.06, -0.02), fov: 54 }
+        : { pos: V(-0.52, 1.5, 1.02), target: V(-0.26, S + 0.05, -0.02), fov: 48 };
     case Phase.COOL:
       return portrait
-        ? { pos: V(-0.1, 1.7, 0.85), target: V(-0.04, S, -0.02), fov: 45 }
-        : { pos: V(-0.14, 1.58, 0.83), target: V(-0.04, S, -0.02), fov: 41 };
+        ? { pos: V(-0.1, 1.58, 0.84), target: V(-0.04, S - 0.02, -0.02), fov: 46 }
+        : { pos: V(-0.14, 1.5, 0.82), target: V(-0.04, S - 0.02, -0.02), fov: 42 };
     case Phase.BREAK:
       // close on the flask: sand collapsing and the new letter
       return portrait
-        ? { pos: V(0.16, 1.5, 0.86), target: V(0, S + 0.02, 0.02), fov: 46 }
-        : { pos: V(0.2, 1.4, 0.82), target: V(0, S + 0.02, 0.02), fov: 42 };
+        ? { pos: V(0.2, 1.42, 0.94), target: V(0, S, 0.02), fov: 48 }
+        : { pos: V(0.24, 1.36, 0.88), target: V(0, S, 0.02), fov: 43 };
     case Phase.REVEAL:
       // frontal: silhouette + counter holes, workshop visible through them
       return portrait

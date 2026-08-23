@@ -65,9 +65,9 @@ export function buildPatternMesh(def: GlyphDef): THREE.Mesh {
   });
 
   const mat = new THREE.MeshStandardMaterial({
-    color: 0xb9bec4,
-    metalness: 0.85,
-    roughness: 0.42,
+    color: 0xa9adb2,
+    metalness: 0.7,
+    roughness: 0.52,
     roughnessMap: scratches,
   });
   const mesh = new THREE.Mesh(geo, mat);
@@ -103,12 +103,12 @@ function castRoughnessTex(): THREE.CanvasTexture {
   return makeCanvasTexture(256, (ctx, s) => {
     ctx.fillStyle = '#9a9a9a';
     ctx.fillRect(0, 0, s, s);
-    // as-cast skin: mottled roughness, no uniform mirror finish
-    for (let i = 0; i < 5200; i++) {
+    // as-cast skin: gently mottled roughness, no uniform mirror finish
+    for (let i = 0; i < 3600; i++) {
       const x = hash2(i, 1, 31) * s, y = hash2(i, 2, 32) * s;
-      const g = 110 + hash2(i, 3, 33) * 110;
-      ctx.fillStyle = `rgba(${g | 0},${g | 0},${g | 0},0.5)`;
-      const r = 1 + hash2(i, 4, 34) * 3;
+      const g = 130 + hash2(i, 3, 33) * 60;
+      ctx.fillStyle = `rgba(${g | 0},${g | 0},${g | 0},0.28)`;
+      const r = 0.8 + hash2(i, 4, 34) * 2;
       ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
     }
   });
@@ -137,9 +137,9 @@ export function buildCastMaterial(): { mat: THREE.MeshStandardMaterial; uniforms
       uniform float uFill;
       uniform float uTemp;
       vec3 lfBlackbody(float t) {
-        vec3 hot = vec3(1.0, 0.55, 0.16);
-        vec3 mid = vec3(0.78, 0.22, 0.05);
-        vec3 low = vec3(0.16, 0.02, 0.005);
+        vec3 hot = vec3(1.0, 0.17, 0.015);
+        vec3 mid = vec3(0.6, 0.07, 0.008);
+        vec3 low = vec3(0.14, 0.015, 0.004);
         if (t > 0.6) return mix(mid, hot, (t - 0.6) / 0.4);
         if (t > 0.25) return mix(low, mid, (t - 0.25) / 0.35);
         return low * (t / 0.25) * (t / 0.25);
@@ -150,14 +150,18 @@ export function buildCastMaterial(): { mat: THREE.MeshStandardMaterial; uniforms
         'if (vFlow > uFill) discard;\n#include <clipping_planes_fragment>'
       )
       .replace(
+        '#include <color_fragment>',
+        `#include <color_fragment>
+        // while molten, the surface is self-luminous: damp reflected light
+        diffuseColor.rgb *= (1.0 - uTemp * uTemp * 0.9);`
+      )
+      .replace(
         '#include <emissivemap_fragment>',
         `#include <emissivemap_fragment>
         {
-          float frontGlow = smoothstep(0.10, 0.0, uFill - vFlow) * step(uFill, 0.999) * 1.6;
+          float frontGlow = smoothstep(0.10, 0.0, uFill - vFlow) * step(uFill, 0.999) * 0.45;
           float heat = uTemp * uTemp;
-          totalEmissiveRadiance += lfBlackbody(uTemp) * (heat * 2.4 + frontGlow * heat * 2.2);
-          // molten metal looks smoother / brighter than cold cast skin
-          roughnessFactor = mix(roughnessFactor, 0.22, uTemp * 0.8);
+          totalEmissiveRadiance += lfBlackbody(uTemp) * (heat * 0.85 + frontGlow * heat);
         }`
       );
   };

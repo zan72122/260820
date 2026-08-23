@@ -33,12 +33,12 @@ export class SandBed {
     this.geo.setAttribute('color', this.colors);
 
     const sandTex = makeCanvasTexture(256, (ctx, s) => {
-      ctx.fillStyle = '#8a7154';
+      ctx.fillStyle = '#6f5a42';
       ctx.fillRect(0, 0, s, s);
       for (let i = 0; i < 14000; i++) {
         const x = hash2(i, 1, 11) * s, y = hash2(i, 2, 12) * s;
         const l = hash2(i, 3, 13);
-        const g = 96 + l * 90;
+        const g = 76 + l * 82;
         ctx.fillStyle = `rgb(${g + 18 | 0},${g * 0.86 | 0},${g * 0.62 | 0})`;
         ctx.fillRect(x, y, 1 + hash2(i, 4, 14), 1 + hash2(i, 5, 15));
       }
@@ -112,7 +112,11 @@ export class SandBed {
   private computeHeight(u: number, v: number): number {
     let h = fbm(u * 34, v * 34, 3, 7) * SAND_BASE_ROUGH * 2 - SAND_BASE_ROUGH;
     if (this.field) {
-      const d = this.field.sample(this.field.depress, u, v);
+      // jitter the sample point a touch so cavity edges crumble naturally
+      // instead of showing the heightfield grid as stair-steps
+      const ju = (fbm(u * 90, v * 90, 2, 91) - 0.5) * 0.006;
+      const jv = (fbm(u * 90 + 40, v * 90 + 17, 2, 92) - 0.5) * 0.006;
+      const d = this.field.sample(this.field.depress, u + ju, v + jv);
       h -= d * this.pressAmount * PRESS_DEPTH;
     }
     if (this.crumble > 0 && this.crumbleDelay) {
@@ -123,7 +127,7 @@ export class SandBed {
       const t = Math.min(1, Math.max(0, (this.crumble - delay) / 0.35));
       const s = t * t * (3 - 2 * t);
       // rubble: lumpy, generally lower, islands and walls collapse
-      const rubble = -0.030 + fbm(u * 12 + 3, v * 12 + 9, 3, 23) * 0.030 - 0.008;
+      const rubble = -0.034 + fbm(u * 9 + 3, v * 9 + 9, 3, 23) * 0.052 - 0.012;
       h = h * (1 - s) + rubble * s;
     }
     return h;
@@ -143,13 +147,13 @@ export class SandBed {
         const h = this.computeHeight(u, v);
         pos.setY(idx, h);
 
-        // colour: compressed / damp sand is darker; cavity floor darkest
+        // colour: compressed / damp sand is darker; churned rubble darker still
         let d = 0;
         if (this.field) d = this.field.sample(this.field.depress, u, v) * this.pressAmount;
         const damp = 1 - d * 0.38;
-        // slight ambient occlusion near cavity walls
+        const churn = 1 - this.crumble * (0.2 + fbm(u * 14, v * 14, 2, 77) * 0.18);
         const grain = 0.92 + fbm(u * 60, v * 60, 2, 5) * 0.16;
-        const r = 0.98 * damp * grain;
+        const r = 0.98 * damp * grain * churn;
         col.setXYZ(idx, r, r * 0.97, r * 0.95);
       }
     }
