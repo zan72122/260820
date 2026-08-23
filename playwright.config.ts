@@ -10,11 +10,12 @@ export default defineConfig({
   timeout: 120_000,
   use: {
     browserName: 'chromium',
-    viewport: { width: 800, height: 450 },
+    viewport: { width: 640, height: 360 },
     video: 'off',
     screenshot: 'only-on-failure',
     trace: 'on-first-retry',
     launchOptions: {
+      executablePath: process.env.PW_CHROMIUM || '/opt/pw-browsers/chromium',
       args: ['--enable-unsafe-swiftshader'],
     },
   },

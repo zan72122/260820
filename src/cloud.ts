@@ -119,7 +119,7 @@ const LOOP_VERT = /* glsl */ `
     vec2 dir = normalize(p.xy + vec2(1e-5));
     vec2 ring = dir * 1.6;
     vec2 offs = p.xy - ring;
-    float major = 1.0 + open * 0.85 + bounce * 0.05 * sin(time * 22.0);
+    float major = 1.0 + open * 1.2 + bounce * 0.05 * sin(time * 22.0);
     float minor = 1.0 - open * 0.5;
     p.xy = ring * major + offs * minor;
     p.z *= minor;
@@ -158,15 +158,15 @@ const LOOP_FRAG = /* glsl */ `
     float density = 0.95 - open * 0.5;
     float alpha = density * smoothstep(0.2, 0.58, n * 0.75 + n2 * 0.25 + 0.2);
     // rope reading: slightly denser braid lines along the coil
-    alpha *= 0.8 + 0.2 * smoothstep(-0.2, 0.6, coil);
+    alpha *= 0.72 + 0.28 * smoothstep(-0.25, 0.55, coil);
     vec3 vdir = normalize(camPos - vWorld);
     float rim = abs(dot(normalize(vNormal), vdir));
     alpha *= mix(0.45, 1.0, rim * rim);
-    alpha *= 1.0 - open * 0.45;
+    alpha *= 1.0 - open * 0.72;
     if (alpha < 0.012) discard;
 
     float up = clamp(vNormal.y * 0.5 + 0.5, 0.0, 1.0);
-    vec3 lit = mix(vec3(0.19, 0.20, 0.245), vec3(0.50, 0.51, 0.55), up);
+    vec3 lit = mix(vec3(0.19, 0.20, 0.245), vec3(0.60, 0.605, 0.64), up);
     // dark heavy core while tight; braid shading
     lit *= mix(0.68, 1.05, open) * (0.9 + 0.1 * coil);
     // weak scattered light inside (trapped droplets catching light) — not neon
@@ -438,11 +438,13 @@ export class CloudBand {
       side: THREE.DoubleSide,
     });
     const strand = new THREE.Mesh(strandGeo, strandMat);
+    // the loose strand hangs from loop 0's lower edge, drifting toward the
+    // unicorn's side — the one thread that still moves in the wind
     const l0 = this.loops[0].center;
     this.strandRoot = new THREE.Object3D();
-    this.strandRoot.position.set(l0.x + 1.5, l0.y - 1.1, l0.z + 1.2);
-    this.strandRoot.rotation.y = -0.5;
-    this.strandRoot.rotation.z = -0.35;
+    this.strandRoot.position.set(l0.x + 1.1, l0.y - 1.5, l0.z + 0.9);
+    this.strandRoot.rotation.y = -0.35;
+    this.strandRoot.rotation.z = -0.55;
     this.strandRoot.add(strand);
     strand.renderOrder = 14;
     strand.frustumCulled = false;

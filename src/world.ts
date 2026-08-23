@@ -366,8 +366,8 @@ export function buildWorld(quality: number): WorldRefs {
       }
       void main() {
         float h = clamp(vDir.y, 0.0, 1.0);
-        vec3 col = mix(horizonColor, midColor, smoothstep(0.02, 0.30, h));
-        col = mix(col, topColor, smoothstep(0.28, 0.75, h));
+        vec3 col = mix(horizonColor, midColor, smoothstep(0.02, 0.34, h));
+        col = mix(col, topColor, smoothstep(0.36, 0.8, h));
         // overcast texture: broad slow variation, heavier low — not uniform noise
         float ov = vnoise(vDir.xz / max(vDir.y, 0.12) * 1.4 + time * 0.008);
         ov = ov * 0.5 + 0.5 * vnoise(vDir.xz / max(vDir.y, 0.12) * 3.1 - time * 0.004);

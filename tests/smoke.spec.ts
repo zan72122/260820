@@ -24,13 +24,14 @@ declare global {
 }
 
 async function circle(page: Page, cx: number, cy: number, r: number, revs: number, cw: boolean) {
-  const steps = Math.round(36 * revs);
+  const perRev = 20;
+  const steps = Math.round(perRev * revs);
   await page.mouse.move(cx + r, cy);
   await page.mouse.down();
   for (let i = 1; i <= steps; i++) {
-    const a = (i / 36) * Math.PI * 2 * (cw ? 1 : -1);
+    const a = (i / perRev) * Math.PI * 2 * (cw ? 1 : -1);
     await page.mouse.move(cx + r * Math.cos(a), cy + r * Math.sin(a));
-    await page.waitForTimeout(10);
+    if (i % 2 === 0) await page.waitForTimeout(5);
   }
   await page.mouse.up();
 }
@@ -61,15 +62,16 @@ test('wrong-direction circles never unwind; correct direction opens one loop and
   await page.evaluate(() => window.__game.tick(3));
   const c = await page.evaluate(() => window.__game.loopScreen(0));
 
-  await circle(page, c.x, c.y, 110, 1.5, true); // clockwise = tightening direction
+  await circle(page, c.x, c.y, 90, 1.5, true); // clockwise = tightening direction
   let loops = await page.evaluate(() => window.__game.loops);
   expect(loops[0].progress).toBeLessThan(0.05);
   expect(loops[0].open).toBe(false);
 
-  for (let k = 0; k < 6; k++) {
+  for (let k = 0; k < 5; k++) {
     loops = await page.evaluate(() => window.__game.loops);
     if (loops[0].open) break;
-    await circle(page, c.x, c.y, 110, 3, false);
+    await circle(page, c.x, c.y, 90, 2, false);
+    await page.evaluate(() => window.__game.tick(0.3));
   }
   loops = await page.evaluate(() => window.__game.loops);
   expect(loops[0].open).toBe(true);

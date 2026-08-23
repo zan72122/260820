@@ -18,8 +18,8 @@ const LAND: Record<Shot, ShotDef> = {
   wide: { pos: new THREE.Vector3(7, 6.5, 14), look: new THREE.Vector3(-2, 10.5, -24), fov: 55 },
   knot: { pos: new THREE.Vector3(9, 14.6, 3), look: new THREE.Vector3(0, 15.8, -23.2), fov: 40 },
   approach: { pos: new THREE.Vector3(17, 10, -10), look: new THREE.Vector3(5, 12.5, -22), fov: 48 },
-  closeup: { pos: new THREE.Vector3(9, 13.8, 1), look: new THREE.Vector3(0.5, 14.6, -23.2), fov: 44 },
-  play: { pos: new THREE.Vector3(10, 13.4, 4), look: new THREE.Vector3(0, 13.8, -23.2), fov: 48 },
+  closeup: { pos: new THREE.Vector3(9.5, 13.6, -3), look: new THREE.Vector3(-0.5, 15.2, -23.2), fov: 44 },
+  play: { pos: new THREE.Vector3(10.5, 13.2, 0), look: new THREE.Vector3(-0.5, 14.4, -23.2), fov: 48 },
   finale: { pos: new THREE.Vector3(2, 10, 20), look: new THREE.Vector3(-2, 7.5, -20), fov: 54 },
 };
 
@@ -27,8 +27,8 @@ const PORT: Record<Shot, ShotDef> = {
   wide: { pos: new THREE.Vector3(4, 6, 20), look: new THREE.Vector3(0, 11, -24), fov: 68 },
   knot: { pos: new THREE.Vector3(6, 13.8, 5), look: new THREE.Vector3(0, 15.6, -23.2), fov: 52 },
   approach: { pos: new THREE.Vector3(14, 10, -8), look: new THREE.Vector3(5, 12.5, -22), fov: 58 },
-  closeup: { pos: new THREE.Vector3(6.5, 13.2, 3), look: new THREE.Vector3(0.5, 14.2, -23.2), fov: 56 },
-  play: { pos: new THREE.Vector3(7, 12.8, 5), look: new THREE.Vector3(0, 13.2, -23.2), fov: 60 },
+  closeup: { pos: new THREE.Vector3(5.5, 13.0, -1), look: new THREE.Vector3(0.2, 14.8, -23.2), fov: 56 },
+  play: { pos: new THREE.Vector3(6, 12.6, 1), look: new THREE.Vector3(0.2, 13.8, -23.2), fov: 60 },
   finale: { pos: new THREE.Vector3(1, 10, 24), look: new THREE.Vector3(-2, 8.5, -20), fov: 66 },
 };
 

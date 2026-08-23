@@ -274,7 +274,7 @@ function tick(dt: number) {
         setPhase('free');
         cloud.steerW = 1;
         cloud.steerX = knotCenter().x;
-      } else if (firstLoopOpened && phase === 'closeup' && heroSequence === 2 && phaseT > 2) {
+      } else if (firstLoopOpened && phase === 'closeup' && heroSequence === 2 && phaseT > 2 && !gesture.state.down) {
         setPhase('play');
       }
       break;
@@ -438,12 +438,23 @@ function handleUnwinding(dt: number) {
   if (vel > 0.25) {
     if (!L.open) {
       // correct direction: the loop loosens; big circles spread the effect
-      const rate = 0.075 * vel * lerp(0.7, 1.25, smoothstep(0.45, 1.7, radT));
+      const rate = 0.13 * vel * lerp(0.7, 1.25, smoothstep(0.45, 1.7, radT));
       L.progress = clamp(L.progress + rate * dt, 0, 1);
       L.twist += vel * dt * 0.55;
       L.jiggle = clamp(0.3 + unicornInput.effort, 0, 1.2);
       L.working = 1;
       idleSinceInput = 0;
+      // a quarter turn is enough to free the FIRST few drops — the child
+      // must see cause → effect before the loop is even fully open
+      if (L.progress > 0.22 && !L.releasedHero) {
+        L.releasedHero = true;
+        if (!firstLoopOpened && heroSequence === 0) {
+          heroSequence = 1;
+          rain.releaseHero(L.center, 4);
+        } else {
+          rain.releaseHero(L.center, 2);
+        }
+      }
       // big circles bleed a little slack into neighbours & make the unicorn step
       if (radT > 1.15) {
         for (let i = 0; i < LOOP_COUNT; i++) {
@@ -461,13 +472,8 @@ function handleUnwinding(dt: number) {
         L.open = true;
         L.jiggle = 0;
         audio.loopRelease();
-        if (!firstLoopOpened) {
-          firstLoopOpened = true;
-          heroSequence = 1;
-          rain.releaseHero(L.center, 4);
-        } else {
-          rain.emit(L.center, 60, 2.0, 0.25); // a visible burst, not a deluge
-        }
+        firstLoopOpened = true;
+        rain.emit(L.center, 50, 2.0, 0.25); // a visible burst, not a deluge
       }
     } else {
       // circling an opened loop pumps rain: speed = density, size = spread

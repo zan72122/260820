@@ -21,8 +21,8 @@ export interface UnicornInput {
   windAmp: number;
 }
 
-const BODY = 0xe6ded0;
-const MANE = 0xb9b3c4;
+const BODY = 0xdcd2c1;
+const MANE = 0x8d879e;
 const HOOF = 0x4a4440;
 const MUZZLE = 0xcabfae;
 
@@ -94,7 +94,7 @@ export class Unicorn {
     horn.position.set(0, 0.17, 0.1);
     horn.rotation.x = 0.35;
     this.head.add(horn);
-    this.hornTip.position.set(0, 0.85, 0); // tip of the tapered helix
+    this.hornTip.position.set(0, 0.95, 0); // tip of the tapered helix
     horn.add(this.hornTip);
     this.neck.add(this.head);
 
@@ -324,7 +324,7 @@ function dampAngle(cur: number, target: number, lambda: number, dt: number): num
 
 function makeHorn(): THREE.Mesh {
   // tapered helix: rings along a straight spine, radius→0, spiral groove
-  const turns = 3.2, segs = 26, ringN = 7, len = 0.85, baseR = 0.07;
+  const turns = 3.2, segs = 26, ringN = 7, len = 0.95, baseR = 0.085;
   const pos: number[] = [], col: number[] = [], idx: number[] = [];
   for (let i = 0; i <= segs; i++) {
     const t = i / segs;
