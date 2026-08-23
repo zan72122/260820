@@ -557,9 +557,12 @@ export class Game {
   /* ------------------------------------------------------------ frame */
 
   start() {
+    // the dt clamp guards against tab-switch spikes; test mode allows big
+    // steps so logical time does not dilate under slow software rendering
+    const maxDt = this.fast ? 0.34 : 0.05;
     this.renderer.setAnimationLoop(() => {
       try {
-        this.update(Math.min(0.05, this.clock.getDelta()));
+        this.update(Math.min(maxDt, this.clock.getDelta()));
       } catch (err) {
         this.errors.push(String(err));
         throw err;
