@@ -598,7 +598,11 @@ export class Station {
     knob.position.set(0.08, 0.04, 0.06);
     knob.rotation.z = Math.PI / 2;
     lh.add(knob);
-    // head center behind the lens; aimed at the screen in setLampHeight()
+    // head center behind the lens; aimed at the screen in setLampHeight().
+    // Nothing in the head sits between the optical point and the screen, but
+    // the housing rim grazes the point itself — casting from it would paint a
+    // false circular vignette, so the whole head never casts.
+    lh.traverse((o) => { (o as THREE.Mesh).castShadow = false; });
     lh.position.set(0, 0.02, LIGHT_Z + 0.11);
     car.add(lh);
     // service loop of cable at the carriage
@@ -637,6 +641,9 @@ export class Station {
     spot.shadow.normalBias = 0.012;
     spot.shadow.radius = 4;
     spot.shadow.camera.near = 1.2;
+    // shadow map covers a slightly wider cone than the light, so PCF taps at
+    // the pool's rim never sample the map border (kills the dark-ring artifact)
+    spot.shadow.focus = 1.18;
     spot.layers.enable(1);
     spot.position.set(0, 1.5, LIGHT_Z);
     spot.target.position.set(0, SCREEN_CY, 0);
@@ -708,7 +715,7 @@ export class Station {
     const dg = new THREE.BufferGeometry();
     dg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     const dm = new THREE.PointsMaterial({
-      color: 0xfff3dd, size: 0.006, transparent: true, opacity: 0.0,
+      color: 0xfff3dd, size: 0.0045, transparent: true, opacity: 0.0,
       blending: THREE.AdditiveBlending, depthWrite: false, sizeAttenuation: true,
     });
     const dust = new THREE.Points(dg, dm);
@@ -1092,7 +1099,7 @@ export class Station {
     }
     if (this.dust && this.dustBase) {
       const mat = this.dust.material as THREE.PointsMaterial;
-      mat.opacity = this.spot.intensity * 0.02;
+      mat.opacity = this.spot.intensity * 0.012;
       const attr = this.dust.geometry.getAttribute('position') as THREE.BufferAttribute;
       const arr = attr.array as Float32Array;
       const t = performance.now() * 0.00021;

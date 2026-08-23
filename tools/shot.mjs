@@ -31,6 +31,7 @@ for (const cmd of cmds.join(' ').split(',').map((s) => s.trim()).filter(Boolean)
   else if (op === 'reveal') await page.evaluate(() => window.__SAM__.snapReveal());
   else if (op === 'wheel') await page.evaluate((a) => window.__SAM__.wheel(a), parseFloat(arg));
   else if (op === 'state') console.log(JSON.stringify(await page.evaluate(() => window.__SAM__.state())));
+  else if (op === 'light') console.log(JSON.stringify(await page.evaluate(() => window.__SAM__.lightInfo())));
 }
 
 await page.waitForTimeout(400);

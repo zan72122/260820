@@ -64,7 +64,7 @@ export class CameraRig {
       // high over the machine: parts low in frame, screen above them —
       // the line of sight to the screen clears the parts, and the handwheel
       // sits clearly in the bottom third
-      ? pose(sx + 0.5, 2.7, 5.6, sx + 0.0, 1.26, 1.1, 64)
+      ? pose(sx + 0.5, 2.72, 5.75, sx + 0.0, 1.26, 1.1, 64)
       // machine left, screen right; the handwheel rides the lower left corner
       : pose(sx + 2.35, 2.05, 5.15, sx - 0.78, 1.28, 0.9, 55);
   }
@@ -79,14 +79,17 @@ export class CameraRig {
     // between the parts and the screen (every part sits at z >= 2.06),
     // dead-on at letter height: nothing blocks the finished letter
     return this.portrait
-      ? pose(sx + 0.0, 1.42, 1.95, sx + 0.0, 1.46, 0, 58)
+      ? pose(sx + 0.05, 1.42, 1.95, sx + 0.05, 1.46, 0, 58)
       : pose(sx + 0.0, 1.42, 1.95, sx + 0.0, 1.46, 0, 44);
   }
 
   revealPose(sx: number): Pose {
+    // from beside the screen looking back down the optical axis: the matte
+    // parts (clearly NOT letter-shaped from here), the lamp head, its rail
+    // cart and the turntable all share the frame — the whole causal chain
     return this.portrait
-      ? pose(sx + 2.0, 1.62, 3.9, sx - 0.1, 1.32, 2.4, 56)
-      : pose(sx + 2.25, 1.58, 3.75, sx - 0.05, 1.32, 2.3, 50);
+      ? pose(sx + 3.6, 1.75, 0.4, sx - 0.2, 1.32, 3.5, 62)
+      : pose(sx + 3.7, 1.75, 0.6, sx + 0.0, 1.28, 3.3, 50);
   }
 
   playIntro(sx: number, onDone: () => void): void {

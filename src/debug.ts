@@ -29,6 +29,7 @@ export interface SamHooks {
   snapReveal(): void;
   lettersReady(): boolean;
   drawCalls(): number;
+  lightInfo(): { intensity: number; shadowMapReady: boolean };
 }
 
 export function installTestHooks(game: Game, rig: CameraRig, renderer: THREE.WebGLRenderer): void {
@@ -73,6 +74,10 @@ export function installTestHooks(game: Game, rig: CameraRig, renderer: THREE.Web
     snapReveal: () => rig.snapToReveal(game.active.group.position.x),
     lettersReady: () => game.stations.every((s) => !!s.spec),
     drawCalls: () => renderer.info.render.calls,
+    lightInfo: () => ({
+      intensity: game.active.spot.intensity,
+      shadowMapReady: !!game.active.spot.shadow.map,
+    }),
   };
   (window as unknown as { __SAM__: SamHooks }).__SAM__ = hooks;
 }

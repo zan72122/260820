@@ -32,7 +32,7 @@ function grain(ctx: CanvasRenderingContext2D, size: number, n: number, alpha: nu
 export function makeFloorTexture(): { map: THREE.Texture; rough: THREE.Texture } {
   const S = 1024;
   const [c, ctx] = canvas(S);
-  ctx.fillStyle = '#8d8a84';
+  ctx.fillStyle = '#83807a';
   ctx.fillRect(0, 0, S, S);
   // large tonal patches
   for (let i = 0; i < 42; i++) {
@@ -93,7 +93,7 @@ export function makeFloorTexture(): { map: THREE.Texture; rough: THREE.Texture }
 export function makeWallTexture(): THREE.Texture {
   const S = 512;
   const [c, ctx] = canvas(S);
-  ctx.fillStyle = '#a8a49c';
+  ctx.fillStyle = '#aea89d';
   ctx.fillRect(0, 0, S, S);
   for (let i = 0; i < 26; i++) {
     const g = 160 + Math.floor(rand() * 22) - 11;
@@ -201,12 +201,14 @@ export function makeMaterials(): MatLib {
     // cast iron: dark, rough, slightly speckled tone
     castIron: new THREE.MeshStandardMaterial({ color: 0x2e2f31, roughness: 0.74, metalness: 0.72 }),
     // handwheel rim polished by hands — reads bright against the dark table
-    ironRim: new THREE.MeshStandardMaterial({ color: 0x686c71, roughness: 0.28, metalness: 0.85 }),
+    ironRim: new THREE.MeshStandardMaterial({ color: 0x5e6165, roughness: 0.42, metalness: 0.8 }),
     // machine-tool grey-green paint
     steelPainted: new THREE.MeshStandardMaterial({ color: 0x6d7269, roughness: 0.52, metalness: 0.12 }),
     steelPaintedDark: new THREE.MeshStandardMaterial({ color: 0x4b5049, roughness: 0.56, metalness: 0.12 }),
-    // bare aluminium extrusion
-    alu: new THREE.MeshStandardMaterial({ color: 0xc7cbd0, roughness: 0.38, metalness: 0.92 }),
+    // bare aluminium extrusion (boosted env response so it reads as metal)
+    alu: new THREE.MeshStandardMaterial({
+      color: 0xbfc4c9, roughness: 0.32, metalness: 0.95, envMapIntensity: 1.5,
+    }),
     // black-oxidised projection parts: functional low reflectance
     matteBlack: new THREE.MeshStandardMaterial({ color: 0x121212, roughness: 0.92, metalness: 0.42 }),
     steelDark: new THREE.MeshStandardMaterial({ color: 0x36383b, roughness: 0.6, metalness: 0.78 }),

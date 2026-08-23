@@ -64,7 +64,10 @@ let frames = 0;
 let last = performance.now();
 
 function frame(now: number): void {
-  const dt = Math.min(0.05, (now - last) / 1000);
+  // clamp below as well: the first rAF timestamp can predate `last` when
+  // scene construction ran long, and a negative dt would drive the lamp
+  // ramp to negative intensity (a light that darkens its own cone)
+  const dt = Math.min(0.05, Math.max(0, (now - last) / 1000));
   last = now;
   game.update(dt);
   renderer.render(scene, rig.camera);
