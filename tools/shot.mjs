@@ -27,6 +27,8 @@ for (const cmd of cmds.join(' ').split(',').map((s) => s.trim()).filter(Boolean)
   else if (op === 'swipe') await page.evaluate(() => window.__SAM__.swipe());
   else if (op === 'snap') await page.evaluate(() => window.__SAM__.snapCamera());
   else if (op === 'front') await page.evaluate(() => window.__SAM__.snapFront());
+  else if (op === 'goto') await page.evaluate((i) => window.__SAM__.goto(i), parseInt(arg));
+  else if (op === 'reveal') await page.evaluate(() => window.__SAM__.snapReveal());
   else if (op === 'wheel') await page.evaluate((a) => window.__SAM__.wheel(a), parseFloat(arg));
   else if (op === 'state') console.log(JSON.stringify(await page.evaluate(() => window.__SAM__.state())));
 }

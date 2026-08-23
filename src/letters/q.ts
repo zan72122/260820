@@ -12,13 +12,13 @@ export const letterQ: LetterSpec = {
   letter: 'Q',
   parts: [
     { kind: 'ring', center: [0, 1.4], z: 2.45, radius: 0.42, strokeW: 0.095 },
-    { kind: 'rod', a: [0.17, 1.19], za: 3.05, b: [0.5, 0.88], zb: 3.22, strokeW: 0.085 },
+    { kind: 'rod', a: [0.21, 1.15], za: 3.05, b: [0.5, 0.88], zb: 3.22, strokeW: 0.085 },
   ],
   feet: [
     { part: 0, u: 0, r: 0.007 },
   ],
   struts: [
-    { screen: [0.28, 1.087], z1: 2.45, z2: 3.107 },
+    { screen: [0.279, 1.086], z1: 2.45, z2: 3.09 },
   ],
   braces: [
     // tail end -> table, hidden in the tail's own ray plane

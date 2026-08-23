@@ -457,57 +457,70 @@ export class Station {
   }
 
   private buildLever(): void {
+    // signal-box style: a tall fore/aft lever planted beside the turntable,
+    // linked to the lamp carriage by a floor tube — visible in both portrait
+    // and landscape operating views
     const M = this.M;
-    const P = this.pedestalPos;
     const g = new THREE.Group();
-    const pivot = new THREE.Vector3(P.x + 0.19, 1.26, P.z + 0.02);
-    // quadrant plate with slot + engraved marks
-    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.5, 0.16), M.steelPainted);
-    plate.position.set(pivot.x, pivot.y + 0.05, pivot.z + 0.3);
-    plate.castShadow = true;
-    g.add(plate);
-    for (let i = 0; i < 7; i++) {
-      const mk = box(0.004, 0.005, 0.05, M.brass, pivot.x + 0.009, pivot.y - 0.14 + i * 0.062, pivot.z + 0.33);
-      mk.castShadow = false;
-      g.add(mk);
+    const base = new THREE.Vector3(0.5, 0, 3.62);
+    // floor bracket
+    g.add(box(0.2, 0.05, 0.26, M.steelPaintedDark, base.x, 0.025, base.z));
+    for (const [bx, bz] of [[-0.07, -0.09], [0.07, -0.09], [-0.07, 0.09], [0.07, 0.09]] as const) {
+      g.add(cyl(0.01, 0.01, 0.02, M.steelDark, base.x + bx, 0.055, base.z + bz, 6));
     }
-    // lever arm assembly (rotates around x-axis at pivot)
+    const cheekL = box(0.016, 0.5, 0.2, M.steelPainted, base.x - 0.045, 0.28, base.z);
+    const cheekR = box(0.016, 0.5, 0.2, M.steelPainted, base.x + 0.045, 0.28, base.z);
+    g.add(cheekL, cheekR);
+    // engraved quadrant sector between the cheeks
+    const quad = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.17, 0.17, 0.02, 14, 1, false, -0.5, 1.0), M.brass,
+    );
+    quad.rotation.z = Math.PI / 2;
+    quad.position.set(base.x, 0.5, base.z);
+    g.add(quad);
+    // lever arm assembly (pivots fore/aft around the x-axis)
+    const pivot = new THREE.Vector3(base.x, 0.5, base.z);
     const arm = new THREE.Group();
     arm.position.copy(pivot);
-    const armRod = new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.02, 0.52, 10), M.steelDark);
-    armRod.rotation.x = Math.PI / 2;
-    armRod.position.set(0, 0, 0.26);
+    const armRod = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.028, 1.3, 12), M.castIron);
+    armRod.position.set(0, 0.65, 0);
     armRod.castShadow = true;
     arm.add(armRod);
-    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.038, 16, 12), M.rubber);
-    ball.position.set(0, 0, 0.52);
+    const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.031, 0.031, 0.24, 12), M.rubber);
+    grip.position.set(0, 1.18, 0);
+    arm.add(grip);
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.045, 16, 12), M.castIron);
+    ball.position.set(0, 1.32, 0);
     ball.castShadow = true;
     arm.add(ball);
-    const boss = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.05, 14), M.castIron);
+    const boss = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.11, 14), M.castIron);
     boss.rotation.z = Math.PI / 2;
     boss.castShadow = true;
     arm.add(boss);
+    // short rear arm driving the push tube
+    const rear = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.3, 8), M.steelDark);
+    rear.position.set(0, -0.11, 0.06);
+    rear.rotation.x = 0.5;
+    arm.add(rear);
     g.add(arm);
     this.leverArm = arm;
-    // push-rod linkage: down from pivot, along the floor to the lamp cart
-    const drop = rodMesh(pivot.clone().add(new THREE.Vector3(0, -0.06, -0.05)), new THREE.Vector3(pivot.x, 0.05, pivot.z), 0.009, M.steelDark, false);
-    g.add(drop);
+    // linkage run to the lamp cart column
     const runTube = rodMesh(
-      new THREE.Vector3(pivot.x, 0.045, pivot.z),
-      new THREE.Vector3(0.62, 0.045, RAIL_Z_A - 0.1), 0.013, M.steelPaintedDark, false,
+      new THREE.Vector3(base.x + 0.04, 0.05, base.z + 0.24),
+      new THREE.Vector3(0.4, 0.05, LIGHT_Z + 0.42), 0.012, M.steelPaintedDark, false,
     );
     g.add(runTube);
     const upTube = rodMesh(
-      new THREE.Vector3(0.62, 0.045, RAIL_Z_A - 0.1),
-      new THREE.Vector3(0.5, 0.5, LIGHT_Z - 0.05), 0.011, M.steelPaintedDark, false,
+      new THREE.Vector3(0.4, 0.05, LIGHT_Z + 0.42),
+      new THREE.Vector3(0.09, 0.6, LIGHT_Z + 0.5), 0.01, M.steelPaintedDark, false,
     );
     g.add(upTube);
-    // generous invisible hit box
+    // generous invisible hit box around the upper arm
     const proxy = new THREE.Mesh(
-      new THREE.BoxGeometry(0.42, 0.85, 0.55),
+      new THREE.BoxGeometry(0.56, 1.1, 0.8),
       new THREE.MeshBasicMaterial({ visible: false }),
     );
-    proxy.position.set(pivot.x, pivot.y, pivot.z + 0.38);
+    proxy.position.set(base.x, 1.35, base.z);
     proxy.name = 'leverProxy';
     g.add(proxy);
     this.leverProxy = proxy;
@@ -974,7 +987,8 @@ export class Station {
     if (this.leverArm) {
       const [lo2, hi2] = spec.leverRange!;
       const f = (this.lightY - (lo2 + hi2) / 2) / (hi2 - lo2);
-      this.leverArm.rotation.x = -f * 0.9;
+      // lamp high = lever pulled back toward the operator
+      this.leverArm.rotation.x = f * 0.46;
     }
 
     // ---- solve detection

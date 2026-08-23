@@ -28,6 +28,7 @@ export class Game {
     M: MatLib,
     specA: LetterSpec,
     canvas: HTMLCanvasElement,
+    skipIntro = false,
   ) {
     for (let i = 0; i < 3; i++) {
       const st = new Station(i, M, audio);
@@ -64,9 +65,14 @@ export class Game {
       swipeEnabled: () => this.state === 'awaitSwipe',
     });
 
-    this.rig.playIntro(0, () => {
+    if (skipIntro) {
       this.state = 'operate';
-    });
+      this.rig.snapToOperate(0);
+    } else {
+      this.rig.playIntro(0, () => {
+        this.state = 'operate';
+      });
+    }
     // fetch the next machines once the first is on screen
     window.setTimeout(() => void this.loadMoreLetters(), 6000);
   }
@@ -111,6 +117,17 @@ export class Game {
     } finally {
       this.loadingMore = false;
     }
+  }
+
+  /** test/debug helper: jump straight to a station in operating state */
+  async gotoStation(i: number): Promise<void> {
+    await this.loadMoreLetters();
+    if (!this.stations[i].spec) return;
+    this.active.setActive(false);
+    this.stationIndex = i;
+    this.active.setActive(true);
+    this.state = 'operate';
+    this.rig.snapToOperate(this.active.group.position.x);
   }
 
   advance(): void {

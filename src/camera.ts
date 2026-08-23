@@ -75,11 +75,11 @@ export class CameraRig {
   }
 
   frontPose(sx: number): Pose {
-    // slightly below the beam, looking up: every sight line to the screen
-    // passes under the projection parts, so nothing blocks the letter
+    // between the parts and the screen (every part sits at z >= 2.06),
+    // dead-on at letter height: nothing blocks the finished letter
     return this.portrait
-      ? pose(sx + 0.0, 0.95, 2.62, sx + 0.0, 1.52, 0, 54)
-      : pose(sx + 0.0, 1.0, 2.62, sx + 0.0, 1.5, 0, 42);
+      ? pose(sx + 0.0, 1.42, 1.95, sx + 0.0, 1.46, 0, 58)
+      : pose(sx + 0.0, 1.42, 1.95, sx + 0.0, 1.46, 0, 44);
   }
 
   revealPose(sx: number): Pose {
@@ -214,6 +214,16 @@ export class CameraRig {
     this.curPos.copy(fp.pos);
     this.curLook.copy(fp.look);
     this.curFov = fp.fov;
+    this.mode = 'hold';
+    this.apply();
+  }
+
+  /** jump instantly to the oblique parts-reveal pose (E2E verification) */
+  snapToReveal(sx: number): void {
+    const rp = this.revealPose(sx);
+    this.curPos.copy(rp.pos);
+    this.curLook.copy(rp.look);
+    this.curFov = rp.fov;
     this.mode = 'hold';
     this.apply();
   }

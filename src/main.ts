@@ -44,7 +44,7 @@ buildAmbientLights(scene);
 
 const rig = new CameraRig(window.innerWidth / window.innerHeight);
 const audio = new AudioBus();
-const game = new Game(scene, rig, audio, M, letterA, canvas);
+const game = new Game(scene, rig, audio, M, letterA, canvas, E2E);
 
 function resize(): void {
   const w = window.innerWidth, h = window.innerHeight;

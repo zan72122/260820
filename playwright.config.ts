@@ -7,6 +7,7 @@ export default defineConfig({
   maxFailures: 1,
   timeout: 120_000,
   use: {
+    baseURL: 'http://127.0.0.1:5173',
     launchOptions: {
       executablePath: '/opt/pw-browsers/chromium',
       args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],

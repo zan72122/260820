@@ -23,8 +23,10 @@ export interface SamHooks {
   wheel(deltaRad: number): void;
   solveActive(): void;
   swipe(): void;
+  goto(i: number): Promise<void>;
   snapCamera(): void;
   snapFront(): void;
+  snapReveal(): void;
   lettersReady(): boolean;
   drawCalls(): number;
 }
@@ -65,8 +67,10 @@ export function installTestHooks(game: Game, rig: CameraRig, renderer: THREE.Web
       }
     },
     swipe: () => game.advance(),
+    goto: (i: number) => game.gotoStation(i),
     snapCamera: () => rig.snapToOperate(game.active.group.position.x),
     snapFront: () => rig.snapToFront(game.active.group.position.x),
+    snapReveal: () => rig.snapToReveal(game.active.group.position.x),
     lettersReady: () => game.stations.every((s) => !!s.spec),
     drawCalls: () => renderer.info.render.calls,
   };
