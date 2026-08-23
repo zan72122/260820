@@ -165,10 +165,10 @@ export class Vegetation {
     let fi = 0;
     // a waiting cluster right under the knot's drop zone — the first few
     // drops must land among plants that can visibly answer
-    const clusterN = Math.min(18, flowerCount);
+    const clusterN = Math.min(26, flowerCount);
     for (; fi < clusterN; fi++) {
-      const x = -6 + rand() * 13;
-      const z = -22.5 + rand() * 5.5;
+      const x = -5 + rand() * 12;
+      const z = -22.5 + rand() * 5;
       const h = terrainHeight(x, z);
       const c = petalColors[Math.floor(rand() * petalColors.length)];
       this.flowers.push({
@@ -220,8 +220,8 @@ export class Vegetation {
     const d = this.dummy;
     for (let i = 0; i < this.flowers.length; i++) {
       const f = this.flowers[i];
-      f.target = Math.max(f.target, clamp(wetMask.sample(f.pos.x, f.pos.z) * 1.8, 0, 1));
-      if (f.target > 0.25 && !f.woken) { f.woken = true; this.wokenCount++; }
+      f.target = Math.max(f.target, clamp(wetMask.sample(f.pos.x, f.pos.z) * 2.2, 0, 1));
+      if (f.target > 0.2 && !f.woken) { f.woken = true; this.wokenCount++; }
       // ease head up over ~2s once watered
       f.recovery += (f.target - f.recovery) * (1 - Math.exp(-1.6 * (dt || 0.016)));
       const droopNow = f.droop * (1 - f.recovery * 0.92);

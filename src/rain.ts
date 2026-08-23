@@ -130,7 +130,7 @@ export class RainSystem {
         d.active = false;
         this.totalLanded++;
         if (d.hero) { this.heroLanded++; this.heroActive--; }
-        wet.splat(d.pos.x, d.pos.z, d.hero ? 1.7 : 1.1, d.hero ? 0.55 : 0.16);
+        wet.splat(d.pos.x, d.pos.z, d.hero ? 2.4 : 1.1, d.hero ? 0.6 : 0.16);
         this.spawnSplash(d.pos.x, ground + 0.03, d.pos.z);
         this.onImpact?.(d.pos.x, d.pos.z, d.hero);
         continue;
