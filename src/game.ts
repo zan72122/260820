@@ -175,7 +175,8 @@ export class Game {
     if (this.state === 'operate') {
       this.idleTime += dt;
       this.hintCooldown -= dt;
-      if (this.idleTime > 7 && this.hintCooldown <= 0 && !this.active.solved) {
+      const delay = this.active.spec?.hintDelay ?? 8;
+      if (this.idleTime > delay && this.hintCooldown <= 0 && !this.active.solved) {
         this.hintCooldown = 9;
         this.audio.creak();
         this.active.hintNudge();

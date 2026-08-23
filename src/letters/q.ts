@@ -30,4 +30,5 @@ export const letterQ: LetterSpec = {
   tableRadius: 0.92,
   detent: 0.075,
   hasLever: false,
+  hintDelay: 14,
 };

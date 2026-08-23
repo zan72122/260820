@@ -78,4 +78,6 @@ export interface LetterSpec {
   tableRadius: number;
   detent: number; // half-width of the mechanical detent (rad)
   hasLever: boolean;
+  /** seconds of stalling before a physical hint; later letters guide less */
+  hintDelay: number;
 }

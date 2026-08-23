@@ -30,4 +30,5 @@ export const letterA: LetterSpec = {
   tableRadius: 0.78,
   detent: 0.075,
   hasLever: false,
+  hintDelay: 7,
 };
