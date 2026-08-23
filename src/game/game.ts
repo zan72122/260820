@@ -73,8 +73,8 @@ export class Game {
   private prevRightX = 0;
 
   constructor(uiParent: HTMLElement, lowQuality: boolean) {
-    this.scene.background = new THREE.Color(0xaeb6bd);
-    this.scene.fog = new THREE.Fog(0xaeb6bd, 14, 34);
+    this.scene.background = new THREE.Color(0xa4b0ba);
+    this.scene.fog = new THREE.Fog(0xa4b0ba, 14, 34);
 
     this.facility = buildFacility(lowQuality);
     this.scene.add(this.facility.group);
@@ -234,6 +234,10 @@ export class Game {
   /** meshes the pointer may grab to drag the movable letter. */
   get dragTargets(): THREE.Object3D[] {
     return this.rightRig ? this.rightRig.hitMeshes : [];
+  }
+
+  capsulePos(): { x: number; y: number } | null {
+    return this.body ? { x: this.body.x, y: this.body.y } : null;
   }
 
   // ------------------------------------------------------------- controls
@@ -422,6 +426,7 @@ export class Game {
       flowAccel: flow,
       netMinX: -2.8,
       netMaxX: 2.8,
+      maxFall: this.phase === 'test' ? 2.6 : undefined,
     });
 
     // foam at hard contacts while water runs

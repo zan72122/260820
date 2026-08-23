@@ -121,11 +121,11 @@ export class CameraRig {
 
     this.camera.position.set(
       fx + p.offset.x * (portrait ? 0.92 : 1),
-      p.offset.y + fy * 0.5,
+      p.offset.y + fy * 0.5 + (portrait ? 0.12 : 0),
       p.offset.z * distScale,
     );
-    this.camera.lookAt(fx + p.lookOffset.x, p.lookOffset.y + fy, 0);
-    const targetFov = portrait ? p.fov + 14 : p.fov;
+    this.camera.lookAt(fx + p.lookOffset.x, p.lookOffset.y + fy + (portrait ? 0.22 : 0), 0);
+    const targetFov = portrait ? p.fov + 12 : p.fov;
     if (Math.abs(this.camera.fov - targetFov) > 0.01) {
       this.camera.fov = damp(this.camera.fov, targetFov, 6, dt);
       this.camera.updateProjectionMatrix();

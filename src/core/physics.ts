@@ -37,6 +37,11 @@ export interface StepOptions {
   /** x range of the safety net. */
   netMinX: number;
   netMaxX: number;
+  /**
+   * terminal fall speed (m/s) — the capsule descends with the water, so the
+   * fall stays readable instead of a physics-perfect blur.
+   */
+  maxFall?: number;
 }
 
 const GRAVITY = -9.81;
@@ -93,6 +98,7 @@ export function stepCapsule(b: CapsuleBody, segments: Segment[], opts: StepOptio
 
   b.vx += ax * dt;
   b.vy += ay * dt;
+  if (opts.maxFall !== undefined && b.vy < -opts.maxFall) b.vy = -opts.maxFall;
   b.x += b.vx * dt;
   b.y += b.vy * dt;
 
@@ -130,6 +136,19 @@ export function stepCapsule(b: CapsuleBody, segments: Segment[], opts: StepOptio
       any = true;
     }
     if (!any) break;
+  }
+
+  // pinched from both sides (gap narrower than the capsule): the capsule
+  // wedges gently right where it is — it must not extrude through
+  let pushL = false;
+  let pushR = false;
+  for (const c of b.contacts) {
+    if (c.nx > 0.3) pushR = true;
+    if (c.nx < -0.3) pushL = true;
+  }
+  if (pushL && pushR) {
+    b.vx = 0;
+    b.vy = Math.max(b.vy * 0.1, -0.05);
   }
 
   // safety net: soft catch plane

@@ -266,6 +266,10 @@ export function floorCanvas(seed: number, size = 1024): HTMLCanvasElement {
   const c = concreteCanvas(seed + 7, size);
   const ctx = c.getContext('2d')!;
 
+  // yard slab sits darker than the fresh precast letters
+  ctx.fillStyle = 'rgba(88,86,82,0.22)';
+  ctx.fillRect(0, 0, size, size);
+
   // broom finish: faint directional lines
   ctx.strokeStyle = 'rgba(100,96,90,0.07)';
   ctx.lineWidth = 1;
@@ -364,14 +368,32 @@ export function rulerCanvas(size = 1024): HTMLCanvasElement {
 }
 
 export function makeStripeAlpha(size = 128): THREE.CanvasTexture {
+  // broken vertical streaks: the ribbon reads as moving water, not a bar
+  const rng = makeRng(606);
   const [c, ctx] = makeCanvas(size);
-  const g = ctx.createLinearGradient(0, 0, 0, size);
-  g.addColorStop(0, 'rgba(255,255,255,0.85)');
-  g.addColorStop(0.4, 'rgba(255,255,255,0.55)');
-  g.addColorStop(0.55, 'rgba(255,255,255,0.8)');
-  g.addColorStop(1, 'rgba(255,255,255,0.5)');
-  ctx.fillStyle = g;
+  ctx.fillStyle = 'rgba(255,255,255,0.16)';
   ctx.fillRect(0, 0, size, size);
+  // brighter core
+  const core = ctx.createLinearGradient(0, 0, size, 0);
+  core.addColorStop(0, 'rgba(255,255,255,0)');
+  core.addColorStop(0.5, 'rgba(255,255,255,0.28)');
+  core.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = core;
+  ctx.fillRect(0, 0, size, size);
+  for (let i = 0; i < 26; i++) {
+    const x = rng() * size;
+    const w = 2 + rng() * 5;
+    const y0 = rng() * size;
+    const len = size * (0.25 + rng() * 0.6);
+    const g = ctx.createLinearGradient(0, y0, 0, y0 + len);
+    g.addColorStop(0, 'rgba(255,255,255,0)');
+    g.addColorStop(0.5, `rgba(255,255,255,${0.5 + rng() * 0.45})`);
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(x - w / 2, y0, w, len);
+    // texture wraps vertically
+    ctx.fillRect(x - w / 2, y0 - size, w, len);
+  }
   const t = new THREE.CanvasTexture(c);
   t.wrapS = THREE.RepeatWrapping;
   t.wrapT = THREE.RepeatWrapping;

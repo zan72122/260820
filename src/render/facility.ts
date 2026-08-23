@@ -166,8 +166,8 @@ export function buildFacility(lowQuality: boolean): Facility {
   // ---- pump house + pipework + walkway (background only) --------------
   const back = new THREE.Group();
   const houseMat = makeConcreteMaterial(300, 0.25);
-  const house = new THREE.Mesh(new THREE.BoxGeometry(5.4, 3.0, 3.2), houseMat);
-  house.position.set(-4.6, 1.5, -7.2);
+  const house = new THREE.Mesh(new THREE.BoxGeometry(5.4, 2.7, 3.2), houseMat);
+  house.position.set(-6.3, 1.35, -8.6);
   house.castShadow = true;
   house.receiveShadow = true;
   back.add(house);
@@ -175,10 +175,10 @@ export function buildFacility(lowQuality: boolean): Facility {
     new THREE.PlaneGeometry(1.9, 2.2),
     new THREE.MeshStandardMaterial({ color: 0x7c8288, roughness: 0.6, metalness: 0.5 }),
   );
-  door.position.set(-4.0, 1.1, -5.58);
+  door.position.set(-5.7, 1.1, -6.98);
   back.add(door);
   const roofEdge = new THREE.Mesh(new THREE.BoxGeometry(5.6, 0.18, 3.4), new THREE.MeshStandardMaterial({ color: 0x63676b, roughness: 0.8 }));
-  roofEdge.position.set(-4.6, 3.06, -7.2);
+  roofEdge.position.set(-6.3, 2.76, -8.6);
   back.add(roofEdge);
 
   // supply pipes running from the pump house along the back
@@ -224,8 +224,8 @@ export function buildFacility(lowQuality: boolean): Facility {
   group.add(back);
 
   // ---- lights ---------------------------------------------------------
-  const sun = new THREE.DirectionalLight(0xfff2e0, 3.1);
-  sun.position.set(6, 9, 5);
+  const sun = new THREE.DirectionalLight(0xfff0da, 2.9);
+  sun.position.set(6.5, 9, 3);
   sun.castShadow = !lowQuality;
   sun.shadow.mapSize.set(lowQuality ? 1024 : 2048, lowQuality ? 1024 : 2048);
   sun.shadow.camera.left = -6;
@@ -236,11 +236,12 @@ export function buildFacility(lowQuality: boolean): Facility {
   sun.shadow.camera.far = 26;
   sun.shadow.bias = -0.0004;
   sun.shadow.normalBias = 0.015;
+  sun.shadow.camera.updateProjectionMatrix();
   group.add(sun);
   group.add(sun.target);
   sun.target.position.set(0, 0.8, 0);
 
-  const hemi = new THREE.HemisphereLight(0xd4dde4, 0x6c6f66, 0.85);
+  const hemi = new THREE.HemisphereLight(0xcfd9e0, 0x66695f, 0.7);
   group.add(hemi);
 
   return { group, chute, net, sun };

@@ -10,7 +10,7 @@ import { makeRng } from '../core/math';
 export class WaterRibbon {
   mesh: THREE.Mesh;
   private geo: THREE.BufferGeometry;
-  private mat: THREE.MeshStandardMaterial;
+  private mat: THREE.MeshBasicMaterial;
   private tex: THREE.CanvasTexture;
   private maxSections = 120;
   private positions: Float32Array;
@@ -31,12 +31,10 @@ export class WaterRibbon {
     this.geo.setAttribute('uv', new THREE.BufferAttribute(this.uvs, 2));
     this.tex = makeStripeAlpha();
     this.tex.repeat.set(1, 3);
-    this.mat = new THREE.MeshStandardMaterial({
-      color: 0xbfd3d9,
+    this.mat = new THREE.MeshBasicMaterial({
+      color: 0xe6f1f2,
       transparent: true,
       opacity: 0,
-      roughness: 0.12,
-      metalness: 0,
       alphaMap: this.tex,
       side: THREE.DoubleSide,
       depthWrite: false,
