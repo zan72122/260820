@@ -176,6 +176,7 @@ function screenZSign(): number {
 function onDown(e: PointerEvent) {
   if (pointerId !== null) return
   pointerId = e.pointerId
+  try { renderer.domElement.setPointerCapture(e.pointerId) } catch { /* not critical */ }
   startPX = e.clientX; startPY = e.clientY
   dragV = dragH = 0
   axisLock = null
