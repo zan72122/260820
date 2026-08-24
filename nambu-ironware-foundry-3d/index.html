@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+<meta name="theme-color" content="#0b0a08" />
+<title>南部鉄器 — Foundry 3D Direction Lab</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div id="vignette"></div><div id="flash"></div><div id="toast"></div>
+<div id="top"><div class="brand"><b id="sceneTitle">鋳型をみる</b><span id="sceneSub">砂・鉄・火が同じ工房の中で一つの鉄瓶になる。</span></div><div class="iconbar"><button class="iconbtn" id="tuneBtn" aria-label="調整">☰</button><button class="iconbtn" id="sceneBtn" aria-label="場面">▦</button></div></div>
+<div id="bottom"><div class="hint" id="hint"><div class="gesture" id="gesture">☝︎</div><div class="hinttext"><span id="hintMain">画面をゆっくり動かして工房を見る</span><small id="hintSub">操作表示は世界の外にだけ置いています</small></div></div></div>
+<aside class="panel left" id="tuning"><button class="close" data-close>×</button><h2>写実・操作の微調整</h2><div class="presets"><button class="pill" data-preset="real">写実優先</button><button class="pill" data-preset="child">4歳操作優先</button><button class="pill" data-preset="cinema">暗い工房</button></div>
+<div class="section"><h3>カメラと空間</h3>
+<div class="control"><label>対象物の大きさ <output id="oScale"></output></label><input id="scale" type="range" min="70" max="130" value="100"></div>
+<div class="control"><label>カメラの高さ <output id="oCamY"></output></label><input id="camY" type="range" min="65" max="145" value="100"></div>
+<div class="control"><label>画角 <output id="oFov"></output></label><input id="fov" type="range" min="32" max="64" value="47"></div>
+<div class="control"><label>露出 <output id="oExposure"></output></label><input id="exposure" type="range" min="55" max="145" value="92"></div>
+<div class="control"><label>工房の暗さ <output id="oDark"></output></label><input id="dark" type="range" min="35" max="100" value="76"></div></div>
+<div class="section"><h3>材質と身体感覚</h3>
+<div class="control"><label>鋳型表面の粗さ <output id="oRough"></output></label><input id="rough" type="range" min="20" max="100" value="88"></div>
+<div class="control"><label>動作の重量感 <output id="oWeight"></output></label><input id="weight" type="range" min="20" max="100" value="82"></div>
+<div class="control"><label>カメラへ伝わる重量 <output id="oShake"></output></label><input id="shake" type="range" min="0" max="100" value="38"></div>
+<div class="control"><label>見えない現象の誇張 <output id="oExaggerate"></output></label><input id="exaggerate" type="range" min="0" max="100" value="28"></div></div>
+<div class="section"><h3>4歳児向け補助</h3>
+<div class="control"><label>操作補助 <output id="oAssist"></output></label><input id="assist" type="range" min="0" max="100" value="62"></div>
+<div class="control"><label>動作速度 <output id="oSpeed"></output></label><input id="speed" type="range" min="45" max="130" value="82"></div>
+<div class="control"><label>達成演出 <output id="oReward"></output></label><input id="reward" type="range" min="0" max="100" value="38"></div>
+<div class="control"><label>UIの存在感 <output id="oUi"></output></label><input id="ui" type="range" min="0" max="100" value="34"></div></div>
+<div class="section"><h3>鋳込み専用</h3>
+<div class="control"><label>溶湯の粘性 <output id="oVisc"></output></label><input id="visc" type="range" min="20" max="100" value="72"></div>
+<div class="control"><label>流れの乱れ <output id="oTurb"></output></label><input id="turb" type="range" min="0" max="100" value="31"></div>
+<div class="control"><label>流柱の太さ <output id="oStream"></output></label><input id="stream" type="range" min="35" max="120" value="78"></div>
+<div class="control"><label>溶湯の発光 <output id="oGlow"></output></label><input id="glow" type="range" min="45" max="140" value="92"></div></div>
+</aside>
+<aside class="panel right" id="scenes"><button class="close" data-close>×</button><h2>重要シーン 13</h2><div class="scenegrid" id="sceneGrid"></div></aside>
+<script src="https://unpkg.com/three@0.154.0/build/three.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/world.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/loop.js"></script>
+</body>
+</html>
