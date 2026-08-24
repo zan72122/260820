@@ -41,9 +41,18 @@ Vertical slice of a sand-casting letter game for 4-year-olds
 - `tsc`, `vite build`, Playwright suite (4 specs) green: full O→A cycles,
   islands B=2 / C=0, real pointer gestures, rotation keeps phase,
   no console errors (favicon 404 fixed with inline SVG icon).
-- Screenshot passes at 390×844 / 844×390 for O, A, B cycles: island(s)
-  visible in mold, molten fill reads orange, finished letter faces camera
+- Full O cycle driven by real pointer gestures at 390×844, 844×390,
+  1024×1366 and 1366×1024, including picking the next letter on the rack.
+- Screenshot passes for O / A / B / C cycles: island(s) visible in mold,
+  molten fill reads orange with light bleed, finished letter faces camera
   with holes showing the shop.
+- Two independent fresh-eyes reviews (usability + art direction) ran
+  against screenshots; fixes landed for: pattern bracket cutting the O
+  silhouette, missing lever in the press frame, hint ring anchoring,
+  island/groove contrast, gripper not touching the letter, floating brush,
+  blockout-looking props, pristine crucible. Remaining known nits: pour
+  stream is missed by fast-mode screenshots (fine at real frame rates),
+  pegboard tools are simple but readable.
 
 ## Known limits (deliberate for the slice)
 - Melt is a controlled-volume fill front, not fluid simulation.
