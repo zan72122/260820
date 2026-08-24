@@ -439,7 +439,7 @@ export class Game {
 
   private addBucketFish() {
     const mesh = new THREE.Mesh(this.bucketFishGeo, this.bucketFishMat);
-    mesh.scale.setScalar(1.15);
+    mesh.scale.set(1.25, 1.8, 1.35);
     this.boat.bucket.add(mesh);
     this.bucketFish.push({
       mesh,
@@ -568,8 +568,8 @@ export class Game {
         break;
       }
       case 'BITE': {
-        if (this.stateTime > 1.3 && this.biteFlicks === 1) this.flick(0.85);
-        if (this.stateTime > 2.8) this.missBite();
+        if (this.stateTime > 1.6 && this.biteFlicks === 1) this.flick(0.85);
+        if (this.stateTime > 3.8) this.missBite();
         break;
       }
       case 'REELING': {

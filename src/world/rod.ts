@@ -122,12 +122,16 @@ export class Rod {
   }
 
   update(dt: number) {
-    // damped spring（先端が柔らかい竿の戻り）
+    // damped spring（先端が柔らかい竿の戻り）。大きなdtでも安定するようサブステップ
     const k = 170;
     const c = 9.5;
-    const acc = -k * (this.deflection - this.target) - c * this.velocity;
-    this.velocity += acc * dt;
-    this.deflection += this.velocity * dt;
+    const steps = Math.max(1, Math.ceil(dt / 0.02));
+    const h = dt / steps;
+    for (let s = 0; s < steps; s++) {
+      const acc = -k * (this.deflection - this.target) - c * this.velocity;
+      this.velocity += acc * h;
+      this.deflection += this.velocity * h;
+    }
     this.deflection = clamp(this.deflection, -0.5, 0.75);
 
     const N = Rod.SEGMENTS;

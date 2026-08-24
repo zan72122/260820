@@ -36,8 +36,9 @@ export class InputSystem {
   private strokes = 0;
   private touchedOnce = false;
   private moved = false;
-  /** 直近の急な上方向移動検出用 */
-  private recent: { y: number; t: number }[] = [];
+  /** 減衰付きの累積上方向変位（フレームレートに依存しない合わせ検出） */
+  private upAccum = 0;
+  private lastMoveT = 0;
   holding = false;
 
   constructor(el: HTMLElement, cb: InputCallbacks) {
@@ -51,7 +52,7 @@ export class InputSystem {
   }
 
   private strokeThreshold() {
-    return Math.min(this.el.clientHeight, this.el.clientWidth) * 0.035 + 10;
+    return Math.min(this.el.clientHeight, this.el.clientWidth) * 0.028 + 8;
   }
 
   private onDown = (e: PointerEvent) => {
@@ -68,7 +69,8 @@ export class InputSystem {
     this.dir = 0;
     this.strokes = 0;
     this.moved = false;
-    this.recent = [{ y: e.clientY, t: performance.now() }];
+    this.upAccum = 0;
+    this.lastMoveT = performance.now();
     if (!this.touchedOnce) {
       this.touchedOnce = true;
       this.cb.onFirstTouch();
@@ -84,8 +86,10 @@ export class InputSystem {
     const now = performance.now();
     const dy = e.clientY - this.lastY;
     this.lastY = e.clientY;
-    this.recent.push({ y: e.clientY, t: now });
-    while (this.recent.length > 2 && now - this.recent[0].t > 260) this.recent.shift();
+    const dtMove = Math.max(0.001, (now - this.lastMoveT) / 1000);
+    this.lastMoveT = now;
+    // 上方向の変位を減衰させながら積む（ゆっくりの往復では溜まらない）
+    this.upAccum = this.upAccum * Math.exp(-dtMove * 5) + Math.max(0, -dy);
 
     if (Math.abs(e.clientY - this.startY) > 8 || Math.abs(e.clientX - this.startX) > 8) this.moved = true;
 
@@ -123,11 +127,10 @@ export class InputSystem {
       }
     }
 
-    // 素早い上方向移動（合わせ）：直近260ms内で上へ大きく動いた
-    const oldest = this.recent[0];
-    if (oldest.y - e.clientY > Math.min(h * 0.05, 55) && now - oldest.t < 260) {
+    // 素早い上方向移動（合わせ）
+    if (this.upAccum > Math.min(h * 0.06, 60)) {
+      this.upAccum = 0;
       this.cb.onSwipeUp();
-      this.recent = [{ y: e.clientY, t: now }];
     }
     e.preventDefault();
   };
@@ -142,8 +145,8 @@ export class InputSystem {
     if (!this.moved && dt < 350) {
       this.cb.onTap();
     }
-    // 離す瞬間までの素早い上スワイプも合わせとして扱う
-    if (dyTotal > 40 && dt < 320) {
+    // 離す瞬間までの上スワイプも合わせとして扱う
+    if (dyTotal > Math.min(this.el.clientHeight * 0.07, 70) && dt < 900 && this.strokes <= 1) {
       this.cb.onSwipeUp();
     }
     this.cb.onRelease(this.strokes);

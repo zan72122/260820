@@ -383,7 +383,7 @@ export class DomeBoat {
     this.bucket.add(bucketWall);
     const bucketBottom = new THREE.Mesh(
       new THREE.CylinderGeometry(0.1, 0.1, 0.012, 20),
-      new THREE.MeshStandardMaterial({ color: 0x77878e, roughness: 0.45 })
+      new THREE.MeshStandardMaterial({ color: 0x46545c, roughness: 0.5 })
     );
     bucketBottom.position.y = 0.006;
     this.bucket.add(bucketBottom);
@@ -411,10 +411,10 @@ export class DomeBoat {
 
     // ---- 小物：魔法瓶・タオル ----
     const thermos = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.045, 0.045, 0.2, 14),
-      new THREE.MeshStandardMaterial({ color: 0x7d2f2a, roughness: 0.35, metalness: 0.25 })
+      new THREE.CylinderGeometry(0.042, 0.042, 0.19, 14),
+      new THREE.MeshStandardMaterial({ color: 0x4b3d38, roughness: 0.4, metalness: 0.3 })
     );
-    thermos.position.set(-0.42, 0.1, 0.82);
+    thermos.position.set(-0.34, 0.095, 0.9);
     thermos.rotation.z = 0.02;
     thermos.castShadow = true;
     this.root.add(thermos);
@@ -433,9 +433,10 @@ export class DomeBoat {
     const pants = new THREE.MeshStandardMaterial({ map: clothTexture('#2e3438'), roughness: 0.95 });
     const skin = new THREE.MeshStandardMaterial({ color: 0xc99f83, roughness: 0.7 });
 
-    // 座った胴体
+    // 座った胴体（腰はベンチ高、少し前かがみ）
     const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 0.3, 6, 12), parka);
-    torso.position.y = 0.62;
+    torso.position.set(0, 0.66, -0.02);
+    torso.rotation.x = 0.12;
     torso.castShadow = true;
     g.add(torso);
     // 腿
@@ -481,8 +482,9 @@ export class DomeBoat {
     g.add(head);
     this.attendantHead = head;
 
-    g.position.set(-1.72, 0.35, -1.3);
-    g.rotation.y = Math.PI / 3;
+    // 左舷ベンチの奥に腰掛け、釣り座の方を向いて見守る
+    g.position.set(-1.62, 0.0, -1.55);
+    g.rotation.y = Math.PI / 2.4;
     this.root.add(g);
     this.attendantGroup = g;
   }
@@ -502,7 +504,7 @@ export class DomeBoat {
     this.lamp.rotation.x = Math.sin(time * 0.47) * 0.012;
     // 係員：呼吸と、ヒント時だけ手元へ視線
     if (this.attendantHead) {
-      this.attendantGroup.position.y = 0.35 + Math.sin(time * 0.9) * 0.004;
+      this.attendantGroup.position.y = Math.sin(time * 0.9) * 0.004;
       this.attendantLookT = Math.max(0, this.attendantLookT - dt);
       const lookTarget = this.attendantLookT > 0 ? -0.75 : 0;
       this.attendantHead.rotation.y = damp(this.attendantHead.rotation.y, lookTarget, 2.5, dt);

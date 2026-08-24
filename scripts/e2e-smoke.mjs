@@ -60,7 +60,7 @@ async function jigAndRelease(page, W, H) {
   const y = H * 0.62;
   await page.mouse.move(x, y);
   await page.mouse.down();
-  const amp = Math.min(H * 0.07, 70);
+  const amp = Math.min(H * 0.1, 85);
   for (let k = 0; k < 2; k++) {
     for (let i = 0; i <= 6; i++) {
       await page.mouse.move(x + (Math.random() - 0.5) * 6, y + amp * Math.sin((i / 6) * Math.PI * 2));
@@ -160,8 +160,8 @@ for (const vp of VIEWPORTS) {
 
     // タップで開始
     await page.mouse.click(vp.width / 2, vp.height / 2);
-    await waitState(page, ['ENTER', 'IDLE'], 4000);
-    await waitState(page, 'IDLE', 9000);
+    await waitState(page, ['ENTER', 'IDLE'], 6000);
+    await waitState(page, 'IDLE', 25000);
 
     // 一周目（カットアウェイあり）
     await fullLoop(page, vp.width, vp.height, `${vp.name}-r1`, { expectCatches: 1 });
