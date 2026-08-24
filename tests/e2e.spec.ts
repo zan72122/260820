@@ -20,6 +20,8 @@ declare global {
       state(): GameState
       input(v: number, h: number): void
       advance(seconds: number): void
+      advanceSim(seconds: number): void
+      info(): { calls: number, triangles: number, geometries: number, textures: number }
     }
   }
 }
@@ -104,7 +106,7 @@ test('no teleports: car motion stays within kinematic speed limits', async ({ pa
     for (const [v, h, sec] of script) {
       g.input(v, h)
       for (let i = 0; i < sec * 60; i++) {
-        g.advance(1 / 60)
+        g.advanceSim(1 / 60)
         const s = g.state()
         const d = Math.hypot(s.carX - prev.carX, s.carY - prev.carY, s.carZ - prev.carZ)
         worst = Math.max(worst, d)

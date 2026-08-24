@@ -412,6 +412,7 @@ declare global {
       state(): Record<string, unknown>
       input(v: number, h: number): void
       advance(seconds: number): void
+      advanceSim(seconds: number): void
       render(): void
       info(): { calls: number, triangles: number, geometries: number, textures: number }
     }
@@ -440,6 +441,12 @@ window.__game = {
       step(1 / 60)
     }
     renderer.render(scene, camRig.camera)
+  },
+  // sim-only stepping (no scene sync, no render): for dense per-tick assertions
+  advanceSim: (seconds: number) => {
+    const n = Math.round(seconds * 60)
+    if (testInput) sim.setInput(testInput.v, testInput.h)
+    for (let i = 0; i < n; i++) sim.update(1 / 60)
   },
   render: () => renderer.render(scene, camRig.camera),
   info: () => ({
