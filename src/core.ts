@@ -162,6 +162,88 @@ export function setThreadSun(dir: THREE.Vector3): void {
   for (const m of threadMats) (m.uniforms.uSunDir.value as THREE.Vector3).copy(dir);
 }
 
+/** Dispose a thread material and drop it from the sun-uniform registry. */
+export function releaseThreadMaterial(mat: THREE.Material): void {
+  const i = threadMats.indexOf(mat as THREE.ShaderMaterial);
+  if (i >= 0) threadMats.splice(i, 1);
+  mat.dispose();
+}
+
+/**
+ * A tube whose topology is allocated once and whose ring positions are
+ * rewritten in place — no per-frame geometry allocation or GC churn.
+ * Used for every thread that moves each frame (hang fibres, hooked thread).
+ */
+export class DynamicTube {
+  mesh: THREE.Mesh;
+  private nSeg: number;
+  private nRad: number;
+  private radius: number;
+  private posAttr: THREE.BufferAttribute;
+  private nrmAttr: THREE.BufferAttribute;
+  private t = new THREE.Vector3();
+  private b1 = new THREE.Vector3();
+  private b2 = new THREE.Vector3();
+  private ref = new THREE.Vector3(0, 1, 0);
+
+  constructor(material: THREE.Material, nSeg = 12, nRad = 5, radius = 0.0035) {
+    this.nSeg = nSeg; this.nRad = nRad; this.radius = radius;
+    const rings = nSeg + 1, ringSize = nRad + 1;
+    const count = rings * ringSize;
+    const geo = new THREE.BufferGeometry();
+    this.posAttr = new THREE.BufferAttribute(new Float32Array(count * 3), 3);
+    this.posAttr.setUsage(THREE.DynamicDrawUsage);
+    this.nrmAttr = new THREE.BufferAttribute(new Float32Array(count * 3), 3);
+    this.nrmAttr.setUsage(THREE.DynamicDrawUsage);
+    geo.setAttribute('position', this.posAttr);
+    geo.setAttribute('normal', this.nrmAttr);
+    const idx: number[] = [];
+    for (let i = 0; i < nSeg; i++) {
+      for (let j = 0; j < nRad; j++) {
+        const a = i * ringSize + j, b = a + 1, c = a + ringSize, d = c + 1;
+        idx.push(a, c, b, b, c, d);
+      }
+    }
+    geo.setIndex(idx);
+    this.mesh = new THREE.Mesh(geo, material);
+    this.mesh.frustumCulled = false;
+  }
+
+  /** points.length must be nSeg+1. */
+  update(points: THREE.Vector3[]): void {
+    const { nSeg, nRad, radius } = this;
+    const ringSize = nRad + 1;
+    const pa = this.posAttr.array as Float32Array;
+    const na = this.nrmAttr.array as Float32Array;
+    for (let i = 0; i <= nSeg; i++) {
+      const p = points[i];
+      const p0 = points[Math.max(0, i - 1)];
+      const p1 = points[Math.min(nSeg, i + 1)];
+      this.t.subVectors(p1, p0);
+      if (this.t.lengthSq() < 1e-12) this.t.set(0, 1, 0);
+      this.t.normalize();
+      this.ref.set(0, 1, 0);
+      if (Math.abs(this.t.y) > 0.94) this.ref.set(1, 0, 0);
+      this.b1.crossVectors(this.t, this.ref).normalize();
+      this.b2.crossVectors(this.t, this.b1);
+      for (let j = 0; j <= nRad; j++) {
+        const a = (j / nRad) * Math.PI * 2;
+        const ca = Math.cos(a), sa = Math.sin(a);
+        const k = (i * ringSize + j) * 3;
+        const nx = ca * this.b1.x + sa * this.b2.x;
+        const ny = ca * this.b1.y + sa * this.b2.y;
+        const nz = ca * this.b1.z + sa * this.b2.z;
+        na[k] = nx; na[k + 1] = ny; na[k + 2] = nz;
+        pa[k] = p.x + nx * radius;
+        pa[k + 1] = p.y + ny * radius;
+        pa[k + 2] = p.z + nz * radius;
+      }
+    }
+    this.posAttr.needsUpdate = true;
+    this.nrmAttr.needsUpdate = true;
+  }
+}
+
 /** Add a per-vertex colour attribute to a TubeGeometry from colour stops along its length. */
 export function colorizeTube(
   geo: THREE.BufferGeometry,

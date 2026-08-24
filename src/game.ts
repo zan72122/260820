@@ -114,8 +114,8 @@ export class Game {
     this.anchorThread = new ActiveThread(scene);
     // bridge ends sit at the rim, clear of the stones; short ties carry the
     // load into the rock anchors so the force path stays readable
-    const bNear = this.world.nearAnchor.groove.clone().add(new THREE.Vector3(-0.45, -0.28, -0.55));
-    const bFar = this.world.farAnchor.pos.clone().add(new THREE.Vector3(0.15, -0.35, 0.45));
+    const bNear = this.world.nearAnchor.groove.clone().add(new THREE.Vector3(-0.45, -0.14, -0.32));
+    const bFar = this.world.farAnchor.pos.clone().add(new THREE.Vector3(-0.45, -0.22, 0.42));
     this.bridge = new Bridge(scene, bNear, bFar, this.rng, {
       near: this.world.nearAnchor.groove, far: this.world.farAnchor.pos
     });
@@ -381,7 +381,7 @@ export class Game {
 
   private exhaustDroplet(): void {
     if (!this.hooked) return;
-    this.hooked.die(this.scene);
+    this.hooked.die();
     this.hooked = null;
     this.liveThread.hide();
   }
@@ -533,8 +533,9 @@ export class Game {
 
   private beginTest(): void {
     this.enter('TESTING');
+    this.unicorn.setGroundFn(this.groundWithDeck);   // hooves respect the deck from now on
     const start = this.bridge.centerAt(0);
-    const stand = new THREE.Vector3(start.x - 0.38, 0, start.z + 0.6);
+    const stand = new THREE.Vector3(start.x - 0.3, 0, start.z + 0.85);
     this.unicorn.setAimTarget(null);
     this.unicorn.walkTo([stand], () => {
       this.unicorn.faceToward(this.bridge.centerAt(0.35));
@@ -851,16 +852,17 @@ export class Game {
       }
     }
 
-    // steady live load while she stands/walks on the deck
-    this.loadClock += dt;
-    if (this.loadClock > 0.14) {
-      this.loadClock = 0;
+    // standing weight: steady sag under whichever hooves rest on the deck
+    if (this.bridge.deckProgress >= 0.6) {
+      const steady: { s: number; w: number }[] = [];
       for (let i = 0; i < 4; i++) {
         const h = this.unicorn.hoofWorld(i, this.tmp);
         const info = this.bridge.deckInfo(h.x, h.z);
-        if (info && h.y < info.y + 0.12) this.bridge.setLoad(info.s, 0.4);
+        if (info && h.y < info.y + 0.12) steady.push({ s: info.s, w: 0.45 });
       }
+      this.bridge.setSteadyLoads(steady);
     }
+    this.spool.flush();
 
     this.updateHints(dt);
     this.droplets.update(this.time);

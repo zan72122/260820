@@ -233,7 +233,6 @@ export class Unicorn {
     this.tail = new THREE.Mesh(new THREE.TubeGeometry(tailCurve, 10, 0.045, 8), new THREE.MeshStandardMaterial({
       color: 0x8e8983, roughness: 0.55, envMapIntensity: 0.4
     }));
-    this.tail.castShadow = true;
     this.body.add(this.tail);
 
     // legs
@@ -256,7 +255,6 @@ export class Unicorn {
       knee.add(lower);
       const hoof = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.058, 0.07, 10), hoofMat);
       hoof.position.y = -0.37;
-      hoof.castShadow = true;
       knee.add(hoof);
       return { hip, knee, hoofMesh: hoof, phase, front, side, restX: hx, planted: true };
     };
@@ -288,16 +286,16 @@ export class Unicorn {
       constructor() { super(); }
       override getPoint(t: number, target = new THREE.Vector3()): THREE.Vector3 {
         const y = t * length;
-        const rr = lerp(r0 * 0.92, r1 * 0.85, t);
+        // sunk into the cone surface so the spiral reads as a groove, not a spring
+        const rr = lerp(r0 * 0.88, r1 * 0.8, t) + 0.0022;
         const a = t * ridgeTurns * Math.PI * 2;
         return target.set(Math.cos(a) * rr, y, Math.sin(a) * rr);
       }
     }
     const ridge = new THREE.Mesh(
-      new THREE.TubeGeometry(new HelixCurve(), 160, 0.0075, 6),
+      new THREE.TubeGeometry(new HelixCurve(), 160, 0.0068, 6),
       hornMat
     );
-    ridge.castShadow = true;
     this.hornGroup.add(ridge);
 
     return { group: this.hornGroup, length, r0, r1, ridgeTurns };
@@ -543,17 +541,21 @@ export class Unicorn {
         kneeA = 0.06 + (leg.front ? 0 : 0.05 * (0.5 + 0.5 * Math.sin(this.breatheT * 0.21 + leg.side)));
         leg.planted = true;
       }
-      const sign = leg.front ? 1 : 1;
-      leg.hip.rotation.x = hipA * sign;
+      leg.hip.rotation.x = hipA;
       leg.knee.rotation.x = leg.front ? kneeA : -kneeA * 0.4;
       leg.hip.position.y = -0.1 + lift;
 
-      // terrain adaptation: shorten/extend via knee so hooves meet the ground
+      // terrain adaptation: a floating hoof reaches DOWN (whole limb drops),
+      // a sunken hoof shortens via knee flexion
       const hw = this.hoofWorld(this.legs.indexOf(leg), this.tmp2);
       const gy = this.groundFn(hw.x, hw.z);
       const err = hw.y - 0.035 - gy;
       if (!moving || leg.planted) {
-        leg.knee.rotation.x += clamp(err * 1.6, -0.22, 0.32) * (leg.front ? 1 : -1);
+        if (err > 0) {
+          leg.hip.position.y -= Math.min(err, 0.055);
+        } else {
+          leg.knee.rotation.x += clamp(-err * 1.6, 0, 0.32) * (leg.front ? 1 : -1);
+        }
       }
     }
   }

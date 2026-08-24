@@ -19,14 +19,17 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap;   // Soft is ~2x cost for no gain at this scale
 app.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(50, 1, 0.05, 200);
 
-// quality scaling: start conservative on small screens, adapt to frame time
-let pixelScale = E2E ? 1 : Math.min(window.devicePixelRatio, 2);
+// quality scaling: fillrate is the mobile bottleneck — cap DPR on touch
+// devices and start below the cap so first seconds are smooth
+const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+const dprCap = Math.min(window.devicePixelRatio, isTouch ? 1.5 : 2);
+let pixelScale = E2E ? 1 : Math.min(dprCap, isTouch ? 1.25 : dprCap);
 const applySize = () => {
   const w = window.innerWidth, h = window.innerHeight;
   renderer.setPixelRatio(pixelScale);
@@ -72,8 +75,8 @@ function frame(now: number): void {
       if (avg > 1 / 26 && pixelScale > 0.75 && cooldown <= 0) {
         pixelScale = Math.max(0.75, pixelScale - 0.25);
         cooldown = 4; applySize();
-      } else if (avg < 1 / 55 && pixelScale < Math.min(window.devicePixelRatio, 2) && cooldown <= 0) {
-        pixelScale += 0.25;
+      } else if (avg < 1 / 55 && pixelScale < dprCap && cooldown <= 0) {
+        pixelScale = Math.min(dprCap, pixelScale + 0.25);
         cooldown = 6; applySize();
       }
     }

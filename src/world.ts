@@ -236,7 +236,13 @@ function buildRocks(scene: THREE.Scene): void {
   ];
   spots.forEach(([x, z, r, wet], i) => {
     const rock = distortedRock(r, i * 7.31, wet);
-    rock.position.set(x, groundHeight(x, z) + r * 0.28, z);
+    // ground on the LOWEST terrain under the footprint — rocks at the rim
+    // settle into the slope instead of hovering over the wall
+    let gy = Infinity;
+    for (const [dx, dz] of [[0, 0], [r, 0], [-r, 0], [0, r], [0, -r]]) {
+      gy = Math.min(gy, groundHeight(x + dx * 0.7, z + dz * 0.7));
+    }
+    rock.position.set(x, gy + r * 0.28, z);
     rock.rotation.y = i * 2.39;
     scene.add(rock);
   });
@@ -258,8 +264,8 @@ function buildAnchors(scene: THREE.Scene): {
   scene.add(g1, g2);
   const groove = new THREE.Vector3(nx + 0.02, ny + 0.78, nz - 0.02);
 
-  // far anchor: a low rock horn on the opposite rim
-  const fx = 0.85, fz = -7.42;
+  // far anchor: a low rock horn on the opposite rim, offset from the walk line
+  const fx = 1.3, fz = -7.42;
   const fy = groundHeight(fx, fz);
   const f1 = distortedRock(0.5, 5.2, 0.7);
   f1.scale.set(0.9, 1.15, 0.85);
@@ -490,13 +496,14 @@ function buildFarSide(scene: THREE.Scene): void {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
     g.setIndex(index);
+    // opaque with the haze baked into the colour: no full-screen blend cost
     const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({
-      color: col, transparent: true, opacity: op, fog: false, depthWrite: false, side: THREE.DoubleSide
+      color: col, fog: false, side: THREE.DoubleSide
     }));
     return m;
   };
-  scene.add(ridge(72, 12, 0x8494a8, 0.9, 3.1));
-  scene.add(ridge(60, 8, 0x76879c, 0.85, 9.4));
+  scene.add(ridge(72, 12, 0x8a99ab, 1, 3.1));
+  scene.add(ridge(60, 8, 0x7e8da0, 1, 9.4));
 
   // drifting mist in the crevasse and along the far rim
   const mistTex = (() => {

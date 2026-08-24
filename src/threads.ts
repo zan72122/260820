@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { clamp, lerp, makeThreadMaterial, sagCurve } from './core';
+import { clamp, lerp, makeThreadMaterial, releaseThreadMaterial, DynamicTube } from './core';
 import type { HornSpec } from './unicorn';
 
 /**
@@ -25,6 +25,8 @@ const SAMPLES_PER_TURN = 36;
 
 // ------------------------------------------------------------------ droplet
 
+const HANG_SEGS = 12;
+
 export class Droplet {
   pos: THREE.Vector3;
   colorDef: ThreadColorDef;
@@ -32,7 +34,7 @@ export class Droplet {
   hooked = false;
   dead = false;
   mesh: THREE.Mesh;
-  private hang: THREE.Mesh;
+  private hang: DynamicTube;
   private hangMat: THREE.ShaderMaterial;
   private baseR = 0.028;
   private sway: number;
@@ -40,8 +42,10 @@ export class Droplet {
   gustLean = 0;
   gustTarget: THREE.Vector3 | null = null;
   private tip = new THREE.Vector3();
+  private hangPts: THREE.Vector3[] = [];
+  private spark: THREE.Mesh;
 
-  constructor(scene: THREE.Scene, pos: THREE.Vector3, colorDef: ThreadColorDef, seed: number) {
+  constructor(private scene: THREE.Scene, pos: THREE.Vector3, colorDef: ThreadColorDef, seed: number) {
     this.pos = pos.clone();
     this.colorDef = colorDef;
     this.sway = seed * 12.9;
@@ -55,37 +59,48 @@ export class Droplet {
     this.mesh.position.copy(pos);
     scene.add(this.mesh);
     // bright refraction spark inside the drop
-    const spark = new THREE.Mesh(
+    this.spark = new THREE.Mesh(
       new THREE.SphereGeometry(this.baseR * 0.32, 6, 5),
       new THREE.MeshBasicMaterial({ color: 0xfff6e0, transparent: true, opacity: 0.9 })
     );
-    spark.position.set(-this.baseR * 0.25, this.baseR * 0.2, this.baseR * 0.2);
-    this.mesh.add(spark);
+    this.spark.position.set(-this.baseR * 0.25, this.baseR * 0.2, this.baseR * 0.2);
+    this.mesh.add(this.spark);
 
-    // the dangling few centimetres of light-fibre
+    // the dangling few centimetres of light-fibre (fixed topology, no churn)
     this.hangMat = makeThreadMaterial(colorDef.color, { opacity: 0.8 });
-    this.hang = new THREE.Mesh(new THREE.BufferGeometry(), this.hangMat);
-    this.hang.frustumCulled = false;
-    scene.add(this.hang);
+    this.hang = new DynamicTube(this.hangMat, HANG_SEGS, 5, 0.0032);
+    for (let i = 0; i <= HANG_SEGS; i++) this.hangPts.push(new THREE.Vector3());
+    scene.add(this.hang.mesh);
     this.rebuildHang(0);
   }
 
   tipWorld(out = new THREE.Vector3()): THREE.Vector3 { return out.copy(this.tip); }
 
+  private static end = new THREE.Vector3();
+  private static mid = new THREE.Vector3();
+
   private rebuildHang(t: number): void {
     const len = 0.075;
     const sx = Math.sin(t * 1.7 + this.sway) * 0.006;
     const sz = Math.cos(t * 1.3 + this.sway * 2) * 0.006;
-    let end = new THREE.Vector3(this.pos.x + sx * 2, this.pos.y - len, this.pos.z + sz * 2);
+    const end = Droplet.end.set(this.pos.x + sx * 2, this.pos.y - len, this.pos.z + sz * 2);
     if (this.gustLean > 0.01 && this.gustTarget) {
-      end = end.lerp(this.gustTarget, this.gustLean);
+      end.lerp(this.gustTarget, this.gustLean);
     }
-    const mid = new THREE.Vector3(
+    const mid = Droplet.mid.set(
       (this.pos.x + end.x) / 2 + sx, (this.pos.y + end.y) / 2, (this.pos.z + end.z) / 2 + sz
     );
-    const curve = new THREE.CatmullRomCurve3([this.pos.clone(), mid, end]);
-    this.hang.geometry.dispose();
-    this.hang.geometry = new THREE.TubeGeometry(curve, 10, 0.0032, 5);
+    // quadratic bezier through pos → mid → end, sampled without allocation
+    for (let i = 0; i <= HANG_SEGS; i++) {
+      const u = i / HANG_SEGS;
+      const a = (1 - u) * (1 - u), b = 2 * u * (1 - u), c = u * u;
+      this.hangPts[i].set(
+        a * this.pos.x + b * mid.x + c * end.x,
+        a * this.pos.y + b * mid.y + c * end.y,
+        a * this.pos.z + b * mid.z + c * end.z
+      );
+    }
+    this.hang.update(this.hangPts);
     this.tip.copy(end);
   }
 
@@ -96,8 +111,8 @@ export class Droplet {
     const frac = this.turnsLeft / TURNS_PER_DROPLET;
     const s = this.baseR / 0.028 * lerp(0.35, 1, Math.pow(frac, 0.7));
     this.mesh.scale.set(s * w, s * 1.15 / w, s * w);
-    this.hang.visible = !this.hooked && this.turnsLeft > 0.05;
-    if (this.hang.visible) {
+    this.hang.mesh.visible = !this.hooked && this.turnsLeft > 0.05;
+    if (this.hang.mesh.visible) {
       this.rebuildHang(t);
       // rare, quiet glints as the fibre catches the sun — the only invitation
       const glint = Math.pow(Math.max(0, Math.sin(t * 0.9 + this.sway * 3)), 12);
@@ -106,10 +121,15 @@ export class Droplet {
   }
 
   /** Called when its thread is exhausted: the drop is spent water again. */
-  die(scene: THREE.Scene): void {
+  die(): void {
     this.dead = true;
     this.hooked = false;
-    this.hang.visible = false;
+    this.scene.remove(this.hang.mesh);
+    this.hang.mesh.geometry.dispose();
+    releaseThreadMaterial(this.hangMat);
+    this.mesh.remove(this.spark);
+    (this.spark.material as THREE.Material).dispose();
+    this.spark.geometry.dispose();
     (this.mesh.material as THREE.MeshStandardMaterial).opacity = 0.25;
     this.mesh.scale.setScalar(0.3);
   }
@@ -117,7 +137,7 @@ export class Droplet {
 
 export class DropletField {
   list: Droplet[] = [];
-  constructor(private scene: THREE.Scene, mounts: { pos: THREE.Vector3; onWeb: boolean }[], rng: () => number) {
+  constructor(scene: THREE.Scene, mounts: { pos: THREE.Vector3; onWeb: boolean }[], rng: () => number) {
     // shuffle colours so every playthrough striping differs
     const colors: ThreadColorDef[] = [];
     for (let i = 0; i < mounts.length; i++) colors.push(THREAD_COLORS[i % 3]);
@@ -159,6 +179,7 @@ export interface Coil {
   wav: number[];              // waviness per sample, appended as it winds
   tube: THREE.Mesh | null;
   startTurn: number;          // spool position where this coil begins (turns from tip)
+  dirty: boolean;
 }
 
 export class HornSpool {
@@ -167,6 +188,7 @@ export class HornSpool {
   loose = 0;
   looseColorIdx = -1;
   private looseMesh: THREE.Mesh | null = null;
+  private looseDirty = false;
   capacityTurns = 14;
 
   constructor(private spec: HornSpec) {}
@@ -178,13 +200,19 @@ export class HornSpool {
     return this.coils.length ? this.coils[this.coils.length - 1] : null;
   }
 
-  /** Spool-local position for a given absolute wound-turn coordinate (0 = horn tip). */
+  /** Radius of the horn core cone at param t (0 base → 1 tip). */
+  private coreR(t: number): number {
+    return lerp(this.spec.r0 * 0.88, this.spec.r1 * 0.8, t);
+  }
+
+  /** Spool-local position for a given absolute wound-turn coordinate (0 = first catch). */
   private helixPoint(turnsFromTip: number, wav: number, out: THREE.Vector3): THREE.Vector3 {
-    const { length, r0, r1 } = this.spec;
-    const tSpan = 0.9 - (turnsFromTip / this.capacityTurns) * 0.62;  // tip → base band
-    const t = clamp(tSpan, 0.2, 0.95);
+    const { length } = this.spec;
+    // first wrap catches high on the horn, later wraps stack toward the base
+    const t = clamp(0.78 - (turnsFromTip / this.capacityTurns) * 0.52, 0.2, 0.95);
     const a = turnsFromTip * Math.PI * 2;
-    const rr = lerp(r0, r1, t) + 0.006 + wav * 0.004 * Math.sin(a * 7.3);
+    // seated on the cone surface: core radius + thread radius + ridge clearance
+    const rr = this.coreR(t) + 0.0045 + 0.002 + wav * 0.004 * Math.sin(a * 7.3);
     out.set(Math.cos(a) * rr, length * t + wav * 0.003 * Math.sin(a * 11.1), Math.sin(a) * rr);
     return out;
   }
@@ -202,20 +230,34 @@ export class HornSpool {
   }
 
   private refreshCoil(coil: Coil): void {
-    const geo = this.buildCoilGeometry(coil);
-    if (!geo) {
-      if (coil.tube) { coil.tube.visible = false; }
-      return;
+    coil.dirty = true;
+  }
+
+  /** Rebuild at most one dirty coil (and the loose loop) per frame — GC friendly. */
+  flush(): void {
+    for (const coil of this.coils) {
+      if (!coil.dirty) continue;
+      coil.dirty = false;
+      const geo = this.buildCoilGeometry(coil);
+      if (!geo) {
+        if (coil.tube) coil.tube.visible = false;
+        continue;
+      }
+      if (!coil.tube) {
+        const mat = makeThreadMaterial(THREAD_COLORS[coil.colorIdx].color, { opacity: 0.95, boost: 1.05 });
+        coil.tube = new THREE.Mesh(geo, mat);
+        coil.tube.frustumCulled = false;
+        this.spec.group.add(coil.tube);
+      } else {
+        coil.tube.geometry.dispose();
+        coil.tube.geometry = geo;
+        coil.tube.visible = true;
+      }
+      break; // one heavy rebuild per frame is plenty
     }
-    if (!coil.tube) {
-      const mat = makeThreadMaterial(THREAD_COLORS[coil.colorIdx].color, { opacity: 0.95, boost: 1.05 });
-      coil.tube = new THREE.Mesh(geo, mat);
-      coil.tube.frustumCulled = false;
-      this.spec.group.add(coil.tube);
-    } else {
-      coil.tube.geometry.dispose();
-      coil.tube.geometry = geo;
-      coil.tube.visible = true;
+    if (this.looseDirty) {
+      this.looseDirty = false;
+      this.rebuildLoose();
     }
   }
 
@@ -223,7 +265,7 @@ export class HornSpool {
     const a = this.active;
     if (a && a.colorIdx === colorIdx && a.turns < 0.02) return; // reuse empty stub
     this.coils.push({
-      colorIdx, turns: 0, wav: [], tube: null, startTurn: this.totalTurns
+      colorIdx, turns: 0, wav: [], tube: null, startTurn: this.totalTurns, dirty: false
     });
   }
 
@@ -261,7 +303,7 @@ export class HornSpool {
     if (coil.tube) {
       this.spec.group.remove(coil.tube);
       coil.tube.geometry.dispose();
-      (coil.tube.material as THREE.Material).dispose();
+      releaseThreadMaterial(coil.tube.material as THREE.Material);
     }
     const i = this.coils.indexOf(coil);
     if (i >= 0) this.coils.splice(i, 1);
@@ -277,12 +319,8 @@ export class HornSpool {
     coil.wav.length = Math.max(0, Math.round(coil.turns * SAMPLES_PER_TURN));
     this.loose += amt;
     this.looseColorIdx = coil.colorIdx;
-    if (coil.turns <= 0.005 && this.loose > 0.1) {
-      // keep the empty coil as the re-wind target
-      coil.turns = Math.max(coil.turns, 0);
-    }
     this.refreshCoil(coil);
-    this.refreshLoose();
+    this.looseDirty = true;
     return amt;
   }
 
@@ -298,11 +336,11 @@ export class HornSpool {
     const targetSamples = Math.round(coil.turns * SAMPLES_PER_TURN);
     while (coil.wav.length < targetSamples) coil.wav.push(wav);
     this.refreshCoil(coil);
-    this.refreshLoose();
+    this.looseDirty = true;
     return amt;
   }
 
-  private refreshLoose(): void {
+  private rebuildLoose(): void {
     if (this.loose <= 0.02) {
       if (this.looseMesh) this.looseMesh.visible = false;
       return;
@@ -360,37 +398,45 @@ export class HornSpool {
 
 // ------------------------------------------------------------------ live thread (droplet → horn)
 
+const LIVE_SEGS = 16;
+
 export class ActiveThread {
-  mesh: THREE.Mesh;
+  private tube: DynamicTube;
   private mat: THREE.ShaderMaterial;
+  private pts: THREE.Vector3[] = [];
   visible = false;
 
   constructor(scene: THREE.Scene) {
     this.mat = makeThreadMaterial(new THREE.Color(0xffffff), { opacity: 0.9 });
-    this.mesh = new THREE.Mesh(new THREE.BufferGeometry(), this.mat);
-    this.mesh.frustumCulled = false;
-    this.mesh.visible = false;
-    scene.add(this.mesh);
+    this.tube = new DynamicTube(this.mat, LIVE_SEGS, 5, 0.0035);
+    this.tube.mesh.visible = false;
+    for (let i = 0; i <= LIVE_SEGS; i++) this.pts.push(new THREE.Vector3());
+    scene.add(this.tube.mesh);
   }
 
   setColor(c: THREE.Color): void {
     (this.mat.uniforms.uColor.value as THREE.Color).copy(c);
   }
 
-  /** tension 0 = saggy, 1 = taut. */
+  /** tension 0 = saggy, 1 = taut. No allocation — safe to call per frame. */
   set(a: THREE.Vector3, b: THREE.Vector3, tension: number): void {
     const dist = a.distanceTo(b);
     const sag = lerp(dist * 0.22, dist * 0.015, clamp(tension, 0, 1));
-    const pts = sagCurve(a, b, sag, 16);
-    const curve = new THREE.CatmullRomCurve3(pts);
-    this.mesh.geometry.dispose();
-    this.mesh.geometry = new THREE.TubeGeometry(curve, 24, 0.0035, 5);
-    this.mesh.visible = true;
+    const kCosh = Math.cosh(1.2) - 1;
+    for (let i = 0; i <= LIVE_SEGS; i++) {
+      const t = i / LIVE_SEGS;
+      const p = this.pts[i];
+      p.lerpVectors(a, b, t);
+      const dip = (Math.cosh((t - 0.5) * 2.4) - 1) / kCosh;
+      p.y -= sag * (1 - dip);
+    }
+    this.tube.update(this.pts);
+    this.tube.mesh.visible = true;
     this.visible = true;
   }
 
   hide(): void {
-    this.mesh.visible = false;
+    this.tube.mesh.visible = false;
     this.visible = false;
   }
 }
