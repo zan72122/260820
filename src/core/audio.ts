@@ -177,6 +177,17 @@ export class AudioEngine {
   }
   hintTap(): void { this.thud([500], 0.05, 0.05, 0.9, 2600); }
 
+  /** soft distant two-tone horn from the waiting train */
+  horn(): void {
+    if (!this.ctx) return;
+    this.blip(415, 0.06, 0.12, 0.7, 'triangle');
+    this.blip(522, 0.05, 0.12, 0.7, 'triangle');
+    setTimeout(() => {
+      this.blip(370, 0.05, 0.1, 0.9, 'triangle');
+      this.blip(466, 0.04, 0.1, 0.9, 'triangle');
+    }, 420);
+  }
+
   /** short musical afterglow after the first successful pass */
   afterglow(): void {
     if (!this.ctx) return;

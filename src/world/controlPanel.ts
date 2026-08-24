@@ -103,23 +103,24 @@ export class ControlPanel {
       hoop.rotation.y = Math.PI / 2;
       desk.add(hoop);
     }
-    // detent markers: small pictorial route glyphs at slot ends
+    // detent markers: engraved route glyphs flush at the slot ends
+    const glyphMat = new THREE.MeshStandardMaterial({ color: 0x777d80, roughness: 0.6 });
     const glyph = (x: number, curve: boolean) => {
-      const gm = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.004, 0.055), lineMat);
-      gm.position.set(x, 0.028, 0.2);
+      const gm = new THREE.Mesh(new THREE.BoxGeometry(0.01, 0.002, 0.05), glyphMat);
+      gm.position.set(x, 0.027, 0.2);
       if (curve) gm.rotation.y = -0.55;
       desk.add(gm);
     };
     glyph(-0.115, false);
     glyph(0.115, true);
 
-    // guarded emergency stop, peripheral (clicks but has no game effect)
-    const eGuard = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.035, 12, 1, true), m.galv);
-    eGuard.position.set(0.26, 0.04, -0.02);
+    // guarded emergency stop, peripheral, deliberately dull (clicks only)
+    const eGuard = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.045, 0.034, 12, 1, true), m.galv);
+    eGuard.position.set(0.26, 0.035, -0.02);
     desk.add(eGuard);
-    const eBtn = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.03, 12),
-      new THREE.MeshStandardMaterial({ color: 0xa03028, roughness: 0.5 }));
-    eBtn.position.set(0.26, 0.045, -0.02);
+    const eBtn = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.026, 12),
+      new THREE.MeshStandardMaterial({ color: 0x7e2c26, roughness: 0.62 }));
+    eBtn.position.set(0.26, 0.04, -0.02);
     desk.add(eBtn);
 
     this.hand = new WorkerHand(m);

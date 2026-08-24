@@ -112,7 +112,7 @@ export class Environment {
 
     // maintenance walkway strip with anti-slip paint
     const walk = new THREE.Mesh(new THREE.BoxGeometry(2.1, 0.04, 41),
-      new THREE.MeshStandardMaterial({ color: 0x7b8274, roughness: 0.95 }));
+      new THREE.MeshStandardMaterial({ color: 0x878b80, roughness: 0.95 }));
     walk.position.set(-6.1, 0.02, 7.5);
     walk.receiveShadow = true;
     this.group.add(walk);
@@ -294,7 +294,7 @@ export class Environment {
     pole2.position.y = -1.0;
     ind.add(pole2);
     const mkArrow = (dx: number, rot: number) => {
-      const mat = new THREE.MeshStandardMaterial({ color: 0x1c1f20, emissive: 0x000000 });
+      const mat = new THREE.MeshStandardMaterial({ color: 0x43484b, emissive: 0x000000 });
       const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.09, 0.2, 3), mat);
       arrow.rotation.z = rot;
       arrow.position.set(dx, 0, -0.09);
@@ -309,7 +309,7 @@ export class Environment {
     const setLens = (mat: THREE.MeshStandardMaterial, color: number | null) => {
       if (color === null) {
         mat.emissive.setHex(0x000000);
-        mat.color.setHex(0x131414);
+        mat.color.setHex(0x33383b);
       } else {
         mat.emissive.setHex(color);
         mat.emissiveIntensity = 1.6;
@@ -428,8 +428,13 @@ function beamAlong(pts: THREE.Vector3[], w: number, depth: number, topY: number)
   g.setIndex([...idxSides, ...idxTop]);
   g.addGroup(0, idxSides.length, 0);
   g.addGroup(idxSides.length, idxTop.length, 1);
-  g.computeVertexNormals();
-  return g;
+  // flat-shade: shared ring vertices would round the box corners into a pipe
+  const flat = g.toNonIndexed();
+  flat.clearGroups();
+  flat.addGroup(0, idxSides.length, 0);
+  flat.addGroup(idxSides.length, idxTop.length, 1);
+  flat.computeVertexNormals();
+  return flat;
 }
 
 export { GROUND_Y };

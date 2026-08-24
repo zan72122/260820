@@ -89,7 +89,7 @@ export function buildMaterials(): MaterialKit {
 
   // --- PC concrete track girder
   const [cc, cctx] = canvas(256, 256);
-  cctx.fillStyle = '#b9b4ab'; cctx.fillRect(0, 0, 256, 256);
+  cctx.fillStyle = '#b1aca1'; cctx.fillRect(0, 0, 256, 256);
   grain(cctx, 256, 256, 1400, 0.07);
   for (let i = 0; i < 40; i++) { // pores: subtle, small
     cctx.fillStyle = `rgba(80,76,70,${0.06 + rand() * 0.09})`;
@@ -106,11 +106,11 @@ export function buildMaterials(): MaterialKit {
   rstx.fillStyle = '#a9aca9'; rstx.fillRect(0, 0, 128, 256);
   grain(rstx, 128, 256, 350, 0.05);
   const band = (cx: number) => {
-    const g = rstx.createLinearGradient(cx - 22, 0, cx + 22, 0);
-    g.addColorStop(0, 'rgba(52,52,52,0)');
-    g.addColorStop(0.5, 'rgba(52,52,52,0.55)');
-    g.addColorStop(1, 'rgba(52,52,52,0)');
-    rstx.fillStyle = g; rstx.fillRect(cx - 22, 0, 44, 256);
+    const g = rstx.createLinearGradient(cx - 26, 0, cx + 26, 0);
+    g.addColorStop(0, 'rgba(40,40,42,0)');
+    g.addColorStop(0.5, 'rgba(40,40,42,0.8)');
+    g.addColorStop(1, 'rgba(40,40,42,0)');
+    rstx.fillStyle = g; rstx.fillRect(cx - 26, 0, 52, 256);
   };
   band(38); band(90);
   const runningSurface = new THREE.MeshStandardMaterial({

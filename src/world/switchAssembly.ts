@@ -81,23 +81,32 @@ export class SwitchAssembly {
       ribMesh.castShadow = true;
       g.add(ribMesh);
 
-      // articulation hinge at the leading (far) end of each girder:
-      // top + bottom plates with a vertical pin, greased.
-      const hingeParts: THREE.BufferGeometry[] = [];
-      for (const y of [BEAM_TOP_Y - 0.07, BEAM_BOT_Y + 0.07]) {
-        const plate = new THREE.CylinderGeometry(0.2, 0.2, 0.045, 18);
-        plate.translate(0, y, len + GAP / 2);
-        hingeParts.push(plate);
+      // articulation hinge at the leading (far) end of each girder except
+      // the free tip: top + bottom plates with a vertical pin, plus a dark
+      // seam filling the gap so the four-girder segmentation stays legible.
+      if (k < SEG_COUNT - 1) {
+        const hingeParts: THREE.BufferGeometry[] = [];
+        for (const y of [BEAM_TOP_Y - 0.07, BEAM_BOT_Y + 0.07]) {
+          const plate = new THREE.CylinderGeometry(0.2, 0.2, 0.045, 18);
+          plate.translate(0, y, len + GAP / 2);
+          hingeParts.push(plate);
+        }
+        const hinge = new THREE.Mesh(mergeGeometries(hingeParts), m.beamPaintSide);
+        hinge.castShadow = true;
+        g.add(hinge);
+        const pin = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.06, 0.06, BEAM_H - 0.1, 12),
+          m.steelDark,
+        );
+        pin.position.set(0, BEAM_BOT_Y + BEAM_H / 2, len + GAP / 2);
+        g.add(pin);
+        const seam = new THREE.Mesh(
+          new THREE.BoxGeometry(BEAM_W - 0.03, BEAM_H - 0.06, GAP + 0.012),
+          m.grease,
+        );
+        seam.position.set(0, BEAM_BOT_Y + BEAM_H / 2, len + GAP / 2);
+        g.add(seam);
       }
-      const hinge = new THREE.Mesh(mergeGeometries(hingeParts), m.beamPaintSide);
-      hinge.castShadow = true;
-      g.add(hinge);
-      const pin = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.06, 0.06, BEAM_H - 0.1, 12),
-        m.steelDark,
-      );
-      pin.position.set(0, BEAM_BOT_Y + BEAM_H / 2, len + GAP / 2);
-      g.add(pin);
 
       // arm guide channel near the tail of girders 2 and 4 — the slot the
       // crank roller rides in while pushing the girder sideways
@@ -174,6 +183,9 @@ export class SwitchAssembly {
     bearing.position.set(0, 0.66, 0);
     bearing.castShadow = true;
     this.group.add(bearing);
+    const heelShadow = contactShadow(2.4, 2.0);
+    heelShadow.position.set(0, 0.007, -0.3);
+    this.group.add(heelShadow);
   }
 
   // -- transfer trolleys with lock cylinders --------------------------------
@@ -228,6 +240,8 @@ export class SwitchAssembly {
     const railGeos: THREE.BufferGeometry[] = [];
     const plinthGeos: THREE.BufferGeometry[] = [];
     const plateGeos: THREE.BufferGeometry[] = [];
+    const socketGeos: THREE.BufferGeometry[] = [];
+    const stainGeos: THREE.BufferGeometry[] = [];
 
     for (const spec of this.trolleySpecs) {
       // rail direction at each trace point = local girder axis; rails offset
@@ -248,8 +262,11 @@ export class SwitchAssembly {
         pts.unshift(first); pts.push(last);
         railGeos.push(ribbonAlong(pts, 0.09, 0.12));
         plinthGeos.push(ribbonAlong(pts.map(p => new THREE.Vector3(p.x, 0.01, p.z)), 0.3, 0.1));
+        // work stain: dirt and grease darken the deck along the travel path
+        stainGeos.push(ribbonAlong(pts.map(p => new THREE.Vector3(p.x, 0.003, p.z)), 0.62, 0.004));
       }
-      // machined bed plates at both end positions, under the lock rod
+      // machined bed plates at both end positions, under the lock rod,
+      // each with a socket boss the rod tip drops into
       for (const t of [0, 1]) {
         const j = jointPos(spec.joint, t);
         const h = girderHeading(Math.min(spec.joint, SEG_COUNT - 1), t);
@@ -259,9 +276,23 @@ export class SwitchAssembly {
         plate.rotateY(h);
         plate.translate(lx, 0.035, lz);
         plateGeos.push(plate);
+        const socket = new THREE.CylinderGeometry(0.085, 0.095, 0.06, 14);
+        socket.translate(lx, 0.1, lz);
+        socketGeos.push(socket);
+        // anchor bolts at the plate corners
+        for (const bx of [-0.2, 0.2]) {
+          for (const bz of [-0.2, 0.2]) {
+            const bolt = new THREE.CylinderGeometry(0.022, 0.022, 0.05, 8);
+            bolt.translate(lx + bx, 0.085, lz + bz);
+            socketGeos.push(bolt);
+          }
+        }
       }
     }
-    const rails = new THREE.Mesh(mergeGeometries(railGeos), m.machined);
+    const railMat = new THREE.MeshStandardMaterial({
+      color: 0x9aa0a3, roughness: 0.45, metalness: 0.5,
+    });
+    const rails = new THREE.Mesh(mergeGeometries(railGeos), railMat);
     rails.receiveShadow = true;
     this.group.add(rails);
     const plinths = new THREE.Mesh(mergeGeometries(plinthGeos), m.concreteDark);
@@ -270,6 +301,15 @@ export class SwitchAssembly {
     const plates = new THREE.Mesh(mergeGeometries(plateGeos), m.machined);
     plates.receiveShadow = true;
     this.group.add(plates);
+    const sockets = new THREE.Mesh(mergeGeometries(socketGeos), m.steelDark);
+    sockets.castShadow = true;
+    this.group.add(sockets);
+    const stains = new THREE.Mesh(mergeGeometries(stainGeos),
+      new THREE.MeshStandardMaterial({
+        color: 0x3c3a36, roughness: 1, transparent: true, opacity: 0.28,
+        depthWrite: false,
+      }));
+    this.group.add(stains);
   }
 
   // -- drive units ----------------------------------------------------------
@@ -318,6 +358,25 @@ export class SwitchAssembly {
       arm.add(roller);
       this.crankArms.push(arm);
       base.add(arm);
+
+      // flexible conduit from the gearbox down into the deck cable trench
+      const conduit = new THREE.Mesh(
+        new THREE.TorusGeometry(0.32, 0.028, 8, 12, Math.PI / 2),
+        this.mats.grease,
+      );
+      conduit.position.set(-0.26, 0.32, -0.26);
+      conduit.rotation.y = Math.PI / 2;
+      base.add(conduit);
+      const conduitRun = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.028, 0.028, 1.2, 8),
+        this.mats.grease,
+      );
+      conduitRun.rotation.z = Math.PI / 2;
+      conduitRun.position.set(-1.2, 0.04, -0.26);
+      base.add(conduitRun);
+
+      // soft contact shadow under the unit
+      base.add(contactShadow(2.1, 1.5));
 
       this.group.add(base);
     }
@@ -404,6 +463,26 @@ export class SwitchAssembly {
   }
 }
 
+/** radial-gradient contact-shadow quad, laid on the deck */
+export function contactShadow(w: number, d: number, opacity = 0.32): THREE.Mesh {
+  const c = document.createElement('canvas');
+  c.width = 64; c.height = 64;
+  const ctx = c.getContext('2d')!;
+  const g = ctx.createRadialGradient(32, 32, 4, 32, 32, 32);
+  g.addColorStop(0, `rgba(20,20,22,${opacity})`);
+  g.addColorStop(1, 'rgba(20,20,22,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 64, 64);
+  const t = new THREE.CanvasTexture(c);
+  const mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(w, d),
+    new THREE.MeshBasicMaterial({ map: t, transparent: true, depthWrite: false }),
+  );
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.position.y = 0.006;
+  return mesh;
+}
+
 /** Sweep a small w×h rectangular section along a polyline (top face up). */
 function ribbonAlong(pts: THREE.Vector3[], w: number, h: number): THREE.BufferGeometry {
   const verts: number[] = [];
@@ -435,6 +514,8 @@ function ribbonAlong(pts: THREE.Vector3[], w: number, h: number): THREE.BufferGe
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
   g.setIndex(idx);
-  g.computeVertexNormals();
-  return g;
+  // flat faces — otherwise the small rectangular section shades like a tube
+  const flat = g.toNonIndexed();
+  flat.computeVertexNormals();
+  return flat;
 }

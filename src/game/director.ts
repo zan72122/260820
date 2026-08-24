@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { MaterialKit } from '../world/materials';
-import { SwitchAssembly } from '../world/switchAssembly';
+import { SwitchAssembly, contactShadow } from '../world/switchAssembly';
 import { Environment } from '../world/environment';
 import { Train } from '../world/train';
 import { ControlPanel } from '../world/controlPanel';
@@ -87,6 +87,9 @@ export class Game {
     this.scene.add(this.env.group, this.sw.group, this.panel.group);
     // the hint hand is animated in world space
     this.scene.add(this.panel.hand.group);
+    const panelShadow = contactShadow(1.5, 1.2);
+    panelShadow.position.set(PANEL_POS.x, 0.008, PANEL_POS.z);
+    this.scene.add(panelShadow);
     this.scene.fog = new THREE.Fog(0xcdd9e0, 90, 780);
 
     // lighting: one warm key sun + cool sky fill, soft day
@@ -463,10 +466,15 @@ export class Game {
   private startHint(stage: number): void {
     this.hintActive = stage;
     this.hintT = 0;
-    if (stage === 1) this.audio.hintTap();
+    if (stage === 1) {
+      this.audio.hintTap();
+      // the waiting train asks quietly: a distant horn + headlight pulse
+      this.audio.horn();
+    }
   }
 
   private stopHint(): void {
+    if (this.hintActive === 1) this.mats.headlight.emissiveIntensity = 0.7;
     if (this.hintActive === 2) {
       this.panel.hand.setOpacity(0);
       if (this.shot === 'panelhint') this.shot = 'wide';
@@ -479,10 +487,16 @@ export class Game {
   private runHint(t: number): void {
     const detent = this.lockedSide === 'curve' ? 1 : -1;
     if (this.hintActive === 1) {
-      // the handle stirs a few millimetres — a machine asking quietly
-      if (t < 0.9) {
+      // the handle stirs a few millimetres — a machine asking quietly —
+      // while the waiting train pulses its headlights
+      this.mats.headlight.emissiveIntensity = 0.7 + Math.max(0, Math.sin(t * 7)) * 1.6;
+      if (t < 1.8) {
         this.panel.setLever(detent + Math.sin(t * 26) * 0.05 * Math.exp(-t * 2.2));
-      } else { this.panel.setLever(detent); this.stopHint(); }
+      } else {
+        this.panel.setLever(detent);
+        this.mats.headlight.emissiveIntensity = 0.7;
+        this.stopHint();
+      }
     } else if (this.hintActive === 2) {
       this.shot = 'panelhint';
       // a gloved hand drifts in near the handle, makes a small pushing
