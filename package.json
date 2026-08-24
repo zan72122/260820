@@ -1,0 +1,27 @@
+{
+  "name": "blood-pressure-sound-window",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Ninshou no mado - a listening game for young children set in a clinical skills lab (training manikin only).",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "typecheck": "tsc --noEmit",
+    "preview": "vite preview",
+    "smoke": "node tools/smoke.mjs",
+    "framecheck": "node tools/framecheck.mjs",
+    "snapshots": "node tools/snapshots.mjs",
+    "build:probe": "vite build --mode probe --outDir dist-probe",
+    "preview:probe": "vite preview --outDir dist-probe --port 4173"
+  },
+  "dependencies": {
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.180.0",
+    "playwright": "^1.62.1",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10"
+  }
+}

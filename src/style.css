@@ -1,0 +1,183 @@
+:root {
+  color-scheme: dark;
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #0b0e10;
+  overscroll-behavior: none;
+  touch-action: none;
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP",
+    sans-serif;
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+#stage {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+#overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* --- minimal, non-instructional controls ------------------------------- */
+
+.ctl-cluster {
+  position: absolute;
+  top: calc(var(--safe-t) + 10px);
+  right: calc(var(--safe-r) + 10px);
+  display: flex;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.ctl {
+  width: 44px;
+  height: 44px;
+  border-radius: 22px;
+  border: 1px solid rgba(226, 232, 234, 0.22);
+  background: rgba(18, 23, 26, 0.42);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: opacity 0.25s ease, transform 0.12s ease;
+  opacity: 0.5;
+  padding: 0;
+}
+
+.ctl:active {
+  transform: scale(0.94);
+}
+
+.ctl:hover,
+.ctl.is-open {
+  opacity: 0.92;
+}
+
+.ctl svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: #e7edef;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ctl.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.audio-panel {
+  position: absolute;
+  top: calc(var(--safe-t) + 62px);
+  right: calc(var(--safe-r) + 10px);
+  width: 188px;
+  padding: 12px 14px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(226, 232, 234, 0.18);
+  background: rgba(16, 21, 24, 0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  pointer-events: auto;
+  display: none;
+  color: #dfe6e8;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+.audio-panel.is-open {
+  display: block;
+}
+
+.audio-panel input[type="range"] {
+  width: 100%;
+  margin: 8px 0 12px;
+  accent-color: #9fb6bd;
+}
+
+.seg {
+  display: flex;
+  border: 1px solid rgba(226, 232, 234, 0.2);
+  border-radius: 9px;
+  overflow: hidden;
+}
+
+.seg button {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: #c3cdd0;
+  font: inherit;
+  padding: 7px 0;
+  cursor: pointer;
+}
+
+.seg button.is-on {
+  background: rgba(226, 232, 234, 0.16);
+  color: #fff;
+}
+
+/* Diegetic replay affordance: a single quiet loop glyph, no words. */
+.replay {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--safe-b) + 26px);
+  transform: translateX(-50%) scale(0.9);
+  width: 74px;
+  height: 74px;
+  border-radius: 37px;
+  border: 1px solid rgba(232, 238, 240, 0.3);
+  background: rgba(18, 23, 26, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.5s ease, transform 0.4s ease;
+}
+
+.replay.is-on {
+  opacity: 0.92;
+  transform: translateX(-50%) scale(1);
+  pointer-events: auto;
+}
+
+.replay svg {
+  width: 34px;
+  height: 34px;
+  fill: none;
+  stroke: #eef4f5;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+}
