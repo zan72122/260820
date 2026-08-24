@@ -17,8 +17,9 @@ const VIEWPORTS = [
 
 for (const vp of VIEWPORTS) {
   test(`20+ conversions stay healthy on ${vp.name}`, async ({ page }) => {
-    test.setTimeout(600_000);
-    await boot(page, { fast: 8, w: vp.w, h: vp.h });
+    // SwiftShader needs generous wall-clock at tablet resolutions
+    test.setTimeout(1_500_000);
+    await boot(page, { fast: 10, w: vp.w, h: vp.h });
     await page.waitForTimeout(500);
 
     const heap0 = await page.evaluate(() => (performance as any).memory?.usedJSHeapSize ?? 0);
@@ -27,15 +28,15 @@ for (const vp of VIEWPORTS) {
     let conversions = 0;
 
     for (let i = 0; i < 21; i++) {
-      await page.waitForFunction(() => (window as any).__mono.phase === 'idle', null, { timeout: 120_000 });
+      await page.waitForFunction(() => (window as any).__mono.phase === 'idle', null, { timeout: 240_000 });
       await slide(page, dir);
       const started = await page
-        .waitForFunction(() => (window as any).__mono.phase !== 'idle', null, { timeout: 5_000 })
+        .waitForFunction(() => (window as any).__mono.phase !== 'idle', null, { timeout: 8_000 })
         .then(() => true).catch(() => false);
       if (!started) continue; // a train arrived exactly then; try again
       await page.waitForFunction(
         () => ['signal', 'train', 'idle'].includes((window as any).__mono.phase),
-        null, { timeout: 120_000 },
+        null, { timeout: 240_000 },
       );
       conversions++;
       dir = dir === -1 ? 1 : -1;
