@@ -174,6 +174,8 @@ test('renderer stays healthy over repeated cycles (memory / draw calls)', async 
       g.input(-1, 0); g.advance(16)
       g.input(0, 0); g.advance(46)
     }
+    // first cycle warms up lazy GPU uploads (every camera/phase has rendered once)
+    cycle()
     const infoBefore = g.info()
     const t0 = performance.now()
     for (let i = 0; i < 3; i++) cycle()
@@ -181,7 +183,7 @@ test('renderer stays healthy over repeated cycles (memory / draw calls)', async 
     const infoAfter = g.info()
     return { elapsed, infoBefore, infoAfter, round: g.state().round }
   })
-  expect(metrics.round).toBeGreaterThanOrEqual(3)
+  expect(metrics.round).toBeGreaterThanOrEqual(4)
   // geometry/texture counts must not grow across rounds (no leaks)
   expect(metrics.infoAfter.geometries).toBeLessThanOrEqual(metrics.infoBefore.geometries + 8)
   expect(metrics.infoAfter.textures).toBeLessThanOrEqual(metrics.infoBefore.textures + 4)

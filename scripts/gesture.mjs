@@ -4,7 +4,7 @@ import { chromium } from '@playwright/test'
 
 const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome' })
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } })
-await page.goto('http://127.0.0.1:5173/?e2e=1&seed=1', { waitUntil: 'networkidle' })
+await page.goto('http://127.0.0.1:5173/?seed=1', { waitUntil: 'networkidle' })
 await page.waitForFunction(() => window.__game !== undefined)
 
 const state = () => page.evaluate(() => window.__game.state())

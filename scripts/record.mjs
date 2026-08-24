@@ -15,7 +15,7 @@ async function record(name, w, h) {
     recordVideo: { dir: outDir, size: { width: w, height: h } }
   })
   const page = await ctx.newPage()
-  await page.goto('http://127.0.0.1:5173/?e2e=1&seed=1', { waitUntil: 'networkidle' })
+  await page.goto('http://127.0.0.1:5173/?seed=1', { waitUntil: 'networkidle' })
   await page.waitForFunction(() => window.__game !== undefined, { timeout: 15000 })
 
   // real-time playthrough driven through the same input hook the touch layer feeds

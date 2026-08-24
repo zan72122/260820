@@ -445,9 +445,12 @@ function frame() {
   let dt = (now - clock.last) / 1000
   clock.last = now
   dt = clamp(dt, 0.0005, 0.1)
-  if (E2E) dt = 1 / 60
-  clock.elapsed += dt
-  step(dt)
+  // E2E: the RAF loop only renders; game time advances solely through the
+  // __game.advance hooks so tests are fully deterministic.
+  if (!E2E) {
+    clock.elapsed += dt
+    step(dt)
+  }
   renderer.render(scene, camRig.camera)
 }
 frame()
@@ -478,6 +481,7 @@ declare global {
       advance(seconds: number): void
       advanceSim(seconds: number): void
       render(): void
+      debug(): { dragV: number, dragH: number, pointerId: number | null, zsign: number }
       info(): { calls: number, triangles: number, geometries: number, textures: number }
     }
   }
@@ -513,6 +517,7 @@ window.__game = {
     for (let i = 0; i < n; i++) sim.update(1 / 60)
   },
   render: () => renderer.render(scene, camRig.camera),
+  debug: () => ({ dragV, dragH, pointerId, zsign: screenZSign() }),
   info: () => ({
     calls: renderer.info.render.calls,
     triangles: renderer.info.render.triangles,
