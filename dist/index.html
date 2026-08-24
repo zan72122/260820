@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#2c2721" />
+    <title>ユニコーンの角修理工房</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #2c2721;
+        touch-action: none;
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+        overscroll-behavior: none;
+      }
+      #app {
+        position: fixed;
+        inset: 0;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+      #tool-chip {
+        position: fixed;
+        left: max(18px, env(safe-area-inset-left));
+        bottom: max(18px, env(safe-area-inset-bottom));
+        width: 92px;
+        height: 92px;
+        border-radius: 26px;
+        background: rgba(46, 40, 33, 0.72);
+        border: 1.5px solid rgba(214, 197, 168, 0.45);
+        box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.6s ease;
+      }
+      #tool-chip.visible {
+        display: flex;
+        opacity: 1;
+      }
+      #tool-chip.pulse {
+        animation: chip-pulse 2.2s ease-in-out infinite;
+      }
+      @keyframes chip-pulse {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.08);
+        }
+      }
+      #tool-chip svg {
+        width: 64px;
+        height: 64px;
+      }
+    </style>
+    <script type="module" crossorigin src="./assets/index-CbkcqSFz.js"></script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="tool-chip" aria-hidden="true"></div>
+  </body>
+</html>
