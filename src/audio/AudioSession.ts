@@ -27,6 +27,7 @@ export class AudioSession {
   private muted = false;
   private mode: OutputMode = 'speaker';
   private failed = false;
+  private wasInterrupted = false;
 
   get ready(): boolean {
     return this.ctx !== null && this.ctx.state === 'running';
@@ -58,6 +59,11 @@ export class AudioSession {
         }
         this.ctx = new Ctor({ latencyHint: 'interactive' });
         this.buildGraph();
+        // iOS suspends the context for a phone call, Siri, or the ring switch,
+        // and reports it here. Note it so the next touch can bring it back.
+        this.ctx.addEventListener('statechange', () => {
+          if (this.ctx && this.ctx.state !== 'running') this.wasInterrupted = true;
+        });
       }
       if (this.ctx.state !== 'running') await this.ctx.resume();
       // iOS only truly starts the clock once something has played.
@@ -70,6 +76,33 @@ export class AudioSession {
       this.failed = true;
       return false;
     }
+  }
+
+  /**
+   * Bring the context back if something outside the game stopped it.
+   *
+   * Safe and cheap to call from any touch, which is the only thing iOS will
+   * accept as permission to start audio again after an interruption.
+   */
+  ensureRunning(): void {
+    if (!this.ctx || this.failed) return;
+    if (this.ctx.state === 'running') {
+      this.wasInterrupted = false;
+      return;
+    }
+    void this.ctx
+      .resume()
+      .then(() => {
+        this.wasInterrupted = this.ctx?.state !== 'running';
+      })
+      .catch(() => {
+        /* the next touch will try again */
+      });
+  }
+
+  /** True when audio has stopped for a reason the game did not choose. */
+  get interrupted(): boolean {
+    return this.wasInterrupted;
   }
 
   private buildGraph(): void {

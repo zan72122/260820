@@ -117,7 +117,21 @@ if (RUN_MAIN) {
   log.push({ step: 'after-reveal', ...(await snap(page)) });
   await shot(page, '05-after-reveal');
 
-  // 4. Up to the second window.
+  // 4a. Settling on the *other* area in the same half must not end the round:
+  // the first session is about hearing the two halves against each other.
+  const partner = { tricuspid: [0.62, -0.36], mitral: [0.16, 0.06] };
+  const firstFound = (await snap(page)).firstWindow;
+  if (partner[firstFound]) {
+    const same = await page.evaluate(
+      ([a, b]) => window.__game.projectChest(a, b),
+      partner[firstFound],
+    );
+    await pressHold(page, same, 7000);
+    await sleep(600);
+    log.push({ step: 'same-half', ...(await snap(page)) });
+  }
+
+  // 4b. Up to the second window, in the other half.
   const aortic = await page.evaluate(() => window.__game.projectChest(-0.44, 0.68));
   await pressHold(page, aortic, 5600);
   log.push({ step: 'second-window', ...(await snap(page)) });
@@ -327,6 +341,21 @@ const r3 = report.main.find((l) => l.step === 'round-3');
 const r4 = report.main.find((l) => l.step === 'round-4');
 if (!(r4.knocks > r3.knocks))
   failures.push('the instructor never knocked the beat during the marked rounds');
+if (last.audioInterrupted) failures.push('audio was left interrupted');
+// The first session has to put the two halves of the chest against each other.
+const sameHalf = report.main.find((l) => l.step === 'same-half');
+if (sameHalf && sameHalf.stage !== 'seekSecond')
+  failures.push('a second area from the same half ended the first session early');
+if (sameHalf && sameHalf.tiles < 2)
+  failures.push('a same-half area was not saved even though it was listened to');
+const second = report.main.find((l) => l.step === 'second-window');
+const upper = ['aortic', 'pulmonic'];
+const halves = new Set(second.discovered.map((d) => (upper.includes(d) ? 'upper' : 'lower')));
+if (halves.size < 2)
+  failures.push('the first two areas came from the same half of the chest');
+// The simulation must leave almost the whole frame budget for drawing.
+if (last.render && last.render.updateMs > 6)
+  failures.push(`simulation costs ${last.render.updateMs} ms a frame, too much of the budget`);
 }
 report.failures = failures;
 
@@ -343,8 +372,18 @@ for (const w of report.audio.windows) {
 console.log('--- run ---');
 for (const l of report.main ?? []) {
   console.log(
-    `  ${l.step.padEnd(18)} stage=${String(l.stage).padEnd(15)} tiles=${l.tiles} found=${l.discovered.length} beat=${l.beat} knocks=${l.knocks} roll=${l.roll} portrait=${l.portrait}`,
+    `  ${l.step.padEnd(18)} stage=${String(l.stage).padEnd(15)} tiles=${l.tiles} found=[${l.discovered.join(',')}] beat=${l.beat} knocks=${l.knocks} roll=${l.roll} portrait=${l.portrait}`,
   );
+}
+console.log('--- scene cost (hardware independent) ---');
+{
+  const r = (report.main ?? []).filter((l) => l.render).slice(-1)[0];
+  if (r) {
+    console.log(
+      `  draw calls ${r.render.calls}  triangles ${r.render.triangles}  shader programs ${r.render.programs}  geometries ${r.render.geometries}  textures ${r.render.textures}`,
+    );
+    console.log(`  simulation cost per frame (median, excluding the draw): ${r.render.updateMs} ms`);
+  }
 }
 console.log('--- viewports ---');
 for (const v of report.viewports) {

@@ -24,6 +24,7 @@ export class ChildGuidance {
   private sweepTimer = 0;
   private sweepSide: 'upper' | 'lower' = 'upper';
   private sweeping = false;
+  private indicateTimer = 0;
 
   constructor(
     private hand: InstructorHand,
@@ -67,6 +68,17 @@ export class ChildGuidance {
   }
 
   /**
+   * Pass a hand once over one half of the chest and then withdraw. Used when
+   * the first area the child found was in the other half — the point of the
+   * first session is to hear the two halves against each other.
+   */
+  indicateHalf(half: 'upper' | 'lower'): void {
+    if (this.level === 'none') return;
+    this.hand.setPose(half === 'upper' ? 'showUpper' : 'showLower');
+    this.indicateTimer = 2.4;
+  }
+
+  /**
    * Mark one of the two sounds with a knuckle on the rail. This is how the
    * third and fourth rounds ask their question — there is no sentence, and
    * nothing on the chest changes.
@@ -97,6 +109,11 @@ export class ChildGuidance {
 
   update(dt: number, room: RoomNoiseMixer | null): void {
     if (this.captionTimer > 0) this.captionTimer -= dt;
+
+    if (this.indicateTimer > 0) {
+      this.indicateTimer -= dt;
+      if (this.indicateTimer <= 0) this.hand.setPose('resting');
+    }
 
     if (this.sweeping) {
       this.sweepTimer += dt;

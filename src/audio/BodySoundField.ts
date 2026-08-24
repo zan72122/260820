@@ -13,6 +13,13 @@ export interface ChestCoord {
 
 export type WindowId = 'aortic' | 'pulmonic' | 'tricuspid' | 'mitral';
 
+/** Which half of the chest an area sits in. The two halves are the contrast. */
+export type ChestHalf = 'upper' | 'lower';
+
+export function halfOf(id: WindowId): ChestHalf {
+  return id === 'aortic' || id === 'pulmonic' ? 'upper' : 'lower';
+}
+
 export interface ListeningWindow {
   id: WindowId;
   /** Position of the peak of this area of the sound field. */

@@ -1,7 +1,13 @@
 import { DoubleSide, FrontSide, Mesh, Raycaster, Scene, Vector2, Vector3 } from 'three';
 import { AuscultationChannel } from '../audio/AuscultationChannel';
 import { AudioSession } from '../audio/AudioSession';
-import { BodySoundField, type ChestCoord, type WindowId } from '../audio/BodySoundField';
+import {
+  BodySoundField,
+  halfOf,
+  type ChestCoord,
+  type ChestHalf,
+  type WindowId,
+} from '../audio/BodySoundField';
 import { HeartScheduler, HeartSoundSource, type ScheduledChannel } from '../audio/HeartSoundSource';
 import { RoomNoiseMixer } from '../audio/RoomNoiseMixer';
 import { CardiacClock } from '../core/CardiacClock';
@@ -89,6 +95,9 @@ export class GameFlow {
   private placingT = 0;
   private placeFrom = new Vector3();
   private roundListens = new Set<WindowId>();
+  /** The first area the child settled on, and the half we send them to next. */
+  private firstWindow: WindowId | null = null;
+  private contrastHalf: ChestHalf = 'upper';
   private lastListened: WindowId | null = null;
   private alternations = 0;
   private lateralRoll = 0;
@@ -99,6 +108,8 @@ export class GameFlow {
   private tmpV = new Vector3();
   private tmpN = new Vector3();
   private running = false;
+  /** Rolling samples of the simulation cost per frame, excluding the draw. */
+  private updateCost: number[] = [];
 
   constructor() {
     const container = document.getElementById('app') as HTMLElement;
@@ -136,6 +147,14 @@ export class GameFlow {
     });
 
     window.addEventListener('resize', () => this.layout());
+    // Coming back from Safari's page cache: the loop and the clock both need
+    // to be told that a lot of wall-clock time just went past.
+    window.addEventListener('pageshow', () => {
+      this.lastFrame = performance.now();
+      this.clock.resync();
+      void this.audio.resumeFromBackground();
+    });
+    window.addEventListener('pagehide', () => this.audio.suspendForBackground());
     window.addEventListener('orientationchange', () => setTimeout(() => this.layout(), 260));
     document.addEventListener('visibilitychange', () => this.handleVisibility());
     this.layout();
@@ -172,6 +191,17 @@ export class GameFlow {
       onChest: this.drag.isOverChest(),
       markedSound: this.guidance.getMarkedSound(),
       knocks: this.roomNoise?.knockCount ?? 0,
+      audioInterrupted: this.audio.interrupted,
+      firstWindow: this.firstWindow,
+      contrastHalf: this.contrastHalf,
+      render: {
+        updateMs: Number(this.medianUpdateCost().toFixed(3)),
+        calls: this.renderer.info.render.calls,
+        triangles: this.renderer.info.render.triangles,
+        programs: this.renderer.info.programs?.length ?? 0,
+        geometries: this.renderer.info.memory.geometries,
+        textures: this.renderer.info.memory.textures,
+      },
     };
   }
 
@@ -279,6 +309,9 @@ export class GameFlow {
   }
 
   private handlePress(x: number, y: number): void {
+    // Any touch is also permission to restart audio that iOS interrupted.
+    this.audio.ensureRunning();
+
     if (this.stage === 'eartips') {
       // Generous, but still aimed: the first touch of the game is pushing the
       // eartips into the training listening head, not tapping anywhere.
@@ -427,14 +460,24 @@ export class GameFlow {
         this.director.setLocked(false);
         break;
 
-      case 'seekSecond':
+      case 'seekSecond': {
+        // Send the child to the other half of the chest, whichever half they
+        // happened to find first. Two areas from the same half would barely
+        // differ, and the whole first session rests on the contrast.
+        this.contrastHalf =
+          this.firstWindow && halfOf(this.firstWindow) === 'upper' ? 'lower' : 'upper';
         this.guidance.setLevel('light');
         this.guidance.setPose('resting');
-        this.guidance.say('うえの ほうも きいてみよう', 8);
+        this.guidance.indicateHalf(this.contrastHalf);
+        this.guidance.say(
+          this.contrastHalf === 'upper' ? 'うえの ほうも きいてみよう' : 'したの ほうも きいてみよう',
+          8,
+        );
         this.drag.setEnabled(true);
         this.director.setShot('compare');
         this.director.setLocked(true);
         break;
+      }
 
       case 'compareTwo':
         this.alternations = 0;
@@ -505,6 +548,7 @@ export class GameFlow {
     this.noteListen(id);
 
     if (this.stage === 'seekFirst' && firstTime) {
+      this.firstWindow = id;
       this.recorder.record(id, coord);
       this.refreshScheduler();
       this.startReveal();
@@ -515,7 +559,13 @@ export class GameFlow {
         this.recorder.record(id, coord);
         this.refreshScheduler();
       }
-      if (this.recorder.count >= 2) this.enterStage('compareTwo');
+      // Anything they find is saved, but the round only moves on once they
+      // have heard the other half.
+      if (halfOf(id) === this.contrastHalf && this.recorder.count >= 2) {
+        this.enterStage('compareTwo');
+      } else if (halfOf(id) !== this.contrastHalf) {
+        this.guidance.indicateHalf(this.contrastHalf);
+      }
       return;
     }
     if (this.stage === 'fourWindows' || this.stage === 'compareTwo') {
@@ -586,6 +636,7 @@ export class GameFlow {
 
   private frame(): void {
     const now = performance.now();
+    const updateStart = now;
     // Everything here is exponential damping or clock-driven, so a long frame
     // is safe to integrate honestly. Clamping hard would make a slow device
     // run the whole game in slow motion instead of just dropping frames.
@@ -621,7 +672,20 @@ export class GameFlow {
     this.director.update(dt);
     this.hud.setCaption(this.guidance.getCaption());
 
+    // How much of the frame the game itself costs, separately from the draw.
+    // On a device this has to stay far under the frame budget so that what is
+    // left is spent on pixels.
+    this.updateCost.push(performance.now() - updateStart);
+    if (this.updateCost.length > 120) this.updateCost.shift();
+
     this.renderer.render(this.scene, this.director.camera);
+  }
+
+  /** Median simulation cost per frame in milliseconds. */
+  private medianUpdateCost(): number {
+    if (!this.updateCost.length) return 0;
+    const sorted = [...this.updateCost].sort((a, b) => a - b);
+    return sorted[Math.floor(sorted.length / 2)];
   }
 
   private frameEarTips(): void {
