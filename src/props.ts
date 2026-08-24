@@ -55,7 +55,7 @@ export function buildTrailer(mats: MaterialKit): Trailer {
     group: g, deck,
     setUnloaded(t: number) {
       // springs extend when the body's weight comes off the trailer
-      deck.position.y = t * 0.06
+      deck.position.y = t * 0.09
     }
   }
 }

@@ -45,7 +45,7 @@ export const L = {
   bracketY: 0.78,         // sling anchor height above the underframe bottom
 
   // Derived heights
-  springTravel: 0.055,    // air spring compression as weight transfers
+  springTravel: 0.09,     // air spring compression as weight transfers (readably exaggerated)
   // car underside when fully seated = compressed spring top
   get dockUndersideY() { return this.beamTopY + this.bolsterTopAboveBeam - this.springTravel },
   get startUndersideY() { return this.trailerDeckY + this.blockH },

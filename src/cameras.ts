@@ -24,14 +24,26 @@ export class CameraRig {
 
   constructor(aspect: number) {
     this.camera = new THREE.PerspectiveCamera(55, aspect, 0.3, 400)
-    this.curPos.set(-13, 13, 21)
-    this.curLook.set(2, 2.4, 1)
+    this.curPos.set(11.5, 6.2, 5.5)
+    this.curLook.set(0.5, 3.0, -0.4)
   }
+
+  // Opening beat: linger on the waiting bogies so "the wheels are already
+  // here, on the track" registers before the wide reveal.
+  introActive = false
 
   private computeShot(sim: Sim, portrait: boolean): Shot {
     const s = tmpShot
     const carY = sim.carY, carZ = sim.carZ, carX = sim.carX
     const dockY = L.dockUndersideY
+
+    if (this.introActive && sim.phase === Phase.LIFT && !sim.airborne && sim.round === 0) {
+      // down the beam: both bogies in a row on their track, nothing on top of them
+      if (portrait) { s.pos.set(10.2, 5.8, 2.2); s.look.set(-1.5, 2.7, -0.5); s.fov = 58 }
+      else { s.pos.set(9.8, 5.3, 4.4); s.look.set(-0.5, 2.9, -0.4); s.fov = 50 }
+      this.lam = 1.2
+      return s
+    }
 
     // stage detection
     const weightStage = (sim.phase === Phase.LIFT) && (sim.tension > 0.04 || sim.airborne) && carY < L.clearHeight * 0.72

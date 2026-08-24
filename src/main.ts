@@ -295,7 +295,7 @@ function updateHint() {
   const interactive = sim.phase === Phase.LIFT || sim.phase === Phase.TRANSPORT || sim.phase === Phase.DESCEND
   if (NOHINT || !interactive || pointerId !== null) { hideHint(); return }
   const idle = clock.elapsed - lastInputTime
-  const threshold = anyInputYet ? 7 : 1.8
+  const threshold = anyInputYet ? 7 : 4.2   // right after the intro beat settles
   if (idle < threshold) { hideHint(); return }
   if (sim.phase === Phase.LIFT) showHint('up', false)
   else if (sim.phase === Phase.TRANSPORT) {
@@ -434,11 +434,13 @@ function step(dt: number) {
   for (let i = 0; i < sub; i++) sim.update(h)
   syncScene(dt)
   updateDust(dt)
+  camRig.introActive = clock.elapsed < 3.4 && !anyInputYet && sim.round === 0
   camRig.update(sim, dt, window.innerWidth / window.innerHeight)
   updateHint()
 }
 
 let raf = 0
+let firstFrameDone = false
 function frame() {
   raf = requestAnimationFrame(frame)
   const now = performance.now()
@@ -452,6 +454,10 @@ function frame() {
     step(dt)
   }
   renderer.render(scene, camRig.camera)
+  if (!firstFrameDone) {
+    firstFrameDone = true
+    document.getElementById('boot')?.remove()
+  }
 }
 frame()
 

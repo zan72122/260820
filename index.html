@@ -50,10 +50,23 @@
     #hint .mover { animation: hintSlideUp 2.4s ease-in-out infinite; }
     #hint.side .mover { animation: hintSlideSide 2.4s ease-in-out infinite; }
     #hint.down .mover { animation: hintSlideDown 2.4s ease-in-out infinite; }
+    #boot {
+      position: fixed; left: 50%; top: 50%;
+      width: 18px; height: 18px; margin: -9px 0 0 -9px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.9);
+      animation: bootPulse 1.1s ease-in-out infinite;
+      pointer-events: none;
+    }
+    @keyframes bootPulse {
+      0%, 100% { transform: scale(0.55); opacity: 0.5; }
+      50% { transform: scale(1); opacity: 0.95; }
+    }
   </style>
 </head>
 <body>
   <div id="app"></div>
+  <div id="boot" aria-hidden="true"></div>
   <div id="hint" aria-hidden="true">
     <div class="mover">
       <svg width="84" height="98" viewBox="0 0 84 98" fill="none">

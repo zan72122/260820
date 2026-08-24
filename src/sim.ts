@@ -373,7 +373,7 @@ export class Sim {
     // settle bounce: one small damped oscillation of the springs after contact
     if (this.settleT >= 0) {
       this.settleT += dt
-      this.settleOsc = Math.exp(-3.2 * this.settleT) * Math.sin(this.settleT * 11) * 0.22
+      this.settleOsc = Math.exp(-3.2 * this.settleT) * Math.sin(this.settleT * 11) * 0.38
       if (this.settleT > 1.6) { this.settleT = -1; this.settleOsc = 0 }
     }
     // pendulum length: hook to hanging car center of mass

@@ -30,7 +30,7 @@ async function record(name, w, h) {
     }
   }
 
-  await page.waitForTimeout(2500)                        // reveal beat (hint appears)
+  await page.waitForTimeout(5200)                        // intro beat on the bogies, pull-back, hint
   await input(1, 0)                                      // raise: slack -> tension -> liftoff
   await untilState(s => s.airborne, 15000)
   await input(0, 0)

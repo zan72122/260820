@@ -24,9 +24,13 @@ async function capture(name, w, h, script) {
 
 const g = () => window.__game
 
+// 0. Intro beat: waiting bogies close-up
+await capture('00-intro-portrait', 390, 844, () => { window.__game.advance(1.5) })
+await capture('00-intro-landscape', 844, 390, () => { window.__game.advance(1.5) })
+
 // 1. Opening reveal (portrait + landscape)
-await capture('01-reveal-portrait', 390, 844, () => { window.__game.advance(2) })
-await capture('01-reveal-landscape', 844, 390, () => { window.__game.advance(2) })
+await capture('01-reveal-portrait', 390, 844, () => { window.__game.advance(6) })
+await capture('01-reveal-landscape', 844, 390, () => { window.__game.advance(6) })
 
 // 2. Tension building (first upward input)
 await capture('02-tension-portrait', 390, 844, () => {

@@ -108,13 +108,13 @@ export function buildCrane(mats: MaterialKit, baseX: number, baseZ: number): Cra
 
   // --- hook block (world-space, driven by sim): heavy multi-sheave block ---
   const hookBlock = new THREE.Group()
-  box(hookBlock, 0.5, 0.72, 0.3, mats.hookSteel, 0, -0.36, 0)
-  const cheek = box(hookBlock, 0.54, 0.3, 0.32, mats.craneYellow, 0, -0.14, 0)
+  box(hookBlock, 0.62, 0.9, 0.38, mats.hookSteel, 0, -0.45, 0)
+  const cheek = box(hookBlock, 0.68, 0.42, 0.4, mats.craneYellow, 0, -0.18, 0)
   cheek.castShadow = false
-  for (const sx of [-0.12, 0.12]) {
-    const blockSheave = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.09, 14), mats.craneYellow)
+  for (const sx of [-0.16, 0.16]) {
+    const blockSheave = new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.21, 0.11, 14), mats.craneYellow)
     blockSheave.rotation.z = Math.PI / 2
-    blockSheave.position.set(sx, -0.16, 0)
+    blockSheave.position.set(sx, -0.18, 0)
     add(hookBlock, blockSheave)
   }
   // hook: shank + curved hook via torus arc
@@ -128,9 +128,9 @@ export function buildCrane(mats: MaterialKit, baseX: number, baseZ: number): Cra
   add(hookBlock, hook)
 
   // hoist rope falls: boom head -> hook block (four falls, updated per frame)
-  const fallGeo = new THREE.CylinderGeometry(0.024, 0.024, 1, 6)
+  const fallGeo = new THREE.CylinderGeometry(0.034, 0.034, 1, 6)
   const falls: THREE.Mesh[] = []
-  const FALL_OFFSETS = [-0.14, -0.05, 0.05, 0.14]
+  const FALL_OFFSETS = [-0.2, -0.07, 0.07, 0.2]
   for (let i = 0; i < FALL_OFFSETS.length; i++) {
     const f = new THREE.Mesh(fallGeo, mats.wireRope)
     f.castShadow = false
@@ -152,11 +152,11 @@ export function buildCrane(mats: MaterialKit, baseX: number, baseZ: number): Cra
     const rc = Math.min(r, L.boomLen * 0.94)
     const luff = Math.acos(rc / L.boomLen)
     // elastic dip under load: the boom visibly takes the weight
-    boom.rotation.x = -(luff - tension * 0.011)
+    boom.rotation.x = -(luff - tension * 0.02)
     const pivotWorldY = L.boomPivotY + 1.0
     boomTipWorld.set(
       baseX + Math.sin(azim) * (rc - 1.0),
-      pivotWorldY + Math.sin(luff) * L.boomLen - tension * 0.17,
+      pivotWorldY + Math.sin(luff) * L.boomLen - tension * 0.3,
       baseZ + Math.cos(azim) * (rc - 1.0)
     )
     // luffing cylinder follows (visual only; computed in sup-local space)

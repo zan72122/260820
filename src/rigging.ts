@@ -60,11 +60,13 @@ export function buildRig(mats: MaterialKit): Rig {
   function updateSling(mesh: THREE.Mesh, top: THREE.Vector3, bottom: THREE.Vector3, tension: number) {
     const dist = top.distanceTo(bottom)
     const slack = Math.max(0, L.slingLen - dist)
-    // slack belts droop under gravity: mostly straight down, barely outward
+    // catenary-style bow: sag is perpendicular to the chord, scaled like a
+    // real cable (s > d): sag ~ sqrt(3 d (s-d) / 8)
+    const sag = Math.sqrt(Math.max(0, 3 * dist * slack / 8)) + (1 - tension) * 0.015
     const outDir = Math.sign(bottom.z - top.z) || 1
     const mid = top.clone().add(bottom).multiplyScalar(0.5)
-    mid.z += outDir * (slack * 0.16 + (1 - tension) * 0.02)
-    mid.y -= slack * 0.62
+    mid.z += outDir * sag * 0.92
+    mid.y -= sag * 0.38
     const curve = new THREE.QuadraticBezierCurve3(top, mid, bottom)
     const geo = new THREE.TubeGeometry(curve, 10, 0.042, 6)
     // flatten tube into a belt profile
@@ -79,12 +81,11 @@ export function buildRig(mats: MaterialKit): Rig {
     g.visible = visible
     if (!visible) return
     const spreaderY = hookWorld.y - L.spreaderDrop
-    // spreader centers between brackets horizontally when carrying, else below hook
-    const cx = tension > 0.5 ? (bracketA.x + bracketB.x) / 2 : hookWorld.x
+    // the spreader hangs from the hook; under load it splits the offset
+    // toward the bracket line (hook -> legs -> spreader -> slings -> car)
     const cz = (bracketA.z + bracketB.z) / 2
-    const mixX = cx * tension + hookWorld.x * (1 - tension)
-    const mixZ = cz * Math.min(1, tension + 0.55) + hookWorld.z * Math.max(0, 0.45 - tension)
-    spreader.position.set(mixX, spreaderY, mixZ)
+    const mixZ = hookWorld.z + (cz - hookWorld.z) * 0.5 * tension
+    spreader.position.set(hookWorld.x, spreaderY, mixZ)
 
     for (const [i, s] of [-1, 1].entries()) {
       tmpA.set(spreader.position.x, spreaderY + 0.14, spreader.position.z + s * (L.spreaderLen / 2 - 0.12))
