@@ -3,5 +3,6 @@ node_modules/
 dist/
 test-results/
 playwright-report/
-scripts/verify-*.mjs
-scripts/probe*.mjs
+# dev/verification helper scripts are throwaway except the play-path recorder
+scripts/*
+!scripts/shot.mjs
