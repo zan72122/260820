@@ -163,6 +163,10 @@ export class ActorMesh {
       g.add(w);
       this.wheels.push(w);
     }
+    // 支柱(ベースとフォームをつなぐ)
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.5, 10), mats.steel);
+    post.position.y = 0.38;
+    g.add(post);
     // 成人型フォーム: 胴体・頭(柔らかい試験体らしい単純形状)
     const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 0.75, 4, 12), mats.foam);
     torso.position.y = 0.95;

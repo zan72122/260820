@@ -15,7 +15,7 @@ export class PredictionMarker {
   private closedModel: THREE.Group;
   choice: Prediction | null = null;
 
-  static readonly PEDESTAL_POS = new THREE.Vector3(2.2, 0, 2.0);
+  static readonly PEDESTAL_POS = new THREE.Vector3(0.85, 0, 3.3);
 
   constructor(mats: MaterialSet) {
     // 小さな丸い台(点検用スツール風)

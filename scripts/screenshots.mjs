@@ -71,14 +71,16 @@ for (const vp of VIEWPORTS) {
   await shot('calibrate-after');
   await api(page, 'closeLens');
 
-  // カーテン学習の保持場面
+  // カーテン学習: 反転・保持の場面(低いカメラ + カーテンセル)
   await stepUntilPhase(page, 'curtainLesson', 180);
-  for (let t = 0; t < 60; t += 1) {
+  for (let t = 0; t < 90; t += 1) {
     await api(page, 'step', 1);
-    if (await api(page, 'curtainOccupied')) break;
+    const s = await api(page, 'doorState');
+    if (s === 'OBSTRUCTION' || s === 'REVERSING') break;
   }
+  await api(page, 'step', 2.5);
   await api(page, 'openLens');
-  await api(page, 'step', 2);
+  await api(page, 'step', 1.5);
   await shot('curtain');
   await api(page, 'closeLens');
 

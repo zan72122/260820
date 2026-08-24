@@ -47,7 +47,8 @@ interface TrialActorEntry {
 }
 
 const RIBBON_COLORS = [0xd9a066, 0x7ca6c4];
-const DOCK_POS: Vec2 = { x: 3.4, z: 5.2 };
+// 描画カメラ(drawTop)の画角内に収まる待機位置
+const DOCK_POS: Vec2 = { x: 1.05, z: 4.75 };
 
 export class Game {
   renderer: THREE.WebGLRenderer;
@@ -444,7 +445,7 @@ export class Game {
         entry.placed = true;
       } else {
         // 発車位置ゾーンの脇(ドック)に待機
-        actor.pos = { x: DOCK_POS.x + i * 1.2, z: DOCK_POS.z };
+        actor.pos = { x: DOCK_POS.x - i * 1.1, z: DOCK_POS.z };
       }
       mesh.sync(actor);
       this.entries.push(entry);
@@ -771,12 +772,22 @@ export class Game {
     return item.until() || this.seqElapsed >= (item.timeout ?? 60);
   }
 
-  /** 描画フレーム(壁時計 dt) */
+  private static readonly SIM_DT = 1 / 60;
+  private accumulator = 0;
+
+  /** 描画フレーム(壁時計 dt)。シミュレーションは固定タイムステップで進める */
   frame(wallDt: number): void {
-    const dt = Math.min(0.05, wallDt);
     if (!this.manualStep) {
-      this.stepSim(dt);
-      this.updateVisuals(dt);
+      this.accumulator += Math.min(0.25, wallDt);
+      let steps = 0;
+      while (this.accumulator >= Game.SIM_DT && steps < 8) {
+        this.stepSim(Game.SIM_DT);
+        this.accumulator -= Game.SIM_DT;
+        steps++;
+      }
+      // 遅い端末では追いつきを打ち切る(スパイラル防止)
+      if (steps >= 8) this.accumulator = 0;
+      this.updateVisuals(Math.min(0.05, wallDt));
     }
     this.quality.frame(wallDt);
     this.sound.update(this.doorSys.door.state, this.doorSys.door.position);
