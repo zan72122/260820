@@ -1,0 +1,22 @@
+{
+  "name": "monorail-lift",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "e2e": "playwright test"
+  },
+  "dependencies": {
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@types/three": "^0.185.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.11"
+  }
+}
