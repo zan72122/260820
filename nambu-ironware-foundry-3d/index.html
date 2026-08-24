@@ -1,44 +1,152 @@
 <!doctype html>
 <html lang="ja">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
-<meta name="theme-color" content="#0b0a08" />
-<title>南部鉄器 — Foundry 3D Direction Lab</title>
-<link rel="stylesheet" href="styles.css" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="theme-color" content="#080705">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="鉄瓶、うまれる。">
+  <meta name="description" content="南部鉄瓶が砂・火・鉄から生まれる工程を、写実的な3D工房で体験する4歳児向けモバイルゲーム。">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+  <title>鉄瓶、うまれる。</title>
 </head>
 <body>
-<div id="vignette"></div><div id="flash"></div><div id="toast"></div>
-<div id="top"><div class="brand"><b id="sceneTitle">鋳型をみる</b><span id="sceneSub">砂・鉄・火が同じ工房の中で一つの鉄瓶になる。</span></div><div class="iconbar"><button class="iconbtn" id="tuneBtn" aria-label="調整">☰</button><button class="iconbtn" id="sceneBtn" aria-label="場面">▦</button></div></div>
-<div id="bottom"><div class="hint" id="hint"><div class="gesture" id="gesture">☝︎</div><div class="hinttext"><span id="hintMain">画面をゆっくり動かして工房を見る</span><small id="hintSub">操作表示は世界の外にだけ置いています</small></div></div></div>
-<aside class="panel left" id="tuning"><button class="close" data-close>×</button><h2>写実・操作の微調整</h2><div class="presets"><button class="pill" data-preset="real">写実優先</button><button class="pill" data-preset="child">4歳操作優先</button><button class="pill" data-preset="cinema">暗い工房</button></div>
-<div class="section"><h3>カメラと空間</h3>
-<div class="control"><label>対象物の大きさ <output id="oScale"></output></label><input id="scale" type="range" min="70" max="130" value="100"></div>
-<div class="control"><label>カメラの高さ <output id="oCamY"></output></label><input id="camY" type="range" min="65" max="145" value="100"></div>
-<div class="control"><label>画角 <output id="oFov"></output></label><input id="fov" type="range" min="32" max="64" value="47"></div>
-<div class="control"><label>露出 <output id="oExposure"></output></label><input id="exposure" type="range" min="55" max="145" value="92"></div>
-<div class="control"><label>工房の暗さ <output id="oDark"></output></label><input id="dark" type="range" min="35" max="100" value="76"></div></div>
-<div class="section"><h3>材質と身体感覚</h3>
-<div class="control"><label>鋳型表面の粗さ <output id="oRough"></output></label><input id="rough" type="range" min="20" max="100" value="88"></div>
-<div class="control"><label>動作の重量感 <output id="oWeight"></output></label><input id="weight" type="range" min="20" max="100" value="82"></div>
-<div class="control"><label>カメラへ伝わる重量 <output id="oShake"></output></label><input id="shake" type="range" min="0" max="100" value="38"></div>
-<div class="control"><label>見えない現象の誇張 <output id="oExaggerate"></output></label><input id="exaggerate" type="range" min="0" max="100" value="28"></div></div>
-<div class="section"><h3>4歳児向け補助</h3>
-<div class="control"><label>操作補助 <output id="oAssist"></output></label><input id="assist" type="range" min="0" max="100" value="62"></div>
-<div class="control"><label>動作速度 <output id="oSpeed"></output></label><input id="speed" type="range" min="45" max="130" value="82"></div>
-<div class="control"><label>達成演出 <output id="oReward"></output></label><input id="reward" type="range" min="0" max="100" value="38"></div>
-<div class="control"><label>UIの存在感 <output id="oUi"></output></label><input id="ui" type="range" min="0" max="100" value="34"></div></div>
-<div class="section"><h3>鋳込み専用</h3>
-<div class="control"><label>溶湯の粘性 <output id="oVisc"></output></label><input id="visc" type="range" min="20" max="100" value="72"></div>
-<div class="control"><label>流れの乱れ <output id="oTurb"></output></label><input id="turb" type="range" min="0" max="100" value="31"></div>
-<div class="control"><label>流柱の太さ <output id="oStream"></output></label><input id="stream" type="range" min="35" max="120" value="78"></div>
-<div class="control"><label>溶湯の発光 <output id="oGlow"></output></label><input id="glow" type="range" min="45" max="140" value="92"></div></div>
-</aside>
-<aside class="panel right" id="scenes"><button class="close" data-close>×</button><h2>重要シーン 13</h2><div class="scenegrid" id="sceneGrid"></div></aside>
-<script src="https://unpkg.com/three@0.154.0/build/three.min.js"></script>
-<script src="js/config.js"></script>
-<script src="js/world.js"></script>
-<script src="js/ui.js"></script>
-<script src="js/loop.js"></script>
+  <main id="app" aria-label="南部鉄器 3Dゲーム">
+    <div id="fallbackArt" aria-hidden="true">
+      <div class="fallback-kettle"></div>
+      <div class="fallback-fire"></div>
+    </div>
+
+    <section id="loading" class="screen active" aria-live="polite">
+      <div class="loading-mark" aria-hidden="true"><span></span></div>
+      <p id="loadingText">工房に火を入れています</p>
+    </section>
+
+    <section id="titleScreen" class="screen" aria-label="タイトル">
+      <div class="title-lockup">
+        <p class="eyebrow">IWATE · NANBU TEKKI</p>
+        <h1>鉄瓶、<br>うまれる。</h1>
+        <p class="title-sub">砂　火　鉄</p>
+      </div>
+      <div class="title-actions">
+        <button id="startButton" class="start-button" type="button" aria-label="はじめる">
+          <span class="start-glyph" aria-hidden="true">▶</span>
+          <span id="startLabel">はじめる</span>
+        </button>
+        <button id="newGameButton" class="text-button hidden" type="button">はじめから</button>
+      </div>
+      <p class="title-note">画面を横向きにすると、工房が広く見えます</p>
+    </section>
+
+    <header id="hud" class="hud hidden">
+      <div class="hud-left">
+        <button id="homeButton" class="icon-button" type="button" aria-label="タイトルへ戻る">⌂</button>
+        <div class="scene-copy">
+          <span id="chapterName" class="chapter-name"></span>
+          <strong id="sceneName"></strong>
+          <small id="stepName"></small>
+        </div>
+      </div>
+      <div class="hud-right">
+        <button id="processButton" class="icon-button" type="button" aria-label="工程を見る">▦</button>
+        <button id="settingsButton" class="icon-button" type="button" aria-label="調整">☰</button>
+      </div>
+    </header>
+
+    <div id="progressRail" class="progress-rail hidden" aria-hidden="true">
+      <div id="progressFill"></div>
+      <div id="chapterTicks"></div>
+    </div>
+
+    <section id="instruction" class="instruction hidden" aria-live="polite">
+      <div id="gestureIcon" class="gesture-icon" aria-hidden="true"></div>
+      <div class="instruction-copy">
+        <strong id="instructionMain"></strong>
+        <small id="instructionSub"></small>
+      </div>
+      <div id="holdMeter" class="hold-meter" aria-hidden="true"><span></span></div>
+    </section>
+
+    <section id="autoStep" class="auto-step hidden" aria-live="polite">
+      <span id="autoStepNumber"></span>
+      <strong id="autoStepTitle"></strong>
+      <small id="autoStepDetail"></small>
+      <button id="skipAutoButton" type="button" aria-label="自動工程を送る">›</button>
+    </section>
+
+    <section id="chapterCard" class="chapter-card hidden" aria-live="polite">
+      <span id="chapterNumber"></span>
+      <h2 id="chapterTitle"></h2>
+      <p id="chapterPhrase"></p>
+    </section>
+
+    <section id="reward" class="reward hidden" aria-live="polite">
+      <div class="reward-seal" aria-hidden="true">鉄</div>
+      <strong id="rewardText">できた</strong>
+      <small id="rewardDetail"></small>
+    </section>
+
+    <section id="completion" class="completion screen" aria-label="完成">
+      <div class="completion-copy">
+        <span class="completion-kicker">48の工程</span>
+        <h2>鉄瓶が、<br>道具になった。</h2>
+        <p id="completionStats"></p>
+      </div>
+      <div class="completion-actions">
+        <button id="replayButton" class="replay-button" type="button" aria-label="もう一つ作る">
+          <span aria-hidden="true">↻</span>
+          <b>もう一つ</b>
+        </button>
+        <button id="freeViewButton" class="text-button" type="button">工房を見る</button>
+      </div>
+    </section>
+
+    <aside id="settingsPanel" class="panel panel-left" aria-label="調整">
+      <button class="panel-close" data-close-panel type="button" aria-label="閉じる">×</button>
+      <div class="panel-heading">
+        <span>微調整</span>
+        <h2>工房の見え方と手応え</h2>
+      </div>
+      <div class="preset-row">
+        <button type="button" data-preset="real">写実優先</button>
+        <button type="button" data-preset="child">4歳優先</button>
+        <button type="button" data-preset="cinema">暗い工房</button>
+      </div>
+      <div id="settingControls"></div>
+      <div class="panel-actions">
+        <button id="resetSettings" type="button">初期値へ戻す</button>
+        <button id="copySettings" type="button">調整値をコピー</button>
+      </div>
+    </aside>
+
+    <aside id="processPanel" class="panel panel-right" aria-label="製造工程">
+      <button class="panel-close" data-close-panel type="button" aria-label="閉じる">×</button>
+      <div class="panel-heading">
+        <span>南部鉄瓶</span>
+        <h2>48の工程</h2>
+      </div>
+      <p class="process-legend"><i class="interactive-dot"></i>自分で動かす　<i class="auto-dot"></i>職人が進める</p>
+      <div id="processList" class="process-list"></div>
+    </aside>
+
+    <div id="pauseShade" class="pause-shade hidden">
+      <button id="resumeButton" type="button">つづける</button>
+    </div>
+
+    <div id="fatal" class="fatal hidden" role="alert">
+      <strong>3D工房を開けませんでした</strong>
+      <p>通信を確認して、もう一度読み込んでください。</p>
+      <button type="button" onclick="location.reload()">もう一度</button>
+    </div>
+
+    <div id="vignette" aria-hidden="true"></div>
+    <div id="heatOverlay" aria-hidden="true"></div>
+    <div id="flash" aria-hidden="true"></div>
+    <div id="toast" aria-live="polite"></div>
+  </main>
+
+  <script src="js/bootstrap.js"></script>
 </body>
 </html>
