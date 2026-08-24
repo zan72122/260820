@@ -847,17 +847,18 @@ export class Game {
       if (!this.hooked) this.unicorn.setAimTarget(null);
     }
 
-    // hooked thread follows horn ↔ droplet
+    // hooked thread follows horn ↔ droplet; once wraps exist, the thread
+    // feeds the wrap zone rather than dangling off the very tip
     if (this.hooked) {
-      const tip = this.unicorn.hornTipWorld(this.tmp);
+      const attach = this.unicorn.hornPointWorld(this.spool.totalTurns < 0.25 ? 0.97 : 0.8, this.tmp);
       const tension = this.pointerDown ? 0.85 : 0.4;
-      this.liveThread.set(this.hooked.pos, tip, tension);
+      this.liveThread.set(this.hooked.pos, attach, tension);
       // keep the head near the droplet while hooked
       if (!this.pointerDown) {
         this.unicorn.setAimTarget(this.hooked.pos.clone().add(new THREE.Vector3(0, 0.1, 0.25)));
       }
       // wandered too far off → the fibre slips off the horn (no punishment, just physics)
-      if (tip.distanceTo(this.hooked.pos) > 1.9) {
+      if (attach.distanceTo(this.hooked.pos) > 1.9) {
         this.unhook();
       }
     }
