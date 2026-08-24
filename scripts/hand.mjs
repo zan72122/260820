@@ -1,0 +1,11 @@
+import { chromium } from '@playwright/test';
+const OUT = '/tmp/claude-0/-home-user-260820/2a456d8a-3191-5c08-990b-d449fa588187/scratchpad';
+const browser = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium', args: ['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'] });
+const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1 });
+await page.goto('http://127.0.0.1:5183/?e2e=1&fast=2', { waitUntil: 'networkidle' });
+await page.waitForFunction(() => window.__mono.hint === 2, null, { timeout: 40000 });
+await page.waitForTimeout(1500);
+await page.screenshot({ path: `${OUT}/hand-a.png` });
+await page.waitForTimeout(600);
+await page.screenshot({ path: `${OUT}/hand-b.png` });
+await browser.close();

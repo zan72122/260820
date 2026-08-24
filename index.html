@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#9fb4c4" />
+  <title>分岐器</title>
+  <link rel="icon" href="data:," />
+  <style>
+    html, body {
+      margin: 0; padding: 0; width: 100%; height: 100%;
+      overflow: hidden; background: #9fb4c4;
+      touch-action: none;
+      -webkit-user-select: none; user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      overscroll-behavior: none;
+    }
+    #app { position: fixed; inset: 0; }
+    #app canvas { display: block; width: 100%; height: 100%; }
+    #boot {
+      position: fixed; inset: 0; background: #9fb4c4;
+      display: flex; align-items: center; justify-content: center;
+      transition: opacity 0.9s ease; pointer-events: none; z-index: 10;
+    }
+    #boot.hidden { opacity: 0; }
+    #boot .beam {
+      width: 34vmin; height: 3.2vmin; border-radius: 0.4vmin;
+      background: #e8eef2; box-shadow: 0 1.2vmin 2.6vmin rgba(30,45,60,0.25);
+      position: relative; overflow: hidden;
+    }
+    #boot .beam::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(120,150,175,0.55), transparent);
+      transform: translateX(-100%);
+      animation: sweep 1.4s ease-in-out infinite;
+    }
+    @keyframes sweep { to { transform: translateX(100%); } }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="boot"><div class="beam"></div></div>
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>
