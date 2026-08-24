@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#1a2430" />
+  <title>ピクッ！ クイッ！ ウィーン！</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #10161e;
+      touch-action: none;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+      overscroll-behavior: none;
+    }
+    #app {
+      position: fixed;
+      inset: 0;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+    #replay {
+      position: fixed;
+      left: 50%;
+      bottom: calc(9% + env(safe-area-inset-bottom));
+      transform: translateX(-50%) scale(0.6);
+      width: min(31vw, 132px);
+      height: min(31vw, 132px);
+      border-radius: 50%;
+      border: none;
+      padding: 0;
+      background: radial-gradient(circle at 34% 30%, #fdfaf3, #e9e2d2 58%, #cfc6ae);
+      box-shadow: 0 10px 26px rgba(4, 10, 18, 0.55), inset 0 -5px 10px rgba(96, 84, 56, 0.28);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.45s ease, transform 0.45s cubic-bezier(0.2, 1.4, 0.4, 1);
+      cursor: pointer;
+    }
+    #replay.shown {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translateX(-50%) scale(1);
+    }
+    #replay:active {
+      transform: translateX(-50%) scale(0.92);
+    }
+    #replay svg {
+      width: 72%;
+      height: 72%;
+      display: block;
+      margin: auto;
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <button id="replay" aria-label="もういちど">
+    <svg viewBox="0 0 100 100" fill="none">
+      <path d="M18 40 C30 26 66 24 78 40 C66 56 30 54 18 40 Z" fill="#4a6577"/>
+      <path d="M78 40 L92 30 L88 40 L92 50 Z" fill="#4a6577"/>
+      <circle cx="30" cy="37" r="3.4" fill="#0f1a22"/>
+      <path d="M20 66 C36 58 64 58 80 66" stroke="#8a6f3f" stroke-width="5" stroke-linecap="round"/>
+      <path d="M50 62 L50 76" stroke="#8a6f3f" stroke-width="4" stroke-linecap="round"/>
+      <path d="M42 84 a8 8 0 1 0 16 0 a8 8 0 1 0 -16 0" stroke="#8a6f3f" stroke-width="4"/>
+    </svg>
+  </button>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
