@@ -92,18 +92,18 @@ export class Stethoscope {
     yoke.position.y = 0.03;
     this.binaural.add(yoke);
     for (const sx of [-1, 1]) {
-      const arm = new Mesh(new CylinderGeometry(0.0042, 0.0048, 0.13, 12), mats.chromeSteel);
-      arm.position.set(sx * 0.034, 0.088, 0);
-      arm.rotation.z = -sx * 0.42;
+      const arm = new Mesh(new CylinderGeometry(0.0042, 0.0048, 0.12, 12), mats.chromeSteel);
+      arm.position.set(sx * 0.024, 0.085, 0);
+      arm.rotation.z = -sx * 0.3;
       arm.castShadow = true;
       this.binaural.add(arm);
-      const bend = new Mesh(new TorusGeometry(0.02, 0.0042, 8, 16, Math.PI * 0.75), mats.chromeSteel);
-      bend.position.set(sx * 0.06, 0.142, 0);
-      bend.rotation.set(Math.PI / 2, 0, sx * 1.1);
+      const bend = new Mesh(new TorusGeometry(0.018, 0.0042, 8, 16, Math.PI * 0.7), mats.chromeSteel);
+      bend.position.set(sx * 0.038, 0.136, 0);
+      bend.rotation.set(Math.PI / 2, 0, sx * 1.15);
       this.binaural.add(bend);
-      const tip = new Mesh(new SphereGeometry(0.0092, 14, 10), mats.earTip);
-      tip.scale.set(1, 0.85, 1.15);
-      tip.position.set(sx * 0.079, 0.152, 0.002);
+      const tip = new Mesh(new SphereGeometry(0.0085, 14, 10), mats.earTip);
+      tip.scale.set(1, 0.85, 1.2);
+      tip.position.set(sx * 0.052, 0.15, 0.002);
       this.binaural.add(tip);
       this.earTips.push(tip);
     }

@@ -19,15 +19,21 @@ interface PoseSpec {
   curl: number;
 }
 
+/**
+ * The instructor works from the manikin's right, so the forearm always leaves
+ * frame to that side instead of lying across the chest between the camera and
+ * the thing the child is trying to see.
+ * rotation is (pitch, yaw, roll) applied in YXZ order.
+ */
 const POSES: Record<HandPose, PoseSpec> = {
-  offstage: { position: new Vector3(0.62, 0.86, 0.72), rotation: new Vector3(-0.5, -0.4, 0.2), curl: 0.2 },
-  placing: { position: new Vector3(0.02, 0.94, 0.1), rotation: new Vector3(-1.0, -0.2, 0.1), curl: 0.55 },
-  steadying: { position: new Vector3(0.16, 0.92, 0.16), rotation: new Vector3(-0.9, -0.35, 0.1), curl: 0.4 },
-  loosenTube: { position: new Vector3(0.1, 0.99, 0.24), rotation: new Vector3(-0.7, -0.5, 0.35), curl: 0.7 },
-  showUpper: { position: new Vector3(0.0, 0.95, -0.24), rotation: new Vector3(-1.2, 0.0, 0.0), curl: 0.12 },
-  showLower: { position: new Vector3(0.0, 0.95, 0.16), rotation: new Vector3(-1.2, 0.0, 0.0), curl: 0.12 },
-  tapRail: { position: new Vector3(-0.33, 0.94, 0.16), rotation: new Vector3(-0.8, 0.3, -0.2), curl: 0.75 },
-  resting: { position: new Vector3(0.44, 0.86, 0.5), rotation: new Vector3(-0.6, -0.4, 0.15), curl: 0.3 },
+  offstage: { position: new Vector3(0.62, 0.9, 0.42), rotation: new Vector3(-0.3, 1.4, 0), curl: 0.2 },
+  placing: { position: new Vector3(0.2, 0.94, 0.06), rotation: new Vector3(-0.5, 1.35, 0), curl: 0.5 },
+  steadying: { position: new Vector3(0.22, 0.93, 0.1), rotation: new Vector3(-0.42, 1.3, 0), curl: 0.38 },
+  loosenTube: { position: new Vector3(0.28, 0.97, 0.2), rotation: new Vector3(-0.38, 1.12, 0.18), curl: 0.7 },
+  showUpper: { position: new Vector3(0.27, 0.95, -0.2), rotation: new Vector3(-0.6, 1.42, 0), curl: 0.1 },
+  showLower: { position: new Vector3(0.27, 0.95, 0.12), rotation: new Vector3(-0.6, 1.42, 0), curl: 0.1 },
+  tapRail: { position: new Vector3(-0.52, 0.95, 0.16), rotation: new Vector3(-0.45, -1.35, 0), curl: 0.72 },
+  resting: { position: new Vector3(0.56, 0.9, 0.36), rotation: new Vector3(-0.3, 1.4, 0), curl: 0.28 },
 };
 
 /**
@@ -49,44 +55,48 @@ export class InstructorHand {
   private visibleAmount = 0;
 
   constructor(mats: MaterialLibrary) {
-    const forearm = new Mesh(new CapsuleGeometry(0.042, 0.2, 6, 14), mats.glove);
+    this.root.rotation.order = 'YXZ';
+
+    const forearm = new Mesh(new CapsuleGeometry(0.039, 0.19, 6, 14), mats.glove);
     forearm.rotation.x = Math.PI / 2;
-    forearm.position.set(0, 0.008, 0.16);
+    forearm.position.set(0, 0.006, 0.175);
     forearm.castShadow = true;
     this.root.add(forearm);
 
-    this.palm = new Mesh(new SphereGeometry(0.048, 20, 14), mats.glove);
-    this.palm.scale.set(1.0, 0.5, 1.15);
+    this.palm = new Mesh(new SphereGeometry(0.046, 20, 14), mats.glove);
+    this.palm.scale.set(1.0, 0.34, 1.05);
     this.palm.castShadow = true;
     this.root.add(this.palm);
 
     for (let i = 0; i < 4; i++) {
       const finger = new Group();
-      const prox = new Mesh(new CapsuleGeometry(0.0105, 0.036, 4, 10), mats.glove);
+      const prox = new Mesh(new CapsuleGeometry(0.0092, 0.042, 4, 10), mats.glove);
       prox.rotation.x = Math.PI / 2;
-      prox.position.z = -0.026;
+      prox.position.z = -0.029;
       finger.add(prox);
       const distalPivot = new Group();
-      distalPivot.position.z = -0.048;
-      const dist = new Mesh(new CapsuleGeometry(0.0095, 0.03, 4, 10), mats.glove);
+      distalPivot.position.z = -0.054;
+      const dist = new Mesh(new CapsuleGeometry(0.0082, 0.034, 4, 10), mats.glove);
       dist.rotation.x = Math.PI / 2;
-      dist.position.z = -0.021;
+      dist.position.z = -0.023;
       distalPivot.add(dist);
       finger.add(distalPivot);
       finger.userData.distal = distalPivot;
-      finger.position.set((i - 1.5) * 0.023, 0.002, -0.042);
+      // Middle fingers sit slightly proud, as a real hand does.
+      const spread = (i - 1.5) * 0.0215;
+      finger.position.set(spread, 0.001, -0.05 - Math.cos((i - 1.5) * 1.1) * 0.004);
       finger.castShadow = true;
       this.root.add(finger);
       this.fingers.push(finger);
     }
 
     this.thumb = new Group();
-    const th = new Mesh(new CapsuleGeometry(0.0125, 0.042, 4, 10), mats.glove);
+    const th = new Mesh(new CapsuleGeometry(0.0112, 0.046, 4, 10), mats.glove);
     th.rotation.x = Math.PI / 2;
-    th.position.z = -0.028;
+    th.position.z = -0.03;
     this.thumb.add(th);
-    this.thumb.position.set(0.044, -0.004, -0.012);
-    this.thumb.rotation.y = 0.85;
+    this.thumb.position.set(0.041, -0.003, -0.014);
+    this.thumb.rotation.y = 0.8;
     this.root.add(this.thumb);
 
     this.root.position.copy(POSES.offstage.position);
@@ -114,7 +124,8 @@ export class InstructorHand {
     // While placing or steadying, the hand follows the chestpiece rather than
     // sitting at a fixed spot — and stays behind it so it never covers it.
     if ((this.pose === 'placing' || this.pose === 'steadying') && chestpieceWorld) {
-      target.set(chestpieceWorld.x + 0.075, chestpieceWorld.y + 0.075, chestpieceWorld.z + 0.09);
+      // Beside the chestpiece on the instructor's side, never on top of it.
+      target.set(chestpieceWorld.x + 0.155, chestpieceWorld.y + 0.045, chestpieceWorld.z + 0.055);
     }
 
     const wanted = this.pose !== 'offstage';

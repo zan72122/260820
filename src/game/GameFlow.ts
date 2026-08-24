@@ -1,4 +1,4 @@
-import { Mesh, Raycaster, Scene, Vector2, Vector3 } from 'three';
+import { DoubleSide, FrontSide, Mesh, Raycaster, Scene, Vector2, Vector3 } from 'three';
 import { AuscultationChannel } from '../audio/AuscultationChannel';
 import { AudioSession } from '../audio/AudioSession';
 import { BodySoundField, type ChestCoord, type WindowId } from '../audio/BodySoundField';
@@ -12,14 +12,14 @@ import { StethoscopeContact } from '../interaction/StethoscopeContact';
 import { AdaptiveQuality } from '../render/AdaptiveQuality';
 import { createRenderer } from '../render/Renderer';
 import type { AnatomyModel } from '../scene/AnatomyModel';
-import { chestSurfacePoint } from '../scene/ChestSurface';
+import { chestSurfacePoint, worldToChestCoord } from '../scene/ChestSurface';
 import { InstructorHand } from '../scene/InstructorHand';
 import { Lighting } from '../scene/Lighting';
 import { Manikin } from '../scene/Manikin';
 import { RecordTiles } from '../scene/RecordTiles';
 import { Room } from '../scene/Room';
 import { Stethoscope } from '../scene/Stethoscope';
-import { createMaterials } from '../scene/materials';
+import { createMaterials, setMaterialOpacity } from '../scene/materials';
 import { Hud } from '../ui/Hud';
 import { CameraDirector } from './CameraDirector';
 import { ChildGuidance } from './ChildGuidance';
@@ -139,6 +139,117 @@ export class GameFlow {
     this.enterStage('eartips');
   }
 
+  /** Read-only view of the run, used by the browser smoke test. */
+  snapshot(): Record<string, unknown> {
+    return {
+      stage: this.stage,
+      audioReady: this.audio.ready,
+      audioUnavailable: this.audio.unavailable,
+      lat: Number(this.drag.coord.lat.toFixed(4)),
+      sup: Number(this.drag.coord.sup.toFixed(4)),
+      contact: Number(this.contact.value.toFixed(3)),
+      beat: this.clock.beatIndex(),
+      phase: Number(this.clock.phase().toFixed(3)),
+      area: this.discovery.currentArea,
+      discovered: this.discovery.discoveredIds,
+      tiles: this.recorder.count,
+      reveal: Number((this.reveal?.insideAmount ?? 0).toFixed(3)),
+      revealActive: this.reveal?.active ?? false,
+      quality: this.quality.level,
+      dpr: this.quality.getPixelRatio(),
+      portrait: this.director.isPortrait(),
+      shot: this.director.getShot(),
+      roll: Number(this.manikin.getLateralRoll().toFixed(3)),
+      caption: this.guidance.getCaption(),
+      cam: this.director.camera.position.toArray().map((v) => Number(v.toFixed(3))),
+      mode: this.chestpieceMode,
+      drag: this.drag.debug(),
+    };
+  }
+
+  /** What a ray through this screen point actually hits, for the self-check. */
+  probeRay(x: number, y: number): Array<{ name: string; distance: number }> {
+    this.pointer.toNdc(x, y, this.ndc);
+    this.raycaster.setFromCamera(this.ndc, this.director.camera);
+    return this.raycaster
+      .intersectObjects(this.scene.children, true)
+      .map((h) => ({ name: h.object.name || h.object.type, distance: Number(h.distance.toFixed(3)) }));
+  }
+
+  /** Does a ray through this screen point reach the torso at all? */
+  probeTorso(x: number, y: number): Record<string, unknown> {
+    this.pointer.toNdc(x, y, this.ndc);
+    this.raycaster.setFromCamera(this.ndc, this.director.camera);
+    const hits = this.raycaster.intersectObject(this.manikin.torsoMesh, false);
+    const m = this.manikin.torsoMesh;
+    return {
+      hits: hits.length,
+      first: hits[0] ? hits[0].point.toArray().map((v) => Number(v.toFixed(4))) : null,
+      coord: hits[0]
+        ? (() => {
+            const c = worldToChestCoord(hits[0].point);
+            return [Number(c.lat.toFixed(3)), Number(c.sup.toFixed(3))];
+          })()
+        : null,
+      meshScale: m.scale.toArray(),
+      meshWorld: m.getWorldPosition(new Vector3()).toArray().map((v) => Number(v.toFixed(4))),
+      camPos: this.director.camera.position.toArray().map((v) => Number(v.toFixed(3))),
+      ndc: [Number(this.ndc.x.toFixed(4)), Number(this.ndc.y.toFixed(4))],
+    };
+  }
+
+  /** Sound field readings, so the test can prove the change is continuous. */
+  probe(lat: number, sup: number): Record<string, number> {
+    const f = this.field.sample({ lat, sup });
+    return {
+      s1: Number(f.s1.toFixed(4)),
+      s2: Number(f.s2.toFixed(4)),
+      cutoff: Number(f.cutoff.toFixed(1)),
+      lowShelf: Number(f.lowShelf.toFixed(3)),
+      presence: Number(f.presence.toFixed(3)),
+      proximity: Number(f.proximity.toFixed(4)),
+    };
+  }
+
+  /** Screen position of the chestpiece target for a chest coordinate. */
+  projectChest(lat: number, sup: number): { x: number; y: number } {
+    const s = chestSurfacePoint({ lat, sup });
+    const p = s.position.clone().project(this.director.camera);
+    const { width, height } = this.pointer.size;
+    return {
+      x: ((p.x + 1) / 2) * width,
+      y: ((1 - p.y) / 2) * height + this.drag.fingerOffsetPx,
+    };
+  }
+
+  /** Screen position of a record tile, for the comparison test. */
+  projectTile(id: WindowId): { x: number; y: number } | null {
+    const t = this.tiles.find(id);
+    if (!t) return null;
+    t.group.updateWorldMatrix(true, false);
+    const p = this.tmpV.setFromMatrixPosition(t.group.matrixWorld).clone().project(this.director.camera);
+    const { width, height } = this.pointer.size;
+    return { x: ((p.x + 1) / 2) * width, y: ((1 - p.y) / 2) * height };
+  }
+
+  /** Screen position of the posture rail. */
+  projectRail(): { x: number; y: number } {
+    this.room.bedHandle.updateWorldMatrix(true, false);
+    const p = this.tmpV.setFromMatrixPosition(this.room.bedHandle.matrixWorld).clone().project(this.director.camera);
+    const { width, height } = this.pointer.size;
+    return { x: ((p.x + 1) / 2) * width, y: ((1 - p.y) / 2) * height };
+  }
+
+  /** Screen position of the eartips, for the opening touch. */
+  projectEarTips(): { x: number; y: number } {
+    this.steth.binaural.updateWorldMatrix(true, false);
+    const p = this.tmpV.setFromMatrixPosition(this.steth.binaural.matrixWorld).clone();
+    p.y += 0.14;
+    p.project(this.director.camera);
+    const { width, height } = this.pointer.size;
+    return { x: ((p.x + 1) / 2) * width, y: ((1 - p.y) / 2) * height };
+  }
+
   start(): void {
     if (this.running) return;
     this.running = true;
@@ -158,12 +269,12 @@ export class GameFlow {
     // can be explored from the clavicles to the costal margin; landscape puts
     // it out to the side so the chest and the tiles sit left and right.
     if (this.director.isPortrait()) {
-      this.standTarget.set(0.44, 0, 0.66);
-      this.room.instrumentStand.rotation.y = -0.75;
+      this.standTarget.set(0.42, 0, 0.6);
+      this.room.instrumentStand.rotation.y = -0.72;
       this.drag.fingerOffsetPx = 44;
     } else {
-      this.standTarget.set(0.66, 0, 0.2);
-      this.room.instrumentStand.rotation.y = -0.42;
+      this.standTarget.set(0.88, 0, 0.1);
+      this.room.instrumentStand.rotation.y = -0.5;
       this.drag.fingerOffsetPx = 50;
     }
   }
@@ -190,7 +301,9 @@ export class GameFlow {
 
   private handlePress(x: number, y: number): void {
     if (this.stage === 'eartips') {
-      void this.seatEarTips();
+      // Generous, but still aimed: the first touch of the game is pushing the
+      // eartips into the training listening head, not tapping anywhere.
+      if (this.nearEarTips(x, y)) void this.seatEarTips();
       return;
     }
     // The rail is a big, obvious handle, so it is checked before the chest.
@@ -219,6 +332,22 @@ export class GameFlow {
       this.recorder.play(id);
       this.refreshScheduler();
     }
+  }
+
+  private nearEarTips(x: number, y: number): boolean {
+    const hit = this.pick(x, y, [
+      ...(this.steth.binaural.children as Mesh[]),
+      ...(this.room.listeningHead.children as Mesh[]),
+    ]);
+    if (hit) return true;
+    this.steth.binaural.updateWorldMatrix(true, false);
+    const p = this.tmpV.setFromMatrixPosition(this.steth.binaural.matrixWorld);
+    p.y += 0.14;
+    p.project(this.director.camera);
+    const { width, height } = this.pointer.size;
+    const sx = ((p.x + 1) / 2) * width;
+    const sy = ((1 - p.y) / 2) * height;
+    return Math.hypot(sx - x, sy - y) < Math.max(120, Math.min(width, height) * 0.34);
   }
 
   private async seatEarTips(): Promise<void> {
@@ -294,6 +423,9 @@ export class GameFlow {
       case 'reveal':
         this.guidance.setPose('resting');
         this.guidance.clearCaption();
+        // The camera goes through the chest wall here, so the chestpiece stops
+        // following the finger — otherwise it would run off with the camera.
+        this.drag.setEnabled(false);
         this.director.setLocked(false);
         break;
 
@@ -439,7 +571,10 @@ export class GameFlow {
 
   private frame(): void {
     const now = performance.now();
-    const dt = Math.min(0.05, (now - this.lastFrame) / 1000);
+    // Everything here is exponential damping or clock-driven, so a long frame
+    // is safe to integrate honestly. Clamping hard would make a slow device
+    // run the whole game in slow motion instead of just dropping frames.
+    const dt = Math.min(0.25, (now - this.lastFrame) / 1000);
     this.lastFrame = now;
 
     this.pointer.update(dt);
@@ -513,12 +648,13 @@ export class GameFlow {
     // The binaural stays plugged into the training listening head on the stand.
     this.room.listeningHead.updateWorldMatrix(true, false);
     const head = this.tmpV.setFromMatrixPosition(this.room.listeningHead.matrixWorld);
-    this.steth.binaural.position.set(head.x, head.y + 0.03, head.z + 0.012);
+    // Line the eartips up with the headform's ear cups.
+    this.steth.binaural.position.set(head.x, head.y - 0.046, head.z + 0.004);
     this.steth.binaural.rotation.y = this.room.instrumentStand.rotation.y;
     const seat = clamp01(this.earTipsSeated);
     for (let i = 0; i < this.steth.earTips.length; i++) {
       const sx = i === 0 ? -1 : 1;
-      this.steth.earTips[i].position.x = lerp(sx * 0.098, sx * 0.079, seat);
+      this.steth.earTips[i].position.x = lerp(sx * 0.078, sx * 0.052, seat);
     }
     if (this.earTipsSeated > 0 && this.earTipsSeated < 1) {
       this.earTipsSeated = Math.min(1, this.earTipsSeated + dt * 2.6);
@@ -578,13 +714,12 @@ export class GameFlow {
 
   private updateSkinFade(): void {
     const inside = this.reveal?.insideAmount ?? 0;
-    const mat = this.mats.skin;
-    const wanted = 1 - inside * 0.88;
-    if (Math.abs(mat.opacity - wanted) > 0.002) {
-      mat.opacity = wanted;
-      mat.transparent = wanted < 0.995;
-      mat.depthWrite = wanted > 0.6;
-      mat.needsUpdate = false;
+    // Ghost the shell rather than delete it: the child has to keep seeing the
+    // chest that the sound is coming out of, and where the chestpiece is on it.
+    const wanted = 1 - inside * 0.78;
+    if (Math.abs(this.mats.skin.opacity - wanted) > 0.002) {
+      setMaterialOpacity(this.mats.skin, wanted, 0.7);
+      this.mats.skin.side = inside > 0.05 ? DoubleSide : FrontSide;
     }
   }
 }

@@ -13,17 +13,21 @@ export type ShotName =
 interface ShotSpec {
   position: Vector3;
   target: Vector3;
-  fov: number;
+  /** Metres that must be visible across the frame at the subject. */
+  width: number;
+  /** Metres that must be visible up the frame at the subject. */
+  height: number;
   /** How briskly the camera moves into this shot. */
   rate: number;
 }
 
 type ShotTable = Record<ShotName, ShotSpec>;
 
-const shot = (p: number[], t: number[], fov: number, rate = 1.6): ShotSpec => ({
+const shot = (p: number[], t: number[], width: number, height: number, rate = 1.6): ShotSpec => ({
   position: new Vector3(p[0], p[1], p[2]),
   target: new Vector3(t[0], t[1], t[2]),
-  fov,
+  width,
+  height,
   rate,
 });
 
@@ -47,24 +51,27 @@ export class CameraDirector {
   private tmp = { position: new Vector3(), target: new Vector3(), fov: 42 };
   private locked = false;
 
+  // Landscape puts the chest and the record tiles side by side.
   private landscapeShots: ShotTable = {
-    establishing: shot([2.05, 1.95, 2.5], [-0.1, 0.9, -0.2], 46, 1.0),
-    midShot: shot([1.15, 1.66, 1.62], [-0.02, 0.86, -0.12], 40, 1.4),
-    chestThreeQuarter: shot([0.42, 1.32, 0.72], [-0.02, 0.84, -0.06], 38, 1.8),
-    listening: shot([0.34, 1.3, 0.66], [-0.02, 0.845, -0.06], 36, 1.5),
-    reveal: shot([0.3, 1.15, 0.35], [-0.02, 0.84, -0.05], 38, 2.2),
-    compare: shot([0.5, 1.52, 0.94], [0.06, 0.86, -0.03], 42, 1.5),
-    play: shot([0.46, 1.46, 0.9], [0.05, 0.86, -0.04], 42, 1.5),
+    establishing: shot([2.35, 2.05, 2.75], [-0.05, 0.95, -0.18], 3.4, 2.2, 1.0),
+    midShot: shot([1.4, 1.78, 1.9], [0.0, 0.9, -0.15], 1.95, 1.35, 1.4),
+    chestThreeQuarter: shot([0.5, 1.5, 1.12], [-0.02, 0.89, -0.05], 0.76, 0.62, 1.8),
+    listening: shot([0.44, 1.5, 1.12], [-0.02, 0.89, -0.05], 0.76, 0.62, 1.5),
+    reveal: shot([0.4, 1.2, 0.45], [-0.02, 0.87, -0.05], 0.4, 0.34, 2.2),
+    compare: shot([0.92, 1.68, 1.42], [0.3, 0.91, -0.02], 1.6, 0.95, 1.5),
+    play: shot([0.9, 1.66, 1.4], [0.3, 0.91, -0.03], 1.6, 0.95, 1.5),
   };
 
+  // Portrait stacks them: the clavicles at the top of the frame, the costal
+  // margin at the bottom, and the stand with the tiles below that.
   private portraitShots: ShotTable = {
-    establishing: shot([1.5, 2.2, 2.35], [-0.05, 0.9, -0.2], 52, 1.0),
-    midShot: shot([0.72, 1.95, 1.5], [-0.02, 0.86, -0.14], 46, 1.4),
-    chestThreeQuarter: shot([0.24, 1.5, 0.66], [-0.02, 0.85, -0.07], 44, 1.8),
-    listening: shot([0.2, 1.48, 0.62], [-0.02, 0.85, -0.07], 42, 1.5),
-    reveal: shot([0.2, 1.25, 0.34], [-0.02, 0.84, -0.06], 44, 2.2),
-    compare: shot([0.26, 1.72, 0.92], [0.02, 0.86, -0.02], 50, 1.5),
-    play: shot([0.24, 1.66, 0.88], [0.02, 0.86, -0.03], 50, 1.5),
+    establishing: shot([1.95, 2.25, 2.65], [-0.05, 0.95, -0.15], 2.2, 2.5, 1.0),
+    midShot: shot([1.05, 1.95, 1.8], [0.0, 0.9, -0.1], 1.15, 1.55, 1.4),
+    chestThreeQuarter: shot([0.4, 1.58, 1.06], [-0.01, 0.89, -0.05], 0.56, 0.78, 1.8),
+    listening: shot([0.3, 1.6, 1.08], [-0.01, 0.89, -0.05], 0.56, 0.78, 1.5),
+    reveal: shot([0.34, 1.24, 0.44], [-0.02, 0.87, -0.05], 0.34, 0.4, 2.2),
+    compare: shot([0.44, 1.86, 1.44], [0.08, 0.91, 0.06], 0.86, 1.34, 1.5),
+    play: shot([0.42, 1.84, 1.42], [0.08, 0.91, 0.05], 0.86, 1.34, 1.5),
   };
 
   constructor() {
@@ -72,8 +79,27 @@ export class CameraDirector {
     const s = this.portraitShots.establishing;
     this.pos.copy(s.position);
     this.target.copy(s.target);
-    this.fov = s.fov;
+    this.fov = this.fovFor(s);
     this.apply();
+  }
+
+  /**
+   * Choose the field of view from what has to fit, not from a fixed number.
+   * A phone in portrait and an iPad in landscape have wildly different aspect
+   * ratios, and the chest has to be reachable and uncovered in all of them.
+   */
+  private fovFor(s: ShotSpec): number {
+    return this.fovForFraming(s.position.distanceTo(s.target), s.width, s.height);
+  }
+
+  /** Field of view that fits `width` x `height` metres at `dist` metres. */
+  fovForFraming(dist: number, width: number, height: number): number {
+    const d = Math.max(0.2, dist);
+    const aspect = Math.max(0.2, this.camera.aspect);
+    const byWidth = 2 * Math.atan(width / 2 / d / aspect);
+    const byHeight = 2 * Math.atan(height / 2 / d);
+    const rad = Math.max(byWidth, byHeight);
+    return Math.min(72, Math.max(26, (rad * 180) / Math.PI));
   }
 
   setViewport(width: number, height: number): void {
@@ -133,7 +159,7 @@ export class CameraDirector {
       const s = this.table()[this.current];
       wantPos = s.position;
       wantTarget = s.target;
-      wantFov = s.fov;
+      wantFov = this.fovFor(s);
       rate = s.rate;
     }
 
@@ -161,7 +187,7 @@ export class CameraDirector {
     if (!this.dynamic) {
       this.pos.copy(s.position);
       this.target.copy(s.target);
-      this.fov = s.fov;
+      this.fov = this.fovFor(s);
       this.apply();
     }
   }

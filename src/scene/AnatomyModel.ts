@@ -1,5 +1,9 @@
 import {
   BoxGeometry,
+  FrontSide,
+  BufferAttribute,
+  BufferGeometry,
+  DoubleSide,
   Group,
   Mesh,
   MeshPhysicalMaterial,
@@ -10,11 +14,12 @@ import {
 } from 'three';
 import type { CardiacClock } from '../core/CardiacClock';
 import { clamp01, damp, lerp } from '../core/mathutil';
-import { HEART_CENTRE, axisYAt, halfDepthAt, halfWidthAt } from './ChestSurface';
-import type { MaterialLibrary } from './materials';
+import { HEART_CENTRE, axisYAt, halfDepthAt, halfWidthAt, trunkPoint } from './ChestSurface';
+import { setMaterialOpacity, type MaterialLibrary } from './materials';
 
 interface Wave {
   mesh: Mesh;
+  material: MeshStandardMaterial;
   age: number;
   life: number;
   spread: Vector3;
@@ -25,27 +30,64 @@ interface Wave {
  * What is inside the chest, shown only after the child has already heard the
  * difference.
  *
- * Two things this model is careful about: the heart is one organ sitting
- * behind the sternum and slightly to the manikin's left — not four organs
- * under four spots — and the sound reaches the surface as a broad vibration
- * carried through the chest wall along the direction blood is thrown, not as
- * a beam from a valve to a point on the skin.
+ * Three things this model is careful about. The heart is one organ sitting
+ * behind the sternum and a little to the manikin's left — not four organs
+ * under four spots. The chest wall is a real thickness that the sound has to
+ * cross, so it is drawn. And the sound leaves the whole heart as a broad
+ * swell that spreads through that wall along the direction the blood is
+ * thrown — there is no beam from a valve to a place on the skin, because
+ * there is no such beam.
  */
 export class AnatomyModel {
   readonly root = new Group();
   private heart = new Group();
-  private chambers: Mesh[] = [];
-  private valveLeaflets: Array<{ mesh: Mesh; phase: 's1' | 's2' }> = [];
+  private ventricles: Mesh;
+  private rightVent: Mesh;
+  private valveLeaflets: Array<{ mesh: Mesh; phase: 's1' | 's2'; base: number }> = [];
   private waves: Wave[] = [];
-  private wavePool: Mesh[] = [];
+  private wavePool: Wave[] = [];
   private ribcage = new Group();
+  private wallMesh: Mesh;
+  private wallMaterial: MeshPhysicalMaterial;
+  private boneMaterial: MeshPhysicalMaterial;
+  private leafletMaterial: MeshPhysicalMaterial;
   private opacity = 0;
   private lastS1Beat = -1;
   private lastS2Beat = -1;
-  private waveMaterial: MeshStandardMaterial;
+  private wallGlow = 0;
 
   constructor(private mats: MaterialLibrary) {
-    this.waveMaterial = mats.vibration;
+    this.boneMaterial = mats.boneTissue.clone();
+    this.boneMaterial.transparent = true;
+    this.boneMaterial.depthWrite = false;
+
+    this.leafletMaterial = new MeshPhysicalMaterial({
+      color: 0xcbb6a8,
+      roughness: 0.5,
+      metalness: 0,
+      transparent: true,
+      opacity: 0.75,
+      depthWrite: false,
+      side: 2,
+    });
+
+    // The chest wall itself: the thickness the sound has to cross.
+    this.wallMaterial = new MeshPhysicalMaterial({
+      color: 0xc2806a,
+      roughness: 0.86,
+      metalness: 0,
+      transparent: true,
+      opacity: 0.26,
+      depthWrite: false,
+      side: DoubleSide,
+      emissive: 0x511b13,
+      emissiveIntensity: 0,
+    });
+    this.wallMesh = new Mesh(buildChestWall(), this.wallMaterial);
+    this.root.add(this.wallMesh);
+
+    this.ventricles = new Mesh(new SphereGeometry(0.048, 30, 22), mats.heartTissue);
+    this.rightVent = new Mesh(new SphereGeometry(0.036, 24, 18), mats.heartTissue);
     this.buildHeart();
     this.buildRibcage();
     this.root.add(this.heart);
@@ -58,24 +100,20 @@ export class AnatomyModel {
 
     // Ventricular mass: one body, tilted so the apex points to the manikin's
     // left and towards the abdomen, as it does in life.
-    const ventricles = new Mesh(new SphereGeometry(0.048, 30, 22), t);
-    ventricles.scale.set(0.86, 0.82, 1.22);
-    ventricles.position.set(-0.004, -0.004, 0.012);
-    this.heart.add(ventricles);
-    this.chambers.push(ventricles);
+    this.ventricles.scale.set(0.86, 0.82, 1.22);
+    this.ventricles.position.set(-0.004, -0.004, 0.012);
+    this.heart.add(this.ventricles);
 
-    const rightVent = new Mesh(new SphereGeometry(0.036, 24, 18), t);
-    rightVent.scale.set(0.9, 0.78, 1.1);
-    rightVent.position.set(0.024, 0.006, 0.008);
-    this.heart.add(rightVent);
-    this.chambers.push(rightVent);
+    this.rightVent.scale.set(0.9, 0.78, 1.1);
+    this.rightVent.position.set(0.024, 0.006, 0.008);
+    this.heart.add(this.rightVent);
 
     const atria = new Mesh(new SphereGeometry(0.033, 24, 18), t);
     atria.scale.set(1.25, 0.72, 0.78);
     atria.position.set(0.004, 0.016, -0.042);
     this.heart.add(atria);
 
-    // Great vessels, which is what actually carries the second sound upward.
+    // Great vessels: what actually carries the second sound up the chest.
     const aorta = new Mesh(new TorusGeometry(0.026, 0.0105, 12, 26, Math.PI * 0.95), t);
     aorta.position.set(-0.004, 0.036, -0.05);
     aorta.rotation.set(0.2, 0.1, -0.35);
@@ -86,28 +124,21 @@ export class AnatomyModel {
     pulmTrunk.rotation.z = 0.28;
     this.heart.add(pulmTrunk);
 
-    // Valve planes. They only move at the instant they close; the point of the
-    // reveal is the timing, not a map.
-    const leafletMat = new MeshPhysicalMaterial({
-      color: 0xd8c2b6,
-      roughness: 0.42,
-      metalness: 0,
-      transparent: true,
-      opacity: 0.9,
-      side: 2,
-    });
-    const defs: Array<[Vector3, 's1' | 's2', number]> = [
-      [new Vector3(-0.014, 0.012, -0.024), 's1', 0.019],
-      [new Vector3(0.02, 0.012, -0.026), 's1', 0.017],
-      [new Vector3(-0.006, 0.03, -0.044), 's2', 0.013],
-      [new Vector3(-0.026, 0.026, -0.044), 's2', 0.012],
+    // Valve planes: small, and they only move at the instant they close. The
+    // point of the reveal is the timing, not a map of four places.
+    const defs: Array<[Vector3, 's1' | 's2', number, number]> = [
+      [new Vector3(-0.014, 0.012, -0.024), 's1', 0.0125, -0.35],
+      [new Vector3(0.02, 0.012, -0.026), 's1', 0.0115, 0.25],
+      [new Vector3(-0.006, 0.03, -0.044), 's2', 0.0092, -0.1],
+      [new Vector3(-0.026, 0.026, -0.044), 's2', 0.0085, 0.3],
     ];
-    for (const [pos, phase, r] of defs) {
-      const leaf = new Mesh(new SphereGeometry(r, 14, 8), leafletMat);
-      leaf.scale.set(1, 0.22, 1);
+    for (const [pos, phase, r, tilt] of defs) {
+      const leaf = new Mesh(new SphereGeometry(r, 14, 8), this.leafletMaterial);
+      leaf.scale.set(1, 0.2, 1);
       leaf.position.copy(pos);
+      leaf.rotation.z = tilt;
       this.heart.add(leaf);
-      this.valveLeaflets.push({ mesh: leaf, phase });
+      this.valveLeaflets.push({ mesh: leaf, phase, base: 0.2 });
     }
 
     this.heart.position.copy(HEART_CENTRE);
@@ -115,107 +146,164 @@ export class AnatomyModel {
   }
 
   private buildRibcage(): void {
-    const bone = this.mats.boneTissue.clone();
-    bone.transparent = true;
-    bone.opacity = 0.34;
-    bone.depthWrite = false;
-    for (let i = 0; i < 8; i++) {
-      const z = -0.32 + i * 0.062;
-      const W = halfWidthAt(z) * 0.92;
-      const H = halfDepthAt(z) * 0.92;
-      const rib = new Mesh(new TorusGeometry(1, 0.05, 8, 40, Math.PI * 1.25), bone);
-      rib.scale.set(W, H, 0.0085 / 0.05);
-      rib.position.set(0, axisYAt(z), z + 0.012 * i * 0.2);
-      rib.rotation.set(0.16, 0, Math.PI * 0.875);
+    for (let i = 0; i < 10; i++) {
+      const z = -0.34 + i * 0.058;
+      const W = halfWidthAt(z) * 0.9;
+      const H = halfDepthAt(z) * 0.88;
+      const rib = new Mesh(new TorusGeometry(1, 0.05, 8, 44, Math.PI * 1.2), this.boneMaterial);
+      rib.scale.set(W, H, 0.0075 / 0.05);
+      rib.position.set(0, axisYAt(z), z);
+      rib.rotation.set(0.14, 0, Math.PI * 0.9);
       this.ribcage.add(rib);
     }
-    const sternum = new Mesh(new BoxGeometry(0.032, 0.012, 0.2), bone);
-    sternum.position.set(0, axisYAt(-0.09) + halfDepthAt(-0.09) - 0.016, -0.09);
-    sternum.rotation.x = -0.1;
+    const sternumZ = -0.16;
+    const sternum = new Mesh(new BoxGeometry(0.03, 0.011, 0.19), this.boneMaterial);
+    sternum.position.set(
+      0,
+      axisYAt(sternumZ) + halfDepthAt(sternumZ) - 0.017,
+      sternumZ + 0.03,
+    );
+    sternum.rotation.x = -0.14;
     this.ribcage.add(sternum);
   }
 
   setOpacity(v: number): void {
     this.opacity = clamp01(v);
     this.root.visible = this.opacity > 0.01;
-    this.heart.traverse((o) => {
-      const m = (o as Mesh).material as MeshPhysicalMaterial | undefined;
-      if (m && 'opacity' in m) {
-        m.transparent = true;
-        m.opacity = this.opacity * (m === this.mats.heartTissue ? 1 : 0.92);
-        m.depthWrite = this.opacity > 0.85;
-      }
-    });
-    this.ribcage.traverse((o) => {
-      const m = (o as Mesh).material as MeshPhysicalMaterial | undefined;
-      if (m && 'opacity' in m) m.opacity = this.opacity * 0.36;
-    });
-    this.waveMaterial.opacity = this.opacity * 0.14;
+    setMaterialOpacity(this.mats.heartTissue, this.opacity, 0.6);
+    this.boneMaterial.opacity = this.opacity * 0.78;
+    this.leafletMaterial.opacity = this.opacity * 0.7;
+    this.wallMaterial.opacity = this.opacity * 0.24;
   }
 
   update(dt: number, clock: CardiacClock): void {
     if (!this.root.visible) return;
 
     const contraction = clock.contractionEnvelope();
-    for (const c of this.chambers) {
-      const k = 1 - contraction * 0.075;
-      c.scale.setScalar(1);
-      c.scale.set(0.86 * k, 0.82 * k, 1.22 * (1 + contraction * 0.02));
-    }
+    const k = 1 - contraction * 0.075;
+    this.ventricles.scale.set(0.86 * k, 0.82 * k, 1.22 * (1 + contraction * 0.02));
+    this.rightVent.scale.set(0.9 * k, 0.78 * k, 1.1 * (1 + contraction * 0.02));
     this.heart.position.y = HEART_CENTRE.y + contraction * 0.0016;
 
     for (const v of this.valveLeaflets) {
       const e = clock.soundEnvelope(v.phase === 's1' ? 1 : 2);
-      v.mesh.scale.y = lerp(0.22, 0.1, e);
-      const m = v.mesh.material as MeshPhysicalMaterial;
-      m.opacity = this.opacity * lerp(0.55, 0.95, e);
+      v.mesh.scale.y = lerp(v.base, v.base * 0.45, e);
     }
 
-    // One broad wave per sound, launched from the whole heart mass and spread
-    // through the chest wall — up and to the right for the second sound, down
-    // and to the left for the first, following where the blood is thrown.
+    // One broad swell per sound, launched from the whole heart mass: down and
+    // out towards the apex for the first, up along the great vessels for the
+    // second.
+    // Edge-triggered off the clock, not off a narrow envelope threshold: a
+    // dropped frame must never swallow a beat.
     const idx = clock.beatIndex();
-    if (clock.soundEnvelope(1) > 0.85 && this.lastS1Beat !== idx) {
+    const intoCycle = clock.phase() * clock.period;
+    if (this.lastS1Beat !== idx) {
       this.lastS1Beat = idx;
-      this.spawnWave(new Vector3(1.25, 0.85, 1.0), 1.0);
+      this.spawnWave(new Vector3(1.3, 0.9, 1.0), new Vector3(0.012, -0.008, 0.014), 1.0);
     }
-    if (clock.soundEnvelope(2) > 0.85 && this.lastS2Beat !== idx) {
+    if (this.lastS2Beat !== idx && intoCycle >= clock.systole) {
       this.lastS2Beat = idx;
-      this.spawnWave(new Vector3(0.9, 1.0, 1.35), 0.82);
+      this.spawnWave(new Vector3(0.95, 1.0, 1.35), new Vector3(-0.006, 0.014, -0.02), 0.85);
     }
 
+    let glow = 0;
     for (let i = this.waves.length - 1; i >= 0; i--) {
       const w = this.waves[i];
       w.age += dt;
       const t = clamp01(w.age / w.life);
-      const r = lerp(0.03, 0.19, t ** 0.62);
+      const r = lerp(0.035, 0.155, t ** 0.6);
       w.mesh.scale.set(r * w.spread.x, r * w.spread.y, r * w.spread.z);
-      const mat = w.mesh.material as MeshStandardMaterial;
-      mat.opacity = this.opacity * 0.16 * w.strength * (1 - t) * Math.sin(t * Math.PI) * 1.6;
+      const shape = Math.sin(t * Math.PI) ** 0.7;
+      w.material.opacity = this.opacity * 0.12 * w.strength * shape;
+      // The wall lights faintly as the swell reaches it, which is the whole
+      // point: the vibration arrives through the wall, not down a tube.
+      glow = Math.max(glow, w.strength * shape * clamp01((t - 0.35) / 0.5));
       if (t >= 1) {
         w.mesh.visible = false;
-        this.wavePool.push(w.mesh);
+        this.wavePool.push(w);
         this.waves.splice(i, 1);
       }
     }
+    this.wallGlow = damp(this.wallGlow, glow, 16, dt);
+    this.wallMaterial.emissiveIntensity = this.wallGlow * 0.5 * this.opacity;
   }
 
-  private spawnWave(spread: Vector3, strength: number): void {
-    if (this.waves.length > 5) return;
-    let mesh = this.wavePool.pop();
-    if (!mesh) {
-      mesh = new Mesh(new SphereGeometry(1, 20, 14), this.waveMaterial.clone());
+  private spawnWave(spread: Vector3, offset: Vector3, strength: number): void {
+    // A couple of swells in flight reads as spreading; a stack of them just
+    // fogs the chest.
+    if (this.waves.length >= 3) return;
+    let w = this.wavePool.pop();
+    if (!w) {
+      const material = this.mats.vibration.clone();
+      material.side = FrontSide;
+      const mesh = new Mesh(new SphereGeometry(1, 24, 16), material);
+      mesh.frustumCulled = false;
       this.root.add(mesh);
+      w = { mesh, material, age: 0, life: 0.9, spread: new Vector3(), strength: 1 };
     }
-    mesh.visible = true;
-    // Launched from the heart as a whole, offset a little towards the wall the
-    // sound has to cross — never from a single valve to a single spot.
-    mesh.position.copy(HEART_CENTRE).add(new Vector3(0, 0.006, 0));
-    this.waves.push({ mesh, age: 0, life: 0.85, spread: spread.clone(), strength });
+    w.mesh.visible = true;
+    w.age = 0;
+    w.life = 0.9;
+    w.strength = strength;
+    w.spread.copy(spread);
+    w.mesh.position.copy(HEART_CENTRE).add(offset);
+    this.waves.push(w);
   }
 
-  /** Slow drift used while the reveal is on screen, so it reads as a volume. */
+  /** Slow drift while the reveal is on screen, so it reads as a volume. */
   drift(dt: number, amount: number): void {
-    this.heart.rotation.y = damp(this.heart.rotation.y, 0.34 + amount * 0.18, 1.4, dt);
+    this.heart.rotation.y = damp(this.heart.rotation.y, 0.34 + amount * 0.2, 1.4, dt);
   }
+}
+
+/**
+ * The anterior chest wall over the listening area — the thickness the sound
+ * crosses on its way out. Built from the same surface function as the skin.
+ */
+function buildChestWall(): BufferGeometry {
+  return buildTorsoShell(-0.42, 0.28, 0.018, -1.25, 1.25);
+}
+
+/** A shell offset inwards from the trunk surface. */
+function buildTorsoShell(
+  zMin: number,
+  zMax: number,
+  inset: number,
+  phiMin = -Math.PI,
+  phiMax = Math.PI,
+): BufferGeometry {
+  const zSegs = 34;
+  const phiSegs = 40;
+  const verts: number[] = [];
+  const norms: number[] = [];
+  const idx: number[] = [];
+  const sp = { position: new Vector3(), normal: new Vector3() };
+  const sign = -1;
+  for (let i = 0; i <= zSegs; i++) {
+    const z = zMin + (i / zSegs) * (zMax - zMin);
+    for (let j = 0; j <= phiSegs; j++) {
+      const phi = phiMin + (j / phiSegs) * (phiMax - phiMin);
+      trunkPoint(z, phi, sp);
+      verts.push(
+        sp.position.x - sp.normal.x * inset,
+        sp.position.y - sp.normal.y * inset,
+        sp.position.z - sp.normal.z * inset,
+      );
+      norms.push(sign * sp.normal.x, sign * sp.normal.y, sign * sp.normal.z);
+    }
+  }
+  const row = phiSegs + 1;
+  for (let i = 0; i < zSegs; i++) {
+    for (let j = 0; j < phiSegs; j++) {
+      const a = i * row + j;
+      const b = a + row;
+      idx.push(a, a + 1, b, a + 1, b + 1, b);
+    }
+  }
+  const geo = new BufferGeometry();
+  geo.setAttribute('position', new BufferAttribute(new Float32Array(verts), 3));
+  geo.setAttribute('normal', new BufferAttribute(new Float32Array(norms), 3));
+  geo.setIndex(idx);
+  geo.computeBoundingSphere();
+  return geo;
 }

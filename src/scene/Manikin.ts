@@ -2,10 +2,9 @@ import {
   BoxGeometry,
   BufferAttribute,
   BufferGeometry,
-  CapsuleGeometry,
+  CylinderGeometry,
   Group,
   Mesh,
-  SphereGeometry,
   Vector3,
 } from 'three';
 import type { CardiacClock } from '../core/CardiacClock';
@@ -49,51 +48,41 @@ export class Manikin {
     this.torsoMesh.name = 'manikin-torso';
     this.bodyGroup.add(this.torsoMesh);
 
-    // Head module: moulded, matte, no attempt at a lifelike face.
-    const head = new Group();
-    const skull = new Mesh(new SphereGeometry(0.098, 28, 20), mats.skin);
-    skull.scale.set(0.94, 1.0, 1.16);
-    skull.castShadow = true;
-    head.add(skull);
-    const jaw = new Mesh(new BoxGeometry(0.115, 0.058, 0.108), mats.skin);
-    jaw.position.set(0, -0.055, 0.026);
-    head.add(jaw);
-    const nose = new Mesh(new SphereGeometry(0.021, 12, 10), mats.skin);
-    nose.position.set(0, 0.03, 0.086);
-    nose.scale.set(0.8, 0.9, 1.3);
-    head.add(nose);
-    head.position.set(0, TABLE_TOP_Y + 0.098, -0.74);
-    head.rotation.set(-0.12, 0.22, 0);
-    this.bodyGroup.add(head);
-
-    // Neck module joint.
-    const neck = new Mesh(new CapsuleGeometry(0.052, 0.08, 6, 16), mats.skin);
-    neck.rotation.x = Math.PI / 2;
-    neck.position.set(0, TABLE_TOP_Y + 0.078, -0.62);
+    // This is a torso trainer: it ends in a moulded neck plug with a collar,
+    // and the arms are not part of the cardiac module at all. Nothing here
+    // tries to be a face.
+    const neck = new Mesh(new CylinderGeometry(0.055, 0.062, 0.075, 20), mats.skin);
+    neck.rotation.x = Math.PI / 2 - 0.16;
+    neck.position.set(0, TABLE_TOP_Y + 0.098, -0.632);
+    neck.castShadow = true;
     this.bodyGroup.add(neck);
+    const collar = new Mesh(new CylinderGeometry(0.058, 0.058, 0.014, 20), mats.manikinShell);
+    collar.rotation.x = Math.PI / 2 - 0.16;
+    collar.position.set(0, TABLE_TOP_Y + 0.104, -0.664);
+    this.bodyGroup.add(collar);
+    const plug = new Mesh(new CylinderGeometry(0.04, 0.04, 0.02, 16), mats.trainingPolymer);
+    plug.rotation.x = Math.PI / 2 - 0.16;
+    plug.position.set(0, TABLE_TOP_Y + 0.107, -0.676);
+    this.bodyGroup.add(plug);
 
-    // Upper-arm stubs — the arms are separate replaceable modules.
-    for (const side of [-1, 1]) {
-      const arm = new Mesh(new CapsuleGeometry(0.05, 0.2, 6, 16), mats.skin);
-      arm.rotation.set(Math.PI / 2, 0, side * 0.16);
-      arm.position.set(side * 0.212, TABLE_TOP_Y + 0.052, -0.3);
-      arm.castShadow = true;
-      this.bodyGroup.add(arm);
-      const cuff = new Mesh(new CapsuleGeometry(0.049, 0.012, 4, 16), mats.manikinShell);
-      cuff.rotation.set(Math.PI / 2, 0, side * 0.16);
-      cuff.position.set(side * 0.204, TABLE_TOP_Y + 0.052, -0.19);
-      this.bodyGroup.add(cuff);
-    }
+    // The trainer ends at the upper abdomen in a moulded end plate, and the
+    // whole torso is carried on a base that rests on the pad.
+    const endPlate = new Mesh(new CylinderGeometry(0.128, 0.118, 0.024, 28), mats.manikinShell);
+    endPlate.rotation.x = Math.PI / 2;
+    endPlate.scale.set(1.0, 1.0, 0.66);
+    endPlate.position.set(0, TABLE_TOP_Y + 0.072, 0.428);
+    endPlate.castShadow = true;
+    this.bodyGroup.add(endPlate);
 
-    // Support cradle: the torso does not float on the pad.
-    const cradle = new Mesh(new BoxGeometry(0.3, 0.03, 0.36), mats.manikinShell);
-    cradle.position.set(0, TABLE_TOP_Y + 0.012, 0.12);
-    cradle.receiveShadow = true;
-    this.bodyGroup.add(cradle);
+    const base = new Mesh(new BoxGeometry(0.28, 0.026, 0.72), mats.manikinShell);
+    base.position.set(0, TABLE_TOP_Y + 0.013, 0.06);
+    base.castShadow = true;
+    base.receiveShadow = true;
+    this.bodyGroup.add(base);
 
     // Service port on the flank, as on a real skills-lab torso.
-    const port = new Mesh(new BoxGeometry(0.052, 0.03, 0.07), mats.manikinShell);
-    port.position.set(0.166, TABLE_TOP_Y + 0.06, 0.3);
+    const port = new Mesh(new BoxGeometry(0.05, 0.028, 0.066), mats.manikinShell);
+    port.position.set(0.148, TABLE_TOP_Y + 0.055, 0.3);
     port.rotation.z = -0.3;
     this.bodyGroup.add(port);
   }
@@ -115,8 +104,10 @@ export class Manikin {
     this.breathPhase += dt * (Math.PI * 2) / 4.3;
     const breath = Math.sin(this.breathPhase) * 0.5 + 0.5;
     const beat = clock.contractionEnvelope();
-    this.bodyGroup.position.y = -axisYAt(-0.05) + breath * 0.0042 + beat * 0.0011;
-    this.torsoMesh.scale.set(1 + breath * 0.0035, 1 + breath * 0.0055, 1);
+    // Respiration and the beat move the torso rather than scaling it: the
+    // chestpiece mapping has to stay exact wherever the child puts a finger.
+    this.bodyGroup.position.y = -axisYAt(-0.05) + breath * 0.0055 + beat * 0.0013;
+    this.bodyGroup.position.z = breath * 0.0022;
   }
 }
 
@@ -146,7 +137,8 @@ function buildTorsoGeometry(): BufferGeometry {
     for (let j = 0; j < phiSegs; j++) {
       const a = i * row + j;
       const b = a + row;
-      idx.push(a, b, a + 1, a + 1, b, b + 1);
+      // Counter-clockwise seen from outside the shell.
+      idx.push(a, a + 1, b, a + 1, b + 1, b);
     }
   }
 
@@ -169,8 +161,8 @@ function buildTorsoGeometry(): BufferGeometry {
       uvs.push(0.5 + Math.cos(phi) * 0.45, 0.5 + Math.sin(phi) * 0.45);
     }
     for (let j = 0; j < phiSegs; j++) {
-      if (dir < 0) idx.push(centreIndex, ringStart + j, ringStart + j + 1);
-      else idx.push(centreIndex, ringStart + j + 1, ringStart + j);
+      if (dir < 0) idx.push(centreIndex, ringStart + j + 1, ringStart + j);
+      else idx.push(centreIndex, ringStart + j, ringStart + j + 1);
     }
   }
 

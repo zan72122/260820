@@ -182,7 +182,7 @@ export function makeCurtainTexture(): CanvasTexture {
  * Synthetic skin of the training torso: a warm, slightly matte polymer with
  * mould texture, not human dermis. Deliberately reads as equipment.
  */
-export function makeSkinTexture(): CanvasTexture {
+export function makeSkinTexture(seamV: number[] = []): CanvasTexture {
   const size = 1024;
   const { c, g } = canvas(size);
   g.fillStyle = '#c8a189';
@@ -201,15 +201,28 @@ export function makeSkinTexture(): CanvasTexture {
     g.fillRect(x, y, 1.6, 1.6);
   }
   // Broad mould mottle.
-  for (let i = 0; i < 90; i++) {
+  for (let i = 0; i < 110; i++) {
     const x = rng() * size;
     const y = rng() * size;
-    const r = 40 + rng() * 130;
+    const r = 40 + rng() * 150;
     const grd = g.createRadialGradient(x, y, 0, x, y, r);
-    grd.addColorStop(0, `rgba(${188 + rng() * 26 | 0},${150 + rng() * 22 | 0},${128 + rng() * 20 | 0},0.10)`);
+    grd.addColorStop(0, `rgba(${186 + rng() * 30 | 0},${146 + rng() * 26 | 0},${124 + rng() * 24 | 0},0.17)`);
     grd.addColorStop(1, 'rgba(0,0,0,0)');
     g.fillStyle = grd;
     g.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+
+  // Joint lines where the replaceable modules meet. V runs along the body, so
+  // these are horizontal bands in the map.
+  for (const v of seamV) {
+    const y = v * size;
+    const grd = g.createLinearGradient(0, y - 5, 0, y + 5);
+    grd.addColorStop(0, 'rgba(150,112,94,0)');
+    grd.addColorStop(0.45, 'rgba(126,92,76,0.55)');
+    grd.addColorStop(0.6, 'rgba(214,180,158,0.4)');
+    grd.addColorStop(1, 'rgba(150,112,94,0)');
+    g.fillStyle = grd;
+    g.fillRect(0, y - 5, size, 10);
   }
   return finish(c, true, 1);
 }

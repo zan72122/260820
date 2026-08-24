@@ -116,6 +116,11 @@ export class CardiacClock {
     return out;
   }
 
+  /** Absolute time of S1 or S2 for a given cycle index. */
+  timeOfSound(index: number, which: 1 | 2): number {
+    return this.originAudioTime + index * this.period + (which === 2 ? this.systole : 0);
+  }
+
   /** Drop any scheduling backlog (e.g. after the tab was backgrounded). */
   resync(): void {
     this.lastScheduledIndex = Math.floor(this.elapsed() / this.period) - 1;

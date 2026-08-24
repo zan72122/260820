@@ -9,6 +9,7 @@ import {
 } from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
+import { flags } from '../core/runtimeFlags';
 
 /**
  * Daylight from the one window, a soft fill from the ceiling panels, and an
@@ -19,7 +20,8 @@ export class Lighting {
   readonly root = new Group();
   readonly sun: DirectionalLight;
   private hemi: HemisphereLight;
-  private panel: RectAreaLight;
+  private panel: RectAreaLight | null = null;
+  private fill: DirectionalLight | null = null;
 
   constructor(scene: Scene, renderer: WebGLRenderer) {
     RectAreaLightUniformsLib.init();
@@ -44,10 +46,18 @@ export class Lighting {
     this.hemi = new HemisphereLight(0xd8e4ee, 0x6d6355, 0.75);
     this.root.add(this.hemi);
 
-    this.panel = new RectAreaLight(0xf2f5f7, 1.4, 1.2, 0.32);
-    this.panel.position.set(-0.2, 2.76, -0.4);
-    this.panel.rotation.x = -Math.PI / 2;
-    this.root.add(this.panel);
+    if (flags.fast) {
+      // A single cheap fill stands in for the ceiling panel.
+      this.fill = new DirectionalLight(0xeef2f5, 0.55);
+      this.fill.position.set(-0.6, 2.6, 0.9);
+      this.root.add(this.fill);
+      this.sun.castShadow = false;
+    } else {
+      this.panel = new RectAreaLight(0xf2f5f7, 1.4, 1.2, 0.32);
+      this.panel.position.set(-0.2, 2.76, -0.4);
+      this.panel.rotation.x = -Math.PI / 2;
+      this.root.add(this.panel);
+    }
 
     const pmrem = new PMREMGenerator(renderer);
     const env = pmrem.fromScene(new RoomEnvironment(), 0.035);
@@ -65,6 +75,7 @@ export class Lighting {
   }
 
   setQuality(level: 'high' | 'medium' | 'low'): void {
+    if (!this.panel) return;
     if (level === 'high') {
       this.setShadowResolution(1024);
       this.panel.intensity = 1.4;

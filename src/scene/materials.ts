@@ -1,4 +1,5 @@
 import { Color, DoubleSide, MeshPhysicalMaterial, MeshStandardMaterial } from 'three';
+import { SEAM_V } from './ChestSurface';
 import {
   makeChestpieceWear,
   makeCurtainTexture,
@@ -35,14 +36,36 @@ export interface MaterialLibrary {
   curtain: MeshPhysicalMaterial;
   engravedPlate: MeshPhysicalMaterial;
   manikinShell: MeshStandardMaterial;
+  trainingPolymer: MeshPhysicalMaterial;
   glove: MeshPhysicalMaterial;
   heartTissue: MeshPhysicalMaterial;
   boneTissue: MeshPhysicalMaterial;
   vibration: MeshStandardMaterial;
 }
 
+/**
+ * Fade a material in or out.
+ *
+ * Three compiles a different program for opaque and transparent materials, so
+ * flipping `transparent` without asking for a recompile silently leaves the
+ * opaque shader in place — and the fade does nothing at all.
+ */
+export function setMaterialOpacity(
+  mat: MeshStandardMaterial | MeshPhysicalMaterial,
+  opacity: number,
+  depthWriteAbove = 0.6,
+): void {
+  const wantTransparent = opacity < 0.995;
+  if (mat.transparent !== wantTransparent) {
+    mat.transparent = wantTransparent;
+    mat.needsUpdate = true;
+  }
+  mat.opacity = opacity;
+  mat.depthWrite = opacity > depthWriteAbove;
+}
+
 export function createMaterials(): MaterialLibrary {
-  const skinMap = makeSkinTexture();
+  const skinMap = makeSkinTexture(SEAM_V);
   const skinRough = makeSkinRoughness();
   const floorMap = makeFloorTexture();
   const floorRough = makeFloorRoughness();
@@ -82,14 +105,16 @@ export function createMaterials(): MaterialLibrary {
       roughnessMap: rimWear,
     }),
     // A thin, taut, slightly translucent membrane — not a painted disc.
+    // Kept on alpha rather than transmission: a refraction pass would cost a
+    // second render of the whole room every frame for a 2 mm disc.
     diaphragm: new MeshPhysicalMaterial({
       color: new Color('#e6e3dc'),
       metalness: 0.0,
       roughness: 0.24,
-      clearcoat: 0.7,
+      clearcoat: 0.72,
       clearcoatRoughness: 0.14,
-      transmission: 0.22,
-      thickness: 0.0012,
+      transparent: true,
+      opacity: 0.86,
       ior: 1.45,
       side: DoubleSide,
     }),
@@ -125,8 +150,8 @@ export function createMaterials(): MaterialLibrary {
     }),
     paper: new MeshStandardMaterial({
       map: paperMap,
-      color: new Color('#eeeae0'),
-      roughness: 0.94,
+      color: new Color('#ddd8cb'),
+      roughness: 0.95,
       metalness: 0.0,
     }),
     laminate: new MeshPhysicalMaterial({
@@ -174,14 +199,24 @@ export function createMaterials(): MaterialLibrary {
       roughness: 0.55,
       metalness: 0.45,
     }),
-    glove: new MeshPhysicalMaterial({
-      color: new Color('#d8d3c8'),
+    trainingPolymer: new MeshPhysicalMaterial({
+      color: new Color('#a8a49b'),
       roughness: 0.68,
       metalness: 0.0,
-      clearcoat: 0.14,
-      clearcoatRoughness: 0.5,
-      sheen: 0.3,
-      sheenRoughness: 0.7,
+      clearcoat: 0.08,
+      clearcoatRoughness: 0.7,
+    }),
+    // Nitrile: reads instantly as a glove and never as bare skin, which keeps
+    // the manikin's synthetic tan clearly separate from the instructor's hand.
+    glove: new MeshPhysicalMaterial({
+      color: new Color('#8f9bb4'),
+      roughness: 0.62,
+      metalness: 0.0,
+      clearcoat: 0.22,
+      clearcoatRoughness: 0.45,
+      sheen: 0.35,
+      sheenRoughness: 0.6,
+      sheenColor: new Color('#aab4c6'),
     }),
     // Anatomy shown only during the reveal, lit softly and never emissive.
     heartTissue: new MeshPhysicalMaterial({
@@ -197,8 +232,8 @@ export function createMaterials(): MaterialLibrary {
       color: new Color('#ded3bd'),
       roughness: 0.66,
       metalness: 0.0,
-      transmission: 0.12,
-      thickness: 0.02,
+      transparent: true,
+      opacity: 0.4,
       ior: 1.35,
     }),
     vibration: new MeshStandardMaterial({

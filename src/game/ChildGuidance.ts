@@ -19,7 +19,8 @@ export class ChildGuidance {
   private caption = '';
   private captionTimer = 0;
   private markPhase: 1 | 2 | null = null;
-  private lastKnockBeat = -1;
+  private scheduledKnockBeat = -1;
+  private pendingTapAt = 0;
   private sweepTimer = 0;
   private sweepSide: 'upper' | 'lower' = 'upper';
   private sweeping = false;
@@ -67,7 +68,8 @@ export class ChildGuidance {
    */
   markSound(which: 1 | 2 | null): void {
     this.markPhase = which;
-    this.lastKnockBeat = -1;
+    this.scheduledKnockBeat = -1;
+    this.pendingTapAt = 0;
   }
 
   getMarkedSound(): 1 | 2 | null {
@@ -103,16 +105,20 @@ export class ChildGuidance {
     }
 
     if (this.markPhase !== null) {
-      const idx = this.clock.beatIndex();
+      // The knock is scheduled ahead on the audio clock so it lands exactly on
+      // the sound it is marking, whatever the frame rate is doing.
+      const next = this.clock.beatIndex() + 1;
+      if (this.scheduledKnockBeat < next && next % 2 === 0) {
+        const at = this.clock.timeOfSound(next, this.markPhase);
+        room?.knock(at, this.markPhase === 2);
+        this.pendingTapAt = at;
+        this.scheduledKnockBeat = next;
+      }
       // Every other cycle, so it stays a gesture and not a metronome.
-      if (idx !== this.lastKnockBeat && idx % 2 === 0) {
-        const env = this.clock.soundEnvelope(this.markPhase);
-        if (env > 0.9) {
-          this.lastKnockBeat = idx;
-          this.hand.setPose('tapRail');
-          this.hand.tap();
-          room?.knock(0, this.markPhase === 2);
-        }
+      if (this.pendingTapAt > 0 && this.clock.now() >= this.pendingTapAt - 0.09) {
+        this.pendingTapAt = 0;
+        this.hand.setPose('tapRail');
+        this.hand.tap();
       }
     }
   }

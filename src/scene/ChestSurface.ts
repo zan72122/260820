@@ -49,35 +49,38 @@ function catmull(keys: Key[], x: number): number {
 
 /** Half width of the trunk at body position z. */
 const W_KEYS: Key[] = [
-  [-0.62, 0.112],
-  [-0.52, 0.176],
-  [-0.44, 0.208],
-  [-0.3, 0.187],
+  [-0.62, 0.108],
+  [-0.52, 0.174],
+  [-0.44, 0.206],
+  [-0.3, 0.186],
   [-0.05, 0.176],
-  [0.12, 0.163],
-  [0.28, 0.152],
-  [0.44, 0.171],
-  [0.56, 0.158],
+  [0.12, 0.164],
+  [0.26, 0.153],
+  [0.36, 0.146],
+  [0.42, 0.132],
 ];
 
 /** Half depth of the trunk at body position z. */
 const H_KEYS: Key[] = [
-  [-0.62, 0.078],
-  [-0.52, 0.092],
+  [-0.62, 0.076],
+  [-0.52, 0.091],
   [-0.44, 0.098],
   [-0.3, 0.101],
   [-0.05, 0.105],
-  [0.12, 0.101],
-  [0.28, 0.093],
-  [0.44, 0.1],
-  [0.56, 0.09],
+  [0.12, 0.102],
+  [0.26, 0.095],
+  [0.36, 0.09],
+  [0.42, 0.082],
 ];
 
 export const TORSO_Z_MIN = -0.62;
-export const TORSO_Z_MAX = 0.56;
+export const TORSO_Z_MAX = 0.42;
 
 /** Replaceable-module seams of the training torso. */
-export const SEAM_Z = [-0.395, 0.205];
+export const SEAM_Z = [-0.395, 0.19];
+
+/** Seam positions expressed in the torso's texture V coordinate. */
+export const SEAM_V = SEAM_Z.map((z) => (z - -0.62) / (0.42 - -0.62));
 
 export function halfWidthAt(z: number): number {
   return catmull(W_KEYS, clamp(z, TORSO_Z_MIN, TORSO_Z_MAX));
@@ -103,7 +106,7 @@ function surfaceDetail(z: number, phi: number): number {
   r -= 0.0072 * Math.exp(-((phi / 0.16) ** 2)) * chestness;
   // Pectoral plates either side of it.
   const pec = Math.exp(-(((z + 0.16) / 0.19) ** 2));
-  r += 0.0085 * (Math.exp(-(((phi - 0.44) / 0.3) ** 2)) + Math.exp(-(((phi + 0.44) / 0.3) ** 2))) * pec;
+  r += 0.0055 * (Math.exp(-(((phi - 0.46) / 0.36) ** 2)) + Math.exp(-(((phi + 0.46) / 0.36) ** 2))) * pec;
   // Costal margin flaring towards the abdomen.
   r -= 0.006 * Math.exp(-(((z - 0.13) / 0.09) ** 2)) * Math.exp(-((phi / 0.7) ** 2));
   // Moulded module seams.
@@ -138,8 +141,9 @@ export function trunkPoint(z: number, phi: number, out?: SurfacePoint): SurfaceP
   const dPhi = a.sub(b);
   const dZ = c.sub(rawPoint(z - e, phi));
   const n = out?.normal ?? new Vector3();
-  n.crossVectors(dZ, dPhi).normalize();
-  if (n.y < 0 && Math.abs(phi) < 1.2) n.negate();
+  // dPhi x dZ points out of the shell everywhere, which is also the winding
+  // order the triangles are built with below.
+  n.crossVectors(dPhi, dZ).normalize();
   return { position: p, normal: n };
 }
 
@@ -155,7 +159,7 @@ function rawPoint(z: number, phi: number): Vector3 {
  * Where the heart actually sits inside this torso, in world space: behind the
  * sternum and a little towards the manikin's left — one organ, not four.
  */
-export const HEART_CENTRE = new Vector3(-0.022, axisYAt(-0.06) - 0.012, -0.055);
+export const HEART_CENTRE = new Vector3(-0.022, axisYAt(-0.06) + 0.012, -0.055);
 
 export function chestCoordToBody(c: ChestCoord): { z: number; phi: number } {
   return { z: CHEST_Z - c.sup * CHEST_HALF_LEN, phi: c.lat * LAT_SPAN };

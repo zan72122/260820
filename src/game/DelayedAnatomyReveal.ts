@@ -10,6 +10,9 @@ const T_IN = 0.95;
 const T_HOLD = 2.4;
 const T_OUT = 0.95;
 
+/** How far back from the heart the look inside settles. */
+const REVEAL_DISTANCE = 0.36;
+
 /**
  * The short look inside — and it only ever happens *after* several cycles have
  * already been heard from that spot.
@@ -56,11 +59,12 @@ export class DelayedAnatomyReveal {
     this.rim.copy(surfacePoint).addScaledVector(surfaceNormal, 0.055);
     this.from.copy(this.director.camera.position);
 
-    // Sit far enough back inside the chest that the whole heart is in frame,
-    // approached from the side the chestpiece is on.
+    // Look at the heart from the side the chestpiece is on, but blended with a
+    // fixed three-quarter bias so the ribs and the chest wall always read the
+    // same way whichever spot the child chose.
     const dir = new Vector3().subVectors(this.rim, HEART_CENTRE).normalize();
-    this.inside.copy(HEART_CENTRE).addScaledVector(dir, 0.235);
-    this.inside.y += 0.03;
+    dir.lerp(new Vector3(0.5, 0.66, 0.56).normalize(), 0.45).normalize();
+    this.inside.copy(HEART_CENTRE).addScaledVector(dir, REVEAL_DISTANCE);
 
     this.director.setLocked(false);
     this.director.setDynamic((out) => {
@@ -80,7 +84,7 @@ export class DelayedAnatomyReveal {
       }
       out.position.copy(this.posOut);
       out.target.copy(this.targetOut);
-      out.fov = 44;
+      out.fov = this.director.fovForFraming(REVEAL_DISTANCE, 0.24, 0.32);
     }, 6.0);
   }
 

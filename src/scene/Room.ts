@@ -125,13 +125,13 @@ export class Room {
     const table = new Group();
 
     // Base cabinet.
-    const base = new Mesh(new BoxGeometry(0.58, 0.34, 1.5), mats.powderCoat);
+    const base = new Mesh(new BoxGeometry(0.66, 0.34, 1.5), mats.powderCoat);
     base.position.set(0, 0.48, -0.05);
     base.castShadow = true;
     base.receiveShadow = true;
     table.add(base);
     for (const z of [-0.45, 0.0, 0.45]) {
-      const drawerLine = new Mesh(new BoxGeometry(0.585, 0.006, 0.012), mats.manikinShell);
+      const drawerLine = new Mesh(new BoxGeometry(0.665, 0.006, 0.012), mats.manikinShell);
       drawerLine.position.set(0, 0.48 + 0.001, z);
       table.add(drawerLine);
     }
@@ -140,31 +140,31 @@ export class Room {
     for (const sx of [-1, 1]) {
       for (const sz of [-1, 1]) {
         const leg = new Mesh(new BoxGeometry(0.05, 0.31, 0.05), mats.powderCoat);
-        leg.position.set(sx * 0.25, 0.155, sz * 0.82);
+        leg.position.set(sx * 0.29, 0.155, sz * 0.82);
         leg.castShadow = true;
         table.add(leg);
         const foot = new Mesh(new CylinderGeometry(0.03, 0.034, 0.014, 12), mats.nonChillRim);
-        foot.position.set(sx * 0.25, 0.007, sz * 0.82);
+        foot.position.set(sx * 0.29, 0.007, sz * 0.82);
         table.add(foot);
       }
       const rail = new Mesh(new BoxGeometry(0.03, 0.03, 1.6), mats.powderCoat);
-      rail.position.set(sx * 0.25, 0.16, 0);
+      rail.position.set(sx * 0.29, 0.16, 0);
       table.add(rail);
     }
 
     // Wipe-clean pad, then the paper roll over it.
-    const pad = new Mesh(new BoxGeometry(0.64, 0.075, 1.94), mats.vinylPad);
+    const pad = new Mesh(new BoxGeometry(0.72, 0.075, 1.94), mats.vinylPad);
     pad.position.set(0, TABLE_TOP_Y - 0.037, 0);
     pad.castShadow = true;
     pad.receiveShadow = true;
     table.add(pad);
-    const paper = new Mesh(new BoxGeometry(0.5, 0.003, 1.86), mats.paper);
-    paper.position.set(0, TABLE_TOP_Y + 0.0025, 0.02);
+    const paper = new Mesh(new BoxGeometry(0.46, 0.003, 1.42), mats.paper);
+    paper.position.set(0, TABLE_TOP_Y + 0.0025, 0.12);
     paper.receiveShadow = true;
     table.add(paper);
-    const roll = new Mesh(new CylinderGeometry(0.055, 0.055, 0.5, 20), mats.paper);
+    const roll = new Mesh(new CylinderGeometry(0.05, 0.05, 0.46, 20), mats.paper);
     roll.rotation.z = Math.PI / 2;
-    roll.position.set(0, TABLE_TOP_Y + 0.03, -0.99);
+    roll.position.set(0, TABLE_TOP_Y + 0.026, -0.94);
     table.add(roll);
 
     this.root.add(table);
@@ -175,15 +175,18 @@ export class Room {
     railTube.castShadow = true;
     this.bedHandle.add(railTube);
     for (const sz of [-1, 1]) {
-      const post = new Mesh(new CylinderGeometry(0.014, 0.014, 0.17, 12), mats.chromeSteel);
-      post.position.set(0, -0.085, sz * 0.33);
+      const post = new Mesh(new CylinderGeometry(0.013, 0.013, 0.23, 12), mats.chromeSteel);
+      post.position.set(0, -0.115, sz * 0.33);
       this.bedHandle.add(post);
+      const bracket = new Mesh(new BoxGeometry(0.05, 0.03, 0.05), mats.powderCoat);
+      bracket.position.set(-0.012, -0.226, sz * 0.33);
+      this.bedHandle.add(bracket);
       const grip = new Mesh(new TorusGeometry(0.021, 0.008, 8, 18), mats.nonChillRim);
       grip.rotation.y = Math.PI / 2;
       grip.position.set(0, 0, sz * 0.2);
       this.bedHandle.add(grip);
     }
-    this.bedHandle.position.set(-0.335, TABLE_TOP_Y + 0.15, 0.16);
+    this.bedHandle.position.set(-0.395, TABLE_TOP_Y + 0.15, 0.16);
     this.root.add(this.bedHandle);
   }
 
@@ -228,27 +231,32 @@ export class Room {
 
     // Training listening head: a mount with two ear canals for seating the
     // eartips before listening. It lives on the stand, not on the manikin.
-    const headBase = new Mesh(new CylinderGeometry(0.052, 0.062, 0.026, 16), mats.powderCoat);
+    const headBase = new Mesh(new CylinderGeometry(0.042, 0.05, 0.022, 16), mats.powderCoat);
     this.listeningHead.add(headBase);
-    const post = new Mesh(new CylinderGeometry(0.014, 0.014, 0.075, 12), mats.brushedSteel);
-    post.position.y = 0.05;
+    const post = new Mesh(new CylinderGeometry(0.012, 0.012, 0.06, 12), mats.brushedSteel);
+    post.position.y = 0.04;
     this.listeningHead.add(post);
-    const form = new Mesh(new SphereGeometry(0.072, 22, 16), mats.skin);
-    form.scale.set(0.86, 1.0, 1.02);
-    form.position.y = 0.15;
+    const form = new Mesh(new SphereGeometry(0.055, 20, 14), mats.trainingPolymer);
+    form.scale.set(0.8, 0.94, 0.9);
+    form.position.y = 0.104;
     form.castShadow = true;
     this.listeningHead.add(form);
+    // A moulded band across the crown marks it as a fixture, not a face.
+    const band = new Mesh(new TorusGeometry(0.045, 0.005, 8, 20), mats.nonChillRim);
+    band.rotation.y = Math.PI / 2;
+    band.position.y = 0.108;
+    this.listeningHead.add(band);
     for (const sx of [-1, 1]) {
-      const ear = new Mesh(new TorusGeometry(0.019, 0.008, 8, 16), mats.skin);
-      ear.position.set(sx * 0.062, 0.152, 0.004);
-      ear.rotation.y = (sx * Math.PI) / 2;
-      this.listeningHead.add(ear);
-      const canal = new Mesh(new CylinderGeometry(0.009, 0.009, 0.02, 10), mats.nonChillRim);
+      const cup = new Mesh(new CylinderGeometry(0.019, 0.021, 0.012, 16), mats.nonChillRim);
+      cup.rotation.z = Math.PI / 2;
+      cup.position.set(sx * 0.046, 0.104, 0.002);
+      this.listeningHead.add(cup);
+      const canal = new Mesh(new CylinderGeometry(0.008, 0.008, 0.014, 10), mats.manikinShell);
       canal.rotation.z = Math.PI / 2;
-      canal.position.set(sx * 0.064, 0.152, 0.004);
+      canal.position.set(sx * 0.05, 0.104, 0.002);
       this.listeningHead.add(canal);
     }
-    this.listeningHead.position.set(-0.13, 0.812, -0.02);
+    this.listeningHead.position.set(-0.14, 0.812, -0.03);
     stand.add(this.listeningHead);
 
     stand.position.set(0.72, 0, 0.26);

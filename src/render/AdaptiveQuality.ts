@@ -1,4 +1,5 @@
 import type { WebGLRenderer } from 'three';
+import { flags } from '../core/runtimeFlags';
 import type { Lighting } from '../scene/Lighting';
 
 export type QualityLevel = 'high' | 'medium' | 'low';
@@ -23,7 +24,7 @@ export class AdaptiveQuality {
   ) {
     const dpr = window.devicePixelRatio || 1;
     // Above 2x there is nothing left to see on a phone, only heat.
-    this.maxDpr = Math.min(dpr, 2);
+    this.maxDpr = flags.fast ? 1 : Math.min(dpr, 2);
     this.currentDpr = this.maxDpr;
     this.renderer.setPixelRatio(this.currentDpr);
     this.lighting.setQuality('high');
@@ -38,7 +39,7 @@ export class AdaptiveQuality {
   }
 
   update(dt: number): void {
-    if (dt <= 0 || dt > 0.5) return;
+    if (flags.fast || dt <= 0 || dt > 0.5) return;
     this.samples.push(1 / dt);
     if (this.samples.length > 90) this.samples.shift();
     this.cooldown -= dt;
