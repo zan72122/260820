@@ -435,9 +435,9 @@ function tick(dt: number) {
     shadowArr[i * 2 + 1] = 0.55 + 0.45 * (1 - cloud.loops[i].progress);
   }
   (U.sunColor.value as THREE.Color).setRGB(
-    lerp(0.55, 1.0, sunUp), lerp(0.55, 0.92, sunUp), lerp(0.58, 0.78, sunUp));
+    lerp(0.72, 1.05, sunUp), lerp(0.64, 0.95, sunUp), lerp(0.50, 0.78, sunUp));
   (U.skyColor.value as THREE.Color).setRGB(
-    lerp(0.42, 0.55, sunUp), lerp(0.46, 0.6, sunUp), lerp(0.52, 0.68, sunUp));
+    lerp(0.40, 0.55, sunUp), lerp(0.44, 0.6, sunUp), lerp(0.50, 0.68, sunUp));
   (U.fogColor.value as THREE.Color).setRGB(
     lerp(0.62, 0.74, sunUp), lerp(0.63, 0.74, sunUp), lerp(0.66, 0.75, sunUp));
   U.fogDensity.value = lerp(0.0075, 0.0058, sunUp);

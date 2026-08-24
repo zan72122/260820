@@ -181,7 +181,9 @@ const TERRAIN_FRAG = /* glsl */ `
     float wet = 0.0;
     if (wuv.x > 0.0 && wuv.x < 1.0 && wuv.y > 0.0 && wuv.y < 1.0)
       wet = texture2D(wetMask, wuv).r;
-    alb = mix(alb, alb * vec3(0.5, 0.52, 0.6), clamp(wet * 1.3, 0.0, 1.0) * 0.72);
+    // wet soil: saturated dark brown, not scorched black
+    alb = mix(alb, alb * vec3(0.62, 0.50, 0.42) + vec3(0.02, 0.03, 0.06),
+              clamp(wet * 1.3, 0.0, 1.0) * 0.7);
 
     // --- lighting ---
     float ndl = max(dot(n, sunDir), 0.0);
@@ -198,11 +200,13 @@ const TERRAIN_FRAG = /* glsl */ `
       sh += st * exp(-dx * dx / 130.0);
     }
     sh = clamp(sh, 0.0, 1.0) * bandFall;
-    light *= 1.0 - sh * (0.28 - 0.13 * sunUp);
+    // the shadow zone also cools: warm dry valley vs. cool rainless shade
+    light *= 1.0 - sh * (0.34 - 0.16 * sunUp);
+    light = mix(light, light * vec3(0.82, 0.88, 1.05), sh * (1.0 - sunUp) * 0.7);
 
     vec3 col = alb * light;
-    // wet ground gets a faint sky reflection sheen
-    col += skyColor * wet * 0.05 * (1.0 - steep);
+    // wet ground gets a cool sky-reflection sheen — reads as water film
+    col += skyColor * clamp(wet, 0.0, 1.0) * 0.14 * (1.0 - steep);
 
     // dusty air: distance fog with a warm tint low, cooler high
     float dist = length(vWorld - camPos);
@@ -261,9 +265,12 @@ export function buildWorld(quality: number): WorldRefs {
 
   const terrainUniforms: Record<string, THREE.IUniform> = {
     sunDir: { value: new THREE.Vector3(-0.35, 0.7, 0.45).normalize() },
-    sunColor: { value: new THREE.Color(0.55, 0.55, 0.58) },
-    skyColor: { value: new THREE.Color(0.42, 0.46, 0.52) },
-    groundBounce: { value: new THREE.Color(0.16, 0.13, 0.1) },
+    // a warm directional wash on the open valley (dusty sun filtering
+    // through thin overcast) — only the zone under the band stays cool,
+    // so the rainless cloud reads as the local exception
+    sunColor: { value: new THREE.Color(0.72, 0.64, 0.50) },
+    skyColor: { value: new THREE.Color(0.40, 0.44, 0.50) },
+    groundBounce: { value: new THREE.Color(0.18, 0.145, 0.10) },
     wetMask: { value: wetMask.tex },
     wetRegion: {
       value: new THREE.Vector4(

@@ -50,7 +50,7 @@ const BAND_VERT = /* glsl */ `
     // thickness profile: thin dissipating ends, a modest squeeze at the
     // center — the band stays a rope; the LOOPS wrap around it, not inside it
     float r = 1.0 + 0.55 * exp(-pow(u - 0.5, 2.0) / 0.02);
-    r *= smoothstep(0.0, 0.1, u) * smoothstep(1.0, 0.9, u);
+    r *= smoothstep(0.0, 0.06, u) * smoothstep(1.0, 0.94, u);
     r += 0.22 * (cfbm(vec3(u * 9.0, uv.y * 2.5, 1.7)) - 0.5);
     vec3 p = position + normal * (r - 1.0);
     // free-steer: the released band's belly follows the finger almost fully —
@@ -181,9 +181,10 @@ const LOOP_FRAG = /* glsl */ `
     if (alpha < 0.012) discard;
 
     float up = clamp(vNormal.y * 0.5 + 0.5, 0.0, 1.0);
-    vec3 lit = mix(vec3(0.19, 0.20, 0.245), vec3(0.60, 0.605, 0.64), up);
-    // dark heavy core while tight; braid shading
-    lit *= mix(0.68, 1.05, open) * (0.9 + 0.1 * coil);
+    // same rope as the band: loops stay within a step of its luminance,
+    // with darkness only in the crevices (coil shading)
+    vec3 lit = mix(vec3(0.215, 0.23, 0.27), vec3(0.60, 0.605, 0.64), up);
+    lit *= mix(0.86, 1.05, open) * (0.86 + 0.14 * coil);
     // weak scattered light inside (trapped droplets catching light) — not neon
     float pocket = smoothstep(0.55, 0.9, cnoise3(vec3(ang * 3.0, vUv.y * 5.0, 8.8)));
     lit += vec3(0.11, 0.12, 0.15) * pocket * (1.0 - open) * (0.6 + 0.4 * sin(time * 1.1 + ang * 2.0) * 0.5);
@@ -303,6 +304,7 @@ export class CloudBand {
     this.curve = new THREE.CatmullRomCurve3([
       // the band clears the crest then sags toward the valley, where it knots
       // above the outcrop — silhouetted against sky, not against rock
+      new THREE.Vector3(-98, 22.5, -46),
       new THREE.Vector3(-72, 20.5, -40),
       new THREE.Vector3(-46, 18.5, -34),
       new THREE.Vector3(-22, 17.4, -29),
@@ -312,6 +314,7 @@ export class CloudBand {
       new THREE.Vector3(24, 17.6, -28),
       new THREE.Vector3(50, 19.4, -35),
       new THREE.Vector3(76, 21.5, -42),
+      new THREE.Vector3(100, 23.5, -48),
     ]);
 
     // ---- main band ribbon ----
@@ -437,7 +440,15 @@ export class CloudBand {
               cos(time * (6.0 + iSeed * 3.0) + iSeed * 21.0),
               sin(time * 4.4 + iSeed * 13.0)
             ) * 0.24 * j;
-            p += position * (0.8 + iSeed * 0.5);
+            // the heaviest drops visibly begin to drip: stretched, sagging,
+            // slowly pulsing longer — falling is imminent, held back
+            vec3 shape = position * (0.8 + iSeed * 0.5);
+            if (iSeed > 0.82) {
+              float sag = 0.6 + 0.4 * sin(time * 0.7 + iSeed * 20.0);
+              shape.y *= 1.6 + sag;
+              p.y -= 0.22 * sag;
+            }
+            p += shape;
             vN = normalize(mat3(modelMatrix) * normal);
             gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
           }
@@ -449,11 +460,12 @@ export class CloudBand {
           uniform float fade;
           uniform float time;
           void main() {
-            // caught light: dark water body, one restrained moving glint
-            float glint = pow(max(dot(normalize(vN), normalize(vec3(-0.4, 0.85, 0.35))), 0.0), 3.0);
-            float tw = 0.75 + 0.25 * sin(time * (1.4 + vSeed) + vSeed * 30.0);
-            vec3 c = vec3(0.30, 0.35, 0.44) + vec3(0.30, 0.31, 0.33) * glint * tw;
-            gl_FragColor = vec4(c, fade * (0.42 + glint * 0.35));
+            // water, not gems: cool blue body, soft bright crown where the
+            // weak light catches the top of each drop
+            float glint = pow(max(dot(normalize(vN), normalize(vec3(-0.4, 0.85, 0.35))), 0.0), 2.0);
+            float tw = 0.8 + 0.2 * sin(time * (1.4 + vSeed) + vSeed * 30.0);
+            vec3 c = vec3(0.38, 0.52, 0.68) + vec3(0.38, 0.40, 0.42) * glint * tw;
+            gl_FragColor = vec4(c, fade * (0.5 + glint * 0.35));
           }
         `,
       });
