@@ -35,6 +35,9 @@ export interface TestApi {
   trailCount(): number;
   pathVisible(index: number): boolean;
   diagnosticsShown(): boolean;
+  screenOfFloor(x: number, z: number): { x: number; y: number };
+  screenOfRing(): { x: number; y: number };
+  lensScreen(): { x: number; y: number };
 }
 
 declare global {
@@ -93,6 +96,10 @@ export function installTestApi(game: Game): void {
       (game as unknown as { entries: { ribbon: { mesh: { visible: boolean } } }[] }).entries[i]
         ?.ribbon.mesh.visible ?? false,
     diagnosticsShown: () => game.overlay.shown,
+    screenOfFloor: (x, z) => game.screenOfFloor(x, z),
+    screenOfRing: () => game.screenOfRing(),
+    lensScreen: () =>
+      (game as unknown as { lensScreenPos(): { x: number; y: number } }).lensScreenPos(),
   };
   window.__game = api;
 }

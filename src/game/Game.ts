@@ -261,6 +261,16 @@ export class Game {
     return { x: hit.x, z: hit.z };
   }
 
+  /** 床上の点のスクリーン座標(テスト・ヒント用) */
+  screenOfFloor(x: number, z: number): { x: number; y: number } {
+    return this.worldToScreen(new THREE.Vector3(x, 0, z));
+  }
+
+  /** 角度リング中心のスクリーン座標(テスト用) */
+  screenOfRing(): { x: number; y: number } {
+    return this.worldToScreen(this.doorRig.ringWorldPos());
+  }
+
   worldToScreen(v: THREE.Vector3): { x: number; y: number } {
     const p = v.clone().project(this.director.camera);
     return {
