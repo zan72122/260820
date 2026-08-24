@@ -4,3 +4,4 @@ dist/
 test-results/
 playwright-report/
 scripts/verify-*.mjs
+scripts/probe*.mjs
