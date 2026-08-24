@@ -23,21 +23,26 @@ const params = new URLSearchParams(location.search);
 const E2E = params.has('e2e');
 const SKIP_INTRO = params.has('skip');
 
-// ---------- renderer ----------
-const app = document.getElementById('app')!;
-const renderer = new THREE.WebGLRenderer({
-  antialias: !E2E,
-  powerPreference: 'high-performance',
-});
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-app.appendChild(renderer.domElement);
-
-// quality tier: rough guess up front, adapted at runtime
+// ---------- quality tier (decided before the renderer so AA can depend on it) ----------
 const coarseDPR = Math.min(window.devicePixelRatio || 1, 2);
 let quality = (navigator.hardwareConcurrency || 4) >= 4 && coarseDPR >= 1.5 ? 1 : 0;
 if (E2E) quality = 0;
 let baseDPR = E2E ? 1 : quality > 0 ? Math.min(coarseDPR, 2) : Math.min(coarseDPR, 1.5);
 let dprScale = 1;
+
+// ---------- renderer ----------
+const app = document.getElementById('app')!;
+const renderer = new THREE.WebGLRenderer({
+  antialias: !E2E && quality > 0,
+  powerPreference: 'high-performance',
+});
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+app.appendChild(renderer.domElement);
+
+// mobile Safari drops GL contexts on backgrounding/memory pressure —
+// a frozen canvas in a child's hands is unacceptable
+renderer.domElement.addEventListener('webglcontextlost', (e) => e.preventDefault());
+renderer.domElement.addEventListener('webglcontextrestored', () => location.reload());
 
 function resize() {
   const w = window.innerWidth, h = window.innerHeight;
@@ -45,7 +50,13 @@ function resize() {
   renderer.setSize(w, h);
 }
 window.addEventListener('resize', resize);
-window.addEventListener('orientationchange', () => setTimeout(resize, 60));
+// iOS reports stale viewport sizes after rotation; retry a few times
+window.addEventListener('orientationchange', () => {
+  setTimeout(resize, 60);
+  setTimeout(resize, 300);
+  setTimeout(resize, 700);
+});
+window.visualViewport?.addEventListener('resize', resize);
 
 // ---------- scene ----------
 const scene = new THREE.Scene();
@@ -126,18 +137,25 @@ let phaseT = 0;
 let simTime = 0;
 let firstLoopOpened = false;
 let heroSequence = 0;        // 0 none, 1 falling, 2 landed
-let idleSinceInput = 0;      // for hint escalation (closeup)
+let idleSinceProgress = 0;   // hint escalation: time without real unwinding
 let hintTightenT = -1;       // knot half-turn tighten anim
+let hintLoop = 0;            // which closed loop the hints act on
 let steerTime = 0;           // accumulated free-steer play
+let steerMoved = 0;          // accumulated |Δsteer| — genuine carrying
 let sunUp = 0;
 let wetSpots = 0;            // distinct areas rained on (for rainbow condition)
 const wetCells = new Set<number>();
-let dripSounds = 0;
+let dripTokens = 8;          // refilling budget for impact plinks
+let virgaT = 2.5;            // timer for the "almost rains" tease
 
 // gesture
 const gesture = new Gesture(renderer.domElement);
 let activeLoop = -1;
 let replantAcc = 0;
+let wrongWayKicked = false;
+// rolling centroid of recent touch points: the circle's own center becomes
+// the anchor during free play, so speed/size readings track the real circle
+const anchorTrail: { x: number; y: number }[] = [];
 const scr = { x: 0, y: 0 };
 const tmpV = new THREE.Vector3();
 const tmpV2 = new THREE.Vector3();
@@ -147,6 +165,7 @@ const UNWIND_SIGN = 1;
 
 gesture.onDown = (x, y) => {
   audio.start();
+  audio.resume();
   if (phase === 'intro_wide' || phase === 'intro_knot' || phase === 'approach') {
     advanceIntro();
     return;
@@ -163,11 +182,21 @@ gesture.onDown = (x, y) => {
     }
     if (bestD < maxR) {
       activeLoop = best;
+      hintLoop = best;
       director.toScreen(cloud.loops[best].center, w, h, scr);
       gesture.setAnchor(scr.x, scr.y);
+      // a bare touch already answers: the trapped drops stir under the horn
+      const L = cloud.loops[best];
+      if (!L.open) L.jiggle = Math.max(L.jiggle, 0.6);
+      // a touch interrupts any playing hint
+      hintTightenT = -1;
+      cloud.loops[hintLoop].hintTwist = 0;
     } else {
       activeLoop = -1;
     }
+  }
+  if (phase === 'free' || phase === 'afterglow') {
+    gesture.setAnchor(x, y); // circle center starts under the finger
   }
 };
 gesture.onUp = () => {
@@ -199,11 +228,12 @@ if (SKIP_INTRO) {
   setPhase('closeup');
 }
 
-// rain impacts: audio for the first clear drops, wet-cell tracking
+// rain impacts: plinks on a refilling budget (never a permanent silence),
+// wet-cell tracking for the sun/rainbow condition
 rain.onImpact = (x, z, hero) => {
-  if (hero || dripSounds < 14) {
+  if (hero || dripTokens >= 1) {
     audio.drip(0.85 + Math.random() * 0.4);
-    dripSounds++;
+    if (!hero) dripTokens -= 1;
   }
   const cell = (Math.floor((x + 60) / 7) * 64 + Math.floor((z + 60) / 7)) | 0;
   if (!wetCells.has(cell)) {
@@ -233,7 +263,7 @@ function knotCenter(): THREE.Vector3 {
 /** waiting (dry) flowers below a loop, nearest-first — first drops aim here */
 function nearestFlowerTargets(center: THREE.Vector3, n: number): THREE.Vector3[] {
   return veg.flowers
-    .filter((f) => !f.woken && Math.abs(f.pos.x - center.x) < 7 && f.pos.z > center.z - 2)
+    .filter((f) => !f.woken && Math.abs(f.pos.x - center.x) < 4 && f.pos.z > center.z - 2)
     .sort((a, b) =>
       Math.abs(a.pos.x - center.x) - Math.abs(b.pos.x - center.x))
     .slice(0, n)
@@ -292,8 +322,10 @@ function tick(dt: number) {
     case 'free': {
       unicornInput.mode = 'brace';
       handleFreeSteer(dt);
-      // the sun returns only after the child has really played with the rain
-      if (steerTime > 10 && wetSpots >= 6) {
+      // the sun returns only after the child has really played with the
+      // rain — by carrying it around (steerMoved) OR by soaking one place
+      // deeply (totalWet). Both strategies are success.
+      if (steerTime > 6 && (steerMoved > 22 || wetSpots >= 6 || wetMask.totalWet > 420)) {
         sunUp = Math.min(1, sunUp + dt * 0.09);
       }
       if (sunUp > 0.75 && phaseT > 24) setPhase('afterglow');
@@ -306,25 +338,34 @@ function tick(dt: number) {
       break;
   }
 
-  // ----- hint ladder (closeup, before first success) -----
-  if (phase === 'closeup' && !firstLoopOpened) {
-    if (!gesture.state.down) idleSinceInput += dt;
-    else idleSinceInput = 0;
-    // stage 3: the loop half-tightens and returns (shows it CAN move)
-    if (idleSinceInput > 6 && hintTightenT < 0) hintTightenT = 0;
+  // ----- hint ladder: escalates on UNPRODUCTIVE time, not just no-touch.
+  // A tapping, scribbling child still deserves growing help. Runs until the
+  // whole knot is open; acts on the closed loop nearest the last touch.
+  let strandBeckon = 0;
+  if ((phase === 'closeup' || phase === 'play') && !cloud.allOpen) {
+    idleSinceProgress += dt; // reset inside handleUnwinding on real progress
+    if (cloud.loops[hintLoop].open) {
+      hintLoop = cloud.loops.findIndex((l) => !l.open);
+    }
+    const HL = cloud.loops[hintLoop];
+    // stage 2 (from 3s): the unicorn reaches out and the strand leans to the
+    // horn — a diegetic beckon toward the loosest thread
+    strandBeckon = smoothstep(3, 5, idleSinceProgress);
+    // stage 3 (from 6s): the loop half-tightens and springs back — it CAN move
+    if (idleSinceProgress > 6 && hintTightenT < 0 && !gesture.state.engaged) hintTightenT = 0;
     if (hintTightenT >= 0) {
       hintTightenT += dt;
-      const L = cloud.loops[0];
       const s = hintTightenT;
-      if (s < 1.6) {
-        L.twist = Math.sin(smoothstep(0, 1.6, s) * Math.PI) * -Math.PI * UNWIND_SIGN;
+      if (s < 1.6 && !gesture.state.engaged) {
+        HL.hintTwist = Math.sin(smoothstep(0, 1.6, s) * Math.PI) * -1.6 * UNWIND_SIGN;
       } else {
-        L.twist = 0;
-        if (idleSinceInput > 6) hintTightenT = -1; // may replay
+        HL.hintTwist = 0;
+        hintTightenT = -1; // may replay after another quiet stretch
+        if (gesture.state.engaged) idleSinceProgress = Math.min(idleSinceProgress, 5.5);
       }
     }
-    // stage 4: unicorn tips its head the unwinding way
-    if (idleSinceInput > 12) unicornInput.hintNudge = 1;
+    // stage 4 (from 12s): unicorn tips its head the unwinding way (signed)
+    if (idleSinceProgress > 12) unicornInput.hintNudge = 1;
   }
 
   // ----- unicorn look/horn targets -----
@@ -339,9 +380,10 @@ function tick(dt: number) {
     hornNear = 1;
   } else if (phase === 'closeup' || phase === 'play') {
     unicornInput.hornTarget.copy(strandTip);
-    unicornInput.hornReach = 0.55;
-    // pre-touch: pointer hovering near loop0's screen area draws the strand
-    hornNear = 0;
+    // idle beckon: the horn stretches toward the strand and the strand
+    // leans back to meet it — the invitation is acted, not written
+    unicornInput.hornReach = 0.55 + 0.45 * strandBeckon;
+    hornNear = strandBeckon;
   } else {
     unicornInput.hornTarget.copy(knotCenter());
     unicornInput.hornReach = phase === 'approach' ? 0.4 : 0.2;
@@ -353,13 +395,24 @@ function tick(dt: number) {
   const hornWorld = unicorn.hornTipWorld(tmpV);
   cloud.update(dt, simTime, director.camera, wind, sunUp, hornWorld, hornNear);
 
-  // ----- rain: ambient drizzle from opened loops -----
+  // ----- rain: ambient drizzle from each opened loop's freed band section -----
   for (let i = 0; i < LOOP_COUNT; i++) {
     const L = cloud.loops[i];
     if (L.open && phase !== 'free' && phase !== 'afterglow') {
-      rain.emit(L.center, 2.5, 2.2, dt);
+      rain.emit(cloud.releaseCenter(i, tmpV), 2.5, 2.2, dt);
     }
   }
+  // virga tease while the knot holds: a single drop escapes, falls a little,
+  // and dries up mid-air — rain that almost happens
+  if (!firstLoopOpened && phase !== 'free' && phase !== 'afterglow') {
+    virgaT -= dt;
+    if (virgaT <= 0) {
+      virgaT = 5 + Math.random() * 4;
+      const L = cloud.loops[Math.floor(Math.random() * LOOP_COUNT)];
+      rain.releaseVirga(tmpV.set(L.center.x, L.center.y - 2.2, L.center.z + 0.6));
+    }
+  }
+  dripTokens = Math.min(10, dripTokens + dt * 1.5);
   rain.update(dt, wetMask);
   wetMask.update();
 
@@ -415,7 +468,8 @@ function tick(dt: number) {
 
   // ----- audio -----
   const tension = 1 - cloud.openAll;
-  const friction = activeLoop >= 0 && gesture.state.down ? clamp(Math.abs(gesture.state.smoothAngVel) / 6, 0, 1) : 0;
+  const circling = gesture.state.down && (activeLoop >= 0 || phase === 'free' || phase === 'afterglow');
+  const friction = circling ? clamp(Math.abs(gesture.state.smoothAngVel) / 6, 0, 1) : 0;
   audio.setState(
     tension,
     friction,
@@ -447,22 +501,23 @@ function handleUnwinding(dt: number) {
 
   if (vel > 0.25) {
     if (!L.open) {
-      // correct direction: the loop loosens; big circles spread the effect
-      const rate = 0.13 * vel * lerp(0.7, 1.25, smoothstep(0.45, 1.7, radT));
+      // correct direction: the loop loosens; big circles clearly work faster
+      const rate = 0.13 * vel * lerp(0.55, 1.6, smoothstep(0.45, 1.7, radT));
       L.progress = clamp(L.progress + rate * dt, 0, 1);
       L.twist += vel * dt * 0.55;
       L.jiggle = clamp(0.3 + unicornInput.effort, 0, 1.2);
       L.working = 1;
-      idleSinceInput = 0;
+      idleSinceProgress = 0;
       // a quarter turn is enough to free the FIRST few drops — the child
       // must see cause → effect before the loop is even fully open
       if (L.progress > 0.22 && !L.releasedHero) {
         L.releasedHero = true;
+        const rc = cloud.releaseCenter(activeLoop, tmpV2);
         if (!firstLoopOpened && heroSequence === 0) {
           heroSequence = 1;
           rain.releaseHero(L.center, 4, nearestFlowerTargets(L.center, 2));
         } else {
-          rain.releaseHero(L.center, 2, nearestFlowerTargets(L.center, 1));
+          rain.releaseHero(rc, 2, nearestFlowerTargets(rc, 1));
         }
       }
       // big circles bleed a little slack into neighbours & make the unicorn step
@@ -483,53 +538,92 @@ function handleUnwinding(dt: number) {
         L.jiggle = 0;
         audio.loopRelease();
         firstLoopOpened = true;
-        rain.emit(L.center, 50, 2.0, 0.25); // a visible burst, not a deluge
+        rain.emit(cloud.releaseCenter(activeLoop, tmpV2), 50, 2.0, 0.25); // a burst, not a deluge
       }
     } else {
-      // circling an opened loop pumps rain: speed = density, size = spread
+      // circling an opened loop pumps its freed section: speed = density,
+      // size = spread
       const rate = clamp(vel * 9, 0, 60) * lerp(0.7, 1.3, smoothstep(0.45, 1.7, radT));
       const spread = lerp(1.4, 4.2, smoothstep(0.45, 1.7, radT));
-      rain.emit(L.center, rate, spread, dt);
+      rain.emit(cloud.releaseCenter(activeLoop, tmpV2), rate, spread, dt);
       L.working = 1;
     }
-  } else if (vel < -0.6 && !L.open) {
-    // wrong way: never dangerous — a springy refusal that points the way
+    wrongWayKicked = false;
+  } else if (vel < -0.25 && !L.open) {
+    // wrong way: never dangerous — one springy recoil that visibly rotates
+    // the loop the CORRECT way, then settles
     L.bounce = 1;
-    L.twist = damp(L.twist, L.twist + 0.3, 3, dt); // tiny recoil the correct way
+    if (!wrongWayKicked) {
+      wrongWayKicked = true;
+      L.hintTwist = 0.9 * UNWIND_SIGN;
+    }
     unicornInput.hintNudge = 0.6;
+  } else if (Math.abs(vel) < 0.1) {
+    wrongWayKicked = false;
   }
 }
 
-// after all loops open: the thin band is steerable, rain follows it
+// after all loops open: the thin band is steerable, rain follows it.
+// The finger is unprojected onto the cloud's own plane so screen position
+// and world position agree — the child carries the cloud, the cloud comes.
+const steerRay = new THREE.Vector3();
 function handleFreeSteer(dt: number) {
   const s = gesture.state;
   steerTime += (s.down ? dt : 0);
   if (s.down) {
-    const w = window.innerWidth;
-    // horizontal finger position maps to valley x
-    const nx = (s.x / w) * 2 - 1;
-    const targetX = clamp(nx * 26, -28, 28);
-    cloud.steerX = damp(cloud.steerX, targetX, 3, dt);
+    // finger ray → cloud plane (y = 14.2): true world x under the finger
+    const w = window.innerWidth, h = window.innerHeight;
+    steerRay.set((s.x / w) * 2 - 1, -(s.y / h) * 2 + 1, 0.5)
+      .unproject(director.camera)
+      .sub(director.camera.position)
+      .normalize();
+    // pointing at the sky steers the cloud; pointing at the ground says
+    // "rain HERE" — both must answer, wherever the finger lands
+    let targetX = cloud.steerX;
+    const camY = director.camera.position.y;
+    if (Math.abs(steerRay.y) > 1e-4) {
+      const tCloud = (14.2 - camY) / steerRay.y;
+      const tGround = (7.0 - camY) / steerRay.y;
+      const t = tCloud > 0 ? tCloud : tGround > 0 ? tGround : -1;
+      if (t > 0) targetX = clamp(director.camera.position.x + steerRay.x * t, -26, 26);
+    }
+    const prev = cloud.steerX;
+    cloud.steerX = damp(cloud.steerX, targetX, 4, dt);
+    steerMoved += Math.abs(cloud.steerX - prev);
+
+    // circle detection around the child's own circle center
+    anchorTrail.push({ x: s.x, y: s.y });
+    if (anchorTrail.length > 20) anchorTrail.shift();
+    let ax = 0, ay = 0;
+    for (const p of anchorTrail) { ax += p.x; ay += p.y; }
+    gesture.setAnchor(ax / anchorTrail.length, ay / anchorTrail.length);
+
     // circles modulate: speed = density, radius = width of the curtain
-    const minDim = Math.min(window.innerWidth, window.innerHeight);
+    const minDim = Math.min(w, h);
     const radT = clamp(s.radius / (minDim * 0.28), 0.45, 1.7);
     const speed = Math.abs(s.smoothAngVel);
-    const rate = 8 + clamp(speed * 10, 0, 55);
+    // carrying the cloud rains as you go; circling thickens it further
+    const carryRate = clamp(Math.abs(cloud.steerX - prev) / Math.max(dt, 1e-3) * 2.5, 0, 20);
+    const rate = 14 + carryRate + clamp(speed * 10, 0, 45);
     const spread = lerp(2.2, 7.0, smoothstep(0.45, 1.7, radT));
-    tmpV.set(cloud.steerX, 14.4, -22.5);
+    // rain leaves from where the band's belly actually is
+    const bellyX = knotCenter().x + (cloud.steerX - knotCenter().x) * 0.9;
+    tmpV.set(bellyX, 14.0, -22.5);
     rain.emit(tmpV, rate, spread, dt);
     // unicorn walks a little to follow the band
-    const dx = cloud.steerX * 0.32 + 5 - unicorn.root.position.x;
+    const dx = bellyX * 0.32 + 5 - unicorn.root.position.x;
     if (Math.abs(dx) > 2.5) {
       unicornInput.mode = 'walk';
       unicornInput.walkDir.set(Math.sign(dx), 0, 0);
     }
     unicornInput.effort = clamp(speed / 6, 0, 1);
-    unicornInput.hornTarget.set(cloud.steerX * 0.6, 13.5, -25.5);
+    unicornInput.hornTarget.set(bellyX * 0.6, 13.5, -25.5);
     unicornInput.hornReach = 1;
   } else {
+    anchorTrail.length = 0;
     // gentle ambient release keeps the world breathing
-    tmpV.set(cloud.steerX, 14.4, -22.5);
+    const bellyX = knotCenter().x + (cloud.steerX - knotCenter().x) * 0.9;
+    tmpV.set(bellyX, 14.0, -22.5);
     rain.emit(tmpV, 4, 3.0, dt);
   }
 }
@@ -538,6 +632,7 @@ function handleFreeSteer(dt: number) {
 let lastT = performance.now();
 let frameEMA = 16.7;
 let adaptT = 0;
+let warmupT = 0;
 
 function frame() {
   requestAnimationFrame(frame);
@@ -549,15 +644,19 @@ function frame() {
 
   frameEMA = frameEMA * 0.95 + (dt * 1000) * 0.05;
   adaptT += dt;
-  if (adaptT > 2 && !E2E) {
+  warmupT += dt;
+  // skip the first seconds (shader-compile jank would ratchet quality down);
+  // the up-threshold sits above 60Hz frame time so recovery can actually fire
+  if (adaptT > 2 && warmupT > 3.5 && !E2E) {
     adaptT = 0;
     if (frameEMA > 30 && dprScale > 0.7) {
       dprScale -= 0.15;
       resize();
       cloud.setSpriteCount(10);
-    } else if (frameEMA < 15 && dprScale < 1) {
+    } else if (frameEMA < 17.5 && dprScale < 1) {
       dprScale += 0.15;
       resize();
+      cloud.setSpriteCount(quality > 0 ? 20 : 12);
     }
   }
 

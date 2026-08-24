@@ -21,6 +21,10 @@ export interface UnicornInput {
   windAmp: number;
 }
 
+const SCRATCH_A = new THREE.Vector3();
+const SCRATCH_B = new THREE.Vector3();
+const SCRATCH_ROTQ = new THREE.Quaternion();
+
 const BODY = 0xdcd2c1;
 const MANE = 0x8d879e;
 const HOOF = 0x4a4440;
@@ -53,28 +57,28 @@ export class Unicorn {
     const hoofMat = new THREE.MeshLambertMaterial({ color: HOOF });
     const muzzleMat = new THREE.MeshLambertMaterial({ color: MUZZLE });
 
-    // torso: capsule along local +z (forward)
-    const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.42, 0.95, 6, 12), bodyMat);
+    // torso: slimmer horse barrel, not a sheep's box
+    const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.36, 1.05, 6, 12), bodyMat);
     torso.rotation.x = Math.PI / 2;
-    torso.position.y = 1.28;
-    torso.scale.set(1, 1, 1.08);
+    torso.position.y = 1.38;
+    torso.scale.set(0.92, 1, 1.08);
     this.body.add(torso);
     // chest slightly deeper than rump (weight forward)
-    const chest = new THREE.Mesh(new THREE.SphereGeometry(0.44, 10, 8), bodyMat);
-    chest.position.set(0, 1.22, 0.5);
-    chest.scale.set(0.95, 1.05, 0.9);
+    const chest = new THREE.Mesh(new THREE.SphereGeometry(0.39, 10, 8), bodyMat);
+    chest.position.set(0, 1.32, 0.55);
+    chest.scale.set(0.9, 1.05, 0.9);
     this.body.add(chest);
 
-    // neck: group pivots at chest top
-    this.neck.position.set(0, 1.55, 0.62);
-    const neckMesh = new THREE.Mesh(new THREE.CapsuleGeometry(0.19, 0.52, 4, 8), bodyMat);
-    neckMesh.position.set(0, 0.3, 0.1);
+    // neck: longer, pivots at chest top
+    this.neck.position.set(0, 1.66, 0.66);
+    const neckMesh = new THREE.Mesh(new THREE.CapsuleGeometry(0.17, 0.64, 4, 8), bodyMat);
+    neckMesh.position.set(0, 0.34, 0.1);
     neckMesh.rotation.x = -0.5;
     this.neck.add(neckMesh);
     this.body.add(this.neck);
 
     // head at neck end
-    this.head.position.set(0, 0.62, 0.28);
+    this.head.position.set(0, 0.72, 0.3);
     const skull = new THREE.Mesh(new THREE.SphereGeometry(0.21, 10, 8), bodyMat);
     skull.scale.set(0.85, 0.9, 1.05);
     this.head.add(skull);
@@ -111,9 +115,9 @@ export class Unicorn {
     this.head.add(forelock);
 
     // tail
-    this.tail.position.set(0, 1.42, -0.72);
-    const tailMesh = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.5, 4, 6), maneMat);
-    tailMesh.position.y = -0.32;
+    this.tail.position.set(0, 1.52, -0.78);
+    const tailMesh = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.62, 4, 6), maneMat);
+    tailMesh.position.y = -0.38;
     tailMesh.rotation.x = 0.3;
     this.tail.add(tailMesh);
     this.body.add(this.tail);
@@ -151,6 +155,7 @@ export class Unicorn {
 
     // --- locomotion ---
     let moving = 0;
+    const to = SCRATCH_B;
     if (inp.mode === 'walk' && inp.walkDir.lengthSq() > 0.0001) {
       const speed = 1.5;
       p.x += inp.walkDir.x * speed * dt;
@@ -161,7 +166,7 @@ export class Unicorn {
       this.walkPhase += dt * 5.2;
     } else {
       // face the look target (yaw only), slowly
-      const to = new THREE.Vector3().subVectors(inp.lookTarget, p);
+      to.subVectors(inp.lookTarget, p);
       const targetHeading = Math.atan2(to.x, to.z);
       this.heading = dampAngle(this.heading, targetHeading, inp.mode === 'idle' ? 0.8 : 2.5, dt);
       this.walkPhase = damp(this.walkPhase % (Math.PI * 2), 0, 4, dt);
@@ -201,11 +206,10 @@ export class Unicorn {
 
     // --- neck & head: reach horn toward target ---
     const hornT = inp.hornTarget;
-    const neckWorld = new THREE.Vector3();
-    this.neck.getWorldPosition(neckWorld);
-    const toT = new THREE.Vector3().subVectors(hornT, neckWorld);
-    const invRoot = this.root.quaternion.clone().invert();
-    toT.applyQuaternion(invRoot);
+    const neckWorld = this.neck.getWorldPosition(SCRATCH_A);
+    const toT = SCRATCH_B.subVectors(hornT, neckWorld);
+    SCRATCH_ROTQ.copy(this.root.quaternion).invert();
+    toT.applyQuaternion(SCRATCH_ROTQ);
     const yaw = clamp(Math.atan2(toT.x, toT.z), -0.9, 0.9);
     const flat = Math.hypot(toT.x, toT.z);
     // aim pitch: >0 means the target is above the head
@@ -269,7 +273,7 @@ export class Unicorn {
       }
       leg.pose(swing, lift, this.crouch, isFront ? 0.1 * braceT : 0);
       // per-hoof ground adaptation
-      const hoofWorld = leg.hoofWorld(new THREE.Vector3());
+      const hoofWorld = leg.hoofWorld(SCRATCH_A);
       const gh = terrainHeight(hoofWorld.x, hoofWorld.z);
       leg.groundAdjust(gh - hoofWorld.y + lift * 0.0, dt);
     }
@@ -283,16 +287,16 @@ class Leg {
   private adj = 0;
 
   constructor(bodyMat: THREE.Material, hoofMat: THREE.Material, x: number, z: number) {
-    this.pivot.position.set(x, 1.05, z);
-    const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.075, 0.52, 6), bodyMat);
-    upper.position.y = -0.26;
+    this.pivot.position.set(x, 1.15, z);
+    const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.095, 0.07, 0.58, 6), bodyMat);
+    upper.position.y = -0.29;
     this.pivot.add(upper);
-    this.lower.position.y = -0.52;
-    const lowerMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.05, 0.42, 6), bodyMat);
-    lowerMesh.position.y = -0.21;
+    this.lower.position.y = -0.58;
+    const lowerMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.062, 0.045, 0.48, 6), bodyMat);
+    lowerMesh.position.y = -0.24;
     this.lower.add(lowerMesh);
-    this.hoof = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.085, 0.1, 8), hoofMat);
-    this.hoof.position.y = -0.46;
+    this.hoof = new THREE.Mesh(new THREE.CylinderGeometry(0.068, 0.08, 0.1, 8), hoofMat);
+    this.hoof.position.y = -0.52;
     this.lower.add(this.hoof);
     this.pivot.add(this.lower);
   }
@@ -301,7 +305,7 @@ class Leg {
     this.pivot.rotation.x = swing;
     this.pivot.rotation.z = spread * (this.pivot.position.x > 0 ? -1 : 1);
     this.lower.rotation.x = -swing * 0.6 + lift * 2.2 + crouch * 1.4;
-    this.pivot.position.y = 1.05 - lift * 0.2;
+    this.pivot.position.y = 1.15 - lift * 0.2;
   }
 
   hoofWorld(out: THREE.Vector3): THREE.Vector3 {
@@ -311,7 +315,7 @@ class Leg {
   groundAdjust(delta: number, dt: number) {
     // stretch/shorten the lower leg slightly so hooves meet uneven ground
     this.adj = damp(this.adj, clamp(delta, -0.14, 0.1), 10, dt);
-    this.lower.position.y = -0.52 + this.adj;
+    this.lower.position.y = -0.58 + this.adj;
   }
 }
 

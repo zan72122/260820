@@ -4,12 +4,14 @@
 // mask, spawn a small splash, and ping the audio layer.
 
 import * as THREE from 'three';
-import { mulberry32, clamp } from './util';
+import { mulberry32, clamp, damp } from './util';
 import { terrainHeight, WetMask } from './world';
 
 interface Drop {
   active: boolean;
   hero: boolean;
+  virga: boolean;   // falls a little, then dries up mid-air (never lands)
+  life: number;
   pos: THREE.Vector3;
   vel: THREE.Vector3;
 }
@@ -41,15 +43,15 @@ export class RainSystem {
   constructor(quality: number) {
     this.maxDrops = quality > 0 ? 420 : 220;
     for (let i = 0; i < this.maxDrops; i++) {
-      this.drops.push({ active: false, hero: false, pos: new THREE.Vector3(), vel: new THREE.Vector3() });
+      this.drops.push({ active: false, hero: false, virga: false, life: 0, pos: new THREE.Vector3(), vel: new THREE.Vector3() });
     }
-    // streak: thin vertical quad, stretched by speed in update
-    const quad = new THREE.PlaneGeometry(0.06, 1);
+    // streak: slim quad, stretched by speed and tilted with the wind
+    const quad = new THREE.PlaneGeometry(0.11, 1);
     quad.translate(0, -0.5, 0);
     const mat = new THREE.MeshBasicMaterial({
-      color: new THREE.Color(0.74, 0.8, 0.9),
+      color: new THREE.Color(0.62, 0.7, 0.84),
       transparent: true,
-      opacity: 0.65,
+      opacity: 0.55,
       depthWrite: false,
       side: THREE.DoubleSide,
     });
@@ -98,10 +100,28 @@ export class RainSystem {
           from.z + (this.rand() - 0.5) * 1.2 + 0.8
         );
       }
+      d.virga = false;
       d.vel.set((this.rand() - 0.5) * 0.3, -3.2 - this.rand() * 0.8, 0.35);
       if (++fired >= count) break;
     }
     this.heroActive += fired;
+  }
+
+  /**
+   * The tease: one drop escapes the knot, falls a short way, and dries up
+   * mid-air. Rain that almost happens — the anomaly made visible.
+   */
+  releaseVirga(from: THREE.Vector3) {
+    for (const d of this.drops) {
+      if (d.active) continue;
+      d.active = true;
+      d.hero = true; // rendered wide & slow, easy to see
+      d.virga = true;
+      d.life = 1.1;
+      d.pos.copy(from);
+      d.vel.set((this.rand() - 0.5) * 0.2, -2.6, 0.2);
+      return;
+    }
   }
 
   /**
@@ -117,12 +137,14 @@ export class RainSystem {
       if (d.active) continue;
       d.active = true;
       d.hero = false;
+      d.virga = false;
       d.pos.set(
         center.x + (this.rand() - 0.5) * 2 * spread,
         center.y - 0.8 - this.rand() * 1.6,
         center.z + (this.rand() - 0.5) * 2.4 + 1.2
       );
-      d.vel.set((this.rand() - 0.5) * 0.4, -9 - this.rand() * 4, 0.6 + this.rand() * 0.5);
+      // slight windward→leeward slant, matching the band's flow
+      d.vel.set(0.5 + (this.rand() - 0.5) * 0.4, -9 - this.rand() * 4, 0.6 + this.rand() * 0.5);
       n--;
     }
   }
@@ -132,6 +154,20 @@ export class RainSystem {
     let hx = 0, hy = 0, hz = 0, hn = 0;
     for (const d of this.drops) {
       if (!d.active) continue;
+      if (d.virga) {
+        // decelerate and dry up: never reaches the ground
+        d.life -= dt;
+        d.vel.y = damp(d.vel.y, -0.4, 2.2, dt);
+        d.pos.addScaledVector(d.vel, dt);
+        if (d.life <= 0) { d.active = false; continue; }
+        const t = clamp(d.life / 1.1, 0, 1);
+        this.dummy.position.copy(d.pos);
+        this.dummy.rotation.set(0, 0, 0);
+        this.dummy.scale.set(2.4 * t, 0.5 + 0.4 * t, 1);
+        this.dummy.updateMatrix();
+        this.streakMesh.setMatrixAt(count++, this.dummy.matrix);
+        continue;
+      }
       if (d.hero) d.vel.y = Math.max(d.vel.y - 4.5 * dt, -6.5);
       else d.vel.y = Math.max(d.vel.y - 22 * dt, -16);
       d.pos.addScaledVector(d.vel, dt);
@@ -148,7 +184,7 @@ export class RainSystem {
       if (d.hero) { hx += d.pos.x; hy += d.pos.y; hz += d.pos.z; hn++; }
       const speed = -d.vel.y;
       this.dummy.position.copy(d.pos);
-      this.dummy.rotation.set(0, 0, 0);
+      this.dummy.rotation.set(0, 0, d.hero ? 0 : -0.1); // wind slant
       this.dummy.scale.set(d.hero ? 2.8 : 1.2, clamp(speed * 0.075, 0.3, 1.3) * (d.hero ? 1.7 : 1), 1);
       this.dummy.updateMatrix();
       this.streakMesh.setMatrixAt(count++, this.dummy.matrix);

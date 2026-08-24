@@ -1,6 +1,9 @@
 // One-finger circular gesture around a screen-space anchor.
 // We measure signed angular velocity around the anchor plus the circle
 // radius. The child draws AROUND the loop, so the finger never hides it.
+// Preschool reality: palms, second fingers and stalled touches are the
+// norm — only the first pointer is honored, and a finger that stops
+// moving stops producing rotation.
 
 import { clamp, damp } from './util';
 
@@ -23,8 +26,10 @@ export class Gesture {
   };
   anchorX = 0;
   anchorY = 0;
+  private activePointerId: number | null = null;
   private lastAngle = 0;
   private lastX = 0;
+  private lastMoveT = 0;
   private lastT = 0;
   private el: HTMLElement;
   onDown?: (x: number, y: number) => void;
@@ -41,14 +46,19 @@ export class Gesture {
     el.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
   }
 
+  /** Re-anchor mid-touch without injecting a phantom rotation step. */
   setAnchor(x: number, y: number) {
     this.anchorX = x;
     this.anchorY = y;
+    if (this.state.down) {
+      this.lastAngle = Math.atan2(this.state.y - y, this.state.x - x);
+    }
   }
 
   private down = (e: PointerEvent) => {
-    if (this.state.down) return; // single-touch game: ignore extra fingers
+    if (this.activePointerId !== null) return; // single-touch game: extra fingers ignored
     e.preventDefault();
+    this.activePointerId = e.pointerId;
     this.el.setPointerCapture?.(e.pointerId);
     const s = this.state;
     s.down = true;
@@ -58,16 +68,18 @@ export class Gesture {
     this.lastX = e.clientX;
     this.lastAngle = Math.atan2(e.clientY - this.anchorY, e.clientX - this.anchorX);
     this.lastT = performance.now();
+    this.lastMoveT = this.lastT;
     this.onDown?.(e.clientX, e.clientY);
   };
 
   private move = (e: PointerEvent) => {
     const s = this.state;
-    if (!s.down) return;
+    if (!s.down || e.pointerId !== this.activePointerId) return;
     e.preventDefault();
     const now = performance.now();
     const dt = Math.max((now - this.lastT) / 1000, 1e-3);
     this.lastT = now;
+    this.lastMoveT = now;
     s.x = e.clientX; s.y = e.clientY;
     s.dragDX = (e.clientX - this.lastX) / dt;
     this.lastX = e.clientX;
@@ -86,7 +98,9 @@ export class Gesture {
     s.engaged = s.radius > 18;
   };
 
-  private up = (_e: PointerEvent) => {
+  private up = (e: PointerEvent) => {
+    if (e.pointerId !== this.activePointerId) return;
+    this.activePointerId = null;
     const s = this.state;
     s.down = false;
     s.engaged = false;
@@ -97,6 +111,12 @@ export class Gesture {
 
   update(dt: number) {
     const s = this.state;
+    // a stalled finger produces no rotation: without this, the last angular
+    // velocity would keep "unwinding" under a motionless touch
+    if (s.down && performance.now() - this.lastMoveT > 90) {
+      s.angVel = 0;
+      s.dragDX = 0;
+    }
     s.smoothAngVel = damp(s.smoothAngVel, s.down ? s.angVel : 0, 8, dt);
     if (!s.down) s.angVel = 0;
   }

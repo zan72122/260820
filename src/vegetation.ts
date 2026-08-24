@@ -52,13 +52,13 @@ const GRASS_FRAG = /* glsl */ `
   uniform vec3 fogColor;
   uniform float sunUp;
   void main() {
-    vec3 dry = vec3(0.60, 0.51, 0.28);
-    vec3 live = vec3(0.33, 0.44, 0.20);
-    vec3 fresh = vec3(0.30, 0.50, 0.22);
+    vec3 dry = vec3(0.68, 0.58, 0.32);
+    vec3 live = vec3(0.38, 0.48, 0.23);
+    vec3 fresh = vec3(0.34, 0.55, 0.25);
     vec3 col = mix(live, dry, vDry);
     col = mix(col, fresh, vWet * 0.8);
-    col *= 0.62 + 0.38 * vH; // darker at root
-    col *= 0.9 + sunUp * 0.25;
+    col *= 0.72 + 0.28 * vH; // slightly darker at root, never black scratches
+    col *= 0.92 + sunUp * 0.25;
     gl_FragColor = vec4(col, 1.0);
   }
 `;
@@ -83,7 +83,7 @@ export class Vegetation {
     const seg = 3;
     for (let i = 0; i < seg; i++) {
       const y0 = i / seg, y1 = (i + 1) / seg;
-      const w0 = 0.045 * (1 - y0 * 0.8), w1 = 0.045 * (1 - y1 * 0.8);
+      const w0 = 0.06 * (1 - y0 * 0.8), w1 = 0.06 * (1 - y1 * 0.8);
       bverts.push(-w0, y0, 0, w0, y0, 0, -w1, y1, 0);
       bverts.push(w0, y0, 0, w1, y1, 0, -w1, y1, 0);
     }
@@ -163,14 +163,21 @@ export class Vegetation {
     (this.flowerMesh as any).instanceColor = this.colorAttr;
 
     let fi = 0;
-    // a waiting cluster right under the knot's drop zone — the first few
-    // drops must land among plants that can visibly answer
-    const clusterN = Math.min(26, flowerCount);
+    // three waiting clusters — one under each loop's release zone, each with
+    // its own dominant color, so the ORDER of unwinding visibly changes
+    // which flowers wake first
+    const clusters = [
+      { cx: 6.5, bias: 1 },   // leeward (loop 0): pink
+      { cx: 0.5, bias: 2 },   // center (loop 1): yellow
+      { cx: -5.5, bias: 3 },  // windward (loop 2): violet
+    ];
+    const clusterN = Math.min(30, flowerCount);
     for (; fi < clusterN; fi++) {
-      const x = -5 + rand() * 12;
+      const cl = clusters[fi % clusters.length];
+      const x = cl.cx + (rand() - 0.5) * 5;
       const z = -22.5 + rand() * 5;
       const h = terrainHeight(x, z);
-      const c = petalColors[Math.floor(rand() * petalColors.length)];
+      const c = petalColors[rand() < 0.65 ? cl.bias : Math.floor(rand() * petalColors.length)];
       this.flowers.push({
         pos: new THREE.Vector3(x, h, z),
         yaw: rand() * Math.PI * 2,
@@ -209,11 +216,14 @@ export class Vegetation {
     this.updateFlowerMatrices(0, 0, wetMask);
   }
 
+  private updFrame = 0;
+
   update(dt: number, time: number, wetMask: WetMask, windAmp: number, sunUp: number) {
     this.grassUniforms.time.value = time;
     this.grassUniforms.windAmp.value = windAmp;
     this.grassUniforms.sunUp.value = sunUp;
-    this.updateFlowerMatrices(dt, time, wetMask, sunUp);
+    // flowers ease at half rate — 30Hz is plenty for a head rising over 2s
+    if ((this.updFrame++ & 1) === 0) this.updateFlowerMatrices(dt * 2, time, wetMask, sunUp);
   }
 
   private updateFlowerMatrices(dt: number, time: number, wetMask: WetMask, sunUp = 0) {

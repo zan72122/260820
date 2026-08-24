@@ -101,14 +101,19 @@ test('opening all loops reaches free play and steering rains elsewhere', async (
   expect(['free', 'afterglow']).toContain(phase);
 
   const before = await page.evaluate(() => window.__game.wetSpots);
-  await page.mouse.move(620, 300);
+  // carry the cloud across the whole valley, then hold at the far side
+  await page.mouse.move(600, 300);
   await page.mouse.down();
-  for (let i = 0; i < 24; i++) {
-    await page.mouse.move(620 - i * 14, 300 + Math.sin(i * 0.6) * 24);
+  for (let i = 0; i < 28; i++) {
+    await page.mouse.move(600 - i * 20, 300 + Math.sin(i * 0.6) * 24);
     await page.waitForTimeout(12);
   }
+  for (let i = 0; i < 6; i++) {
+    await page.mouse.move(45 + (i % 2) * 10, 300);
+    await page.waitForTimeout(30);
+  }
   await page.mouse.up();
-  await page.evaluate(() => window.__game.tick(5));
+  await page.evaluate(() => window.__game.tick(6));
   const after = await page.evaluate(() => window.__game.wetSpots);
   expect(after).toBeGreaterThan(before);
 });

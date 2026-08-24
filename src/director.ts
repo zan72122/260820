@@ -32,6 +32,9 @@ const PORT: Record<Shot, ShotDef> = {
   finale: { pos: new THREE.Vector3(1, 10, 24), look: new THREE.Vector3(-2, 8.5, -20), fov: 66 },
 };
 
+const SCRATCH_LOOK = new THREE.Vector3();
+const SCRATCH_PROJ = new THREE.Vector3();
+
 export class Director {
   camera: THREE.PerspectiveCamera;
   shot: Shot = 'wide';
@@ -63,7 +66,7 @@ export class Director {
     this.curPos.z = damp(this.curPos.z, def.pos.z, lam, dt);
 
     // gentle look-down that rides the first drops (no cut)
-    const look = def.look.clone();
+    const look = SCRATCH_LOOK.copy(def.look);
     if (this.dropFollow > 0.01) {
       look.lerp(this.dropFocus, this.dropFollow * 0.55);
     }
@@ -86,7 +89,7 @@ export class Director {
 
   /** project a world point to css pixels */
   toScreen(world: THREE.Vector3, w: number, h: number, out: { x: number; y: number }) {
-    const v = world.clone().project(this.camera);
+    const v = SCRATCH_PROJ.copy(world).project(this.camera);
     out.x = (v.x * 0.5 + 0.5) * w;
     out.y = (-v.y * 0.5 + 0.5) * h;
     return out;

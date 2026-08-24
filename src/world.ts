@@ -29,7 +29,7 @@ export function terrainHeight(x: number, z: number): number {
   // Dry stream channel winding through the valley.
   const cz = streamZ(x);
   const d = z - cz;
-  h -= 0.9 * Math.exp(-(d * d) / 2.6) * smoothstep(-14, -6, z - (-28)); // only past the ridge foot
+  h -= 1.35 * Math.exp(-(d * d) / 2.6) * smoothstep(-14, -6, z - (-28)); // only past the ridge foot
   return h;
 }
 
@@ -39,15 +39,18 @@ export function streamZ(x: number): number {
 
 export class WetMask {
   size = WET_REGION.size;
-  data: Float32Array;
+  // 8-bit storage: iOS GPUs cannot linear-filter float32 textures (no
+  // OES_texture_float_linear), which would silently sample as zero.
+  data: Uint8Array;
   tex: THREE.DataTexture;
   dirty = false;
   totalWet = 0;
+  private frame = 0;
 
   constructor() {
-    this.data = new Float32Array(this.size * this.size);
+    this.data = new Uint8Array(this.size * this.size);
     this.tex = new THREE.DataTexture(
-      this.data as unknown as BufferSource, this.size, this.size, THREE.RedFormat, THREE.FloatType
+      this.data as unknown as BufferSource, this.size, this.size, THREE.RedFormat, THREE.UnsignedByteType
     );
     this.tex.minFilter = THREE.LinearFilter;
     this.tex.magFilter = THREE.LinearFilter;
@@ -76,9 +79,9 @@ export class WetMask {
         const fall = 1 - d2 / r2;
         const idx = iy * s + ix;
         const before = this.data[idx];
-        const after = Math.min(1, before + amount * fall * fall);
+        const after = Math.min(255, before + amount * fall * fall * 255);
         this.data[idx] = after;
-        this.totalWet += after - before;
+        this.totalWet += (after - before) / 255;
       }
     }
     this.dirty = true;
@@ -89,11 +92,13 @@ export class WetMask {
     if (u < 0 || u > 1 || v < 0 || v > 1) return 0;
     const ix = Math.floor(u * (this.size - 1));
     const iy = Math.floor(v * (this.size - 1));
-    return this.data[iy * this.size + ix];
+    return this.data[iy * this.size + ix] / 255;
   }
 
   update() {
-    if (this.dirty) {
+    // throttle GPU re-uploads: wetness spread is not frame-critical
+    this.frame++;
+    if (this.dirty && this.frame % 3 === 0) {
       this.tex.needsUpdate = true;
       this.dirty = false;
     }
@@ -166,9 +171,9 @@ const TERRAIN_FRAG = /* glsl */ `
     alb = mix(alb, rock * (0.85 + grain * 0.3), clamp(rockM, 0.0, 1.0));
     // soil cracks: thin darker lines only where flat & dry
     float crackM = vCrack * (1.0 - rockM) * (1.0 - smoothstep(0.4, 0.7, g));
-    alb *= 1.0 - crackM * 0.35;
-    // damp trace in the stream bed
-    alb = mix(alb, alb * vec3(0.62, 0.66, 0.72), vDamp);
+    alb *= 1.0 - crackM * 0.55;
+    // damp trace in the stream bed: a cool dark meander, clearly wetter
+    alb = mix(alb, alb * vec3(0.42, 0.48, 0.58), clamp(vDamp * 1.5, 0.0, 1.0));
 
     // wet mask (rain that has landed)
     vec2 wuv = vec2((vWorld.x - wetRegion.x) * wetRegion.z,
@@ -176,7 +181,7 @@ const TERRAIN_FRAG = /* glsl */ `
     float wet = 0.0;
     if (wuv.x > 0.0 && wuv.x < 1.0 && wuv.y > 0.0 && wuv.y < 1.0)
       wet = texture2D(wetMask, wuv).r;
-    alb = mix(alb, alb * vec3(0.55, 0.56, 0.62), clamp(wet, 0.0, 1.0) * 0.6);
+    alb = mix(alb, alb * vec3(0.5, 0.52, 0.6), clamp(wet * 1.3, 0.0, 1.0) * 0.72);
 
     // --- lighting ---
     float ndl = max(dot(n, sunDir), 0.0);
@@ -240,7 +245,7 @@ export function buildWorld(quality: number): WorldRefs {
     // cracks: ridged noise thresholded to thin lines, valley floor only
     const r = ridged2(x * 0.55 + 11, z * 0.55 + 5);
     const flat = smoothstep(-24, -16, z) * (1 - smoothstep(6, 10, h));
-    crackA[i] = smoothstep(0.86, 0.97, r) * flat;
+    crackA[i] = smoothstep(0.78, 0.94, r) * flat;
     // grass cover: patchy; a bit fresher near the stream bed
     const patch = fbm2(x * 0.07 + 21, z * 0.07 + 13, 4);
     const nearStream = Math.exp(-Math.pow(z - streamZ(x), 2) / 30);
@@ -284,9 +289,11 @@ export function buildWorld(quality: number): WorldRefs {
 
   // ---- distant ridgelines (three haze-tinted layers, asymmetric) ----
   const layers = [
-    { z: -95, base: 10, amp: 9, col: new THREE.Color(0.255, 0.27, 0.315), seed: 3.7 },
-    { z: -150, base: 15, amp: 13, col: new THREE.Color(0.33, 0.345, 0.39), seed: 9.2 },
-    { z: -215, base: 20, amp: 17, col: new THREE.Color(0.42, 0.42, 0.44), seed: 15.8 },
+    // value rule under overcast: horizon sky is the brightest far value;
+    // ridges sit below it, nearer = darker
+    { z: -95, base: 10, amp: 9, col: new THREE.Color(0.175, 0.19, 0.225), seed: 3.7 },
+    { z: -150, base: 15, amp: 13, col: new THREE.Color(0.235, 0.25, 0.29), seed: 9.2 },
+    { z: -215, base: 20, amp: 17, col: new THREE.Color(0.30, 0.31, 0.35), seed: 15.8 },
   ];
   for (const L of layers) {
     const n = 60;
@@ -311,7 +318,7 @@ export function buildWorld(quality: number): WorldRefs {
   {
     const g = new THREE.PlaneGeometry(520, 220);
     g.rotateX(-Math.PI / 2);
-    const m = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.38, 0.39, 0.42) });
+    const m = new THREE.MeshBasicMaterial({ color: new THREE.Color(0.155, 0.165, 0.19) });
     const mesh = new THREE.Mesh(g, m);
     mesh.position.set(0, -0.6, -160);
     group.add(mesh);
@@ -372,6 +379,11 @@ export function buildWorld(quality: number): WorldRefs {
         float ov = vnoise(vDir.xz / max(vDir.y, 0.12) * 1.4 + time * 0.008);
         ov = ov * 0.5 + 0.5 * vnoise(vDir.xz / max(vDir.y, 0.12) * 3.1 - time * 0.004);
         col *= 1.0 - (1.0 - sunUp) * 0.24 * ov * (1.0 - h * 0.7);
+        // one thin spot in the overcast where light almost breaks through —
+        // the gloom is a condition, not the whole world's mood
+        vec3 thinDir = normalize(vec3(-0.55, 0.28, -0.75));
+        float thin = pow(max(dot(normalize(vDir), thinDir), 0.0), 14.0);
+        col += vec3(0.10, 0.09, 0.07) * thin * (1.0 - sunUp);
         // returning sun: warm glow + soft disc
         float sd = max(dot(normalize(vDir), sunDir), 0.0);
         col += sunUp * (vec3(1.0, 0.92, 0.75) * (pow(sd, 220.0) * 0.9 + pow(sd, 8.0) * 0.16));

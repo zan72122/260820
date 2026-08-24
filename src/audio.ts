@@ -18,8 +18,13 @@ export class GameAudio {
   private streamGain!: GainNode;
   enabled = false;
 
+  /** iOS can leave a context 'suspended' or 'interrupted' — nudge it on any touch */
+  resume() {
+    if (this.ctx && this.ctx.state !== 'running') void this.ctx.resume();
+  }
+
   start() {
-    if (this.ctx) return;
+    if (this.ctx) { this.resume(); return; }
     try {
       const AC = window.AudioContext || (window as any).webkitAudioContext;
       this.ctx = new AC();
@@ -27,6 +32,7 @@ export class GameAudio {
       return;
     }
     const ctx = this.ctx;
+    this.resume();
     this.master = ctx.createGain();
     this.master.gain.value = 0.55;
     this.master.connect(ctx.destination);
