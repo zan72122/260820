@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#b9b4ac" />
+    <title>見えない目の調律室――入る人だけ見つけよう</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+      }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #8f8a82;
+        font-family: 'Hiragino Maru Gothic ProN', 'BIZ UDGothic', 'Rounded Mplus 1c', sans-serif;
+        touch-action: none;
+        overscroll-behavior: none;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      #app {
+        position: fixed;
+        inset: 0;
+      }
+      canvas {
+        display: block;
+        touch-action: none;
+      }
+      .ui {
+        position: fixed;
+        z-index: 10;
+      }
+      .hidden {
+        display: none !important;
+      }
+
+      /* ---- 字幕 ---- */
+      #caption {
+        left: 50%;
+        bottom: calc(14px + env(safe-area-inset-bottom));
+        transform: translateX(-50%);
+        max-width: min(86vw, 560px);
+        background: rgba(252, 248, 238, 0.94);
+        color: #3c3a34;
+        border-radius: 22px;
+        padding: 12px 22px;
+        font-size: clamp(17px, 2.6vh, 24px);
+        line-height: 1.5;
+        text-align: center;
+        box-shadow: 0 4px 16px rgba(40, 38, 32, 0.25);
+        transition: opacity 0.4s;
+        pointer-events: none;
+      }
+
+      /* ---- タイトル ---- */
+      #title-card {
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        background: rgba(30, 32, 30, 0.55);
+        backdrop-filter: blur(2px);
+        transition: opacity 0.8s;
+      }
+      #title-card h1 {
+        color: #f6f2e6;
+        font-size: clamp(22px, 4.5vw, 40px);
+        text-align: center;
+        padding: 0 24px;
+        text-shadow: 0 3px 10px rgba(0, 0, 0, 0.5);
+      }
+      #title-card p {
+        color: #ded8c8;
+        font-size: clamp(15px, 2.4vw, 20px);
+      }
+      #title-start {
+        margin-top: 10px;
+        border: none;
+        background: #e8b64c;
+        color: #453a1e;
+        font-size: clamp(18px, 3vw, 24px);
+        font-family: inherit;
+        padding: 14px 44px;
+        border-radius: 40px;
+        box-shadow: 0 5px 0 #b8892e;
+        cursor: pointer;
+      }
+      #title-start:active {
+        transform: translateY(3px);
+        box-shadow: 0 2px 0 #b8892e;
+      }
+
+      /* ---- スワイプヒント ---- */
+      #hint-swipe {
+        width: 54px;
+        height: 84px;
+        pointer-events: none;
+        opacity: 0.9;
+      }
+      #hint-swipe .finger {
+        position: absolute;
+        left: 50%;
+        top: 0;
+        width: 30px;
+        height: 30px;
+        margin-left: -15px;
+        border-radius: 50%;
+        background: rgba(252, 248, 238, 0.9);
+        border: 3px solid rgba(90, 84, 70, 0.8);
+        animation: swipeDown 1.6s ease-in-out infinite;
+      }
+      @keyframes swipeDown {
+        0% {
+          transform: translateY(0);
+          opacity: 0;
+        }
+        25% {
+          opacity: 1;
+        }
+        70% {
+          transform: translateY(48px);
+          opacity: 1;
+        }
+        100% {
+          transform: translateY(54px);
+          opacity: 0;
+        }
+      }
+      #hint-swipe.up .finger {
+        animation-name: swipeUp;
+      }
+      @keyframes swipeUp {
+        0% {
+          transform: translateY(54px);
+          opacity: 0;
+        }
+        25% {
+          opacity: 1;
+        }
+        70% {
+          transform: translateY(0);
+          opacity: 1;
+        }
+        100% {
+          transform: translateY(-6px);
+          opacity: 0;
+        }
+      }
+
+      /* ---- 幅スライダー(物理風) ---- */
+      #width-slider {
+        right: calc(14px + env(safe-area-inset-right));
+        bottom: calc(96px + env(safe-area-inset-bottom));
+        width: 170px;
+        background: linear-gradient(#d8d4cb, #b8b4ab);
+        border: 2px solid #8f8b82;
+        border-radius: 14px;
+        padding: 10px 14px 12px;
+        box-shadow: 0 4px 12px rgba(40, 38, 32, 0.35);
+      }
+      #width-slider .label {
+        font-size: 13px;
+        color: #504c44;
+        text-align: center;
+        margin-bottom: 6px;
+      }
+      #width-track {
+        position: relative;
+        height: 18px;
+        background: linear-gradient(#77736a, #8f8b82);
+        border-radius: 9px;
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+      }
+      #width-knob {
+        position: absolute;
+        top: -7px;
+        width: 30px;
+        height: 32px;
+        margin-left: -15px;
+        background: linear-gradient(#f0ede6, #c4c0b7);
+        border: 2px solid #7d7a72;
+        border-radius: 8px;
+        box-shadow: 0 3px 5px rgba(0, 0, 0, 0.35);
+      }
+      #width-knob::after {
+        content: '';
+        position: absolute;
+        left: 50%;
+        top: 6px;
+        bottom: 6px;
+        width: 3px;
+        margin-left: -1.5px;
+        background: #7d7a72;
+        border-radius: 2px;
+      }
+
+      /* ---- 発車レバー ---- */
+      #lever {
+        right: calc(18px + env(safe-area-inset-right));
+        top: 50%;
+        transform: translateY(-50%);
+        width: 76px;
+        height: 190px;
+        background: linear-gradient(#d8d4cb, #b8b4ab);
+        border: 2px solid #8f8b82;
+        border-radius: 16px;
+        box-shadow: 0 4px 12px rgba(40, 38, 32, 0.35);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 8px 0;
+      }
+      #lever .label {
+        font-size: 12px;
+        color: #504c44;
+      }
+      #lever-track {
+        position: relative;
+        flex: 1;
+        width: 14px;
+        margin: 8px 0;
+        background: linear-gradient(90deg, #77736a, #8f8b82);
+        border-radius: 7px;
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+      }
+      #lever-handle {
+        position: absolute;
+        left: 50%;
+        top: 0;
+        width: 52px;
+        height: 40px;
+        margin-left: -26px;
+        background: linear-gradient(#e8564c 0%, #c23a32 100%);
+        border: 2px solid #8c2a24;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.35);
+      }
+      #lever-handle::after {
+        content: '';
+        position: absolute;
+        left: 8px;
+        right: 8px;
+        top: 8px;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.4);
+        border-radius: 2px;
+      }
+
+      /* ---- 予想マーカー ---- */
+      #marker-dock {
+        left: 50%;
+        bottom: calc(150px + env(safe-area-inset-bottom));
+        transform: translateX(-50%);
+        display: flex;
+        gap: 18px;
+      }
+      .marker-card {
+        width: 108px;
+        background: linear-gradient(#d8d4cb, #beb9b0);
+        border: 2px solid #8f8b82;
+        border-radius: 14px;
+        padding: 8px 6px 6px;
+        text-align: center;
+        box-shadow: 0 4px 12px rgba(40, 38, 32, 0.3);
+        cursor: grab;
+      }
+      .marker-card svg {
+        width: 84px;
+        height: 62px;
+      }
+      .marker-card .mlabel {
+        font-size: 14px;
+        color: #504c44;
+      }
+      .marker-card.selected {
+        outline: 4px solid #e8b64c;
+      }
+      #marker-ghost {
+        position: fixed;
+        width: 90px;
+        pointer-events: none;
+        opacity: 0.85;
+        z-index: 40;
+      }
+
+      /* ---- 結果ボタン ---- */
+      #btn-row {
+        left: 50%;
+        bottom: calc(150px + env(safe-area-inset-bottom));
+        transform: translateX(-50%);
+        display: flex;
+        gap: 22px;
+      }
+      .big-btn {
+        border: none;
+        font-family: inherit;
+        font-size: 17px;
+        color: #453a1e;
+        background: #e8d9a8;
+        border-radius: 40px;
+        padding: 12px 26px;
+        box-shadow: 0 4px 0 #b3a170;
+        cursor: pointer;
+      }
+      .big-btn.primary {
+        background: #e8b64c;
+        box-shadow: 0 4px 0 #b8892e;
+      }
+      .big-btn:active {
+        transform: translateY(3px);
+        box-shadow: 0 1px 0 #b3a170;
+      }
+
+      /* ---- リング操作ヒント ---- */
+      #ring-hint {
+        width: 110px;
+        height: 110px;
+        pointer-events: none;
+        border: 4px dashed rgba(252, 248, 238, 0.75);
+        border-radius: 50%;
+        animation: ringSpin 3.2s linear infinite;
+      }
+      @keyframes ringSpin {
+        from {
+          transform: rotate(0deg);
+        }
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="title-card" class="ui">
+      <h1>見えない目の調律室</h1>
+      <p>――入る人だけ見つけよう――</p>
+      <button id="title-start">はじめる</button>
+    </div>
+    <div id="caption" class="ui hidden"></div>
+    <div id="hint-swipe" class="ui hidden"><div class="finger"></div></div>
+    <div id="ring-hint" class="ui hidden"></div>
+    <div id="width-slider" class="ui hidden">
+      <div class="label">はばの ちょうせつ</div>
+      <div id="width-track"><div id="width-knob"></div></div>
+    </div>
+    <div id="lever" class="ui hidden">
+      <div class="label">スタート</div>
+      <div id="lever-track"><div id="lever-handle"></div></div>
+      <div class="label">▼</div>
+    </div>
+    <div id="marker-dock" class="ui hidden">
+      <div class="marker-card" data-kind="open">
+        <svg viewBox="0 0 84 62">
+          <rect x="6" y="4" width="72" height="6" rx="2" fill="#9aa0a4" />
+          <rect x="6" y="4" width="6" height="54" rx="2" fill="#9aa0a4" />
+          <rect x="72" y="4" width="6" height="54" rx="2" fill="#9aa0a4" />
+          <rect x="14" y="12" width="14" height="44" rx="2" fill="#cfe0da" opacity="0.8" />
+          <rect x="56" y="12" width="14" height="44" rx="2" fill="#cfe0da" opacity="0.8" />
+          <path d="M38 30 h8 M42 26 v8" stroke="#6a7a74" stroke-width="2.4" fill="none" />
+        </svg>
+        <div class="mlabel">あく</div>
+      </div>
+      <div class="marker-card" data-kind="closed">
+        <svg viewBox="0 0 84 62">
+          <rect x="6" y="4" width="72" height="6" rx="2" fill="#9aa0a4" />
+          <rect x="6" y="4" width="6" height="54" rx="2" fill="#9aa0a4" />
+          <rect x="72" y="4" width="6" height="54" rx="2" fill="#9aa0a4" />
+          <rect x="14" y="12" width="27" height="44" rx="2" fill="#cfe0da" opacity="0.8" />
+          <rect x="43" y="12" width="27" height="44" rx="2" fill="#cfe0da" opacity="0.8" />
+          <rect x="40" y="12" width="4" height="44" fill="#8f958f" />
+        </svg>
+        <div class="mlabel">あかない</div>
+      </div>
+    </div>
+    <div id="btn-row" class="ui hidden">
+      <button id="btn-retry" class="big-btn">もういちど</button>
+      <button id="btn-lens" class="big-btn">レンズで みる</button>
+      <button id="btn-next" class="big-btn primary">つぎへ</button>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
