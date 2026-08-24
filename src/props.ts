@@ -38,23 +38,24 @@ export function buildTrailer(mats: MaterialKit): Trailer {
     }
   }
 
-  // stacked timber cribbing the body rests on (two crossed layers)
-  for (const bx of [-5.5, -1.8, 1.8, 5.5]) {
+  // timber cribbing aligned under the bolster / jacking points: one crosswise
+  // sleeper spanning the deck, two shorter bearers stacked on top
+  for (const bx of [-4.6, -1.5, 1.5, 4.6]) {
+    const sleeper = new THREE.Mesh(new THREE.BoxGeometry(0.42, L.blockH / 2, 2.5), mats.woodBlock)
+    sleeper.position.set(bx, L.trailerDeckY + L.blockH / 4, 0)
+    add(sleeper)
     for (const s of [-1, 1]) {
-      const lower = new THREE.Mesh(new THREE.BoxGeometry(0.95, L.blockH / 2, 0.4), mats.woodBlock)
-      lower.position.set(bx, L.trailerDeckY + L.blockH / 4, s * 0.9)
-      add(lower)
-      const upper = new THREE.Mesh(new THREE.BoxGeometry(0.45, L.blockH / 2, 0.85), mats.woodBlock)
-      upper.position.set(bx, L.trailerDeckY + L.blockH * 0.75, s * 0.9)
-      add(upper)
+      const bearer = new THREE.Mesh(new THREE.BoxGeometry(1.0, L.blockH / 2, 0.38), mats.woodBlock)
+      bearer.position.set(bx, L.trailerDeckY + L.blockH * 0.75, s * 0.85)
+      add(bearer)
     }
   }
 
   return {
     group: g, deck,
     setUnloaded(t: number) {
-      // springs extend ~3 cm when the 30 t body lifts off
-      deck.position.y = t * 0.03
+      // springs extend when the body's weight comes off the trailer
+      deck.position.y = t * 0.06
     }
   }
 }

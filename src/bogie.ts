@@ -48,7 +48,7 @@ export function buildBogie(mats: MaterialKit): Bogie {
   for (const s of [-1, 1]) {
     for (const x of [-0.78, 0.78]) {
       const w = new THREE.Mesh(new THREE.CylinderGeometry(gwR, gwR, 0.19, 20), mats.darkRubber)
-      w.position.set(x, -0.30, s * (bw / 2 + gwR))
+      w.position.set(x, -0.24, s * (bw / 2 + gwR - 0.012))
       add(w)
       sideWheels.push(w)
       // lighter hub cap so the tire reads as a wheel
@@ -58,7 +58,7 @@ export function buildBogie(mats: MaterialKit): Bogie {
     }
     const stR = L.stabWheelDia / 2
     const st = new THREE.Mesh(new THREE.CylinderGeometry(stR, stR, 0.17, 20), mats.darkRubber)
-    st.position.set(0, -1.02, s * (bw / 2 + stR))
+    st.position.set(0, -1.02, s * (bw / 2 + stR - 0.012))
     add(st)
     sideWheels.push(st)
     const stCap = new THREE.Mesh(new THREE.CylinderGeometry(stR * 0.45, stR * 0.45, 0.18, 12), mats.machinedSteel)
@@ -90,26 +90,26 @@ export function buildBogie(mats: MaterialKit): Bogie {
   const springs: THREE.Mesh[] = []
   const springCaps: THREE.Mesh[] = []
   for (const s of [-1, 1]) {
-    const spring = new THREE.Mesh(new THREE.CylinderGeometry(0.29, 0.31, 1, 22), mats.airSpringRubber)
-    spring.position.set(0, 0.77, s * 0.92)
+    const spring = new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.35, 1, 22), mats.airSpringRubber)
+    spring.position.set(0, 0.77, s * 1.0)
     spring.scale.y = L.bolsterTopAboveBeam - 0.77   // free height 0.18
     spring.position.y = 0.77 + spring.scale.y / 2
     add(spring)
     springs.push(spring)
     // machined seat plate on top of each air spring
-    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.31, 0.31, 0.035, 22), mats.machinedSteel)
-    cap.position.set(0, L.bolsterTopAboveBeam + 0.017, s * 0.92)
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 0.04, 22), mats.machinedSteel)
+    cap.position.set(0, L.bolsterTopAboveBeam + 0.02, s * 1.0)
     add(cap)
     springCaps.push(cap)
     // rubber bellows ring detail
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.30, 0.025, 8, 22), mats.airSpringRubber)
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.34, 0.028, 8, 22), mats.airSpringRubber)
     ring.rotation.x = Math.PI / 2
-    ring.position.set(0, 0.86, s * 0.92)
+    ring.position.set(0, 0.86, s * 1.0)
     add(ring)
   }
   // machined center pin, guides the body receiver during docking
-  const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.11, 0.34, 16), mats.machinedSteel)
-  pin.position.set(0, 0.94, 0)
+  const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.13, 0.42, 16), mats.machinedSteel)
+  pin.position.set(0, 0.98, 0)
   add(pin)
 
   // painted alignment marks: yellow tabs at bolster edges (workers sight these)

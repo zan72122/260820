@@ -27,7 +27,7 @@ export interface SimEvents {
   onPhase(p: Phase): void
 }
 
-const RIG_TOTAL = L.spreaderDrop + L.slingLen + 0.48  // hook Y -> car underframe Y when hanging
+const RIG_TOTAL = L.spreaderDrop + L.slingLen + L.bracketY  // hook Y -> car underframe Y when hanging
 const STRETCH = 0.06                                   // elastic zone of the rig (visual weight transfer)
 const G = 9.81
 
@@ -78,6 +78,8 @@ export class Sim {
 
   // phase sequencing
   timer = 0
+  settleOsc = 0          // damped bounce added to spring compression after contact
+  private settleT = -1
   moverX = -34
   towDist = 0
   lightsOn = false
@@ -159,7 +161,9 @@ export class Sim {
     }
     if (Math.abs(this.carZ) < 0.45) {
       // bogie air springs float at free height; compress as load transfers
-      return { y: L.dockUndersideY + L.springTravel * (1 - this.springComp), kind: 'bogie' }
+      // (visual settle bounce rides on top of the base compression)
+      const comp = clamp(this.springComp + this.settleOsc, 0, 1.15)
+      return { y: L.dockUndersideY + L.springTravel * (1 - comp), kind: 'bogie' }
     }
     return { y: -10, kind: 'none' }
   }
@@ -233,7 +237,10 @@ export class Sim {
     if (sup.kind === 'bogie') {
       // springs compress as tension drops (weight moving onto the bogies)
       this.springComp = clamp(1 - this.tension, 0, 1)
-      if (wasAirborne && !this.airborne) this.events.onContact(Math.max(0.25, Math.abs(this.winchVel) * 3))
+      if (wasAirborne && !this.airborne) {
+        this.events.onContact(Math.max(0.25, Math.abs(this.winchVel) * 3))
+        this.settleT = 0
+      }
       if (!this.airborne && this.slack > 0.1) {
         this.phase = Phase.SEATED
         this.timer = 0
@@ -363,12 +370,18 @@ export class Sim {
   }
 
   private updateSway(dt: number) {
+    // settle bounce: one small damped oscillation of the springs after contact
+    if (this.settleT >= 0) {
+      this.settleT += dt
+      this.settleOsc = Math.exp(-3.2 * this.settleT) * Math.sin(this.settleT * 11) * 0.22
+      if (this.settleT > 1.6) { this.settleT = -1; this.settleOsc = 0 }
+    }
     // pendulum length: hook to hanging car center of mass
     const ell = RIG_TOTAL + 1.1
     const accel = (this.carrierVel - this.prevCarrierVel) / Math.max(dt, 1e-4)
     this.prevCarrierVel = this.carrierVel
     const drive = this.airborne ? accel : 0
-    const damping = this.airborne ? 0.55 : 6.0
+    const damping = this.airborne ? 0.85 : 6.0
     this.swayVelZ += (-(G / ell) * this.swayAngZ - damping * this.swayVelZ - drive / ell) * dt
     this.swayAngZ += this.swayVelZ * dt
     this.swayAngZ = clamp(this.swayAngZ, -0.05, 0.05)
@@ -381,8 +394,8 @@ export class Sim {
     const moving = Math.abs(this.winchVel) > 0.02
     for (let i = 0; i < 2; i++) {
       if (moving && this.airborne) {
-        this.syncErr[i] += (this.rng() - 0.5) * 0.012
-        this.syncErr[i] = clamp(this.syncErr[i], -0.035, 0.035)
+        this.syncErr[i] += (this.rng() - 0.5) * 0.016
+        this.syncErr[i] = clamp(this.syncErr[i], -0.05, 0.05)
       } else {
         this.syncErr[i] = moveToward(this.syncErr[i], 0, 0.02 * dt)
       }

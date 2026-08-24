@@ -48,13 +48,15 @@ export function buildCrane(mats: MaterialKit, baseX: number, baseZ: number): Cra
       add(carrier, hub)
     }
   }
-  // outriggers: beams out, jacks down, pads bearing on the floor
+  // outriggers: beams fully extended, jacks down, floats on timber mats
   for (const az of [-3.2, 3.2]) {
     for (const s of [-1, 1]) {
-      box(carrier, 0.34, 0.3, 2.3, mats.craneYellow, s * 1.9, 1.0, az)
-      box(carrier, 0.22, 1.0, 0.22, mats.hookSteel, s * 2.85, 0.55, az)
-      const pad = box(carrier, 0.8, 0.12, 0.8, mats.hookSteel, s * 2.85, 0.06, az)
+      box(carrier, 0.42, 0.38, 2.5, mats.craneYellow, s * 1.9, 1.05, az)
+      box(carrier, 0.3, 1.1, 0.3, mats.machinedSteel, s * 2.95, 0.6, az)
+      const pad = box(carrier, 1.0, 0.16, 1.0, mats.hookSteel, s * 2.95, 0.22, az)
       pad.receiveShadow = true
+      const mat = box(carrier, 1.3, 0.14, 1.3, mats.woodBlock, s * 2.95, 0.07, az)
+      mat.receiveShadow = true
     }
   }
 
@@ -63,8 +65,9 @@ export function buildCrane(mats: MaterialKit, baseX: number, baseZ: number): Cra
   sup.position.y = 1.75
   g.add(sup)
   box(sup, 1.7, 1.0, 2.2, mats.craneYellow, 0, 0.5, -0.6)           // machinery deck
-  box(sup, 2.0, 1.1, 0.9, mats.hookSteel, 0, 0.55, -1.9)            // counterweight
-  const cwHazard = box(sup, 2.02, 0.28, 0.92, mats.hazard, 0, 0.14, -1.9)
+  box(sup, 2.4, 1.5, 1.2, mats.hookSteel, 0, 0.6, -2.1)             // counterweight stack
+  box(sup, 2.4, 0.5, 1.2, mats.hookSteel, 0, 1.55, -2.1)
+  const cwHazard = box(sup, 2.42, 0.3, 1.22, mats.hazard, 0, 0.1, -2.1)
   cwHazard.castShadow = false
   // operator cab
   box(sup, 0.9, 1.1, 1.5, mats.craneYellow, 1.15, 0.55, 0.4)
@@ -83,7 +86,7 @@ export function buildCrane(mats: MaterialKit, baseX: number, baseZ: number): Cra
   const boom = new THREE.Group()
   boomPivot.add(boom)
   for (let i = 0; i < sections; i++) {
-    const w0 = 0.78 - i * 0.13
+    const w0 = 0.95 - i * 0.15
     const segLen = L.boomLen / sections + 0.4
     const seg = box(boom, w0, w0 * 0.92, segLen, mats.craneYellow, 0, 0, (i + 0.5) * (L.boomLen / sections) - 0.2)
     seg.castShadow = true
@@ -103,13 +106,17 @@ export function buildCrane(mats: MaterialKit, baseX: number, baseZ: number): Cra
   cylOuter.castShadow = true
   sup.add(cylOuter, cylInner)
 
-  // --- hook block (world-space, driven by sim) ---
+  // --- hook block (world-space, driven by sim): heavy multi-sheave block ---
   const hookBlock = new THREE.Group()
-  box(hookBlock, 0.34, 0.55, 0.22, mats.hookSteel, 0, -0.28, 0)
-  const blockSheave = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.1, 14), mats.craneYellow)
-  blockSheave.rotation.z = Math.PI / 2
-  blockSheave.position.y = -0.18
-  add(hookBlock, blockSheave)
+  box(hookBlock, 0.5, 0.72, 0.3, mats.hookSteel, 0, -0.36, 0)
+  const cheek = box(hookBlock, 0.54, 0.3, 0.32, mats.craneYellow, 0, -0.14, 0)
+  cheek.castShadow = false
+  for (const sx of [-0.12, 0.12]) {
+    const blockSheave = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.09, 14), mats.craneYellow)
+    blockSheave.rotation.z = Math.PI / 2
+    blockSheave.position.set(sx, -0.16, 0)
+    add(hookBlock, blockSheave)
+  }
   // hook: shank + curved hook via torus arc
   const shank = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.3, 10), mats.hookSteel)
   shank.position.y = -0.68
@@ -120,10 +127,11 @@ export function buildCrane(mats: MaterialKit, baseX: number, baseZ: number): Cra
   hook.position.y = -0.9
   add(hookBlock, hook)
 
-  // hoist rope falls: boom head -> hook block (two falls, updated per frame)
-  const fallGeo = new THREE.CylinderGeometry(0.021, 0.021, 1, 6)
+  // hoist rope falls: boom head -> hook block (four falls, updated per frame)
+  const fallGeo = new THREE.CylinderGeometry(0.024, 0.024, 1, 6)
   const falls: THREE.Mesh[] = []
-  for (let i = 0; i < 2; i++) {
+  const FALL_OFFSETS = [-0.14, -0.05, 0.05, 0.14]
+  for (let i = 0; i < FALL_OFFSETS.length; i++) {
     const f = new THREE.Mesh(fallGeo, mats.wireRope)
     f.castShadow = false
     falls.push(f)
@@ -143,12 +151,12 @@ export function buildCrane(mats: MaterialKit, baseX: number, baseZ: number): Cra
     const r = Math.hypot(dx, dz) + 1.0   // pivot sits 1 m behind the yaw axis
     const rc = Math.min(r, L.boomLen * 0.94)
     const luff = Math.acos(rc / L.boomLen)
-    // slight elastic dip under load
-    boom.rotation.x = -(luff - tension * 0.006)
+    // elastic dip under load: the boom visibly takes the weight
+    boom.rotation.x = -(luff - tension * 0.011)
     const pivotWorldY = L.boomPivotY + 1.0
     boomTipWorld.set(
       baseX + Math.sin(azim) * (rc - 1.0),
-      pivotWorldY + Math.sin(luff) * L.boomLen - tension * 0.09,
+      pivotWorldY + Math.sin(luff) * L.boomLen - tension * 0.17,
       baseZ + Math.cos(azim) * (rc - 1.0)
     )
     // luffing cylinder follows (visual only; computed in sup-local space)
@@ -170,10 +178,10 @@ export function buildCrane(mats: MaterialKit, baseX: number, baseZ: number): Cra
 
     hookBlock.position.copy(hookWorld)
     // rope falls
-    for (let i = 0; i < 2; i++) {
-      const off = (i - 0.5) * 0.07
+    for (let i = 0; i < FALL_OFFSETS.length; i++) {
+      const off = FALL_OFFSETS[i]
       const a = boomTipWorld.clone(); a.x += off * Math.cos(azim); a.z -= off * Math.sin(azim)
-      const b = hookWorld.clone(); b.y += 0.0; b.x += off * Math.cos(azim); b.z -= off * Math.sin(azim)
+      const b = hookWorld.clone(); b.x += off * 0.6 * Math.cos(azim); b.z -= off * 0.6 * Math.sin(azim)
       const mid = a.clone().add(b).multiplyScalar(0.5)
       const d = a.clone().sub(b)
       falls[i].position.copy(mid)

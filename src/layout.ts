@@ -27,9 +27,9 @@ export const L = {
   liftPointZ: 1.49,
 
   // Start position: body on a low-bed trailer at the unloading apron
-  carStartZ: 7.6,
+  carStartZ: 8.4,
   trailerDeckY: 0.95,
-  blockH: 0.7,      // stacked timber cribbing: keeps the hanging skirts clear of the deck
+  blockH: 0.85,     // stacked timber cribbing: keeps the hanging skirts clear of the deck
 
   // Cranes
   craneBaseX: 11.8,
@@ -39,14 +39,16 @@ export const L = {
 
   // Rigging: hook block -> spreader beam above the roof -> two long web slings
   // running outside the body sides down to the sill brackets
-  spreaderLen: 2.9,       // across car width
-  spreaderDrop: 1.6,      // hook bottom to spreader center
+  spreaderLen: 3.6,       // across car width — ends clear the body sides so slings hang outside
+  spreaderDrop: 2.6,      // hook bottom to spreader center (keeps leg angle < 90°)
   slingLen: 3.5,          // spreader end down to lift bracket (clears the roof)
+  bracketY: 0.78,         // sling anchor height above the underframe bottom
 
   // Derived heights
-  get dockUndersideY() { return this.beamTopY + this.bolsterTopAboveBeam },  // 3.95: car underside when seated (springs at free height)
-  get startUndersideY() { return this.trailerDeckY + this.blockH },          // 1.27
   springTravel: 0.055,    // air spring compression as weight transfers
+  // car underside when fully seated = compressed spring top
+  get dockUndersideY() { return this.beamTopY + this.bolsterTopAboveBeam - this.springTravel },
+  get startUndersideY() { return this.trailerDeckY + this.blockH },
   clearHeight: 5.35,      // underside height required before traverse is allowed
 
   // Inspection hall (vehicle mover tows the finished car this way, -X)

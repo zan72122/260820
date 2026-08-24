@@ -192,12 +192,12 @@ export function buildMaterials(): MaterialKit {
     hazard: new THREE.MeshStandardMaterial({ map: hazardTexture(), roughness: 0.7, metalness: 0.0 }),
     galvanized: new THREE.MeshStandardMaterial({ color: 0x9aa0a4, roughness: 0.6, metalness: 0.6 }),
     glassDark: new THREE.MeshStandardMaterial({ color: 0x18232c, roughness: 0.12, metalness: 0.4 }),
-    vest: new THREE.MeshStandardMaterial({ color: 0xc8d61e, roughness: 0.85, metalness: 0.0 }),
+    vest: new THREE.MeshStandardMaterial({ color: 0xd3e416, roughness: 0.8, metalness: 0.0, emissive: 0x9ab00a, emissiveIntensity: 0.25 }),
     helmetWhite: new THREE.MeshStandardMaterial({ color: 0xe9eaec, roughness: 0.4, metalness: 0.05 }),
     workwear: new THREE.MeshStandardMaterial({ color: 0x3d4a56, roughness: 0.9, metalness: 0.0 }),
     skin: new THREE.MeshStandardMaterial({ color: 0xc9a183, roughness: 0.75, metalness: 0.0 }),
-    trailerRed: new THREE.MeshStandardMaterial({ color: 0x7a2f26, roughness: 0.6, metalness: 0.3 }),
-    woodBlock: new THREE.MeshStandardMaterial({ color: 0x8a6b48, roughness: 0.95, metalness: 0.0 })
+    trailerRed: new THREE.MeshStandardMaterial({ color: 0x592920, roughness: 0.65, metalness: 0.3 }),
+    woodBlock: new THREE.MeshStandardMaterial({ color: 0x6e5236, roughness: 0.95, metalness: 0.0 })
   }
 }
 

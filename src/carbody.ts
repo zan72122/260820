@@ -136,8 +136,8 @@ export function buildCarBody(mats: MaterialKit, stripe1: string, stripe2: string
   // --- docking interface under the body: spring seats + center-pin receivers ---
   for (const bx of L.bogieCenters) {
     for (const s of [-1, 1]) {
-      const seat = new THREE.Mesh(new THREE.CylinderGeometry(0.33, 0.33, 0.06, 20), mats.machinedSteel)
-      seat.position.set(bx, -0.03, s * 0.92)
+      const seat = new THREE.Mesh(new THREE.CylinderGeometry(0.37, 0.37, 0.06, 20), mats.machinedSteel)
+      seat.position.set(bx, -0.03, s * 1.0)
       add(seat)
     }
     // receiver funnel that catches the bogie center pin
@@ -155,19 +155,28 @@ export function buildCarBody(mats: MaterialKit, stripe1: string, stripe2: string
 
   // --- lifting brackets: steel plates in the sill holes below the outer doors ---
   const liftBrackets: THREE.Object3D[] = []
+  const bracketMat = new THREE.MeshStandardMaterial({ color: 0xc7541c, roughness: 0.55, metalness: 0.4 })
   for (const bx of L.liftPointX) {
     for (const s of [-1, 1]) {
+      // stout lifting adapter slotted into the sill hole below the door
       const br = new THREE.Group()
-      const plate = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.3, 0.08), mats.hookSteel)
+      const plate = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.42, 0.14), bracketMat)
       plate.castShadow = true
       br.add(plate)
-      const eye = new THREE.Mesh(new THREE.TorusGeometry(0.085, 0.028, 8, 16), mats.machinedSteel)
-      eye.position.y = 0.16
+      const gusset = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.16, 0.2), bracketMat)
+      gusset.position.set(0, -0.24, -0.02)
+      br.add(gusset)
+      const eye = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.036, 8, 16), mats.machinedSteel)
+      eye.position.y = 0.24
       br.add(eye)
-      br.position.set(bx, 0.32, s * (wid / 2 + 0.06))
+      const shackle = new THREE.Mesh(new THREE.TorusGeometry(0.09, 0.032, 8, 14, Math.PI), mats.machinedSteel)
+      shackle.position.y = 0.4
+      shackle.rotation.y = Math.PI / 2
+      br.add(shackle)
+      br.position.set(bx, 0.36, s * (wid / 2 + 0.12))
       g.add(br)
       const anchor = new THREE.Object3D()
-      anchor.position.set(bx, 0.48, s * (wid / 2 + 0.06))
+      anchor.position.set(bx, 0.78, s * (wid / 2 + 0.12))
       g.add(anchor)
       liftBrackets.push(anchor)
     }

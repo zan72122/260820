@@ -18,6 +18,7 @@ import { clamp, lerp, damp, smoothstep } from './util'
 // ---------------------------------------------------------------------------
 const params = new URLSearchParams(location.search)
 const E2E = params.has('e2e') || (import.meta.env && import.meta.env.MODE === 'e2e')
+const NOHINT = params.has('nohint')
 const SEED = Number(params.get('seed') || 1)
 
 const app = document.getElementById('app')!
@@ -63,7 +64,7 @@ const mats = buildMaterials()
 scene.add(buildWorld(mats))
 
 const sim = new Sim({
-  onContact: i => audio.contact(i),
+  onContact: i => { audio.contact(i); camRig.impulse(); puffDust() },
   onLiftoff: () => audio.liftoff(),
   onSeated: () => { /* handled by contact + sequence */ },
   onDetach: () => audio.detach(),
@@ -99,6 +100,60 @@ mover.group.position.set(sim.moverX, L.beamTopY, 0)
 mover.group.visible = false
 scene.add(mover.group)
 
+// ---- dust puffs at the contact points (one-shot, tiny) ----
+const dustTexC = document.createElement('canvas')
+dustTexC.width = dustTexC.height = 64
+{
+  const dctx = dustTexC.getContext('2d')!
+  const gr = dctx.createRadialGradient(32, 32, 2, 32, 32, 30)
+  gr.addColorStop(0, 'rgba(190,185,175,0.55)')
+  gr.addColorStop(1, 'rgba(190,185,175,0)')
+  dctx.fillStyle = gr
+  dctx.fillRect(0, 0, 64, 64)
+}
+const dustTex = new THREE.CanvasTexture(dustTexC)
+dustTex.colorSpace = THREE.SRGBColorSpace
+interface Puff { sp: THREE.Sprite, vel: THREE.Vector3, t: number }
+const puffs: Puff[] = []
+for (let i = 0; i < 10; i++) {
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: dustTex, transparent: true, depthWrite: false, opacity: 0 }))
+  sp.visible = false
+  scene.add(sp)
+  puffs.push({ sp, vel: new THREE.Vector3(), t: 10 })
+}
+function puffDust() {
+  let i = 0
+  for (const bx of L.bogieCenters) {
+    for (let k = 0; k < 5 && i < puffs.length; k++, i++) {
+      const p = puffs[i]
+      p.t = 0
+      p.sp.visible = true
+      p.sp.position.set(sim.carX + bx + (Math.random() - 0.5) * 1.6, L.beamTopY + 0.7, (Math.random() - 0.5) * 1.6)
+      p.vel.set((Math.random() - 0.5) * 0.8, 0.25 + Math.random() * 0.3, (Math.random() - 0.5) * 0.8)
+      p.sp.scale.set(0.4, 0.4, 1)
+    }
+  }
+}
+function updateDust(dt: number) {
+  for (const p of puffs) {
+    if (p.t > 1.4) { p.sp.visible = false; continue }
+    p.t += dt
+    p.sp.position.addScaledVector(p.vel, dt)
+    const s = 0.4 + p.t * 1.1
+    p.sp.scale.set(s, s, 1)
+    ;(p.sp.material as THREE.SpriteMaterial).opacity = Math.max(0, 0.5 * (1 - p.t / 1.4))
+  }
+}
+
+// ---- soft contact blobs so figures and cones sit into the ground ----
+const blobMat = new THREE.MeshBasicMaterial({ map: dustTex, transparent: true, depthWrite: false, color: 0x000000, opacity: 0.32 })
+function addBlob(parent: THREE.Object3D, r: number, x = 0, z = 0) {
+  const b = new THREE.Mesh(new THREE.PlaneGeometry(r * 2, r * 2), blobMat)
+  b.rotation.x = -Math.PI / 2
+  b.position.set(x, 0.015, z)
+  parent.add(b)
+}
+
 // ---- workers ----
 interface Actor {
   w: Worker
@@ -112,6 +167,7 @@ function actor(x: number, z: number, face: number): Actor {
   const w = buildWorker(mats)
   w.group.position.set(x, 0, z)
   w.group.rotation.y = face
+  addBlob(w.group, 0.34)
   scene.add(w.group)
   const p = new THREE.Vector3(x, 0, z)
   return { w, home: p.clone(), target: p.clone(), pos: p.clone(), face, walkPhase: 0 }
@@ -129,8 +185,13 @@ operator.w.leftArm.rotation.z = 0.25
 operator.w.rightArm.rotation.z = -0.25
 
 const signaller = actor(-3.6, 10.9, Math.PI - 0.3)
-const observer1 = actor(8.6, 12.3, Math.PI + 0.15)
-const observer2 = actor(9.7, 12.6, Math.PI)
+const observer1 = actor(8.6, 12.3, Math.PI + 0.35)
+const observer2 = actor(9.8, 12.7, Math.PI - 0.2)
+// varied idle poses so the crowd doesn't read as clones
+observer1.w.leftArm.rotation.x = -0.5
+observer1.w.rightArm.rotation.x = -0.5   // arms crossed-ish, checking clipboard height
+observer2.w.rightArm.rotation.x = -1.6
+observer2.w.rightArm.rotation.z = -0.4   // shading eyes, watching the load
 // two riggers: at reveal they step back from the slung body to the safety line
 const rigger1 = actor(-2.2, sim.carZ + 1.9, Math.PI)
 const rigger2 = actor(2.6, sim.carZ + 1.9, Math.PI)
@@ -232,9 +293,9 @@ function hideHint() {
 
 function updateHint() {
   const interactive = sim.phase === Phase.LIFT || sim.phase === Phase.TRANSPORT || sim.phase === Phase.DESCEND
-  if (E2E || !interactive || pointerId !== null) { hideHint(); return }
+  if (NOHINT || !interactive || pointerId !== null) { hideHint(); return }
   const idle = clock.elapsed - lastInputTime
-  const threshold = anyInputYet ? 7 : 3.2
+  const threshold = anyInputYet ? 7 : 1.8
   if (idle < threshold) { hideHint(); return }
   if (sim.phase === Phase.LIFT) showHint('up', false)
   else if (sim.phase === Phase.TRANSPORT) {
@@ -295,7 +356,7 @@ function syncScene(dt: number) {
   // bogies follow during tow; springs compress with load transfer
   for (const [i, b] of bogies.entries()) {
     b.group.position.x = L.bogieCenters[i] + sim.carX
-    b.setCompression(sim.springComp)
+    b.setCompression(Math.min(1.15, sim.springComp + sim.settleOsc))
     b.setWheelRoll(sim.towDist)
   }
   mover.group.position.x = sim.moverX
@@ -328,10 +389,12 @@ function syncScene(dt: number) {
   remote.stickV.rotation.x = damp(remote.stickV.rotation.x, -dragV * 0.5, 10, dt)
   remote.stickH.rotation.z = damp(remote.stickH.rotation.z, -dragH * 0.5, 10, dt)
 
-  // signaller raises an arm while the load moves
+  // signaller raises an arm while the load moves, and keeps facing it
   const moving = Math.abs(sim.winchVel) > 0.03 || Math.abs(sim.carrierVel) > 0.03
   const armTarget = moving ? -2.6 : (sim.airborne ? -1.2 : 0)
   signaller.w.rightArm.rotation.x = damp(signaller.w.rightArm.rotation.x, armTarget, 3, dt)
+  const faceCar = Math.atan2(sim.carX - signaller.pos.x, sim.carZ - signaller.pos.z)
+  signaller.w.group.rotation.y = damp(signaller.w.group.rotation.y, faceCar, 2, dt)
 
   // riggers: reveal retreat, then approach to unhook after seating
   introTimer += dt
@@ -370,6 +433,7 @@ function step(dt: number) {
   const h = dt / sub
   for (let i = 0; i < sub; i++) sim.update(h)
   syncScene(dt)
+  updateDust(dt)
   camRig.update(sim, dt, window.innerWidth / window.innerHeight)
   updateHint()
 }

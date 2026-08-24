@@ -17,11 +17,15 @@ export class CameraRig {
   private curLook = new THREE.Vector3()
   private curFov = 55
   private lam = 1.6
+  private shakeT = 1e9
+
+  // small decaying jolt when the mass meets its supports
+  impulse() { this.shakeT = 0 }
 
   constructor(aspect: number) {
     this.camera = new THREE.PerspectiveCamera(55, aspect, 0.3, 400)
-    this.curPos.set(-18, 11, 23)
-    this.curLook.set(3, 3, 1)
+    this.curPos.set(-13, 13, 21)
+    this.curLook.set(2, 2.4, 1)
   }
 
   private computeShot(sim: Sim, portrait: boolean): Shot {
@@ -35,9 +39,9 @@ export class CameraRig {
       || sim.phase === Phase.SEATED || sim.phase === Phase.UNHOOK
 
     if (sim.phase === Phase.LIGHTS) {
-      // front 3/4 of the waking cab
-      if (portrait) { s.pos.set(carX - 13, 3.2, 7.5); s.look.set(carX - 5, 4.6, 0); s.fov = 60 }
-      else { s.pos.set(carX - 14.5, 3.4, 8.5); s.look.set(carX - 4.5, 4.6, 0); s.fov = 50 }
+      // front 3/4 of the waking cab (inside the crane carrier's sightline)
+      if (portrait) { s.pos.set(carX - 10.5, 3.0, 6.2); s.look.set(carX - 4.5, 4.9, 0); s.fov = 58 }
+      else { s.pos.set(carX - 11.5, 3.2, 6.8); s.look.set(carX - 4, 4.8, 0); s.fov = 50 }
       this.lam = 1.0
       return s
     }
@@ -97,13 +101,13 @@ export class CameraRig {
     // trailer beside them, cranes framing above. "The train and its wheels
     // are separate" reads in one glance.
     if (portrait) {
-      s.pos.set(-12, 10.5, 20)
-      s.look.set(2.5, 3.6, 0.6)
-      s.fov = 62
+      s.pos.set(-11, 13.5, 21.5)
+      s.look.set(1.6, 2.4, 0.8)
+      s.fov = 60
     } else {
-      s.pos.set(-13, 9.5, 18)
-      s.look.set(2.5, 2.6, 1.2)
-      s.fov = 55
+      s.pos.set(-12, 12.0, 19)
+      s.look.set(1.5, 2.0, 1.5)
+      s.fov = 54
     }
     this.lam = 1.0
     return s
@@ -124,6 +128,12 @@ export class CameraRig {
     this.camera.aspect = aspect
     this.camera.fov = clamp(this.curFov, 30, 80)
     this.camera.position.copy(this.curPos)
+    this.shakeT += dt
+    if (this.shakeT < 0.5) {
+      const a = Math.exp(-7 * this.shakeT) * 0.035
+      this.camera.position.y += Math.sin(this.shakeT * 62) * a
+      this.camera.position.x += Math.sin(this.shakeT * 47 + 1.3) * a * 0.6
+    }
     this.camera.lookAt(this.curLook)
     this.camera.updateProjectionMatrix()
   }

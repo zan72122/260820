@@ -40,11 +40,11 @@ export function buildBeam(mats: MaterialKit, group: THREE.Group, zPos: number, t
   // low concrete plinths carrying the beam (load path: beam -> plinth -> floor)
   const plinthH = topY - bh
   for (let x = -bl / 2 + 3; x <= bl / 2 - 2; x += 6) {
-    const p = box(0.9, plinthH, 1.5, mats.concreteBeam, x, plinthH / 2, zPos)
+    const p = box(0.7, plinthH, 1.05, mats.concreteBeam, x, plinthH / 2, zPos)
     p.castShadow = p.receiveShadow = true
     group.add(p)
     // steel bearing plate between plinth and beam
-    const plate = box(0.7, 0.08, 1.0, mats.machinedSteel, x, plinthH + 0.04, zPos)
+    const plate = box(0.6, 0.08, 0.7, mats.machinedSteel, x, plinthH + 0.04, zPos)
     group.add(plate)
   }
 
@@ -134,13 +134,77 @@ function buildSafetyFurniture(mats: MaterialKit, group: THREE.Group, rng: () => 
   const conePositions: [number, number][] = [
     [-9.5, 10.2], [-6, 10.6], [9.5, 10.2], [6, 10.6], [-11.5, 8.5], [11.5, 8.5]
   ]
+  // soft contact shadow blob shared by small props
+  const bc = document.createElement('canvas')
+  bc.width = bc.height = 64
+  const bctx = bc.getContext('2d')!
+  const bg = bctx.createRadialGradient(32, 32, 2, 32, 32, 30)
+  bg.addColorStop(0, 'rgba(0,0,0,0.4)')
+  bg.addColorStop(1, 'rgba(0,0,0,0)')
+  bctx.fillStyle = bg
+  bctx.fillRect(0, 0, 64, 64)
+  const blobTex = new THREE.CanvasTexture(bc)
+  const blobMat = new THREE.MeshBasicMaterial({ map: blobTex, transparent: true, depthWrite: false })
   for (const [x, z] of conePositions) {
     const cone = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.62, 12), coneMat)
     cone.position.set(x + rng() * 0.3, 0.33, z + rng() * 0.3)
     cone.castShadow = true
     const base = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.04, 0.36), coneBaseMat)
     base.position.set(cone.position.x, 0.02, cone.position.z)
-    group.add(cone, base)
+    const blob = new THREE.Mesh(new THREE.PlaneGeometry(0.7, 0.7), blobMat)
+    blob.rotation.x = -Math.PI / 2
+    blob.position.set(cone.position.x, 0.012, cone.position.z)
+    group.add(cone, base, blob)
+  }
+}
+
+// Elevated mainline guideway in the distance: the depot connects to the network,
+// and the tall PC beams on round columns are the monorail's visual identity.
+function buildElevatedGuideway(mats: MaterialKit, g: THREE.Group) {
+  const topY = 11
+  const beam = new THREE.Mesh(new THREE.BoxGeometry(150, 1.6, 0.9), mats.concreteBeam)
+  beam.position.set(-10, topY - 0.8, -34)
+  beam.castShadow = true
+  g.add(beam)
+  const beam2 = new THREE.Mesh(new THREE.BoxGeometry(150, 1.6, 0.9), mats.concreteBeam)
+  beam2.position.set(-10, topY - 0.8, -37)
+  g.add(beam2)
+  for (let x = -80; x <= 60; x += 22) {
+    const col = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.15, topY - 1.6, 12), mats.concreteBeam)
+    col.position.set(x - 10, (topY - 1.6) / 2, -35.5)
+    col.castShadow = true
+    g.add(col)
+    const head = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.9, 4.6), mats.concreteBeam)
+    head.position.set(x - 10, topY - 1.7, -35.5)
+    g.add(head)
+  }
+}
+
+// A few cirrus billboards so the big sky isn't a bare gradient.
+function buildClouds(g: THREE.Group) {
+  const c = document.createElement('canvas')
+  c.width = 256; c.height = 64
+  const ctx = c.getContext('2d')!
+  const rng = mulberry32(41)
+  for (let i = 0; i < 60; i++) {
+    const x = rng() * 256, y = 10 + rng() * 40, r = 10 + rng() * 26
+    const gr = ctx.createRadialGradient(x, y, 1, x, y, r)
+    gr.addColorStop(0, 'rgba(255,255,255,0.10)')
+    gr.addColorStop(1, 'rgba(255,255,255,0)')
+    ctx.fillStyle = gr
+    ctx.fillRect(x - r, y - r, r * 2, r * 2)
+  }
+  const tex = new THREE.CanvasTexture(c)
+  tex.colorSpace = THREE.SRGBColorSpace
+  const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false, fog: false })
+  const placements: [number, number, number, number][] = [
+    [-60, 55, -120, 90], [30, 62, -130, 110], [90, 48, -100, 70], [-20, 70, -150, 130]
+  ]
+  for (const [x, y, z, s] of placements) {
+    const sp = new THREE.Sprite(mat)
+    sp.position.set(x, y, z)
+    sp.scale.set(s, s * 0.22, 1)
+    g.add(sp)
   }
 }
 
@@ -160,6 +224,8 @@ export function buildWorld(mats: MaterialKit): THREE.Group {
 
   buildBuilding(mats, g)
   buildSafetyFurniture(mats, g, rng)
+  buildElevatedGuideway(mats, g)
+  buildClouds(g)
 
   return g
 }

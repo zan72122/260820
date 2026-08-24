@@ -60,11 +60,11 @@ export function buildRig(mats: MaterialKit): Rig {
   function updateSling(mesh: THREE.Mesh, top: THREE.Vector3, bottom: THREE.Vector3, tension: number) {
     const dist = top.distanceTo(bottom)
     const slack = Math.max(0, L.slingLen - dist)
-    // slack belts bow outward (away from car center) and down
+    // slack belts droop under gravity: mostly straight down, barely outward
     const outDir = Math.sign(bottom.z - top.z) || 1
     const mid = top.clone().add(bottom).multiplyScalar(0.5)
-    mid.z += outDir * slack * 1.1 + (1 - tension) * 0.02
-    mid.y -= slack * 0.45
+    mid.z += outDir * (slack * 0.16 + (1 - tension) * 0.02)
+    mid.y -= slack * 0.62
     const curve = new THREE.QuadraticBezierCurve3(top, mid, bottom)
     const geo = new THREE.TubeGeometry(curve, 10, 0.042, 6)
     // flatten tube into a belt profile

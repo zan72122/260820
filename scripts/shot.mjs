@@ -12,7 +12,7 @@ async function capture(name, w, h, script) {
   const page = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 1 })
   page.on('console', m => { if (m.type() === 'error') console.log('PAGE ERROR:', m.text()) })
   page.on('pageerror', e => console.log('PAGE EXCEPTION:', e.message))
-  await page.goto('http://127.0.0.1:5173/?e2e=1&seed=1', { waitUntil: 'networkidle' })
+  await page.goto('http://127.0.0.1:5173/?e2e=1&nohint=1&seed=1', { waitUntil: 'networkidle' })
   await page.waitForFunction(() => window.__game !== undefined, { timeout: 15000 })
   await page.evaluate(script)
   await page.waitForTimeout(250)
