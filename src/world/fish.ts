@@ -166,7 +166,7 @@ export function makeWakasagiBodyMaterial(envMap: THREE.Texture | null): THREE.Me
     metalness: 0.0,
     clearcoat: 0.85,
     clearcoatRoughness: 0.18,
-    envMapIntensity: 1.15
+    envMapIntensity: 0.5
   });
   if (envMap) mat.envMap = envMap;
   return mat;
@@ -185,7 +185,7 @@ export class FishSchool {
     const rng = makeRng(77);
     const geo = makeWakasagiBodyGeometry(10, 6);
     // 群れは遠くの暗がりに沈む（明るすぎる白片に見せない）
-    const mat = new THREE.MeshLambertMaterial({ vertexColors: true, color: 0x93a8ae });
+    const mat = new THREE.MeshLambertMaterial({ vertexColors: true, color: 0x70858c });
     this.mesh = new THREE.InstancedMesh(geo, mat, count);
     this.mesh.frustumCulled = false;
     for (let i = 0; i < count; i++) {

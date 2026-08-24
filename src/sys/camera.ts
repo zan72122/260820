@@ -74,12 +74,13 @@ export class CameraRail {
           : pose(1.85, -0.3, 0.28, 0, -0.34, 0.1, 58, 0.25);
       case 'CUTAWAY_HALF':
         return portrait
-          ? pose(1.15, -0.12, 0.32, 0, -0.2, 0.1, 54, 0.3)
-          : pose(1.4, -0.1, 0.3, 0, -0.18, 0.1, 48, 0.3);
+          ? pose(1.3, 0.06, 0.35, 0, -0.03, 0.1, 54, 0.3)
+          : pose(1.5, 0.05, 0.32, 0, -0.02, 0.1, 48, 0.3);
       case 'TIP_MACRO':
+        // 穂先の先だけを、暗い釣り口を背景にして見せる（ピクッが最も読める）
         return portrait
-          ? pose(0.26, 0.52, 0.42, 0, 0.345, 0.02, 46, 1)
-          : pose(0.3, 0.5, 0.38, 0, 0.35, 0.02, 42, 1);
+          ? pose(0.3, 0.6, 0.16, -0.02, 0.28, 0.03, 40, 1)
+          : pose(0.32, 0.58, 0.14, -0.02, 0.3, 0.03, 38, 1);
       case 'LINE_LOW':
         // リールから釣り口までの糸を追う低いカメラ
         return portrait
@@ -91,9 +92,10 @@ export class CameraRail {
           ? pose(0.2, 0.42, 0.44, 0, -0.2, -0.01, 52, 0.6)
           : pose(0.26, 0.38, 0.4, 0, -0.18, -0.01, 46, 0.6);
       case 'BUCKET':
+        // 再プレイボタン（画面下中央）とバケツが重ならない構図
         return portrait
-          ? pose(-0.12, 0.6, 0.88, -0.52, 0.13, 0.3, 52, 1)
-          : pose(-0.06, 0.55, 0.85, -0.52, 0.13, 0.3, 46, 1);
+          ? pose(-0.12, 0.6, 0.88, -0.52, 0.05, 0.3, 52, 1)
+          : pose(-0.06, 0.55, 0.85, -0.56, 0.0, 0.28, 46, 1);
     }
   }
 
@@ -102,6 +104,8 @@ export class CameraRail {
     return this.t >= 1;
   }
 
+  private arc = 0;
+
   goTo(name: ShotName, duration = 1.6) {
     if (name === this.current && this.t >= 1) return;
     this.from = this.capture();
@@ -109,6 +113,8 @@ export class CameraRail {
     this.current = name;
     this.duration = Math.max(0.05, duration);
     this.t = 0;
+    // 床下（水面側）から床上へ戻るときは、床を突き抜けないよう弧を描いて上がる
+    this.arc = this.from.pos.y < -0.05 && this.to.pos.y > 0.1 ? 0.5 : 0;
   }
 
   private capture(): Pose {
@@ -143,6 +149,7 @@ export class CameraRail {
     if (this.t < 1) this.t = clamp(this.t + dt / this.duration, 0, 1);
     const e = easeInOutSine(this.t);
     const pos = new THREE.Vector3().lerpVectors(this.from.pos, this.to.pos, e);
+    pos.y += Math.sin(e * Math.PI) * this.arc;
     const target = new THREE.Vector3().lerpVectors(this.from.target, this.to.target, e);
     const fov = this.from.fov + (this.to.fov - this.from.fov) * e;
     const swayF = this.from.swayFactor + (this.to.swayFactor - this.from.swayFactor) * e;

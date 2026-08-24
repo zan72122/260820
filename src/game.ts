@@ -10,12 +10,7 @@ import { HoleWater, Underwater, WATER_Y } from './world/underwater';
 import { Rod } from './world/rod';
 import { Reel } from './world/reel';
 import { FishingLine } from './world/line';
-import {
-  FishSchool,
-  Wakasagi,
-  makeWakasagiBodyGeometry,
-  makeWakasagiBodyMaterial
-} from './world/fish';
+import { FishSchool, Wakasagi, makeWakasagiBodyMaterial } from './world/fish';
 import { clamp, damp, lerp } from './util/math';
 
 type GameState =
@@ -85,6 +80,8 @@ export class Game {
   /** カットアウェイの切断面（x < c を残す） */
   private clipPlane = new THREE.Plane(new THREE.Vector3(-1, 0, 0), 100);
   private clipTarget = 100;
+  /** カメラが床上に戻ってから閉じるための保留フラグ */
+  private closeCutawayPending = false;
 
   // 誘い・アタリの進行
   private jigStrokes = 0;
@@ -106,9 +103,8 @@ export class Game {
   private silverFlashDone = false;
   private catchArcFrom = new THREE.Vector3();
 
-  private bucketFish: { mesh: THREE.Mesh; phase: number; r: number; speed: number }[] = [];
-  private bucketFishGeo = makeWakasagiBodyGeometry(10, 6);
-  private bucketFishMat = new THREE.MeshLambertMaterial({ vertexColors: true });
+  private bucketFish: { fish: Wakasagi; phase: number; r: number; speed: number }[] = [];
+  private fishMat!: THREE.MeshPhysicalMaterial;
 
   private elapsed = 0;
   private e2e: boolean;
@@ -156,9 +152,10 @@ export class Game {
     this.scene.fog = new THREE.Fog(0x93a4b0, 26, 110);
 
     // ---- ライティング ----
-    const hemi = new THREE.HemisphereLight(0xa8b8c4, 0x4a3b2c, 0.85);
+    // 窓からの冷たい光と、屋内の暖色（ストーブ・ランプ）の2温度で組む
+    const hemi = new THREE.HemisphereLight(0xa9bccb, 0x4a3b2c, 0.7);
     this.scene.add(hemi);
-    const sun = new THREE.DirectionalLight(0xdfe8ee, 2.0);
+    const sun = new THREE.DirectionalLight(0xd9e6f2, 2.3);
     sun.position.set(2.6, 3.2, -2.2);
     sun.castShadow = true;
     sun.shadow.mapSize.set(1024, 1024);
@@ -194,6 +191,7 @@ export class Game {
     this.scene.add(this.cutLight);
 
     const fishMat = makeWakasagiBodyMaterial(envTex);
+    this.fishMat = fishMat;
     this.actorFish = new Wakasagi(fishMat);
     this.companionFish = new Wakasagi(fishMat);
     this.actorFish.group.visible = false;
@@ -223,7 +221,7 @@ export class Game {
           this.setState('JIG');
           this.jigStrokes = 0;
           if (this.rail.current !== 'PLAY') this.rail.goTo('PLAY', 1.6);
-          this.clipTarget = 100;
+          this.closeCutawayPending = true;
           this.fishRetreatSoft();
         }
         if (this.state === 'REELING' || this.state === 'REVEAL') this.setReeling(true);
@@ -300,6 +298,10 @@ export class Game {
         if (this.state === 'STILL') this.biteTimer = this.biteDelay;
       },
       settled: () => this.rail.settled,
+      cam: () => {
+        const p = this.rail.camera.position;
+        return { x: +p.x.toFixed(3), y: +p.y.toFixed(3), z: +p.z.toFixed(3), fov: this.rail.camera.fov };
+      },
       start: () => {
         if (this.state === 'TITLE') this.enterBoat();
       }
@@ -328,9 +330,11 @@ export class Game {
     if (this.cfg.cutaway === 'full') {
       this.rail.goTo('CUTAWAY', 2.2);
       this.clipTarget = 0.45;
+      this.closeCutawayPending = false;
     } else if (this.cfg.cutaway === 'half') {
       this.rail.goTo('CUTAWAY_HALF', 2.0);
       this.clipTarget = 0.45;
+      this.closeCutawayPending = false;
     } else {
       // 穂先のマクロへゆっくり寄る
       this.rail.goTo('TIP_MACRO', 2.4);
@@ -376,7 +380,6 @@ export class Game {
   private hookset() {
     this.setState('HOOKSET');
     this.audio.hookset();
-    this.clipTarget = 100;
     this.rod.lift = 0.3;
     this.line.tension = 0.95;
     this.fishMode = 'HOOKED';
@@ -408,7 +411,7 @@ export class Game {
 
   private fishRetreat() {
     this.fishRetreatSoft();
-    this.clipTarget = 100;
+    this.closeCutawayPending = true;
     if (this.rail.current !== 'PLAY') this.rail.goTo('PLAY', 1.8);
   }
 
@@ -423,7 +426,8 @@ export class Game {
     this.setState('REVEAL');
     this.audio.splash(1);
     this.holeWater.triggerRipple();
-    this.rail.goTo('REVEAL', 1.5);
+    this.line.splashBurst(this.line.waterEntryWorld);
+    this.rail.goTo('REVEAL', 1.3);
     this.fishMode = 'LANDED';
   }
 
@@ -438,13 +442,16 @@ export class Game {
   }
 
   private addBucketFish() {
-    const mesh = new THREE.Mesh(this.bucketFishGeo, this.bucketFishMat);
-    mesh.scale.set(1.25, 1.8, 1.35);
-    this.boat.bucket.add(mesh);
+    // バケツの中でも目とヒレのある個体を泳がせる（上限あり）
+    if (this.bucketFish.length >= 8) return;
+    const fish = new Wakasagi(this.fishMat);
+    fish.group.scale.set(1.12, 1.4, 1.12);
+    fish.swimSpeed = 7;
+    this.boat.bucket.add(fish.group);
     this.bucketFish.push({
-      mesh,
+      fish,
       phase: Math.random() * Math.PI * 2,
-      r: 0.04 + Math.random() * 0.035,
+      r: 0.04 + Math.random() * 0.03,
       speed: 1.2 + Math.random() * 1.2
     });
   }
@@ -480,7 +487,11 @@ export class Game {
     this.boat.root.rotation.x = this.sway.rollX;
     this.boat.root.rotation.z = this.sway.rollZ;
 
-    // カットアウェイ切断面のなめらかな開閉
+    // カットアウェイ切断面のなめらかな開閉（閉じるのはカメラが床上へ戻ってから）
+    if (this.closeCutawayPending && this.clipTarget < 50 && this.rail.camera.position.y > 0.05) {
+      this.clipTarget = 100;
+    }
+    if (this.clipTarget >= 50) this.closeCutawayPending = false;
     this.clipPlane.constant = damp(this.clipPlane.constant, this.clipTarget, 6, dt);
     this.cutLight.intensity = damp(this.cutLight.intensity, this.clipTarget < 50 ? 2.4 : 0, 3, dt);
 
@@ -489,7 +500,8 @@ export class Game {
 
     // ---- 穂先 ----
     this.jigDrive = damp(this.jigDrive, this.jigDriveTarget, 18, dt);
-    const restBend = 0.06 + (this.state === 'REELING' || this.state === 'HOOKSET' ? 0.16 : 0);
+    // 仕掛けとオモリの自重で穂先は常に少し曲がっている
+    const restBend = 0.1 + (this.state === 'REELING' || this.state === 'HOOKSET' ? 0.14 : 0);
     this.rod.target = restBend - this.jigDrive * 0.32;
     if (this.state === 'JIG') this.rod.lift = this.jigDrive * 0.055;
     else if (this.state !== 'HOOKSET') this.rod.lift = damp(this.rod.lift, 0, 5, dt);
@@ -520,8 +532,9 @@ export class Game {
     // ---- カメラ ----
     this.rail.update(dt, this.sway);
 
-    this.renderer.render(this.scene, this.rail.camera);
+    // 解像度変更はrender前に行う（後だとキャンバスが空のフレームができる）
     this.updateQuality(dt);
+    this.renderer.render(this.scene, this.rail.camera);
   }
 
   private updateStateLogic(dt: number) {
@@ -573,6 +586,7 @@ export class Game {
         break;
       }
       case 'REELING': {
+        this.closeCutawayPending = true;
         if (this.reel.pressed) {
           this.reelHintTimer = 0;
           const speed = 0.34;
@@ -709,13 +723,14 @@ export class Game {
     // バケツの魚
     for (const f of this.bucketFish) {
       f.phase += dt * f.speed;
-      f.mesh.position.set(
+      f.fish.group.position.set(
         Math.cos(f.phase) * f.r,
         this.boat.bucketWaterY - 0.028 + Math.sin(f.phase * 0.7) * 0.012,
         Math.sin(f.phase) * f.r
       );
       // 少し体を傾けて銀色の体側が上から見えるように
-      f.mesh.rotation.set(0, -f.phase + Math.PI / 2, 0.9 + Math.sin(f.phase * 1.3) * 0.15);
+      f.fish.group.rotation.set(0, -f.phase + Math.PI / 2, 0.55 + Math.sin(f.phase * 1.3) * 0.12);
+      f.fish.updateSwim(dt, t);
     }
   }
 

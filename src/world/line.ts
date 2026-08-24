@@ -26,9 +26,9 @@ export class FishingLine {
   baitWorld = new THREE.Vector3();
   waterEntryWorld = new THREE.Vector3();
 
-  /** 巻き上げ中の水滴 */
+  /** 巻き上げ中の水滴・水面を割るときの飛沫 */
   private drops: THREE.Points;
-  private dropData: { p: THREE.Vector3; v: number; life: number }[] = [];
+  private dropData: { p: THREE.Vector3; v: number; vx: number; vz: number; life: number }[] = [];
   dropsActive = false;
 
   private static readonly UNDER_SEG = 8;
@@ -36,11 +36,11 @@ export class FishingLine {
 
   constructor() {
     this.mat = new LineMaterial({
-      color: 0xdfe4da,
-      linewidth: 2.2, // px
+      color: 0xc9cec2,
+      linewidth: 2.0, // px
       worldUnits: false,
       transparent: true,
-      opacity: 0.85,
+      opacity: 0.8,
       depthWrite: false
     });
     this.geo = new LineGeometry();
@@ -104,6 +104,21 @@ export class FishingLine {
 
   setResolution(w: number, h: number) {
     this.mat.resolution.set(w, h);
+  }
+
+  /** 魚が水面を割る瞬間の小さな飛沫 */
+  splashBurst(center: THREE.Vector3) {
+    for (let i = 0; i < 16 && this.dropData.length < 38; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = Math.random() * 0.03;
+      this.dropData.push({
+        p: new THREE.Vector3(center.x + Math.cos(a) * r, center.y + 0.01, center.z + Math.sin(a) * r),
+        v: -(0.5 + Math.random() * 0.9), // 上向きに飛ぶ
+        vx: Math.cos(a) * (0.1 + Math.random() * 0.25),
+        vz: Math.sin(a) * (0.1 + Math.random() * 0.25),
+        life: 0.7
+      });
+    }
   }
 
   /**
@@ -180,7 +195,7 @@ export class FishingLine {
       const p = new THREE.Vector3().lerpVectors(entry, tip, t * 0.5);
       p.x += (Math.random() - 0.5) * 0.004;
       p.z += (Math.random() - 0.5) * 0.004;
-      this.dropData.push({ p, v: 0, life: 0.9 });
+      this.dropData.push({ p, v: 0, vx: 0, vz: 0, life: 0.9 });
     }
     const attr = this.drops.geometry.getAttribute('position') as THREE.BufferAttribute;
     let n = 0;
@@ -188,6 +203,8 @@ export class FishingLine {
       const d = this.dropData[i];
       d.v += 9.8 * dt;
       d.p.y -= d.v * dt;
+      d.p.x += d.vx * dt;
+      d.p.z += d.vz * dt;
       d.life -= dt;
       if (d.life <= 0 || d.p.y < waterY) {
         this.dropData.splice(i, 1);

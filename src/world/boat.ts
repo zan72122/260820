@@ -142,7 +142,7 @@ export class DomeBoat {
     // 釣り口の筒（床から水面下まで）
     // 濡れて黒ずんだ筒
     const collarMat = clip(
-      new THREE.MeshStandardMaterial({ color: 0x14100b, roughness: 0.35, side: THREE.DoubleSide })
+      new THREE.MeshStandardMaterial({ color: 0x14100b, roughness: 0.68, side: THREE.DoubleSide })
     );
     const collar = new THREE.Mesh(
       new THREE.CylinderGeometry(HOLE_RADIUS + 0.006, HOLE_RADIUS + 0.006, 0.02 - (WATER_Y - 0.04), 28, 1, true),
@@ -152,11 +152,11 @@ export class DomeBoat {
     this.root.add(collar);
     // 釣り口の縁（すり減った枠）
     const rim = new THREE.Mesh(
-      new THREE.TorusGeometry(HOLE_RADIUS + 0.012, 0.011, 10, 30),
-      clip(new THREE.MeshStandardMaterial({ color: 0x4c3a26, roughness: 0.75 }))
+      new THREE.TorusGeometry(HOLE_RADIUS + 0.014, 0.005, 8, 30),
+      clip(new THREE.MeshStandardMaterial({ color: 0x3c2e1e, roughness: 0.7 }))
     );
     rim.rotation.x = Math.PI / 2;
-    rim.position.y = 0.012;
+    rim.position.y = 0.006;
     rim.castShadow = true;
     this.root.add(rim);
 
@@ -235,8 +235,10 @@ export class DomeBoat {
     // 骨組みのリブ（アーチ）
     const ribMat = clip(new THREE.MeshStandardMaterial({ color: 0x7c828a, roughness: 0.5, metalness: 0.6 }));
     for (const z of [-2.4, -1.2, 0, 1.2, 2.4]) {
+      // ドーム断面の楕円に合わせてリブを縮める（天幕から浮かせない）
+      const s = Math.sqrt(Math.max(0.05, 1 - (z / 3.32) ** 2));
       const rib = new THREE.Mesh(new THREE.TorusGeometry(1, 0.016, 8, 30, Math.PI), ribMat);
-      rib.scale.set(2.35, 2.16, 1);
+      rib.scale.set(2.38 * s, 2.18 * s, 1);
       rib.position.set(0, 0.02, z);
       this.root.add(rib);
     }
@@ -287,10 +289,11 @@ export class DomeBoat {
     // ---- ベンチ（左右の壁沿い） ----
     const benchMat = clip(new THREE.MeshStandardMaterial({ map: woodFloorTexture(), roughness: 0.85 }));
     for (const sx of [-1.85, 1.85]) {
-      const bench = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.06, 4.6), benchMat);
+      // ドーム断面に収まる長さ（天幕を突き抜けない）
+      const bench = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.06, 3.5), benchMat);
       bench.position.set(sx, 0.38, 0);
       this.root.add(bench);
-      for (const z of [-2.0, 0, 2.0]) {
+      for (const z of [-1.5, 0, 1.5]) {
         const leg = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.36, 0.05), legMat);
         leg.position.set(sx, 0.18, z);
         this.root.add(leg);
@@ -334,7 +337,7 @@ export class DomeBoat {
     heater.add(kettle);
     heater.position.set(-1.1, 0, 1.35);
     this.root.add(heater);
-    this.heaterLight = new THREE.PointLight(0xff9950, 6.5, 2.6, 2);
+    this.heaterLight = new THREE.PointLight(0xff9950, 9.5, 3.0, 2);
     this.heaterLight.position.set(-1.1, 0.42, 1.35);
     this.root.add(this.heaterLight);
 
@@ -360,7 +363,7 @@ export class DomeBoat {
     this.lamp.add(bulb);
     this.lamp.position.set(0.3, 2.05, 0.3);
     this.root.add(this.lamp);
-    this.lampLight = new THREE.PointLight(0xffe0b0, 10, 3.6, 2);
+    this.lampLight = new THREE.PointLight(0xffd9a0, 13, 3.8, 2);
     this.lampLight.position.set(0.3, 1.5, 0.3);
     this.root.add(this.lampLight);
 
@@ -400,7 +403,7 @@ export class DomeBoat {
     bucketWater.position.y = this.bucketWaterY;
     this.bucket.add(bucketWater);
     const rimB = new THREE.Mesh(
-      new THREE.TorusGeometry(0.115, 0.007, 8, 20),
+      new THREE.TorusGeometry(0.115, 0.0045, 8, 20),
       new THREE.MeshStandardMaterial({ color: 0x8fa0a8, roughness: 0.35 })
     );
     rimB.rotation.x = Math.PI / 2;
@@ -429,7 +432,7 @@ export class DomeBoat {
 
   private buildAttendant() {
     const g = new THREE.Group();
-    const parka = new THREE.MeshStandardMaterial({ map: clothTexture('#3c4438'), roughness: 0.95 });
+    const parka = new THREE.MeshStandardMaterial({ map: clothTexture('#31382e'), roughness: 0.95 });
     const pants = new THREE.MeshStandardMaterial({ map: clothTexture('#2e3438'), roughness: 0.95 });
     const skin = new THREE.MeshStandardMaterial({ color: 0xc99f83, roughness: 0.7 });
 
@@ -510,6 +513,6 @@ export class DomeBoat {
       this.attendantHead.rotation.y = damp(this.attendantHead.rotation.y, lookTarget, 2.5, dt);
     }
     // ストーブの火のごく小さなちらつき
-    this.heaterLight.intensity = 6.5 + Math.sin(time * 9.1) * 0.35 + Math.sin(time * 23.7) * 0.2;
+    this.heaterLight.intensity = 9.5 + Math.sin(time * 9.1) * 0.45 + Math.sin(time * 23.7) * 0.25;
   }
 }

@@ -170,16 +170,14 @@ export function tentTexture(): THREE.CanvasTexture {
       ctx.fillStyle = rng() > 0.5 ? `rgba(255,255,255,${a})` : `rgba(90,100,96,${a})`;
       ctx.fillRect(rng() * S, rng() * S, 2 + rng() * 6, 1 + rng() * 3);
     }
-    // 縫い目（縦帯）
+    // 縫い目（縦帯、ごく控えめに）
     for (let x = 0; x < S; x += S / 4) {
-      ctx.strokeStyle = 'rgba(96,104,100,0.55)';
-      ctx.lineWidth = 2;
-      ctx.setLineDash([5, 4]);
+      ctx.strokeStyle = 'rgba(104,112,108,0.18)';
+      ctx.lineWidth = 1.4;
       ctx.beginPath();
       ctx.moveTo(x + 2, 0);
       ctx.lineTo(x + 2, S);
       ctx.stroke();
-      ctx.setLineDash([]);
     }
     // 下端の使用汚れ（非対称）
     const g = ctx.createLinearGradient(0, S * 0.7, 0, S);
@@ -198,19 +196,19 @@ export function lakeTexture(): THREE.CanvasTexture {
     (ctx, S) => {
       ctx.fillStyle = '#39515e';
       ctx.fillRect(0, 0, S, S);
-      for (let i = 0; i < 900; i++) {
-        const a = 0.03 + rng() * 0.08;
-        ctx.strokeStyle = rng() > 0.4 ? `rgba(210,225,230,${a})` : `rgba(20,32,40,${a})`;
-        ctx.lineWidth = 0.6 + rng() * 1.6;
+      for (let i = 0; i < 700; i++) {
+        const a = 0.02 + rng() * 0.05;
+        ctx.strokeStyle = rng() > 0.4 ? `rgba(205,220,226,${a})` : `rgba(20,32,40,${a})`;
+        ctx.lineWidth = 0.6 + rng() * 1.4;
         const y = rng() * S;
         const x = rng() * S;
         ctx.beginPath();
         ctx.moveTo(x, y);
-        ctx.lineTo(x + 14 + rng() * 60, y + (rng() - 0.5) * 4);
+        ctx.lineTo(x + 14 + rng() * 60, y + (rng() - 0.5) * 5);
         ctx.stroke();
       }
     },
-    { repeat: [8, 8] }
+    { repeat: [4, 4] }
   );
 }
 
