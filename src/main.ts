@@ -37,13 +37,20 @@ const camera = new THREE.PerspectiveCamera(50, 1, 0.05, 80);
 // the internal scale down/up between quality tiers.
 class Quality {
   private samples: number[] = [];
-  private tier = E2E ? 3 : 0; // 0 best
+  private tier = E2E ? (params.get('hq') === '1' ? 0 : 3) : 0; // 0 best
   private scales = [1, 0.85, 0.7, 0.55];
   private cool = 0;
+  private warmup = 4; // seconds of shader-compile jank to ignore at boot
   lowDetail = false;
 
   baseDpr() {
-    return E2E ? 1 : Math.min(window.devicePixelRatio || 1, 2);
+    if (E2E) return 1;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    // cap total pixel count on very large screens (big iPads)
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const cap = Math.sqrt(3.4e6 / Math.max(1, w * h));
+    return Math.min(dpr, Math.max(1, cap));
   }
   currentScale() {
     return this.scales[this.tier];
@@ -54,13 +61,17 @@ class Quality {
   }
   frame(dtMs: number, game: Game) {
     if (E2E) return;
+    if (this.warmup > 0) {
+      this.warmup -= dtMs / 1000;
+      return;
+    }
     this.samples.push(dtMs);
     this.cool -= dtMs / 1000;
     if (this.samples.length >= 90 && this.cool <= 0) {
       const sorted = [...this.samples].sort((a, b) => a - b);
       const p75 = sorted[Math.floor(sorted.length * 0.75)];
       this.samples.length = 0;
-      if (p75 > 26 && this.tier < 3) {
+      if (p75 > 22 && this.tier < 3) {
         this.tier++;
         this.cool = 3;
         this.apply();
@@ -68,7 +79,7 @@ class Quality {
           this.lowDetail = true;
           game.env.setLowDetail(true);
         }
-      } else if (p75 < 14 && this.tier > 0) {
+      } else if (p75 < 17.5 && this.tier > 0) {
         this.tier--;
         this.cool = 5;
         this.apply();
@@ -107,6 +118,11 @@ const unlock = () => {
   game.audio.resume();
 };
 window.addEventListener('pointerdown', unlock, { passive: true });
+// silence (and save battery) while the tab is hidden
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) game.audio.suspend();
+  else game.audio.resume();
+});
 
 // replay: appears only during free play, disappears while resetting
 const replayBtn = document.getElementById('replay') as HTMLButtonElement;
@@ -126,6 +142,12 @@ let timeScale = 1;
 let firstFrame = true;
 
 function tick(now: number) {
+  // cap at ~60fps: on 120 Hz ProMotion panels the extra frames only cost
+  // battery and heat
+  if (now - last < 15) {
+    requestAnimationFrame(tick);
+    return;
+  }
   const rawDt = Math.min((now - last) / 1000, 0.05);
   last = now;
   const dt = rawDt * timeScale;
@@ -156,8 +178,10 @@ const project = (v: THREE.Vector3) => {
 declare global {
   interface Window {
     __game: Record<string, unknown>;
+    __scene: THREE.Scene;
   }
 }
+window.__scene = scene;
 window.__game = {
   version: '1.0.0',
   seed: SEED,
@@ -181,6 +205,16 @@ window.__game = {
   },
   get metrics() {
     return metrics;
+  },
+  get renderInfo() {
+    return {
+      calls: renderer.info.render.calls,
+      triangles: renderer.info.render.triangles,
+      geometries: renderer.info.memory.geometries,
+      textures: renderer.info.memory.textures,
+      programs: renderer.info.programs ? renderer.info.programs.length : 0,
+      pixelRatio: renderer.getPixelRatio(),
+    };
   },
   get circling() {
     return game.input.circling;

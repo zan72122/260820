@@ -1,5 +1,11 @@
 import * as THREE from 'three';
 import { clamp, damp, lerp } from '../util/rng';
+import { contactShadowTexture } from '../util/textures';
+
+const tmpTip = new THREE.Vector3();
+const tmpJw = new THREE.Vector3();
+const tmpTgt = new THREE.Vector3();
+const tmpMat = new THREE.Matrix4();
 
 // A small real horse (≈1.2 m withers), not a toy pony:
 // - weight over four planted hooves, barrel slung between shoulders/hips
@@ -14,7 +20,7 @@ export const HORN_TURNS = 5.0;
 const COAT = 0xcfc8bb;
 const COAT_LOW = 0xa39a8c; // rain-wet lower legs
 const MUZZLE = 0x8f847c;
-const MANE = 0xb8ad9c;
+const MANE = 0x9d9180;
 const HOOF = 0x4e4943;
 
 function cyl(
@@ -136,16 +142,26 @@ export class Unicorn {
     this.headPivot.rotation.x = this.restHeadX;
     this.neckPivot.add(this.headPivot);
     // poll/throat: rounds off the neck-to-head joint
-    const poll = ball(0.088, coatMat, 12, 10);
-    poll.position.set(0, neckLen - 0.02, 0.01);
-    poll.scale.set(0.75, 1, 1);
+    const poll = ball(0.095, coatMat, 12, 10);
+    poll.position.set(0, neckLen - 0.015, 0.005);
+    poll.scale.set(0.72, 1, 1);
     this.neckPivot.add(poll);
+    // neck-base fill: keeps the throat joined to the chest at full flexion
+    const neckBaseFill = ball(0.155, coatMat, 12, 10);
+    neckBaseFill.position.set(0, 0.03, 0.0);
+    neckBaseFill.scale.set(0.66, 1.0, 1.05);
+    this.neckPivot.add(neckBaseFill);
 
     // head built along +Z (muzzle forward)
     const skull = ball(0.105, coatMat, 14, 12);
     skull.position.set(0, 0.012, 0.035);
     skull.scale.set(0.7, 0.95, 1.2);
     this.headPivot.add(skull);
+    // occiput: closes the seam between skull and poll when the head drops
+    const occiput = ball(0.088, coatMat, 12, 10);
+    occiput.position.set(0, 0.005, -0.03);
+    occiput.scale.set(0.68, 0.92, 1.0);
+    this.headPivot.add(occiput);
     const cheekL = ball(0.078, coatMat);
     cheekL.position.set(-0.032, -0.03, 0.01);
     cheekL.scale.set(0.85, 1, 1.1);
@@ -187,8 +203,8 @@ export class Unicorn {
     this.headPivot.add(jaw);
 
     // ears (guidance: they orient before anything else does)
-    const earGeo = new THREE.ConeGeometry(0.024, 0.085, 7);
-    earGeo.translate(0, 0.042, 0);
+    const earGeo = new THREE.ConeGeometry(0.021, 0.075, 7);
+    earGeo.translate(0, 0.037, 0);
     for (const [grp, sd] of [
       [this.earL, -1],
       [this.earR, 1],
@@ -235,12 +251,14 @@ export class Unicorn {
 
           // layered keratin: subtle lengthwise banding, never plastic
           vec3 base = mix(vec3(0.90, 0.87, 0.81), vec3(0.96, 0.945, 0.91), t);
-          base *= 1.0 - 0.05 * sin(t * 70.0 + ang * 2.0);
-          base *= 1.0 - groove * 0.22;
+          base *= 1.0 - 0.028 * sin(t * 70.0 + ang * 2.0);
+          base *= 1.0 - groove * 0.14;
 
-          // stored murk pigment fills the groove from the root upward
-          float loadMask = groove * (1.0 - smoothstep(uLoad * 0.62 - 0.05, uLoad * 0.62 + 0.03, t)) * step(0.01, uLoad);
-          base = mix(base, vec3(0.17, 0.12, 0.18), loadMask * 0.62);
+          // stored murk pigment: enters the groove near the tip and creeps
+          // toward the root as more is wound — visible WHILE winding
+          float lo = 0.86 - uLoad * 0.62;
+          float loadMask = groove * (1.0 - smoothstep(0.86, 0.9, t)) * smoothstep(lo - 0.05, lo + 0.02, t) * step(0.01, uLoad);
+          base = mix(base, vec3(0.13, 0.085, 0.14), loadMask * 0.8);
 
           vec3 n = normalize(vNorm);
           vec3 viewDir = normalize(cameraPosition - vWorld);
@@ -248,7 +266,7 @@ export class Unicorn {
           vec3 col = base * (0.52 + 0.55 * ndl);
           // faint warm transmission at the thin tip when backlit
           float rim = pow(1.0 - abs(dot(n, viewDir)), 2.6);
-          col += vec3(0.28, 0.24, 0.18) * rim * smoothstep(0.45, 1.0, t) * 0.5;
+          col += vec3(0.28, 0.24, 0.18) * rim * smoothstep(0.45, 1.0, t) * 0.65;
           float spec = pow(clamp(dot(normalize(viewDir + uSunDir), n), 0.0, 1.0), 30.0);
           col += vec3(spec) * 0.12 * (1.0 - groove * 0.6);
 
@@ -256,8 +274,10 @@ export class Unicorn {
           float g = groove * exp(-pow((t - uGlowT) * 7.0, 2.0)) * uGlowAmt;
           col += vec3(0.42, 0.38, 0.6) * g * 0.55;
 
-          float alpha = mix(1.0, 0.72, smoothstep(0.55, 1.0, t));
+          float alpha = mix(1.0, 0.6, smoothstep(0.55, 1.0, t));
           gl_FragColor = vec4(col, alpha);
+          #include <tonemapping_fragment>
+          #include <colorspace_fragment>
         }`,
     });
     const hornGeo = new THREE.CylinderGeometry(0.005, 0.026, HORN_LEN, 14, 36);
@@ -275,17 +295,17 @@ export class Unicorn {
     // overlapping tufts, not loose cards
     for (let i = 0; i < 8; i++) {
       const t = i / 7;
-      const tuft = ball(0.052 + Math.sin(t * Math.PI) * 0.015, maneMat, 8, 6);
+      const tuft = ball(0.046 + Math.sin(t * Math.PI) * 0.009, maneMat, 12, 9);
       tuft.castShadow = false;
-      tuft.position.set(0.008 * (i % 2 === 0 ? 1 : -1), 0.06 + t * 0.56, -0.052 - Math.sin(t * Math.PI) * 0.022);
-      tuft.scale.set(0.42, 1.25, 0.75);
+      tuft.position.set(0.004 * (i % 2 === 0 ? 1 : -1), 0.06 + t * 0.55, -0.036 - Math.sin(t * Math.PI) * 0.01);
+      tuft.scale.set(0.34, 1.0, 0.6);
       tuft.rotation.x = -0.15;
       this.neckPivot.add(tuft);
     }
-    const forelock = ball(0.045, maneMat, 8, 6);
+    const forelock = ball(0.04, maneMat, 8, 6);
     forelock.castShadow = false;
-    forelock.position.set(0.01, 0.075, 0.045);
-    forelock.scale.set(0.6, 0.5, 1.2);
+    forelock.position.set(0.008, 0.07, 0.04);
+    forelock.scale.set(0.5, 0.4, 1.0);
     this.headPivot.add(forelock);
 
     // ---- tail ------------------------------------------------------------
@@ -318,15 +338,19 @@ export class Unicorn {
       pivot.position.set(px, upperLen + lowerLen + pasternLen + hoofH - 0.015, pz);
       const upper = cyl(front ? 0.058 : 0.072, 0.042, upperLen, coatMat);
       pivot.add(upper);
-      const knee = ball(0.052, coatMat, 8, 6);
+      // carpus: flat-fronted, not a doll joint
+      const knee = ball(0.048, coatMat, 8, 6);
       knee.position.y = -upperLen;
+      knee.scale.set(0.85, 0.95, 1.12);
       pivot.add(knee);
       const lower = new THREE.Group();
       lower.position.y = -upperLen;
       const cannon = cyl(0.036, 0.032, lowerLen, coatLowMat);
       lower.add(cannon);
-      const fetlock = ball(0.037, coatLowMat, 8, 6);
-      fetlock.position.y = -lowerLen;
+      // fetlock bulges to the rear only
+      const fetlock = ball(0.035, coatLowMat, 8, 6);
+      fetlock.position.set(0, -lowerLen, -0.006);
+      fetlock.scale.set(0.85, 0.95, 1.18);
       lower.add(fetlock);
       const hoofPivot = new THREE.Group();
       hoofPivot.position.y = -lowerLen;
@@ -345,6 +369,30 @@ export class Unicorn {
       return { pivot, lower, hoofPivot, side, front };
     };
     this.legs.push(mkLeg(-1, true), mkLeg(1, true), mkLeg(-1, false), mkLeg(1, false));
+
+    // grounding: soft contact shadows under the body and each hoof
+    // (the sun shadow map alone leaves the contact points too vague)
+    const blobTex = contactShadowTexture();
+    const blobMat = new THREE.MeshBasicMaterial({
+      map: blobTex,
+      transparent: true,
+      depthWrite: false,
+      opacity: 0.28,
+    });
+    const bodyBlob = new THREE.Mesh(new THREE.PlaneGeometry(1.35, 0.8), blobMat);
+    bodyBlob.rotation.x = -Math.PI / 2;
+    bodyBlob.position.set(0, 0.012, -0.02);
+    bodyBlob.renderOrder = 1;
+    this.group.add(bodyBlob);
+    const hoofBlobMat = blobMat.clone();
+    hoofBlobMat.opacity = 0.4;
+    for (const leg of this.legs) {
+      const b = new THREE.Mesh(new THREE.PlaneGeometry(0.17, 0.17), hoofBlobMat);
+      b.rotation.x = -Math.PI / 2;
+      b.position.set(leg.pivot.position.x, 0.016, leg.pivot.position.z + 0.02);
+      b.renderOrder = 2;
+      this.group.add(b);
+    }
   }
 
   // Settle each hoof onto the actual terrain under it (called once placed).
@@ -409,13 +457,13 @@ export class Unicorn {
     weight: number
   ) {
     const a = this.jointAngles;
-    const tipW = this.tipWorld(new THREE.Vector3());
+    const tipW = this.tipWorld(tmpTip);
     const parent = joint.parent!;
     parent.updateWorldMatrix(true, false);
-    const inv = new THREE.Matrix4().copy(parent.matrixWorld).invert();
+    const inv = tmpMat.copy(parent.matrixWorld).invert();
     const jp = joint.position;
     const tipP = tipW.applyMatrix4(inv).sub(jp);
-    const tgtP = target.clone().applyMatrix4(inv).sub(jp);
+    const tgtP = tmpTgt.copy(target).applyMatrix4(inv).sub(jp);
     const pitch = (v: THREE.Vector3) => Math.atan2(-v.y, Math.hypot(v.x, v.z));
     let dp = (pitch(tgtP) - pitch(tipP)) * weight;
     let dy = 0;

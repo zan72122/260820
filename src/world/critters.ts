@@ -29,22 +29,22 @@ export class FishSchool {
   ) {
     for (let i = 0; i < 3; i++) {
       const mat = new THREE.MeshStandardMaterial({
-        color: 0x4c463c,
-        roughness: 0.6,
+        color: 0x6e6350,
+        roughness: 0.55,
         transparent: true,
         opacity: 0.85,
       });
       injectMurkFog(mat, water.fogUniforms);
       const root = new THREE.Group();
-      const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.016, 0.06, 4, 8), mat);
+      const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.018, 0.068, 4, 8), mat);
       body.geometry.rotateZ(Math.PI / 2); // axis along X → we move along local +Z, so rotate to Z
       body.geometry.rotateY(Math.PI / 2);
       body.scale.set(0.6, 1, 1);
       root.add(body);
-      const tail = new THREE.Mesh(new THREE.ConeGeometry(0.017, 0.035, 6), mat);
+      const tail = new THREE.Mesh(new THREE.ConeGeometry(0.024, 0.05, 6), mat);
       tail.geometry.rotateX(Math.PI / 2);
-      tail.position.z = -0.055;
-      tail.scale.set(0.35, 1, 1);
+      tail.position.z = -0.062;
+      tail.scale.set(0.3, 1, 1);
       root.add(tail);
       const a = rng.next() * Math.PI * 2;
       const r = rng.range(0.3, 1.0);

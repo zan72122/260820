@@ -305,6 +305,12 @@ export class Game {
     });
     if (!this.input.down) this.murk.releaseActive();
 
+    // the horn shows murk creeping into its groove WHILE it is being wound
+    const act = this.murk.active;
+    const partial =
+      act && (act.state === 'wind' || act.state === 'stalled') ? act.windT * (act.isMain ? 1 : 0.5) : 0;
+    this.unicorn.setHornLoad((this.hornLoad + partial) / 6);
+
     // winding audio follows the child's real speed
     const winding = this.murk.active && this.murk.active.state === 'wind';
     this.audio.setWinding(winding ? 1 : 0, clamp(this.input.angSpeed / 9, 0, 1));

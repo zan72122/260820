@@ -171,8 +171,8 @@ export class WaterSystem {
   ) {
     this.fogUniforms = {
       uClarity: { value: this.clarity.texture },
-      uMurkWater: { value: new THREE.Color(0x5c4a35) },
-      uClearWater: { value: new THREE.Color(0x35544a) },
+      uMurkWater: { value: new THREE.Color(0x6d5840) },
+      uClearWater: { value: new THREE.Color(0x4d7263) },
       uTurbBase: { value: 0.94 },
     };
 
@@ -181,9 +181,9 @@ export class WaterSystem {
     bottomGeo.rotateX(-Math.PI / 2);
     const bp = bottomGeo.attributes.position as THREE.BufferAttribute;
     const bcol = new Float32Array(bp.count * 3);
-    const cSand = new THREE.Color(0x8a7a5e);
-    const cSilt = new THREE.Color(0x6b5c44);
-    const cStone = new THREE.Color(0x7d786e);
+    const cSand = new THREE.Color(0xa38f68);
+    const cSilt = new THREE.Color(0x806e51);
+    const cStone = new THREE.Color(0x8f897c);
     const tc = new THREE.Color();
     for (let i = 0; i < bp.count; i++) {
       const x = bp.getX(i);
@@ -200,7 +200,9 @@ export class WaterSystem {
     const bottomMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 });
     injectMurkFog(bottomMat, this.fogUniforms);
     const bottom = new THREE.Mesh(bottomGeo, bottomMat);
-    bottom.receiveShadow = true;
+    // no shadow map on the pond floor: through turbid, scattering water a
+    // crisp cast shadow reads as a rendering artifact
+    bottom.receiveShadow = false;
     this.group.add(bottom);
 
     // ---- reveal items: pebbles, waterweed, nuts, a sunken branch ---------
@@ -277,7 +279,7 @@ export class WaterSystem {
       nut.scale.y = 0.8;
       this.group.add(nut);
     }
-    const branchMat = new THREE.MeshStandardMaterial({ color: 0x3d3227, roughness: 0.9 });
+    const branchMat = new THREE.MeshStandardMaterial({ color: 0x5f5240, roughness: 0.85 });
     injectMurkFog(branchMat, this.fogUniforms);
     const branch = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.02, 0.7, 6), branchMat);
     branch.position.set(0.35, -0.3, -0.5);
@@ -294,7 +296,7 @@ export class WaterSystem {
       uniforms: {
         uTime: { value: 0 },
         uClarity: { value: this.clarity.texture },
-        uMurkTint: { value: new THREE.Color(0x7d6448) },
+        uMurkTint: { value: new THREE.Color(0x66523c) },
         uDeepTint: { value: new THREE.Color(0x2c3e36) },
         uSkyCol: { value: new THREE.Color(0xc3d1cb) },
         uSunDir: { value: new THREE.Vector3(6.5, 4.2, 3.2).normalize() },
@@ -328,8 +330,11 @@ export class WaterSystem {
           vec2 p = vWorld.xz;
           vec2 cuv = (p + vec2(${(MASK_WORLD / 2).toFixed(2)})) / ${MASK_WORLD.toFixed(2)};
           float clarity = texture2D(uClarity, cuv).r;
-          float turbNoise = vnoise(p * 1.4 + uTime * 0.015) * 0.5 + vnoise(p * 3.4 - uTime * 0.02) * 0.5;
-          float turb = clamp((0.62 + 0.55 * turbNoise) * (1.0 - clarity), 0.0, 1.0);
+          // rotated octaves so the value-noise grid never shows as squares
+          float turbNoise = vnoise(p * 1.3 + uTime * 0.015) * 0.4
+            + vnoise(vec2(p.x - p.y, p.x + p.y) * 2.1 - uTime * 0.02) * 0.38
+            + vnoise(p * 4.7 + vec2(3.1, 7.7) + uTime * 0.01) * 0.22;
+          float turb = clamp((0.76 + 0.28 * turbNoise) * (1.0 - clarity), 0.0, 1.0);
 
           // --- analytic ripple normal
           float a1 = sin(p.x * 9.0 + uTime * 0.9) * 0.5 + sin((p.x + p.y) * 6.5 - uTime * 0.7);
@@ -345,7 +350,7 @@ export class WaterSystem {
           float dR = distance(p, uRing.xy);
           float ringR = uRing.z;
           float ring = uRing.w * exp(-abs(dR - ringR) * 26.0) * sin((dR - ringR) * 90.0);
-          slope += normalize(p - uRing.xy + 1e-4) * ring * 0.08;
+          slope += normalize(p - uRing.xy + 1e-4) * ring * 0.16;
 
           vec3 n = normalize(vec3(-slope.x, 1.0, -slope.y));
           vec3 viewDir = normalize(cameraPosition - vWorld);
@@ -356,21 +361,28 @@ export class WaterSystem {
           vec3 body = mix(uDeepTint, uMurkTint, turb);
           // faint drifting scum streaks only where turbid
           float scum = vnoise(p * vec2(9.0, 2.5) + vec2(uTime * 0.03, 0.0));
-          body += vec3(0.05, 0.04, 0.02) * smoothstep(0.68, 0.9, scum) * turb;
+          body += vec3(0.035, 0.028, 0.014) * smoothstep(0.74, 0.96, scum) * turb;
 
-          vec3 col = mix(body, uSkyCol, fres * 0.55 + 0.04);
+          // base sheen so the pool always reads as WATER, plus a touch more
+          // where it has been cleared
+          vec3 col = mix(body, uSkyCol, fres * 0.55 + 0.07 + clarity * 0.07);
 
-          // sun glint
+          // sun glint + drifting micro-sparkle
           vec3 h = normalize(viewDir + uSunDir);
           float spec = pow(clamp(dot(n, h), 0.0, 1.0), 140.0) * 0.9;
           col += vec3(1.0, 0.95, 0.85) * spec;
+          float tw = vnoise(p * 26.0 + vec2(uTime * 0.5, -uTime * 0.35));
+          col += uSkyCol * smoothstep(0.9, 1.0, tw) * 0.3;
 
-          float alpha = mix(0.16 + fres * 0.5, 0.58, turb);
+          float alpha = mix(0.22 + fres * 0.5, 0.56, turb);
           gl_FragColor = vec4(col, alpha);
+          #include <tonemapping_fragment>
+          #include <colorspace_fragment>
         }`,
     });
     this.surface = new THREE.Mesh(surfGeo, this.surfMat);
     this.surface.position.y = 0.0;
+    this.surface.name = "surface";
     this.surface.renderOrder = 10;
     this.group.add(this.surface);
 
@@ -382,12 +394,14 @@ export class WaterSystem {
     u.set(x, z, 0.02, 1.0);
   }
 
+  private splashGeo: THREE.PlaneGeometry | null = null;
   // small expanding decal ripple (touch feedback), pooled
   splash(x: number, z: number, scale = 1) {
     let mesh = this.ripplePool.pop();
     if (!mesh) {
+      if (!this.splashGeo) this.splashGeo = new THREE.PlaneGeometry(1, 1);
       mesh = new THREE.Mesh(
-        new THREE.PlaneGeometry(1, 1),
+        this.splashGeo,
         new THREE.MeshBasicMaterial({
           map: this.rippleTex,
           transparent: true,
@@ -421,8 +435,8 @@ export class WaterSystem {
     this.surfMat.uniforms.uTime.value = this.time;
     const ring = this.surfMat.uniforms.uRing.value as THREE.Vector4;
     if (ring.w > 0.001) {
-      ring.z += dt * 0.55;
-      ring.w *= Math.exp(-dt * 1.4);
+      ring.z += dt * 0.42;
+      ring.w *= Math.exp(-dt * 1.0);
       if (ring.z > 1.4) ring.w = 0;
     }
     for (let i = this.ripples.length - 1; i >= 0; i--) {

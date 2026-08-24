@@ -38,13 +38,13 @@
       }
       #replay {
         position: fixed;
-        right: max(14px, env(safe-area-inset-right));
-        bottom: max(14px, env(safe-area-inset-bottom));
-        width: 52px;
-        height: 52px;
+        right: max(16px, env(safe-area-inset-right));
+        bottom: max(34px, calc(env(safe-area-inset-bottom) + 16px));
+        width: 68px;
+        height: 68px;
         border: none;
         border-radius: 50%;
-        background: rgba(240, 244, 238, 0.16);
+        background: rgba(240, 244, 238, 0.32);
         backdrop-filter: blur(3px);
         -webkit-backdrop-filter: blur(3px);
         opacity: 0;
@@ -56,12 +56,12 @@
         padding: 0;
       }
       #replay.show {
-        opacity: 0.85;
+        opacity: 0.96;
         pointer-events: auto;
       }
       #replay svg {
-        width: 30px;
-        height: 30px;
+        width: 38px;
+        height: 38px;
         stroke: #f2f5ef;
         fill: none;
         stroke-width: 2.4;

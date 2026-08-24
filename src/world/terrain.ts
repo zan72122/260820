@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { Rng, makeValueNoise2D, clamp, smoothstep } from '../util/rng';
 import {
   groundTexture,
@@ -39,16 +40,20 @@ export function buildEnvironment(scene: THREE.Scene, rng: Rng, e2e: boolean): En
     const r = Math.hypot(x, z);
     let h: number;
     if (r < POND_RADIUS) {
+      // cosine bowl: tangent to the bank at the rim, so the normals blend
+      // smoothly and the grazing sun leaves no facet ring
       const t = r / POND_RADIUS;
-      h = -0.58 * (1 - t * t) - 0.02;
+      h = -0.31 * (1 + Math.cos(Math.PI * t)) - 0.005;
     } else if (r < 2.6) {
       h = 0.015 * (r - POND_RADIUS);
     } else {
       const d = r - 2.6;
       h = 0.017 + Math.pow(d, 1.4) * 0.075;
     }
-    if (r > 1.7) {
-      h += (noise(x * 0.55 + 7, z * 0.55 + 3) - 0.5) * 0.1 * smoothstep(1.7, 2.8, r);
+    if (r > 2.2) {
+      // keep the bank near the water glassy-smooth: under the low grazing
+      // sun even small vertex bumps read as hard facets
+      h += (noise(x * 0.55 + 7, z * 0.55 + 3) - 0.5) * 0.07 * smoothstep(2.2, 3.4, r);
       h += Math.max(0, -z - 2.4) * 0.16; // hillside rises behind the spring
     }
     return h;
@@ -76,6 +81,8 @@ export function buildEnvironment(scene: THREE.Scene, rng: Rng, e2e: boolean): En
           vec3 col = mix(horizon, zenith, pow(up, 0.55));
           col += vec3(0.16, 0.12, 0.05) * east * (1.0 - up);
           gl_FragColor = vec4(col, 1.0);
+          #include <tonemapping_fragment>
+          #include <colorspace_fragment>
         }`,
     })
   );
@@ -85,12 +92,12 @@ export function buildEnvironment(scene: THREE.Scene, rng: Rng, e2e: boolean): En
   scene.background = new THREE.Color(0xa7b5a5);
 
   // --- lights -------------------------------------------------------------
-  const hemi = new THREE.HemisphereLight(0xc6d5dc, 0x5c5440, 1.7);
+  const hemi = new THREE.HemisphereLight(0xc6d5dc, 0x5c5440, 1.9);
   scene.add(hemi);
-  const sun = new THREE.DirectionalLight(0xffeed6, 2.6);
+  const sun = new THREE.DirectionalLight(0xffeed6, 2.3);
   sun.position.set(6.5, 4.2, 3.2);
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(e2e ? 512 : 1024, e2e ? 512 : 1024);
+  sun.castShadow = !new URLSearchParams(location.search).has('noshadow');
+  sun.shadow.mapSize.set(1024, 1024);
   const sc = sun.shadow.camera;
   sc.left = -2.8;
   sc.right = 2.8;
@@ -100,6 +107,7 @@ export function buildEnvironment(scene: THREE.Scene, rng: Rng, e2e: boolean): En
   sc.far = 16;
   sun.shadow.bias = -0.0006;
   sun.shadow.normalBias = 0.02;
+  sun.shadow.radius = 6; // rain-morning light: soft-edged shadows
   sun.target.position.set(0, 0, -0.8);
   scene.add(sun);
   scene.add(sun.target);
@@ -108,7 +116,7 @@ export function buildEnvironment(scene: THREE.Scene, rng: Rng, e2e: boolean): En
   scene.add(fill);
 
   // --- ground -------------------------------------------------------------
-  const SEG = e2e ? 72 : 110;
+  const SEG = e2e ? 100 : 132;
   const SIZE = 30;
   const groundGeo = new THREE.PlaneGeometry(SIZE, SIZE, SEG, SEG);
   groundGeo.rotateX(-Math.PI / 2);
@@ -129,8 +137,10 @@ export function buildEnvironment(scene: THREE.Scene, rng: Rng, e2e: boolean): En
     // wet dark mud at the waterline, litter further out, moss in damp
     // hollows on the north-facing slope only.
     tmpC.copy(cMud).lerp(cLitter, clamp(n1 * 1.4 - 0.2, 0, 1));
-    const wet = 1 - smoothstep(1.5, 2.15, r);
-    tmpC.lerp(cWetMud, wet * 0.9);
+    // wide, gentle falloff: with linear vertex interpolation a narrow band
+    // shows up as hard polygon facets
+    const wet = 1 - smoothstep(1.45, 2.9, r);
+    tmpC.lerp(cWetMud, wet * 0.68);
     const mossAmt = smoothstep(0.55, 0.8, n2) * smoothstep(2.2, 3.6, r) * smoothstep(0.5, 0.9, noise(x * 0.3, z * 0.3)) * (z < 0 ? 1 : 0.35);
     tmpC.lerp(cMoss, mossAmt * 0.7);
     const shade = 0.85 + n2 * 0.3;
@@ -152,7 +162,7 @@ export function buildEnvironment(scene: THREE.Scene, rng: Rng, e2e: boolean): En
   group.add(ground);
 
   // wet sheen ring right at the waterline (lower roughness = rain-wet mud)
-  const ringGeo = new THREE.RingGeometry(POND_RADIUS - 0.04, 2.05, 64, 3);
+  const ringGeo = new THREE.RingGeometry(POND_RADIUS + 0.05, 2.0, 96, 4);
   ringGeo.rotateX(-Math.PI / 2);
   const rp = ringGeo.attributes.position as THREE.BufferAttribute;
   for (let i = 0; i < rp.count; i++) {
@@ -163,19 +173,21 @@ export function buildEnvironment(scene: THREE.Scene, rng: Rng, e2e: boolean): En
     ringGeo,
     new THREE.MeshStandardMaterial({
       color: 0x3a2f21,
-      roughness: 0.24,
+      roughness: 0.22,
       metalness: 0,
       transparent: true,
-      opacity: 0.35,
+      opacity: 0.38,
       depthWrite: false,
     })
   );
-  wetRing.receiveShadow = true;
+  wetRing.receiveShadow = false;
+  wetRing.name = 'wetRing';
   group.add(wetRing);
 
   // --- rocks --------------------------------------------------------------
   const makeRock = (radius: number, elong: number, wetTo: number, mossy: number, seedOff: number): THREE.Mesh => {
-    const geo = new THREE.IcosahedronGeometry(radius, 3);
+    // icosahedra are non-indexed (faceted); weld first for smooth boulders
+    const geo = mergeVertices(new THREE.IcosahedronGeometry(radius, 3));
     const p = geo.attributes.position as THREE.BufferAttribute;
     const col = new Float32Array(p.count * 3);
     const cRock = new THREE.Color(0x7a7468);
@@ -211,9 +223,12 @@ export function buildEnvironment(scene: THREE.Scene, rng: Rng, e2e: boolean): En
     geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
     const m = new THREE.Mesh(
       geo,
-      new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55 + rng.next() * 0.25, metalness: 0.02 })
+      // rain-wet stone: low roughness so the morning light leaves a sheen
+      new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.32 + rng.next() * 0.2, metalness: 0.02 })
     );
-    m.castShadow = true;
+    // no cast shadows: the low sun would rake their silhouettes across the
+    // water as hard-edged slabs; their wet bases ground them instead
+    m.castShadow = false;
     m.receiveShadow = true;
     return m;
   };
@@ -246,7 +261,7 @@ export function buildEnvironment(scene: THREE.Scene, rng: Rng, e2e: boolean): En
   // Porous black stone on the bank: where wound-up murk is deposited.
   const stonePos = new THREE.Vector3(0.95, 0, -1.2);
   stonePos.y = terrainHeight(stonePos.x, stonePos.z);
-  const stoneGeo = new THREE.IcosahedronGeometry(0.26, 3);
+  const stoneGeo = mergeVertices(new THREE.IcosahedronGeometry(0.26, 3));
   {
     const p = stoneGeo.attributes.position as THREE.BufferAttribute;
     const v = new THREE.Vector3();
@@ -260,10 +275,12 @@ export function buildEnvironment(scene: THREE.Scene, rng: Rng, e2e: boolean): En
     }
     stoneGeo.computeVertexNormals();
   }
-  const stoneMat = new THREE.MeshStandardMaterial({ color: 0x39322f, roughness: 0.9, metalness: 0 });
+  // charcoal-grey with a faint mineral violet: readable as a special stone,
+  // not a hole in the picture
+  const stoneMat = new THREE.MeshStandardMaterial({ color: 0x4c4349, roughness: 0.82, metalness: 0.04 });
   const stone = new THREE.Mesh(stoneGeo, stoneMat);
   stone.position.copy(stonePos).add(new THREE.Vector3(0, 0.16, 0));
-  stone.castShadow = true;
+  stone.castShadow = false;
   stone.receiveShadow = true;
   group.add(stone);
   const stoneTop = stone.position.clone().add(new THREE.Vector3(0, 0.2, 0));
@@ -318,7 +335,7 @@ export function buildEnvironment(scene: THREE.Scene, rng: Rng, e2e: boolean): En
     const w = rng.range(0.8, 1.6);
     q.setFromEuler(new THREE.Euler(rng.range(-0.05, 0.05), rng.next() * Math.PI * 2, rng.range(-0.06, 0.06)));
     s.set(w, h, w);
-    m4.compose(new THREE.Vector3(x, y - 0.1, z), q, s);
+    m4.compose(new THREE.Vector3(x, y - 0.35, z), q, s);
     trunks.setMatrixAt(placed, m4);
     treePositions.push(new THREE.Vector3(x, 0, z));
     // two crossed canopy planes per tree
@@ -346,9 +363,10 @@ export function buildEnvironment(scene: THREE.Scene, rng: Rng, e2e: boolean): En
     alphaTest: 0.18,
     side: THREE.DoubleSide,
     roughness: 0.8,
-    color: 0xbfcbb0,
+    color: 0x97a48c, // desaturated toward the mist palette
   });
   const ferns = new THREE.InstancedMesh(fernGeo, fernMat, fernCount * 2);
+  const fernTint = new THREE.Color();
   let fi = 0;
   for (let i = 0; i < fernCount; i++) {
     const a = rng.next() * Math.PI * 2;
@@ -356,14 +374,17 @@ export function buildEnvironment(scene: THREE.Scene, rng: Rng, e2e: boolean): En
     const x = Math.cos(a) * r;
     const z = Math.sin(a) * r;
     const y = terrainHeight(x, z);
-    const sc = rng.range(0.6, 1.5);
+    const sc = rng.range(0.55, 1.6);
+    fernTint.setHSL(0.26 + rng.range(-0.03, 0.03), rng.range(0.18, 0.32), rng.range(0.38, 0.55));
     for (let k = 0; k < 2; k++) {
       q.setFromEuler(new THREE.Euler(0, rng.next() * Math.PI, 0));
-      s.set(sc, sc, sc);
+      s.set(sc * rng.range(0.85, 1.15), sc, sc * rng.range(0.85, 1.15));
       m4.compose(new THREE.Vector3(x, y, z), q, s);
+      ferns.setColorAt(fi, fernTint);
       ferns.setMatrixAt(fi++, m4);
     }
   }
+  if (ferns.instanceColor) ferns.instanceColor.needsUpdate = true;
   ferns.count = fi;
   ferns.instanceMatrix.needsUpdate = true;
   group.add(ferns);

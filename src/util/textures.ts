@@ -254,6 +254,19 @@ export function mistTexture(): THREE.CanvasTexture {
   return toTexture(c, true, false);
 }
 
+// Soft round contact-shadow blob.
+export function contactShadowTexture(): THREE.CanvasTexture {
+  const size = 64;
+  const [c, ctx] = canvas(size);
+  const g = ctx.createRadialGradient(size / 2, size / 2, 2, size / 2, size / 2, size / 2);
+  g.addColorStop(0, 'rgba(10,8,6,0.85)');
+  g.addColorStop(0.55, 'rgba(10,8,6,0.4)');
+  g.addColorStop(1, 'rgba(10,8,6,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, size, size);
+  return toTexture(c, true, false);
+}
+
 // Expanding ripple ring.
 export function rippleTexture(): THREE.CanvasTexture {
   const size = 128;

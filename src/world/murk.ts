@@ -100,7 +100,7 @@ export class Streak {
       fog: false,
       uniforms: {
         uAlpha: { value: 0.62 },
-        uColor: { value: new THREE.Color(0x1a0e20) },
+        uColor: { value: new THREE.Color(0x150b1c) },
         uTime: { value: 0 },
       },
       vertexShader: `
@@ -111,10 +111,12 @@ export class Streak {
         uniform float uAlpha; uniform vec3 uColor; uniform float uTime;
         void main(){
           float endFade = pow(sin(vUv.x * 3.14159), 0.55);
-          float edge = 1.0 - pow(abs(vUv.y * 2.0 - 1.0), 1.6);
+          float edge = 1.0 - pow(abs(vUv.y * 2.0 - 1.0), 2.3);
           float wob = 0.85 + 0.15 * sin(vUv.x * 40.0 + uTime * 2.0);
-          vec3 col = uColor + vec3(0.05, 0.02, 0.07) * sin(vUv.x * 9.0 + uTime * 0.7);
+          vec3 col = uColor + vec3(0.025, 0.01, 0.035) * sin(vUv.x * 9.0 + uTime * 0.7);
           gl_FragColor = vec4(col, uAlpha * endFade * edge * wob);
+          #include <tonemapping_fragment>
+          #include <colorspace_fragment>
         }`,
     });
     this.mesh = new THREE.Mesh(geo, this.mat);
@@ -191,7 +193,7 @@ export class Streak {
       const ph = this.phases[i];
       c.x += Math.sin(time * 0.14 + ph) * 0.014 * dt * driftScale;
       c.z += Math.cos(time * 0.11 + ph * 1.7) * 0.014 * dt * driftScale;
-      c.y = this.home.y + Math.sin(time * 0.2 + ph) * 0.02;
+      c.y = this.home.y + Math.sin(time * 0.2 + ph) * 0.035;
       // stay inside the pond
       const r = Math.hypot(c.x, c.z);
       if (r > POND_RADIUS - 0.25) {
@@ -245,7 +247,7 @@ export class Streak {
 
     // --- continuous clearing right below the point being wound
     if (this.state === 'wind' && this.windT > 0.05) {
-      paint = { x: tip.x, z: tip.z, r: this.isMain ? 0.34 : 0.2, s: dt * 0.55 };
+      paint = { x: tip.x, z: tip.z, r: this.isMain ? 0.42 : 0.24, s: dt * 1.1 };
     }
 
     // --- build ribbon

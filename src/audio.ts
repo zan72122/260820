@@ -44,6 +44,10 @@ export class AudioEngine {
     if (this.ensure() && this.ctx!.state !== 'running') void this.ctx!.resume();
   }
 
+  suspend() {
+    if (this.ctx && this.ctx.state === 'running') void this.ctx.suspend();
+  }
+
   private noiseSource(): AudioBufferSourceNode {
     const s = this.ctx!.createBufferSource();
     s.buffer = this.noiseBuf;
