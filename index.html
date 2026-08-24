@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#3a4a3f" />
+    <title>ユニコーンと、にごった泉</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><circle cx='8' cy='8' r='7' fill='%235a7a6a'/></svg>" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #35443c;
+        overscroll-behavior: none;
+        touch-action: none;
+        -webkit-user-select: none;
+        user-select: none;
+        -webkit-tap-highlight-color: transparent;
+      }
+      #app {
+        position: fixed;
+        inset: 0;
+      }
+      canvas {
+        display: block;
+        width: 100%;
+        height: 100%;
+        touch-action: none;
+      }
+      #replay {
+        position: fixed;
+        right: max(14px, env(safe-area-inset-right));
+        bottom: max(14px, env(safe-area-inset-bottom));
+        width: 52px;
+        height: 52px;
+        border: none;
+        border-radius: 50%;
+        background: rgba(240, 244, 238, 0.16);
+        backdrop-filter: blur(3px);
+        -webkit-backdrop-filter: blur(3px);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 1.6s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+      }
+      #replay.show {
+        opacity: 0.85;
+        pointer-events: auto;
+      }
+      #replay svg {
+        width: 30px;
+        height: 30px;
+        stroke: #f2f5ef;
+        fill: none;
+        stroke-width: 2.4;
+        stroke-linecap: round;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <button id="replay" aria-label="もういちど">
+      <svg viewBox="0 0 24 24">
+        <path d="M4.5 12a7.5 7.5 0 1 1 2.2 5.3" />
+        <path d="M4.2 12.6 4.5 17l4.2-1.4" />
+      </svg>
+    </button>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
