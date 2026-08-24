@@ -26,6 +26,7 @@ export interface Shot {
   look: THREE.Vector3;
   fov: number;
   posPortrait?: THREE.Vector3;
+  lookPortrait?: THREE.Vector3;
   fovPortrait?: number;
 }
 
@@ -55,8 +56,9 @@ export const SHOTS: Record<string, Shot> = {
     pos: new THREE.Vector3(0.62, 1.2, 2.35),
     look: new THREE.Vector3(0.72, 1.08, -0.05),
     fov: 50,
-    posPortrait: new THREE.Vector3(0.35, 1.25, 2.85),
-    fovPortrait: 62,
+    posPortrait: new THREE.Vector3(0.9, 1.3, 3.4),
+    lookPortrait: new THREE.Vector3(0.95, 1.05, -0.2),
+    fovPortrait: 60,
   },
 };
 
@@ -252,6 +254,9 @@ export class GameScene {
   private shotPos(s: Shot): THREE.Vector3 {
     return this.portrait && s.posPortrait ? s.posPortrait : s.pos;
   }
+  private shotLook(s: Shot): THREE.Vector3 {
+    return this.portrait && s.lookPortrait ? s.lookPortrait : s.look;
+  }
   private shotFov(s: Shot): number {
     return this.portrait && s.fovPortrait ? s.fovPortrait : s.fov;
   }
@@ -261,9 +266,9 @@ export class GameScene {
     this.curShot = s;
     this.shotBlend = 1;
     this.camera.position.copy(this.shotPos(s));
-    this.lookCur.copy(s.look);
+    this.lookCur.copy(this.shotLook(s));
     this.camera.fov = this.shotFov(s);
-    this.camera.lookAt(s.look);
+    this.camera.lookAt(this.shotLook(s));
     this.camera.updateProjectionMatrix();
   }
 
@@ -283,13 +288,13 @@ export class GameScene {
       this.shotBlend = Math.min(1, this.shotBlend + dt / this.shotDur);
       const k = this.shotBlend * this.shotBlend * (3 - 2 * this.shotBlend);
       this.camera.position.lerpVectors(this.fromPos, this.shotPos(this.curShot), k);
-      this.lookCur.lerpVectors(this.fromLook, this.curShot.look, k);
+      this.lookCur.lerpVectors(this.fromLook, this.shotLook(this.curShot), k);
       this.camera.fov = THREE.MathUtils.lerp(this.fromFov, this.shotFov(this.curShot), k);
       this.camera.updateProjectionMatrix();
     } else {
       // settle exactly (also adapts on orientation change)
       this.camera.position.lerp(this.shotPos(this.curShot), 1 - Math.pow(0.05, dt));
-      this.lookCur.lerp(this.curShot.look, 1 - Math.pow(0.05, dt));
+      this.lookCur.lerp(this.shotLook(this.curShot), 1 - Math.pow(0.05, dt));
       const targetFov = this.shotFov(this.curShot);
       if (Math.abs(this.camera.fov - targetFov) > 0.01) {
         this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, targetFov, 1 - Math.pow(0.05, dt));

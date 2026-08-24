@@ -182,7 +182,7 @@ export function buildWorkshop(): WorkshopRefs {
   const wood = woodTexture('#8a6a48', 'rgba(50,34,20,0.5)');
   const woodDark = woodTexture('#6d5238', 'rgba(40,26,14,0.6)');
   const floorTex = woodTexture('#7d603f', 'rgba(45,30,16,0.5)', true);
-  floorTex.repeat.set(3, 3);
+  floorTex.repeat.set(5, 5);
   const plaster = plasterTexture();
   plaster.repeat.set(2, 1);
 
@@ -481,7 +481,7 @@ export function buildWorkshop(): WorkshopRefs {
     trayGeo,
     new THREE.MeshStandardMaterial({ color: 0x9aa0a4, metalness: 0.85, roughness: 0.42 })
   );
-  tray.position.set(0.42, 0.035, 0.34);
+  tray.position.set(0.44, 0.035, 0.2);
   tray.castShadow = true;
   tray.receiveShadow = true;
   g.add(tray);
@@ -497,7 +497,7 @@ export function buildWorkshop(): WorkshopRefs {
     })
   );
   water.rotation.x = -Math.PI / 2;
-  water.position.set(0.42, 0.047, 0.34);
+  water.position.set(0.44, 0.047, 0.2);
   g.add(water);
 
   // ---- prism rail on the right wall: a simple wooden track the prism slides on

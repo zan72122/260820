@@ -37,6 +37,7 @@ export class Game {
 
   // inspect
   lampSweep = 0.15;
+  private prevSweep = 0.15;
   private dewShown = false;
   private nudging = false;
 
@@ -147,6 +148,23 @@ export class Game {
    */
   private workPoint(): { t: number; u: number } | null {
     return this.raycastHorn(this.px, this.py);
+  }
+
+  /** Rail z closest to the current pointer ray (prism magnetization). */
+  private railZUnderPointer(): number | null {
+    const rail = this.gs.workshop.prismRail;
+    this.raycaster.setFromCamera(this.ndc(this.px, this.py), this.gs.camera);
+    const o = this.raycaster.ray.origin;
+    const d = this.raycaster.ray.direction;
+    const p0 = new THREE.Vector3(rail.x, rail.y, 0);
+    const ez = new THREE.Vector3(0, 0, 1);
+    // closest point between ray (o + t·d) and line (p0 + s·ez)
+    const w0 = o.clone().sub(p0);
+    const b = d.dot(ez);
+    const denom = 1 - b * b;
+    if (Math.abs(denom) < 1e-4) return null;
+    const s = (b * -w0.dot(d) + w0.dot(ez)) / denom;
+    return s;
   }
 
   /** Project a drag delta onto a world direction, returns scalar in world units. */
@@ -303,8 +321,12 @@ export class Game {
         .hornAxisPoint(1)
         .sub(gs.hornAxisPoint(0))
         .normalize();
-      const d = this.dragAlong(gs.hornAxisPoint(this.lampSweep), axisDir);
-      this.lampSweep = THREE.MathUtils.clamp(this.lampSweep + d / 0.56, 0.02, 0.98);
+      const d = THREE.MathUtils.clamp(
+        this.dragAlong(gs.hornAxisPoint(this.lampSweep), axisDir) / 0.56,
+        -0.05,
+        0.05
+      );
+      this.lampSweep = THREE.MathUtils.clamp(this.lampSweep + d, 0.02, 0.98);
       this.nudging = false;
     }
 
@@ -323,19 +345,23 @@ export class Game {
 
     gs.lamp.aimAt(gs.hornAxisPoint(this.lampSweep));
 
-    // discovery: raking light reaches a crack → the highlight break glints
+    // discovery: the raking highlight crossing a crack makes it glint.
+    // Judged over the swept interval so a fast swipe cannot skip a crack.
+    const lo = Math.min(this.prevSweep, this.lampSweep) - 0.045;
+    const hi = Math.max(this.prevSweep, this.lampSweep) + 0.045;
     for (const c of gs.horn.cracks) {
-      if (!c.discovered && Math.abs(this.lampSweep - c.v) < 0.045) {
+      if (!c.discovered && c.v > lo && c.v < hi) {
         c.discovered = true;
         c.glint = 1;
         this.audio.chime(880, 0.7, 0.1);
       }
     }
     // sweeping past the first grime wakes the dew-drop demonstration
-    if (!this.dewShown && this.lampSweep > this.firstDirtT() - 0.05) {
+    if (!this.dewShown && hi > this.firstDirtT() - 0.05) {
       this.dewShown = true;
       if (!gs.dew.active) gs.dew.start(0.04);
     }
+    this.prevSweep = this.lampSweep;
 
     const allFound = gs.horn.cracks.every((c) => c.discovered);
     if (allFound && this.dewShown && this.phaseT > 3.5) {
@@ -501,8 +527,12 @@ export class Game {
     if (this.pointerDown) {
       // any drag tilts the mirror: aim runs along the horn
       const axisDir = gs.hornAxisPoint(1).sub(gs.hornAxisPoint(0)).normalize();
-      const d = this.dragAlong(gs.hornAxisPoint(this.cureAim), axisDir);
-      this.cureAim = THREE.MathUtils.clamp(this.cureAim + d / 0.56, 0.1, 0.95);
+      const d = THREE.MathUtils.clamp(
+        this.dragAlong(gs.hornAxisPoint(this.cureAim), axisDir) / 0.56,
+        -0.05,
+        0.05
+      );
+      this.cureAim = THREE.MathUtils.clamp(this.cureAim + d, 0.1, 0.95);
     }
 
     // wide magnetic snap onto the nearest uncured resin
@@ -606,13 +636,16 @@ export class Game {
 
     if (this.pointerDown) {
       if (this.dragTarget === 'prism') {
-        const railDir = new THREE.Vector3(0, 0, 1);
-        const d = this.dragAlong(gs.prism.group.position, railDir);
-        gs.prism.group.position.z = THREE.MathUtils.clamp(
-          gs.prism.group.position.z + d,
-          gs.workshop.prismRail.zMin,
-          gs.workshop.prismRail.zMax
-        );
+        // the prism sticks to the finger: slide it to the rail point
+        // nearest the touch ray (works from any camera angle)
+        const z = this.railZUnderPointer();
+        if (z !== null) {
+          gs.prism.group.position.z = THREE.MathUtils.lerp(
+            gs.prism.group.position.z,
+            THREE.MathUtils.clamp(z, gs.workshop.prismRail.zMin, gs.workshop.prismRail.zMax),
+            0.35
+          );
+        }
       } else if (this.dragTarget === 'mirror') {
         // mirror = light amount: raise or lower the fed light
         gs.freeLight = THREE.MathUtils.clamp(gs.freeLight - (this.py - this.lastPy) * 0.004, 0.55, 1.3);
