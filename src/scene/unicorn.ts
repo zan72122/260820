@@ -181,6 +181,7 @@ export class Unicorn {
   private blinkT = 3.2;
   private lookTarget = new THREE.Vector3();
   private lookWeight = 0;
+  private headYaw = 0;
   coatMat!: THREE.MeshPhysicalMaterial;
   plainCoatMat!: THREE.MeshPhysicalMaterial;
 
@@ -260,10 +261,12 @@ export class Unicorn {
       lower.position.z = 0.004;
       holder.add(eye, lash, brow, lower);
       // just above the widest cheek line, looking outward; sunk into the orbit
-      holder.position.set(-0.1, 0.028, 0.076 * side);
+      // seated so the almond and lids ride just proud of the skin
+      // (surface half-width here ≈0.100 — anything under it is buried)
+      holder.position.set(-0.1, 0.028, 0.092 * side);
       holder.rotation.y = side > 0 ? 0.85 : Math.PI - 0.85;
       holder.rotation.x = -0.12;
-      eye.position.z = -0.009;
+      eye.position.z = -0.004;
       this.headGroup.add(holder);
       return eye;
     };
@@ -394,16 +397,24 @@ export class Unicorn {
       0.011,
       maneMat2
     );
-    // crest mane: locks hugging the crest, draping down the +z side of the neck
+    // crest mane: roots ON the neck's crest line (the neck loft is rotated
+    // 0.55 rad down-back from the head), locks draping down the +z side
+    const neckBase = new THREE.Vector2(-0.26, -0.02);
+    const alongDir = new THREE.Vector2(-Math.cos(0.55), -Math.sin(0.55));
+    const upDir = new THREE.Vector2(-Math.sin(0.55), Math.cos(0.55));
     for (let i = 0; i < 7; i++) {
       const t = i / 6;
-      const sx = -0.275 - t * 0.16;
-      const sy = 0.085 - t * 0.15;
+      const m = 0.02 + t * 0.36;
+      const topH = 0.1 + 0.055 * Math.sin(Math.min(1, t * 1.4) * Math.PI * 0.6);
+      const root = new THREE.Vector2()
+        .copy(neckBase)
+        .addScaledVector(alongDir, m)
+        .addScaledVector(upDir, topH + 0.008);
       mkLock(
-        new THREE.Vector3(sx, sy, 0.0),
-        new THREE.Vector3(sx - 0.012, sy - 0.06, 0.055 + Math.sin(i * 2.1) * 0.006),
-        new THREE.Vector3(sx - 0.018 + Math.sin(i) * 0.01, sy - 0.135, 0.075),
-        0.013 + (i % 2) * 0.003,
+        new THREE.Vector3(root.x, root.y, 0.0),
+        new THREE.Vector3(root.x - 0.01, root.y - 0.06, 0.06 + Math.sin(i * 2.1) * 0.006),
+        new THREE.Vector3(root.x - 0.02 + Math.sin(i) * 0.01, root.y - 0.14, 0.085),
+        0.014 + (i % 2) * 0.003,
         i % 2 ? maneMat2 : maneMat
       );
     }
@@ -431,18 +442,19 @@ export class Unicorn {
     neck.rotation.z = 0.55;
     this.headGroup.add(neck);
 
-    // body: resting form on the floor — barrel, haunch, folded legs, tail
+    // body: resting form on the floor. Heavily overlapped masses so the
+    // silhouette reads as one animal, not beads; folded legs on both ends.
     const body = new THREE.Group();
-    const barrel = new THREE.Mesh(new THREE.SphereGeometry(0.34, 28, 20), this.plainCoatMat);
-    barrel.scale.set(1.5, 0.85, 1.0);
-    barrel.position.set(0, 0.27, 0);
+    const barrel = new THREE.Mesh(new THREE.SphereGeometry(0.36, 28, 20), this.plainCoatMat);
+    barrel.scale.set(1.65, 0.85, 1.0);
+    barrel.position.set(0, 0.28, 0);
     barrel.castShadow = true;
-    const chest = new THREE.Mesh(new THREE.SphereGeometry(0.22, 22, 16), this.plainCoatMat);
-    chest.scale.set(1.1, 0.95, 0.9);
-    chest.position.set(0.42, 0.24, 0.02);
-    const haunch = new THREE.Mesh(new THREE.SphereGeometry(0.26, 22, 16), this.plainCoatMat);
-    haunch.scale.set(1.15, 0.85, 1);
-    haunch.position.set(-0.44, 0.24, 0.02);
+    const chest = new THREE.Mesh(new THREE.SphereGeometry(0.26, 22, 16), this.plainCoatMat);
+    chest.scale.set(1.05, 0.92, 0.9);
+    chest.position.set(0.34, 0.26, 0.02);
+    const haunch = new THREE.Mesh(new THREE.SphereGeometry(0.3, 22, 16), this.plainCoatMat);
+    haunch.scale.set(1.05, 0.88, 1);
+    haunch.position.set(-0.34, 0.27, 0.02);
     // folded foreleg tucked in front, hoof visible
     const foreleg = new THREE.Mesh(new THREE.CapsuleGeometry(0.052, 0.28, 6, 12), this.plainCoatMat);
     foreleg.rotation.set(0, 0, Math.PI / 2 - 0.08);
@@ -451,6 +463,19 @@ export class Unicorn {
     const hoof = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.052, 0.055, 12), hoofMat);
     hoof.rotation.z = Math.PI / 2 - 0.08;
     hoof.position.set(0.62, 0.09, 0.2);
+    // folded hind leg: stifle mass + cannon along the floor + hoof
+    const stifle = new THREE.Mesh(new THREE.SphereGeometry(0.16, 18, 14), this.plainCoatMat);
+    stifle.scale.set(1.15, 0.8, 0.75);
+    stifle.position.set(-0.42, 0.16, 0.22);
+    const hindCannon = new THREE.Mesh(
+      new THREE.CapsuleGeometry(0.046, 0.26, 6, 12),
+      this.plainCoatMat
+    );
+    hindCannon.rotation.set(0, 0.25, Math.PI / 2 - 0.04);
+    hindCannon.position.set(-0.22, 0.08, 0.28);
+    const hindHoof = new THREE.Mesh(new THREE.CylinderGeometry(0.042, 0.05, 0.05, 12), hoofMat);
+    hindHoof.rotation.z = Math.PI / 2;
+    hindHoof.position.set(-0.05, 0.075, 0.31);
     const tail = (() => {
       const pts = [
         new THREE.Vector3(-0.66, 0.34, -0.02),
@@ -464,7 +489,7 @@ export class Unicorn {
       );
     })();
     tail.castShadow = true;
-    body.add(barrel, chest, haunch, foreleg, hoof, tail);
+    body.add(barrel, chest, haunch, foreleg, hoof, stifle, hindCannon, hindHoof, tail);
     body.position.set(-1.06, 0.0, -0.24);
     body.rotation.y = 0.22;
     this.group.add(body);
@@ -496,13 +521,22 @@ export class Unicorn {
       const gy = THREE.MathUtils.clamp(yaw, -0.5, 0.5) * this.lookWeight;
       this.eyeL.rotation.y = gy;
       this.eyeR.rotation.y = -gy;
+      // the whole head tilts a few degrees too — readable from any framing,
+      // and plausible with the jaw still resting on the cushion
+      this.headYaw = THREE.MathUtils.lerp(
+        this.headYaw,
+        THREE.MathUtils.clamp(-yaw * 0.22, -0.09, 0.09) * this.lookWeight,
+        dt * 2.5
+      );
       this.lookWeight = Math.max(0, this.lookWeight - dt * 0.2);
     } else {
       this.earL.rotation.y = -0.2 + idleL;
       this.earR.rotation.y = 0.2 + idleR;
       this.eyeL.rotation.y *= 0.95;
       this.eyeR.rotation.y *= 0.95;
+      this.headYaw = THREE.MathUtils.lerp(this.headYaw, 0, dt * 1.5);
     }
+    this.headGroup.rotation.y = this.headYaw;
 
     // mane: gentle controlled sway, no heavy physics
     for (const c of this.maneCards) {

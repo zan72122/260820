@@ -38,8 +38,11 @@ export class Game {
   // inspect
   lampSweep = 0.15;
   private prevSweep = 0.15;
+  private sweepMin = 0.15;
+  private sweepMax = 0.15;
   private dewShown = false;
   private nudging = false;
+  private discoverCooldown = 0;
 
   // clean / polish stroke continuity (frame-rate independent coverage)
   private initialDirt: number;
@@ -125,18 +128,39 @@ export class Game {
     };
   }
 
-  /** Raycast the horn (with fat proxy) → {t, u} in horn parameter space. */
+  /**
+   * Raycast the horn → {t, u}. The true surface hit wins whenever the ray
+   * touches the horn at all; the fat proxy only widens the touch area. For
+   * proxy-only touches, t comes from the point on the horn AXIS closest to
+   * the ray — projecting the proxy's entry point would shift the work point
+   * tipward of the finger (parallax), which breaks "scrub the dirt you see".
+   */
   raycastHorn(x: number, y: number): { t: number; u: number } | null {
     this.raycaster.setFromCamera(this.ndc(x, y), this.gs.camera);
-    const hits = this.raycaster.intersectObjects([this.gs.horn.mesh, this.gs.hornProxy], false);
-    if (!hits.length) return null;
-    const h = hits[0];
-    if (h.object === this.gs.horn.mesh && h.uv) {
-      return { t: THREE.MathUtils.clamp(h.uv.y, 0, 1), u: h.uv.x };
+    const hornHits = this.raycaster.intersectObject(this.gs.horn.mesh, false);
+    if (hornHits.length && hornHits[0].uv) {
+      return { t: THREE.MathUtils.clamp(hornHits[0].uv.y, 0, 1), u: hornHits[0].uv.x };
     }
-    // proxy hit: project onto horn axis
-    const local = this.gs.horn.mesh.worldToLocal(h.point.clone());
-    const t = THREE.MathUtils.clamp(local.y / 0.56, 0, 1);
+    const proxyHits = this.raycaster.intersectObject(this.gs.hornProxy, false);
+    if (!proxyHits.length) return null;
+    // closest point between the touch ray and the horn axis line
+    const base = this.gs.hornBase();
+    const tip = this.gs.hornTip();
+    const axis = tip.clone().sub(base);
+    const len = axis.length();
+    axis.divideScalar(len);
+    const o = this.raycaster.ray.origin;
+    const d = this.raycaster.ray.direction;
+    const w0 = o.clone().sub(base);
+    const b = d.dot(axis);
+    const denom = 1 - b * b;
+    if (Math.abs(denom) < 1e-4) return null;
+    const s = (w0.dot(axis) - b * w0.dot(d)) / denom;
+    const t = THREE.MathUtils.clamp(s / len, 0, 1);
+    // u from where the ray passes the axis (which side was touched)
+    const rayT = (b * s - w0.dot(d)) / 1; // param along ray of closest point
+    const p = o.clone().addScaledVector(d, Math.max(0, rayT));
+    const local = this.gs.horn.mesh.worldToLocal(p);
     const u = ((Math.atan2(local.z, local.x) / (Math.PI * 2)) % 1 + 1) % 1;
     return { t, u };
   }
@@ -148,6 +172,22 @@ export class Game {
    */
   private workPoint(): { t: number; u: number } | null {
     return this.raycastHorn(this.px, this.py);
+  }
+
+  /**
+   * Absolute finger→axis mapping: where along the horn axis (t 0..1) the
+   * pointer sits, judged in screen space. Frame-rate independent — the lamp
+   * and the mirror aim simply follow the finger.
+   */
+  private axisTUnderPointer(): number | null {
+    const a = this.worldToScreen(this.gs.hornAxisPoint(0));
+    const b = this.worldToScreen(this.gs.hornAxisPoint(1));
+    if (!a || !b) return null;
+    const vx = b.x - a.x;
+    const vy = b.y - a.y;
+    const len2 = vx * vx + vy * vy;
+    if (len2 < 1) return null;
+    return ((this.px - a.x) * vx + (this.py - a.y) * vy) / len2;
   }
 
   /** Rail z closest to the current pointer ray (prism magnetization). */
@@ -198,7 +238,9 @@ export class Game {
     gs.resinBead.set(null, 0);
     gs.sunBeamIn.mesh.visible = false;
     gs.sunBeamOut.mesh.visible = false;
-    if (p !== 'cure') gs.sunSpot.setAt(null, 0);
+    if (p !== 'cure') gs.sunSpot.hide();
+    // a drag straddling a phase change must not carry into the new tool
+    this.dragTarget = null;
     this.audio.setWater(0);
     switch (p) {
       case 'inspect':
@@ -272,7 +314,15 @@ export class Game {
         break;
     }
 
-    // shared: dew follows the causal front whenever visible
+    // shared: dew and the light-front glow follow the causal front
+    gs.frontGlow.level =
+      this.phase === 'test' || this.phase === 'free'
+        ? 0
+        : this.phase === 'intro'
+          ? Math.min(1, gs.horn.lightPower)
+          : 1;
+    gs.frontGlow.boost = this.phase === 'intro' ? 1.7 : 1;
+    gs.frontGlow.update(gs.horn, time);
     gs.dew.update(dt, gs.horn, this.blockInfo.front);
     gs.water.update(dt, gs.horn, this.blockInfo.front, gs.workshop.tray.position);
     gs.rootGlow.update(gs.hornBase(), time);
@@ -297,10 +347,12 @@ export class Game {
     }
     // 4s+: faint, interrupted band on the wall; unstable sputter from the tip
     if (t > 4) {
-      const flick = 0.1 + 0.08 * Math.max(0, Math.sin(time * 9) * Math.sin(time * 3.7));
+      // sputtering, mostly-off trickle: the light is NOT getting through
+      const sput = Math.sin(time * 9) * Math.sin(time * 3.7);
+      const flick = sput > 0.35 ? 0.18 : 0.04;
       gs.beam.set(gs.hornTip(), gs.prismWorld(), flick, time);
       const sp = gs.spectrumParams();
-      gs.spectrum.set(sp.center, sp.dir, 0.045, 0.3, 0.3, 0.38, time);
+      gs.spectrum.set(sp.center, sp.dir, 0.05, 0.5, 0.3, 0.38, time);
     }
     // 5.5s: dew appears and creeps to the first dirty stretch
     if (t > 5.5 && !gs.dew.active) gs.dew.start(0.04);
@@ -315,28 +367,31 @@ export class Game {
     const gs = this.gs;
     gs.lamp.setOn(true);
 
-    // whole-screen horizontal drag sweeps the lamp along the horn
+    // the lamp follows the finger: any drag maps to a position along the horn
     if (this.pointerDown) {
-      const axisDir = gs
-        .hornAxisPoint(1)
-        .sub(gs.hornAxisPoint(0))
-        .normalize();
-      const d = THREE.MathUtils.clamp(
-        this.dragAlong(gs.hornAxisPoint(this.lampSweep), axisDir) / 0.56,
-        -0.05,
-        0.05
-      );
-      this.lampSweep = THREE.MathUtils.clamp(this.lampSweep + d, 0.02, 0.98);
+      const t = this.axisTUnderPointer();
+      if (t !== null) {
+        const target = THREE.MathUtils.clamp(t, 0.02, 0.98);
+        this.lampSweep = THREE.MathUtils.lerp(
+          this.lampSweep,
+          target,
+          1 - Math.pow(0.002, dt)
+        );
+      }
       this.nudging = false;
     }
 
-    // gentle auto-nudge if the child hesitates a long time
+    // gentle auto-nudge if the child hesitates a long time: the lamp drifts
+    // a few centimetres TOWARD the trouble spot and stops short — showing
+    // where to look, never doing the looking. Discovery stays the child's.
     const undiscovered = gs.horn.cracks.find((c) => !c.discovered);
     if (this.idleT > 12 && undiscovered) {
       this.nudging = true;
     }
     if (this.nudging && undiscovered) {
-      this.lampSweep = THREE.MathUtils.lerp(this.lampSweep, undiscovered.v, dt * 0.8);
+      const side = Math.sign(this.lampSweep - undiscovered.v) || 1;
+      const stopShort = undiscovered.v + side * 0.11;
+      this.lampSweep = THREE.MathUtils.lerp(this.lampSweep, stopShort, dt * 0.7);
     }
     // 6s idle: the unicorn's eyes and ear turn toward the trouble spot
     if (this.idleT > 6 && undiscovered) {
@@ -346,14 +401,21 @@ export class Game {
     gs.lamp.aimAt(gs.hornAxisPoint(this.lampSweep));
 
     // discovery: the raking highlight crossing a crack makes it glint.
-    // Judged over the swept interval so a fast swipe cannot skip a crack.
+    // Judged over the swept interval so a fast swipe cannot skip a crack —
+    // but at most one discovery fires per beat, so each glint gets its own
+    // moment instead of one smear finding everything at once.
+    this.discoverCooldown = Math.max(0, this.discoverCooldown - dt);
     const lo = Math.min(this.prevSweep, this.lampSweep) - 0.045;
     const hi = Math.max(this.prevSweep, this.lampSweep) + 0.045;
-    for (const c of gs.horn.cracks) {
-      if (!c.discovered && c.v > lo && c.v < hi) {
-        c.discovered = true;
-        c.glint = 1;
-        this.audio.chime(880, 0.7, 0.1);
+    if (this.discoverCooldown <= 0) {
+      for (const c of gs.horn.cracks) {
+        if (!c.discovered && c.v > lo && c.v < hi) {
+          c.discovered = true;
+          c.glint = 1;
+          this.audio.chime(880, 0.7, 0.1);
+          this.discoverCooldown = 1.4;
+          break;
+        }
       }
     }
     // sweeping past the first grime wakes the dew-drop demonstration
@@ -362,9 +424,14 @@ export class Game {
       if (!gs.dew.active) gs.dew.start(0.04);
     }
     this.prevSweep = this.lampSweep;
+    this.sweepMin = Math.min(this.sweepMin, this.lampSweep);
+    this.sweepMax = Math.max(this.sweepMax, this.lampSweep);
 
+    // move on only once the child has really looked: all glints found, the
+    // dew shown, the lamp actually travelled the horn, and a beat of rest
     const allFound = gs.horn.cracks.every((c) => c.discovered);
-    if (allFound && this.dewShown && this.phaseT > 3.5) {
+    const lookedEnough = this.sweepMax - this.sweepMin > 0.35 || this.phaseT > 14;
+    if (allFound && this.dewShown && this.phaseT > 6 && lookedEnough) {
       this.setPhase('clean');
       this.audio.chime(659, 0.8, 0.12);
     }
@@ -391,7 +458,9 @@ export class Game {
       // speed shapes the water, not success: fast = long thin stream,
       // slow = pooling in the groove. Both clean.
       const fast = THREE.MathUtils.clamp(this.pointerSpeed / 900, 0, 1);
-      const rate = 2.4 + fast * 1.2;
+      // paced so one careful pass washes about a third: the child watches
+      // water and light gain ground stroke by stroke, not all at once
+      const rate = 0.7 + fast * 0.4;
       this.strokeApply(wp.t, (t, k) =>
         gs.horn.cleanAt(t, 0.042 + (1 - fast) * 0.012, dt * rate * k)
       );
@@ -399,7 +468,9 @@ export class Game {
       const surface = gs.horn.surfacePointWorld(wp.u, wp.t);
       const n = gs.horn.surfaceNormalWorld(wp.u, wp.t);
       const wandTip = surface.clone().addScaledVector(n, 0.035 + fast * 0.03);
-      gs.rinse.holdAt(wandTip, n.clone().negate(), dt);
+      // wand leans in from above like a held tool, never end-on to the camera
+      const wandAim = n.clone().negate().add(new THREE.Vector3(0.25, -1.0, 0.2)).normalize();
+      gs.rinse.holdAt(wandTip, wandAim, dt);
       gs.water.setStream(wandTip, surface, wp.t, gs.horn, 1 - fast * 0.5);
       this.audio.setWater(0.5 + fast * 0.5);
     } else {
@@ -525,14 +596,16 @@ export class Game {
     gs.lamp.setOn(false);
 
     if (this.pointerDown) {
-      // any drag tilts the mirror: aim runs along the horn
-      const axisDir = gs.hornAxisPoint(1).sub(gs.hornAxisPoint(0)).normalize();
-      const d = THREE.MathUtils.clamp(
-        this.dragAlong(gs.hornAxisPoint(this.cureAim), axisDir) / 0.56,
-        -0.05,
-        0.05
-      );
-      this.cureAim = THREE.MathUtils.clamp(this.cureAim + d, 0.1, 0.95);
+      // any drag tilts the mirror: the sun spot follows the finger's
+      // position along the horn
+      const t = this.axisTUnderPointer();
+      if (t !== null) {
+        this.cureAim = THREE.MathUtils.lerp(
+          this.cureAim,
+          THREE.MathUtils.clamp(t, 0.1, 0.95),
+          1 - Math.pow(0.002, dt)
+        );
+      }
     }
 
     // wide magnetic snap onto the nearest uncured resin
@@ -551,7 +624,7 @@ export class Game {
     gs.mirror.update(gs.workshop.windowCenter, spotPos);
     // the visible optical path: window sun → mirror face → resin
     const mirrorHead = gs.mirror.group.position.clone().add(new THREE.Vector3(0, 0.125, 0));
-    gs.sunBeamIn.set(gs.workshop.windowCenter, mirrorHead, curing ? 0.35 : 0.22, time);
+    gs.sunBeamIn.set(gs.workshop.windowCenter, mirrorHead, curing ? 0.22 : 0.14, time);
     gs.sunBeamOut.set(mirrorHead, spotPos, curing ? 0.65 : 0.35, time);
 
     if (curing) {

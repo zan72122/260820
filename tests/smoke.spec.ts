@@ -39,10 +39,14 @@ const snap = (page: Page): Promise<Snap> =>
 const groove = (page: Page, t: number): Promise<{ x: number; y: number } | null> =>
   page.evaluate((tt) => (window as any).__uha.grooveScreen(tt), t);
 
+const PHASE_ORDER = ['intro', 'inspect', 'clean', 'fill', 'cure', 'polish', 'test', 'free'];
+
+/** Wait until the game is at (or already past) the given phase. */
 async function waitPhase(page: Page, phase: string, timeout = 40_000) {
   await page.waitForFunction(
-    (ph) => (window as any).__uha.snapshot().phase === ph,
-    phase,
+    ({ ph, order }) =>
+      order.indexOf((window as any).__uha.snapshot().phase) >= order.indexOf(ph),
+    { ph: phase, order: PHASE_ORDER },
     { timeout }
   );
 }
@@ -105,9 +109,9 @@ async function fillCracks(page: Page) {
 }
 
 async function cureCracks(page: Page) {
-  const vw = page.viewportSize()!;
-  const start = { x: vw.width / 2, y: vw.height * 0.7 };
-  for (let pass = 0; pass < 24; pass++) {
+  // the sun spot follows the finger's position along the horn — hold on
+  // each resin line until it sets
+  for (let pass = 0; pass < 12; pass++) {
     const s = await snap(page);
     if (s.phase !== 'cure') break;
     const un = s.cracks.find((c) => c.cured < 1);
@@ -115,27 +119,17 @@ async function cureCracks(page: Page) {
       await page.waitForTimeout(400);
       continue;
     }
-    const delta = un.v - s.cureAim;
-    if (Math.abs(delta) > 0.1) {
-      const a = await groove(page, 0.3);
-      const b = await groove(page, 0.7);
-      if (a && b) {
-        await drag(
-          page,
-          [start, { x: start.x + (b.x - a.x) * delta * 2.2, y: start.y + (b.y - a.y) * delta * 2.2 }],
-          200
-        );
-      }
-    } else {
-      await page.mouse.move(start.x, start.y);
-      await page.mouse.down();
-      for (let j = 0; j < 12; j++) {
-        await page.mouse.move(start.x + (j % 2), start.y, { steps: 1 });
-        await page.waitForTimeout(150);
-        if (!(await snap(page)).cracks.find((c) => c.cured < 1)) break;
-      }
-      await page.mouse.up();
+    const p = await groove(page, un.v);
+    if (!p) break;
+    await page.mouse.move(p.x, p.y + 6);
+    await page.mouse.down();
+    for (let j = 0; j < 20; j++) {
+      await page.mouse.move(p.x + (j % 2), p.y + 6, { steps: 1 });
+      await page.waitForTimeout(150);
+      const still = (await snap(page)).cracks.find((c) => c.cured < 1);
+      if (!still || still.v !== un.v) break;
     }
+    await page.mouse.up();
   }
 }
 

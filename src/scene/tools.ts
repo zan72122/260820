@@ -148,9 +148,23 @@ export class RinseTool extends Tool {
     this.updateHose();
   }
 
+  private lastHoseEnd = new THREE.Vector3(Infinity, 0, 0);
+
+  /** Diagnostic: current hose control points. */
+  hosePoints(): number[][] {
+    return this.hoseCurve.points.map((p) => p.toArray().map((v) => Math.round(v * 1000) / 1000));
+  }
+
   updateHose() {
     if (!this.hose) return;
+    // matrixWorld can be a frame stale (or just reset) — refresh it first,
+    // otherwise the hose ends hang in the air where the wand used to be
+    this.group.updateWorldMatrix(true, false);
     const wandEnd = new THREE.Vector3(0, 0.1, 0).applyMatrix4(this.group.matrixWorld);
+    // rebuilding a TubeGeometry uploads fresh GPU buffers; only do it when
+    // the wand has actually moved
+    if (wandEnd.distanceToSquared(this.lastHoseEnd) < 0.008 * 0.008) return;
+    this.lastHoseEnd.copy(wandEnd);
     const p = this.hoseCurve.points;
     p[0].copy(this.flaskPos);
     p[3].copy(wandEnd);
@@ -158,8 +172,10 @@ export class RinseTool extends Tool {
     // hose sags, but rests on the tabletop rather than passing through it
     mid.y = Math.max(0.775, Math.min(this.flaskPos.y, wandEnd.y) - 0.12);
     p[1].copy(this.flaskPos.clone().lerp(mid, 0.6));
-    p[1].y -= 0.05;
+    p[1].y = Math.max(0.775, p[1].y - 0.05);
     p[2].copy(mid.clone().lerp(wandEnd, 0.5));
+    // the curve caches arc lengths — refresh or the tube collapses to a point
+    this.hoseCurve.updateArcLengths();
     this.hose.geometry.dispose();
     this.hose.geometry = new THREE.TubeGeometry(this.hoseCurve, 24, 0.004, 8);
   }

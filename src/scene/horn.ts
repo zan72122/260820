@@ -47,7 +47,8 @@ export function hornRadius(t: number): number {
 }
 
 function grooveDepth(t: number): number {
-  return (0.17 * hornRadius(t) + 0.0007) * (1 - 0.5 * t);
+  // shallower toward the base: keratin ridges, not stacked pillows
+  return (0.14 * hornRadius(t) + 0.0007) * (1 - 0.35 * t);
 }
 
 /** Bump profile of the groove across w (spiral phase), centered at 0.5. */
@@ -465,9 +466,11 @@ vec4 uhaCrackInfo(int i, vec2 uv){
   float mottle = 0.72 + 0.28 * uhaNoise(vec2(vUv.x * 7.0, tAx * 42.0));
   // packed hard into the groove, thinning as a grimy film over the flanks —
   // it must stay readable from any angle, ridges included
-  float pack = 1.5 * (1.0 - 0.55 * smoothstep(0.22, 0.55, dGroove));
+  // asymmetric packing (no rotational symmetry — grime settles unevenly)
+  float lopside = 0.7 + 0.6 * uhaNoise(vec2(vUv.x * 3.0 + 13.0, tAx * 9.0));
+  float pack = 1.5 * lopside * (1.0 - 0.55 * smoothstep(0.22, 0.55, dGroove));
   float dirtVis = clamp(st.r * mottle * pack, 0.0, 1.0);
-  vec3 grime = mix(vec3(0.16, 0.125, 0.09), vec3(0.3, 0.235, 0.145), uhaNoise(vec2(tAx*36.0, 3.0)));
+  vec3 grime = mix(vec3(0.13, 0.1, 0.075), vec3(0.28, 0.22, 0.135), uhaNoise(vec2(tAx*36.0, 3.0)));
   diffuseColor.rgb = mix(diffuseColor.rgb, grime, dirtVis);
   if (uDebug > 0.5) diffuseColor.rgb = vec3(0.0);
 
@@ -570,16 +573,18 @@ vec4 uhaCrackInfo(int i, vec2 uv){
   vec4 st = texture2D(uState, vec2(tAx, 0.5));
   vec3 nv = normalize(vNormal);
   vec3 vv = normalize(vViewPosition);
-  float facing = pow(abs(dot(nv, vv)), 0.65); // center-weighted: reads as inner light
+  float facing = pow(abs(dot(nv, vv)), 0.4); // center-weighted: reads as inner light
   float inside = 1.0 - smoothstep(uLightFront - 0.015, uLightFront + 0.012, tAx);
-  float ripple = 0.78 + 0.22 * sin(tAx * 34.0 - uTime * 5.0);
-  float frontEdge = exp(-abs(tAx - uLightFront) * 26.0) * (0.55 + 0.45 * sin(uTime * 7.0));
-  float baseWell = smoothstep(0.16, 0.0, tAx) * 0.5; // the root always holds warmth
+  float ripple = 0.8 + 0.2 * sin(tAx * 34.0 - uTime * 5.0);
+  float frontEdge = exp(-abs(tAx - uLightFront) * 24.0) * (0.6 + 0.4 * sin(uTime * 7.0));
+  float baseWell = smoothstep(0.16, 0.0, tAx) * 0.55; // the root always holds warmth
   float flick = uTipFlicker * smoothstep(0.82, 0.96, tAx)
-              * max(0.0, sin(uTime * 11.0) * sin(uTime * 4.7 + 1.7) - 0.15) * 1.4;
-  float glow = (inside * ripple * 0.7 + frontEdge * 0.5 + baseWell + flick) * uLightPower;
-  glow *= 1.0 - 0.65 * clamp(st.r * 1.4, 0.0, 1.0); // dirt occludes the inner light
-  vec3 lightCol = mix(vec3(1.0, 0.93, 0.78), vec3(0.97, 0.97, 1.0), smoothstep(0.0, 1.0, tAx));
+              * max(0.0, sin(uTime * 11.0) * sin(uTime * 4.7 + 1.7) - 0.15) * 1.6;
+  float glow = (inside * ripple * 1.25 + frontEdge * 0.9 + baseWell + flick) * uLightPower;
+  glow *= 1.0 - 0.7 * clamp(st.r * 1.4, 0.0, 1.0); // dirt occludes the inner light
+  // saturated gold so the lit stretch separates from the ivory even in
+  // bright daylight; cools toward white only at the tip
+  vec3 lightCol = mix(vec3(1.0, 0.82, 0.45), vec3(0.98, 0.96, 0.9), smoothstep(0.2, 1.0, tAx));
   totalEmissiveRadiance += lightCol * glow * facing;
   if (uDebug > 0.5) {
     totalEmissiveRadiance = vec3(st.r, tAx, 0.0);

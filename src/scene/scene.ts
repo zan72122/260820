@@ -14,7 +14,16 @@ import {
   InspectionLamp,
   Prism,
 } from './tools';
-import { DewDrop, RinseWater, SunSpot, RootGlow, Beam, Spectrum, ResinBead } from './effects';
+import {
+  DewDrop,
+  RinseWater,
+  SunSpot,
+  RootGlow,
+  FrontGlow,
+  Beam,
+  Spectrum,
+  ResinBead,
+} from './effects';
 
 /**
  * Scene assembly: fixed authored layout, one sun with shadows, a movable
@@ -32,11 +41,14 @@ export interface Shot {
 
 export const SHOTS: Record<string, Shot> = {
   intro: {
-    pos: new THREE.Vector3(0.95, 1.22, 1.95),
-    look: new THREE.Vector3(-0.05, 0.92, -0.25),
-    fov: 50,
-    posPortrait: new THREE.Vector3(0.8, 1.28, 2.55),
-    fovPortrait: 58,
+    // the opening must hold the whole causal chain in one frame:
+    // unicorn+horn on the left, prism and its cut-off band on the right
+    pos: new THREE.Vector3(1.0, 1.25, 2.05),
+    look: new THREE.Vector3(0.42, 0.98, -0.2),
+    fov: 52,
+    posPortrait: new THREE.Vector3(0.78, 1.32, 4.2),
+    lookPortrait: new THREE.Vector3(0.8, 1.0, -0.25),
+    fovPortrait: 60,
   },
   work: {
     pos: new THREE.Vector3(0.46, 1.11, 0.83),
@@ -81,6 +93,7 @@ export class GameScene {
   readonly water: RinseWater;
   readonly sunSpot: SunSpot;
   readonly rootGlow: RootGlow;
+  readonly frontGlow: FrontGlow;
   readonly beam: Beam;
   readonly sunBeamIn: Beam; // window → mirror during curing
   readonly sunBeamOut: Beam; // mirror → resin spot
@@ -216,6 +229,7 @@ export class GameScene {
     this.water = new RinseWater();
     this.sunSpot = new SunSpot();
     this.rootGlow = new RootGlow();
+    this.frontGlow = new FrontGlow();
     this.beam = new Beam();
     this.sunBeamIn = new Beam();
     this.sunBeamOut = new Beam();
@@ -226,6 +240,7 @@ export class GameScene {
       this.water.group,
       this.sunSpot.sprite,
       this.rootGlow.sprite,
+      this.frontGlow.sprite,
       this.beam.mesh,
       this.sunBeamIn.mesh,
       this.sunBeamOut.mesh,
@@ -236,6 +251,8 @@ export class GameScene {
     this.jumpTo('intro');
     window.addEventListener('resize', () => this.onResize());
     this.onResize();
+    // compile every shader up front so first-use hitches don't land mid-play
+    this.renderer.compile(this.scene, this.camera);
   }
 
   private computeFacingU(): number {
@@ -310,7 +327,11 @@ export class GameScene {
     this.renderer.setSize(window.innerWidth, window.innerHeight);
   }
 
-  /** Dynamic resolution: back off DPR when frames run long (mobile safety). */
+  /**
+   * Dynamic resolution: back off DPR when frames run long (mobile safety).
+   * Feed this the FULL frame delta (rAF to rAF) — CPU-side render encoding
+   * alone would miss a GPU-bound device entirely.
+   */
   trackPerformance(frameMs: number) {
     this.frameTimes.push(frameMs);
     if (this.frameTimes.length >= 90) {

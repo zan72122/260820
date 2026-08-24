@@ -200,6 +200,12 @@ export class SunSpot {
     m.opacity = this.intensity * 0.85;
     this.sprite.scale.setScalar(0.07 + 0.03 * Math.sin(performance.now() * 0.004) * this.intensity + 0.05 * this.intensity);
   }
+
+  /** Instant off (phase change) — no lingering orb. */
+  hide() {
+    this.intensity = 0;
+    (this.sprite.material as THREE.SpriteMaterial).opacity = 0;
+  }
 }
 
 /** Soft gathering glow at the horn root during the intro. */
@@ -226,6 +232,42 @@ export class RootGlow {
     const m = this.sprite.material as THREE.SpriteMaterial;
     m.opacity = this.level * (0.5 + 0.2 * Math.sin(time * 2.6));
     this.sprite.scale.setScalar(0.13 + 0.05 * Math.sin(time * 1.7) * this.level);
+  }
+}
+
+/**
+ * The travelling light front: a small warm glow riding at the current limit
+ * of the inner light. This is the readable face of the causal front — the
+ * dew drop's luminous twin — so a child can SEE how far the light got.
+ */
+export class FrontGlow {
+  readonly sprite: THREE.Sprite;
+  level = 0;
+  /** larger during the intro so the stall point reads from the wide shot */
+  boost = 1;
+
+  constructor() {
+    this.sprite = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: GLOW_TEX,
+        color: 0xffd98f,
+        transparent: true,
+        opacity: 0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      })
+    );
+    this.sprite.scale.setScalar(0.05);
+  }
+
+  update(horn: Horn, time: number) {
+    const t = horn.lightFront;
+    const show = this.level * (t < 0.985 ? 1 : Math.max(0, 1 - (t - 0.985) / 0.015));
+    const p = horn.groovePointWorld(Math.max(0.03, t));
+    this.sprite.position.copy(p);
+    const m = this.sprite.material as THREE.SpriteMaterial;
+    m.opacity = show * (0.7 + 0.3 * Math.sin(time * 5.2)) * Math.min(1, horn.lightPower);
+    this.sprite.scale.setScalar((0.075 + 0.022 * Math.sin(time * 3.4)) * this.boost);
   }
 }
 
@@ -325,11 +367,11 @@ export class Spectrum {
         uniform float uTime;
         varying vec2 vUv2;
         vec3 spectral(float x){
-          // perceptual-ish rainbow, red at x=0 → violet at x=1
+          // rainbow with distinct bands: red → orange → yellow → green → blue → violet
           vec3 c = vec3(0.0);
-          c.r = smoothstep(0.0, 0.1, x) * (1.0 - smoothstep(0.55, 0.75, x)) + smoothstep(0.88, 1.0, x)*0.4;
-          c.g = smoothstep(0.12, 0.35, x) * (1.0 - smoothstep(0.6, 0.85, x));
-          c.b = smoothstep(0.45, 0.68, x);
+          c.r = (1.0 - smoothstep(0.28, 0.5, x)) + smoothstep(0.86, 1.0, x) * 0.45;
+          c.g = smoothstep(0.12, 0.3, x) * (1.0 - smoothstep(0.55, 0.78, x));
+          c.b = smoothstep(0.5, 0.7, x);
           return c;
         }
         void main(){
@@ -340,7 +382,7 @@ export class Spectrum {
           if (along < 0.0 || along > uLength) discard;
           float a01 = along / uLength;
           // band widens as it travels
-          float w = uWidth * (0.5 + a01 * 1.6);
+          float w = uWidth * (0.5 + a01 * 1.1);
           float x = across / w * 0.5 + 0.5;
           if (x < 0.0 || x > 1.0) discard;
           vec3 col = spectral(1.0 - x);

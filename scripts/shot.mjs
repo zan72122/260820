@@ -31,11 +31,14 @@ const snap = () => page.evaluate(() => window.__uha.snapshot());
 const shot = (name) => page.screenshot({ path: `${OUT}/${name}.png` });
 const tag = PORTRAIT ? 'p' : 'l';
 
+const PHASES = ['intro', 'inspect', 'clean', 'fill', 'cure', 'polish', 'test', 'free'];
+
+/** Wait until the game is at (or already past) the given phase. */
 async function waitPhase(phase, timeout = 30000) {
   try {
     await page.waitForFunction(
-      (ph) => window.__uha.snapshot().phase === ph,
-      phase,
+      ({ ph, order }) => order.indexOf(window.__uha.snapshot().phase) >= order.indexOf(ph),
+      { ph: phase, order: PHASES },
       { timeout }
     );
     console.log('REACHED', phase);
@@ -122,33 +125,26 @@ for (let i = 0; i < 3; i++) {
 await waitPhase('cure', 40000);
 await shot(`${tag}-8-cure-start`);
 
-// ---------- cure: drag to steer the sun spot onto each crack, then dwell
-for (let pass = 0; pass < 20; pass++) {
+// ---------- cure: hold the finger on each resin line — the sun spot
+// follows the finger's position along the horn (absolute mapping)
+for (let pass = 0; pass < 12; pass++) {
   const s = await snap();
   if (s.phase !== 'cure') break;
   const un = s.cracks.find((c) => c.cured < 1);
   if (!un) { await page.waitForTimeout(400); continue; }
-  const delta = un.v - s.cureAim;
-  if (Math.abs(delta) > 0.1) {
-    // nudge the aim along the horn axis (relative control)
-    const a = await page.evaluate((v) => window.__uha.grooveScreen(v), 0.3);
-    const b = await page.evaluate((v) => window.__uha.grooveScreen(v), 0.7);
-    const dir = { x: (b.x - a.x) * delta * 2.2, y: (b.y - a.y) * delta * 2.2 };
-    const start = { x: (PORTRAIT ? 195 : 420), y: (PORTRAIT ? 500 : 300) };
-    await drag([start, { x: start.x + dir.x, y: start.y + dir.y }], 200);
-  } else {
-    // dwell with tiny wiggle so the spot keeps curing
-    await page.mouse.move(PORTRAIT ? 195 : 420, PORTRAIT ? 500 : 300);
-    await page.mouse.down();
-    for (let j = 0; j < 12; j++) {
-      await page.mouse.move((PORTRAIT ? 195 : 420) + (j % 2), PORTRAIT ? 500 : 300, { steps: 1 });
-      await page.waitForTimeout(150);
-      const s2 = await snap();
-      if (!s2.cracks.find((c) => c.cured < 1)) break;
-    }
-    await page.mouse.up();
+  const p = await page.evaluate((v) => window.__uha.grooveScreen(v), un.v);
+  if (!p) break;
+  await page.mouse.move(p.x, p.y + 6);
+  await page.mouse.down();
+  for (let j = 0; j < 20; j++) {
+    await page.mouse.move(p.x + (j % 2), p.y + 6, { steps: 1 });
+    await page.waitForTimeout(150);
+    const s2 = await snap();
+    const still = s2.cracks.find((c) => c.cured < 1);
+    if (!still || still.v !== un.v) break;
   }
-  if (pass === 2) await shot(`${tag}-9-cure-mid`);
+  await page.mouse.up();
+  if (pass === 1) await shot(`${tag}-9-cure-mid`);
 }
 await waitPhase('polish', 60000);
 await shot(`${tag}-10-polish-start`);

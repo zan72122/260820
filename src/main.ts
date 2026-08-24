@@ -46,9 +46,8 @@ function frame(now: number) {
   gs.horn.update(rawDt, elapsed);
   gs.lamp.update(rawDt);
 
-  const t0 = performance.now();
   gs.renderer.render(gs.scene, gs.camera);
-  gs.trackPerformance(performance.now() - t0 + rawDt * 0); // render cost only
+  gs.trackPerformance(rawDt * 1000); // full frame delta: catches GPU-bound devices too
 
   requestAnimationFrame(frame);
 }
@@ -73,6 +72,25 @@ window.__uha = {
     lightPower: gs.horn.lightPower,
   }),
   hornDebugMode: (on: boolean | number) => gs.horn.setDebug(on),
+  hoseDebug: () => {
+    const g = gs.rinse.hose?.geometry;
+    const pos = g?.getAttribute('position');
+    const arr = pos ? Array.from((pos.array as Float32Array).slice(0, 9)) : [];
+    let nan = 0;
+    if (pos) {
+      const a = pos.array as Float32Array;
+      for (let i = 0; i < a.length; i++) if (!Number.isFinite(a[i])) nan++;
+    }
+    return {
+      hasHose: !!gs.rinse.hose,
+      visible: gs.rinse.hose?.visible,
+      points: gs.rinse.hosePoints(),
+      vertCount: pos?.count ?? 0,
+      nanCount: nan,
+      firstVerts: arr.map((v) => Math.round(v * 1000) / 1000),
+      inScene: gs.rinse.hose?.parent === gs.scene,
+    };
+  },
   /** screen coords of the groove point at t — lets tests trace real strokes */
   grooveScreen: (t: number) => game.worldToScreen(gs.horn.groovePointWorld(t)),
   crackScreen: (i: number) => {
