@@ -150,7 +150,7 @@ export class SandBed {
         // colour: compressed / damp sand is darker; churned rubble darker still
         let d = 0;
         if (this.field) d = this.field.sample(this.field.depress, u, v) * this.pressAmount;
-        const damp = 1 - d * 0.38;
+        const damp = 1 - d * 0.52;
         const churn = 1 - this.crumble * (0.2 + fbm(u * 14, v * 14, 2, 77) * 0.18);
         const grain = 0.92 + fbm(u * 60, v * 60, 2, 5) * 0.16;
         const r = 0.98 * damp * grain * churn;

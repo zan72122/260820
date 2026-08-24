@@ -68,12 +68,42 @@ function bareSteel(): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({ color: 0x7d8084, metalness: 0.85, roughness: 0.5 });
 }
 
+let ironRoughTex: THREE.CanvasTexture | null = null;
 function castIron(): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ color: 0x565a5e, metalness: 0.72, roughness: 0.62 });
+  if (!ironRoughTex) {
+    ironRoughTex = makeCanvasTexture(128, (ctx, s) => {
+      ctx.fillStyle = '#a8a8a8';
+      ctx.fillRect(0, 0, s, s);
+      // as-cast pebbly skin
+      for (let i = 0; i < 2200; i++) {
+        const x = hash2(i, 1, 71) * s, y = hash2(i, 2, 72) * s;
+        const g = 120 + hash2(i, 3, 73) * 90;
+        ctx.fillStyle = `rgba(${g | 0},${g | 0},${g | 0},0.35)`;
+        ctx.fillRect(x, y, 1 + hash2(i, 4, 74) * 2, 1 + hash2(i, 5, 75) * 2);
+      }
+    });
+  }
+  return new THREE.MeshStandardMaterial({
+    color: 0x565a5e, metalness: 0.72, roughness: 0.68, roughnessMap: ironRoughTex,
+  });
 }
 
 function refractory(): THREE.MeshStandardMaterial {
   return new THREE.MeshStandardMaterial({ color: 0xb7a488, metalness: 0.05, roughness: 0.92 });
+}
+
+/** a spare molding flask: iron box + sand fill + corner clamps, so shelf
+ * props read as equipment rather than blockout cubes */
+function spareFlask(w: number, h: number, mat: THREE.Material): THREE.Group {
+  const g = new THREE.Group();
+  g.add(box(w, h, w, mat, 0, h / 2, 0));
+  g.add(box(w * 0.82, 0.012, w * 0.82,
+    new THREE.MeshStandardMaterial({ color: 0x6f5a42, roughness: 1 }), 0, h + 0.002, 0));
+  for (const [cx, cz] of [[-w / 2, -w / 2], [w / 2, w / 2]] as const) {
+    g.add(box(0.035, h * 0.7, 0.035, bareSteel(), cx, h * 0.55, cz));
+  }
+  g.add(cyl(0.01, 0.01, w * 0.4, bareSteel(), -w / 2 - 0.02, h * 0.6, 0, 8).rotateX(Math.PI / 2));
+  return g;
 }
 
 function box(w: number, h: number, d: number, mat: THREE.Material, x = 0, y = 0, z = 0, shadow = true): THREE.Mesh {
@@ -124,7 +154,10 @@ export function buildFoundry(): FoundryRefs {
   }
   // lower shelf with a spare flask + rammer
   group.add(box(1.3, 0.04, 0.9, paintedSteel(0x39514f, 0.6), 0, 0.24, 0));
-  group.add(box(0.4, 0.1, 0.3, castIron(), -0.4, 0.31, -0.15));
+  const shelfFlask = spareFlask(0.34, 0.1, castIron());
+  shelfFlask.position.set(-0.4, 0.26, -0.15);
+  shelfFlask.rotation.y = 0.2;
+  group.add(shelfFlask);
   group.add(cyl(0.025, 0.025, 0.4, bareSteel(), 0.35, 0.3, 0.1, 10).rotateZ(Math.PI / 2));
 
   /* ---- flask (鋳型枠) ---- */
@@ -202,15 +235,15 @@ export function buildFoundry(): FoundryRefs {
   const patternSocket = new THREE.Group();
   patternSocket.position.set(0, -0.66, 0.28); // z: reach over flask centre
   ram.add(patternSocket);
-  // a narrow carrier bar instead of a full plate keeps the glyph silhouette
-  // and its shadow readable while the pattern hangs over the sand
-  const plate = box(0.36, 0.025, 0.06, castIron(), 0, 0.0125, 0);
+  // a raised carrier bar with two thin posts down to the letter keeps the
+  // glyph silhouette closed from every angle (no bracket cutting the O)
+  const plate = box(0.06, 0.025, 0.36, castIron(), 0, 0.075, 0);
   patternSocket.add(plate);
-  // arm connecting shaft to bar
-  ram.add(box(0.07, 0.05, 0.3, castIron(), 0, -0.63, 0.13));
-  for (const bx of [-0.13, 0.13] as const) {
-    patternSocket.add(cyl(0.012, 0.012, 0.02, bareSteel(), bx, 0.032, 0, 8)); // bolts
+  for (const bz of [-0.11, 0.11] as const) {
+    patternSocket.add(cyl(0.011, 0.011, 0.075, bareSteel(), 0, 0.037, bz, 8)); // posts
   }
+  // arm connecting shaft to bar
+  ram.add(box(0.07, 0.05, 0.3, castIron(), 0, -0.6, 0.13));
   group.add(carriage);
 
   /* ---- press lever (the child's big control, near the bench front) ---- */
@@ -252,13 +285,23 @@ export function buildFoundry(): FoundryRefs {
   cru.position.set(0.05, -0.02, 0);
   cru.castShadow = true;
   crucibleTilt.add(cru);
-  // refractory collar + spout
-  const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.145, 0.135, 0.05, 22), refractory());
-  collar.position.set(0.05, 0.13, 0);
+  // steel retaining band + scorched refractory spout
+  const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.142, 0.138, 0.035, 22), bareSteel());
+  collar.position.set(0.05, 0.125, 0);
   crucibleTilt.add(collar);
-  const spout = box(0.12, 0.035, 0.07, refractory(), 0.17, 0.135, 0);
+  // soot / glaze discoloration around the upper third of the pot
+  const soot = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.132, 0.122, 0.09, 22, 1, true),
+    new THREE.MeshStandardMaterial({ color: 0x241f1b, roughness: 0.95, transparent: true, opacity: 0.7, side: THREE.DoubleSide })
+  );
+  soot.position.set(0.052, 0.07, 0.004);
+  crucibleTilt.add(soot);
+  const dirtyRefractory = new THREE.MeshStandardMaterial({ color: 0x8a7a62, metalness: 0.03, roughness: 0.95 });
+  const spout = box(0.12, 0.035, 0.07, dirtyRefractory, 0.17, 0.135, 0);
   spout.rotation.z = -0.18;
   crucibleTilt.add(spout);
+  // pour-lip scorch
+  crucibleTilt.add(box(0.05, 0.012, 0.05, new THREE.MeshStandardMaterial({ color: 0x2a2016, roughness: 1 }), 0.2, 0.148, 0));
   const spoutTip = new THREE.Object3D();
   spoutTip.position.set(0.235, 0.12, 0);
   crucibleTilt.add(spoutTip);
@@ -344,21 +387,41 @@ export function buildFoundry(): FoundryRefs {
     rack.add(ing);
   }
   // spare flasks on upper shelf
-  rack.add(box(0.36, 0.14, 0.36, castIron(), -0.25, 1.1, 0));
-  rack.add(box(0.36, 0.14, 0.36, castIron(), 0.22, 1.1, 0.05));
+  const rf1 = spareFlask(0.34, 0.13, castIron());
+  rf1.position.set(-0.25, 1.04, 0);
+  const rf2 = spareFlask(0.34, 0.13, castIron());
+  rf2.position.set(0.22, 1.04, 0.05);
+  rf2.rotation.y = 0.3;
+  rack.add(rf1, rf2);
   group.add(rack);
 
   /* ---- midground dressing: tool board + mold trolley ---- */
   const board = new THREE.Group();
   board.position.set(0.35, 1.62, -2.5);
   board.add(box(1.3, 0.75, 0.03, new THREE.MeshStandardMaterial({ color: 0x55492f, roughness: 0.9 }), 0, 0, 0, false));
-  // hanging hand tools, spaced unevenly the way a used board is
+  // hanging hand tools with readable silhouettes, spaced unevenly
   const toolMat = bareSteel();
   const woodMat = new THREE.MeshStandardMaterial({ color: 0x7a5b39, roughness: 0.85 });
-  for (const [tx, ty, tl] of [[-0.45, -0.02, 0.3], [-0.18, 0.04, 0.36], [0.2, -0.05, 0.26], [0.44, 0.02, 0.32]] as const) {
-    board.add(cyl(0.012, 0.012, tl, woodMat, tx, ty, 0.03, 8));
-    board.add(box(0.05, 0.05, 0.02, toolMat, tx, ty - tl / 2, 0.03));
-  }
+  // trowel: handle + flat tapered blade
+  board.add(cyl(0.013, 0.013, 0.14, woodMat, -0.45, 0.12, 0.03, 8));
+  const blade = new THREE.Mesh(new THREE.CylinderGeometry(0.052, 0.018, 0.16, 3), toolMat);
+  blade.scale.z = 0.12;
+  blade.position.set(-0.45, -0.04, 0.03);
+  board.add(blade);
+  // slick: rod + oval pad
+  board.add(cyl(0.008, 0.008, 0.3, toolMat, -0.18, 0.04, 0.03, 8));
+  const pad = new THREE.Mesh(new THREE.SphereGeometry(0.035, 10, 8), toolMat);
+  pad.scale.set(1, 1.6, 0.25);
+  pad.position.set(-0.18, -0.15, 0.03);
+  board.add(pad);
+  // vent wire: long thin rod with a ring top
+  board.add(cyl(0.004, 0.004, 0.4, toolMat, 0.2, -0.02, 0.03, 6));
+  const ringTop = new THREE.Mesh(new THREE.TorusGeometry(0.022, 0.005, 6, 14), toolMat);
+  ringTop.position.set(0.2, 0.2, 0.03);
+  board.add(ringTop);
+  // bench brush (spare): handle + bristle block
+  board.add(cyl(0.011, 0.014, 0.16, woodMat, 0.44, 0.1, 0.03, 8));
+  board.add(box(0.05, 0.09, 0.03, new THREE.MeshStandardMaterial({ color: 0xcbb88a, roughness: 1 }), 0.44, -0.02, 0.03));
   group.add(board);
 
   const trolley = new THREE.Group();
@@ -371,8 +434,13 @@ export function buildFoundry(): FoundryRefs {
     trolley.add(cyl(0.05, 0.05, 0.03, castIron(), lx, 0.05, lz, 10).rotateX(Math.PI / 2));
   }
   // a used flask and a rammer ride on it
-  trolley.add(box(0.3, 0.12, 0.3, castIron(), -0.15, 0.71, 0));
-  trolley.add(cyl(0.02, 0.02, 0.34, woodMat, 0.2, 0.68, 0.05, 8).rotateZ(Math.PI / 2.2));
+  const trolleyFlask = spareFlask(0.28, 0.11, castIron());
+  trolleyFlask.position.set(-0.15, 0.645, 0);
+  trolleyFlask.rotation.y = -0.15;
+  trolley.add(trolleyFlask);
+  const rammer = cyl(0.02, 0.02, 0.34, woodMat, 0.2, 0.665, 0.05, 8);
+  rammer.rotation.z = Math.PI / 2.2;
+  trolley.add(rammer);
   group.add(trolley);
 
   /* ---- safety robot (background, checks only) ---- */
@@ -428,11 +496,13 @@ export function buildFoundry(): FoundryRefs {
   gripper.add(box(0.2, 0.06, 0.08, castIron(), 0, 0.02, 0));
   const fingerMat = bareSteel();
   const fingers: THREE.Group[] = [];
+  // fingers close front/back (along z) across the flat letter faces
   for (const side of [-1, 1]) {
     const f = new THREE.Group();
-    f.position.set(side * 0.09, 0, 0);
-    f.add(box(0.025, 0.16, 0.05, fingerMat, 0, -0.08, 0));
-    f.add(box(0.045, 0.025, 0.05, fingerMat, -side * 0.012, -0.16, 0));
+    f.position.set(0, 0, side * 0.09);
+    f.userData.side = side;
+    f.add(box(0.05, 0.16, 0.025, fingerMat, 0, -0.08, 0));
+    f.add(box(0.05, 0.025, 0.045, fingerMat, 0, -0.16, -side * 0.012));
     gripper.add(f);
     fingers.push(f);
   }

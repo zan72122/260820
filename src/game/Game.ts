@@ -64,6 +64,7 @@ export class Game {
   // pour stream
   private stream: THREE.Mesh;
   private streamMat: THREE.MeshStandardMaterial;
+  private pourLight!: THREE.PointLight;
   private pourHeld = false;
   private tilt = 0;
 
@@ -156,7 +157,7 @@ export class Game {
     this.director = new CameraDirector(container.clientWidth / container.clientHeight);
 
     this.brushMesh = this.buildBrush();
-    this.brushMesh.position.set(0.52, TABLE_Y + 0.05, 0.42);
+    this.brushMesh.position.set(0.52, TABLE_Y + 0.002, 0.42);
     this.brushMesh.rotation.z = 0.1;
     this.scene.add(this.brushMesh);
 
@@ -169,6 +170,10 @@ export class Game {
     this.stream = new THREE.Mesh(sGeo, this.streamMat);
     this.stream.visible = false;
     this.scene.add(this.stream);
+    // warm bleed from the molten metal onto the surrounding sand
+    this.pourLight = new THREE.PointLight(0xff6a1c, 0, 1.1, 2);
+    this.pourLight.position.set(-0.05, SAND_Y + 0.12, 0);
+    this.scene.add(this.pourLight);
 
     this.hint = new TouchHint(uiRoot);
     this.overlay = new Overlay(uiRoot);
@@ -240,7 +245,11 @@ export class Game {
     this.director.moveTo(p, this.portrait(), p === Phase.TITLE ? 0.1 : 1.7);
 
     if (p === Phase.BRUSH) this.spawnClumps();
-    if (p === Phase.POUR) { /* crucible ready */ }
+    if (p === Phase.POUR) {
+      // brush back to its rest spot on the bench
+      this.brushMesh.position.set(0.52, TABLE_Y + 0.002, 0.42);
+      this.brushMesh.rotation.set(0, 0, 0);
+    }
     if (p === Phase.COOL) { this.foley.sizzle(); }
     if (p === Phase.REVEAL) { this.revealStage = 0; this.revealT = 0; }
     if (p === Phase.DONE) {
@@ -297,9 +306,12 @@ export class Game {
     this.cast.uniforms.uTemp.value = 1;
     this.foundry.flaskFront.rotation.y = 0;
     this.foundry.gripper.position.set(0, 2.6, 0);
+    for (const f of this.foundry.gripperFingers) {
+      f.position.z = (f.userData.side as number) * 0.09;
+    }
     for (const c of this.clumps) this.scene.remove(c.mesh);
     this.clumps = [];
-    this.brushMesh.position.set(0.52, TABLE_Y + 0.05, 0.42);
+    this.brushMesh.position.set(0.52, TABLE_Y + 0.002, 0.42);
     this.brushMesh.rotation.set(0, 0, 0.1);
 
     this.setPhase(Phase.ALIGN);
@@ -316,7 +328,7 @@ export class Game {
     const s = 0.42;
     m.scale.setScalar(s);
     // leaning back slightly, like a casting set down to be admired
-    m.rotation.x = Math.PI / 2 - 0.14;
+    m.rotation.x = Math.PI / 2 - 0.2;
     const idx = this.trophies.length;
     m.position.set(-0.58 + idx * 0.24, TABLE_Y + (0.62 * FLASK_W * s) / 2 - 0.004, -0.42);
     m.rotation.z = (idx % 2 ? -1 : 1) * 0.06;
@@ -627,6 +639,11 @@ export class Game {
     this.foundry.crucibleLever.rotation.x = 0.35 + this.tilt * 0.6;
     this.updateStream();
 
+    // molten-metal light bleed follows fill and temperature
+    const glow = this.fill * this.temp * this.temp;
+    this.pourLight.intensity = glow * 1.4;
+    if (this.castPivot.parent !== this.scene) this.pourLight.intensity = 0;
+
     // ambient motion: robot head scanning, melt surface shimmer
     this.foundry.robotHead.rotation.y = Math.sin(this.clock.elapsedTime * 0.4) * 0.5;
     const ms = this.foundry.meltSurface.material as THREE.MeshStandardMaterial;
@@ -708,9 +725,10 @@ export class Game {
   }
 
   private updateBreak(dt: number) {
+    const durCrumble = this.fast ? 1.0 : 2.4;
     if (this.crumbleT >= 0 && this.crumbleT < 10) {
       this.crumbleT += dt;
-      const k = Math.min(1, this.crumbleT / 1.3);
+      const k = Math.min(1, this.crumbleT / durCrumble);
       this.sand.setCrumble(k);
       if (Math.random() < 0.7 && k < 1) {
         const a = Math.random() * Math.PI * 2, r = 0.1 + Math.random() * 0.24;
@@ -719,7 +737,7 @@ export class Game {
           new THREE.Vector3(Math.cos(a) * 0.3, 0.15, Math.sin(a) * 0.35),
           0.06, 6, new THREE.Color(0x8d7554), 0.011, 0.9);
       }
-      if (k >= 1 && this.crumbleT > 1.8) {
+      if (k >= 1 && this.crumbleT > durCrumble + 0.5) {
         this.crumbleT = 20; // done
         this.setPhase(Phase.REVEAL);
       }
@@ -735,20 +753,19 @@ export class Game {
       const k = Math.min(1, this.revealT * 0.9 * fast);
       const s = k * k * (3 - 2 * k);
       g.position.set(0, 2.6 - s * (2.6 - (SAND_Y + 0.42)), 0);
-      for (const f of this.foundry.gripperFingers) {
-        f.position.x = Math.sign(f.position.x) * (0.09 - s * 0.0);
-      }
       if (k >= 1) { this.revealStage = 1; this.revealT = 0; }
     } else if (this.revealStage === 1) {
-      // close fingers, grab
+      // close fingers onto the letter faces
       const k = Math.min(1, this.revealT * 2.2 * fast);
       for (const f of this.foundry.gripperFingers) {
-        f.position.x = Math.sign(f.position.x) * (0.09 - k * 0.045);
+        f.position.z = (f.userData.side as number) * (0.09 - k * 0.062);
       }
       if (k >= 1) {
         this.revealStage = 2; this.revealT = 0;
-        // hand the cast to the gripper
-        this.castPivot.position.set(0, -0.42 - 0.02, 0);
+        // hand the cast to the gripper; recentre its thickness so the
+        // closed fingers touch both faces without clipping
+        this.cast.mesh.position.y += PRESS_DEPTH / 2 + 0.002;
+        this.castPivot.position.set(0, -0.42, 0);
         this.cast.runner.visible = false;
         this.foundry.gripper.add(this.castPivot);
         this.foley.slideClick();
@@ -759,7 +776,7 @@ export class Game {
       const s = k * k * (3 - 2 * k);
       g.position.set(0, (SAND_Y + 0.42) + s * (1.62 - (SAND_Y + 0.42)), -0.2 * s);
       this.castPivot.rotation.x = s * Math.PI / 2;
-      this.castPivot.position.set(0, -0.42 + s * 0.14, s * 0.05);
+      this.castPivot.position.set(0, -0.42 + s * 0.14, 0);
       if (k >= 1) {
         this.revealStage = 3; this.revealT = 0;
         this.foley.chime();
@@ -789,17 +806,19 @@ export class Game {
     const grip = new THREE.Vector3();
     switch (this.phase) {
       case Phase.ALIGN: {
-        this.foundry.carriage.getWorldPosition(grip);
-        grip.y -= 0.5;
+        // start on the hanging pattern, drift down onto the sand centre
+        this.foundry.patternSocket.getWorldPosition(grip);
+        grip.y -= 0.06;
         from = this.worldToNdc(grip);
-        to = this.worldToNdc(new THREE.Vector3(0, grip.y, 0));
+        to = this.worldToNdc(new THREE.Vector3(0, SAND_Y + 0.06, 0.1));
         break;
       }
       case Phase.PRESS: case Phase.RAISE: {
-        this.foundry.pressLever.getWorldPosition(grip);
-        grip.y += 0.5 - this.lever * 0.5;
+        // gesture works anywhere - show it over the pattern so the drag
+        // direction and its effect read as one motion
+        this.foundry.patternSocket.getWorldPosition(grip);
         from = this.worldToNdc(grip);
-        to = from.clone().add(new THREE.Vector2(0, this.phase === Phase.PRESS ? -0.42 : 0.42));
+        to = from.clone().add(new THREE.Vector2(0, this.phase === Phase.PRESS ? -0.45 : 0.45));
         break;
       }
       case Phase.BRUSH: {
@@ -821,6 +840,11 @@ export class Game {
         break;
       }
       default: return;
+    }
+    // keep the ring on screen even if the control sits near the frame edge
+    for (const p of [from, to]) {
+      p.x = Math.min(0.86, Math.max(-0.86, p.x));
+      p.y = Math.min(0.88, Math.max(-0.88, p.y));
     }
     this.hint.show(from, to, t, w, h);
   }

@@ -22,15 +22,16 @@ export function poseFor(phase: Phase, portrait: boolean): CamPose {
   switch (phase) {
     case Phase.TITLE:
     case Phase.ALIGN:
-      // mid shot: sand centre-left, pattern + lever right, crucible far left
+      // mid shot: sand centre-left, pattern + lever fully inside the frame
       return portrait
-        ? { pos: V(0.5, 1.5, 1.95), target: V(0.18, 1.05, -0.05), fov: 56 }
-        : { pos: V(0.55, 1.42, 1.7), target: V(0.12, 1.02, -0.05), fov: 47 };
+        ? { pos: V(0.48, 1.48, 2.05), target: V(0.24, 1.04, -0.02), fov: 57 }
+        : { pos: V(0.55, 1.42, 1.75), target: V(0.16, 1.02, -0.04), fov: 48 };
     case Phase.PRESS:
-      // 3/4 view, above the pattern: ring shape + thickness + sinking + lever
+      // 3/4 view, above the pattern: ring shape + thickness + sinking,
+      // with the press lever kept inside the right edge of the frame
       return portrait
-        ? { pos: V(0.62, 1.68, 1.34), target: V(0.08, 1.0, -0.02), fov: 52 }
-        : { pos: V(0.68, 1.6, 1.2), target: V(0.06, 0.99, -0.02), fov: 45 };
+        ? { pos: V(0.52, 1.62, 1.62), target: V(0.3, 1.02, 0.02), fov: 54 }
+        : { pos: V(0.6, 1.56, 1.38), target: V(0.26, 1.0, 0.02), fov: 47 };
     case Phase.RAISE:
       // slightly higher: cavity + islands revealed while the pattern lifts
       return portrait
