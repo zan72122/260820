@@ -120,6 +120,14 @@ export interface SurfacePoint {
 }
 
 /** Point on the trunk shell for a body position z and wrap angle phi. */
+// Scratch vectors: this runs twice a frame while a finger is on the chest.
+const _a = new Vector3();
+const _b = new Vector3();
+const _c = new Vector3();
+const _d = new Vector3();
+const _dPhi = new Vector3();
+const _dZ = new Vector3();
+
 export function trunkPoint(z: number, phi: number, out?: SurfacePoint): SurfacePoint {
   const W = halfWidthAt(z);
   const H = halfDepthAt(z);
@@ -135,11 +143,12 @@ export function trunkPoint(z: number, phi: number, out?: SurfacePoint): SurfaceP
   // Normal from finite differences of the same function — always consistent
   // with the rendered mesh, so the chestpiece never floats or sinks.
   const e = 1e-3;
-  const a = rawPoint(z, phi + e);
-  const b = rawPoint(z, phi - e);
-  const c = rawPoint(z + e, phi);
-  const dPhi = a.sub(b);
-  const dZ = c.sub(rawPoint(z - e, phi));
+  rawPoint(z, phi + e, _a);
+  rawPoint(z, phi - e, _b);
+  rawPoint(z + e, phi, _c);
+  rawPoint(z - e, phi, _d);
+  const dPhi = _dPhi.subVectors(_a, _b);
+  const dZ = _dZ.subVectors(_c, _d);
   const n = out?.normal ?? new Vector3();
   // dPhi x dZ points out of the shell everywhere, which is also the winding
   // order the triangles are built with below.
@@ -147,12 +156,12 @@ export function trunkPoint(z: number, phi: number, out?: SurfacePoint): SurfaceP
   return { position: p, normal: n };
 }
 
-function rawPoint(z: number, phi: number): Vector3 {
+function rawPoint(z: number, phi: number, out: Vector3): Vector3 {
   const W = halfWidthAt(z);
   const H = halfDepthAt(z);
   const yc = axisYAt(z);
   const d = surfaceDetail(z, phi);
-  return new Vector3(-(W + d) * Math.sin(phi), yc + (H + d) * Math.cos(phi), z);
+  return out.set(-(W + d) * Math.sin(phi), yc + (H + d) * Math.cos(phi), z);
 }
 
 /**

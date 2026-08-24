@@ -713,6 +713,10 @@ export class GameFlow {
     const sample = this.field.sample(this.drag.coord);
     const contact = this.contact.update(dt, this.drag.coord, this.drag.dragSpeed());
 
+    // The instructor's hand stops fidgeting as the child closes in — one of
+    // the three allowed cues, none of which is a light on the chest.
+    this.guidance.setStillness(sample.nearestStrength * contact);
+
     // Visible tremor follows the sound arriving here, not the position.
     const beat = Math.max(this.clock.soundEnvelope(1), this.clock.soundEnvelope(2) * 0.8);
     this.tremorEnergy = damp(this.tremorEnergy, sample.tremor * contact * beat, 22, dt);

@@ -39,6 +39,11 @@ export class ChildGuidance {
     return this.level;
   }
 
+  /** Pass the "you are getting closer" cue through to the hand. */
+  setStillness(amount: number): void {
+    this.hand.setStillness(this.level === 'full' || this.level === 'light' ? amount : 0);
+  }
+
   setPose(pose: HandPose): void {
     if (this.level === 'none' && pose !== 'offstage') return;
     this.hand.setPose(pose);

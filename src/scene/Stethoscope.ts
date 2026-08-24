@@ -39,9 +39,12 @@ export class Stethoscope {
 
   // Scratch objects — the pose is recomputed every frame.
   private up = new Vector3(0, 1, 0);
-  private q = new Vector3();
   private quat = new Quaternion();
   private tubePts: Vector3[] = [];
+  private tubePool: Vector3[] = Array.from({ length: 10 }, () => new Vector3());
+  private fromScratch = new Vector3();
+  private toScratch = new Vector3();
+  private dirScratch = new Vector3();
 
   constructor(mats: MaterialLibrary) {
     // --- Chestpiece -------------------------------------------------------
@@ -150,15 +153,16 @@ export class Stethoscope {
     this.chestpiece.updateWorldMatrix(true, false);
     this.binaural.updateWorldMatrix(true, false);
 
-    const from = this.stem.getWorldPosition(new Vector3());
-    const to = this.binauralPort(new Vector3());
+    const from = this.stem.getWorldPosition(this.fromScratch);
+    const to = this.binauralPort(this.toScratch);
 
+    // The control points are recycled: this runs every frame.
     const pts = this.tubePts;
     pts.length = 0;
     const n = 6;
     for (let i = 0; i <= n; i++) {
       const t = i / n;
-      const p = new Vector3().lerpVectors(from, to, t);
+      const p = this.tubePool[i].lerpVectors(from, to, t);
       // Gravity sag with a remembered bend, plus a barely-there sway.
       const arc = Math.sin(t * Math.PI);
       p.y -= arc * this.bendMemory * 0.15;
@@ -171,11 +175,9 @@ export class Stethoscope {
       pts.push(p);
     }
     // Leave the stem along its own axis first, so the tube does not kink.
-    this.q.copy(from).addScaledVector(
-      this.stem.getWorldDirection(new Vector3()).multiplyScalar(-1),
-      0.02,
-    );
-    pts.splice(1, 0, this.q.clone());
+    this.stem.getWorldDirection(this.dirScratch);
+    this.tubePool[7].copy(from).addScaledVector(this.dirScratch, -0.02);
+    pts.splice(1, 0, this.tubePool[7]);
     this.tube.setPath(pts);
   }
 }

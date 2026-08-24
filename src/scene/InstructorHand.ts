@@ -1,5 +1,6 @@
 import { CapsuleGeometry, Group, Mesh, SphereGeometry, Vector3 } from 'three';
 import { clamp01, damp, lerp } from '../core/mathutil';
+import { valueNoise1D } from '../core/rng';
 import type { MaterialLibrary } from './materials';
 
 export type HandPose =
@@ -53,6 +54,9 @@ export class InstructorHand {
   private curl = 0.2;
   private tapImpulse = 0;
   private visibleAmount = 0;
+  private stillness = 0;
+  private idleTime = 0;
+  private sway = valueNoise1D(5309);
 
   constructor(mats: MaterialLibrary) {
     this.root.rotation.order = 'YXZ';
@@ -112,6 +116,18 @@ export class InstructorHand {
     return this.pose;
   }
 
+  /**
+   * How much the hand should hold still, 0..1.
+   *
+   * This is one of the three cues the brief allows in place of a light on the
+   * chest: as the child gets closer to a place where the heart comes through
+   * clearly, the adult's hand quietly stops fidgeting. It is a hint you feel
+   * rather than read, and it never points at anything.
+   */
+  setStillness(amount: number): void {
+    this.stillness = clamp01(amount);
+  }
+
   /** A single knock, synchronised to the beat the instructor is marking. */
   tap(): void {
     this.tapImpulse = 1;
@@ -140,6 +156,13 @@ export class InstructorHand {
     this.root.rotation.x = damp(this.root.rotation.x, spec.rotation.x, 5, dt);
     this.root.rotation.y = damp(this.root.rotation.y, spec.rotation.y, 5, dt);
     this.root.rotation.z = damp(this.root.rotation.z, spec.rotation.z, 5, dt);
+
+    // Idle sway, damped away as the child closes in on a clear spot.
+    this.idleTime += dt;
+    const amp = (1 - this.stillness) * 0.011;
+    this.root.position.x += this.sway(this.idleTime * 0.9) * amp;
+    this.root.position.y += this.sway(this.idleTime * 0.7 + 40) * amp * 0.6;
+    this.root.position.z += this.sway(this.idleTime * 1.1 + 90) * amp * 0.8;
 
     if (this.tapImpulse > 0) {
       this.tapImpulse = Math.max(0, this.tapImpulse - dt * 6.5);
