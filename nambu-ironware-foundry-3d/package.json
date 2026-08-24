@@ -1,0 +1,13 @@
+{
+  "name": "nambu-ironware-foundry-3d",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A complete, touch-first 3D mobile game about the 48-step Nambu iron kettle making process.",
+  "scripts": {
+    "check": "node --check js/bootstrap.js && node --check js/data.js && node --check js/core.js && node --check js/models.js && node --check js/game.js && node --check js/ui.js && node --check js/main.js && node --check sw.js",
+    "test": "npm run check && node tests/validate.mjs && node tests/state-model.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "name": "鉄瓶、うまれる。— 南部鉄器 3D工房",
+  "short_name": "鉄瓶、うまれる。",
+  "description": "砂・火・鉄から南部鉄瓶が生まれる48工程を体験する3Dモバイルゲーム。",
+  "lang": "ja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#080705",
+  "theme_color": "#080705",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "icons/maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}

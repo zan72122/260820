@@ -1,0 +1,29 @@
+name: Nambu Ironware 3D checks
+
+on:
+  push:
+    paths:
+      - 'nambu-ironware-foundry-3d/**'
+      - '.github/workflows/nambu-ironware-foundry-3d.yml'
+  pull_request:
+    paths:
+      - 'nambu-ironware-foundry-3d/**'
+      - '.github/workflows/nambu-ironware-foundry-3d.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nambu-ironware-foundry-3d
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate the complete game
+        run: npm test
