@@ -56,9 +56,9 @@ export const SHOTS: Record<string, Shot> = {
     pos: new THREE.Vector3(0.62, 1.2, 2.35),
     look: new THREE.Vector3(0.72, 1.08, -0.05),
     fov: 50,
-    posPortrait: new THREE.Vector3(0.9, 1.3, 3.4),
-    lookPortrait: new THREE.Vector3(0.95, 1.05, -0.2),
-    fovPortrait: 60,
+    posPortrait: new THREE.Vector3(0.8, 1.35, 4.0),
+    lookPortrait: new THREE.Vector3(0.88, 1.0, -0.2),
+    fovPortrait: 58,
   },
 };
 
