@@ -128,13 +128,13 @@ const WINDOW_DEFS: ListeningWindow[] = [
 /** Everything outside the four areas still hears the heart — just further away. */
 const FAR_FIELD: SoundProfile = {
   s1: 0.5,
-  s2: 0.44,
+  s2: 0.46,
   s1Balance: 0.55,
   s2Balance: 0.52,
-  cutoff: 420,
+  cutoff: 400,
   lowShelf: 1.0,
-  presence: -3.0,
-  proximity: 0.34,
+  presence: -6.5,
+  proximity: 0.3,
   tremor: 0.22,
 };
 
@@ -249,7 +249,7 @@ export class BodySoundField {
 
     // ...then fade the whole thing towards the far field as we leave the
     // useful part of the chest, so the edges are distant but never silent.
-    const reach = smoothstep(0.28, 0.98, nearestDist);
+    const reach = smoothstep(0.22, 0.9, nearestDist);
     const profile = blendProfiles(acc, FAR_FIELD, reach);
 
     // Off the chest altogether (shoulders, belly): further still.

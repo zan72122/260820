@@ -14,10 +14,10 @@ export class AuscultationChannel {
   private presence: BiquadFilterNode;
   private wall: BiquadFilterNode;
   private out: GainNode;
-  private ctx: AudioContext;
+  private ctx: BaseAudioContext;
   private level = 0;
 
-  constructor(ctx: AudioContext, destination: AudioNode) {
+  constructor(ctx: BaseAudioContext, destination: AudioNode) {
     this.ctx = ctx;
     this.input = ctx.createGain();
     this.input.gain.value = 1;

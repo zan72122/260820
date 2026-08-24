@@ -26,14 +26,14 @@ interface PoseSpec {
  * rotation is (pitch, yaw, roll) applied in YXZ order.
  */
 const POSES: Record<HandPose, PoseSpec> = {
-  offstage: { position: new Vector3(0.62, 0.9, 0.42), rotation: new Vector3(-0.3, 1.4, 0), curl: 0.2 },
+  offstage: { position: new Vector3(0.16, 0.86, -0.92), rotation: new Vector3(-0.2, 1.5, 0), curl: 0.2 },
   placing: { position: new Vector3(0.2, 0.94, 0.06), rotation: new Vector3(-0.5, 1.35, 0), curl: 0.5 },
   steadying: { position: new Vector3(0.22, 0.93, 0.1), rotation: new Vector3(-0.42, 1.3, 0), curl: 0.38 },
   loosenTube: { position: new Vector3(0.28, 0.97, 0.2), rotation: new Vector3(-0.38, 1.12, 0.18), curl: 0.7 },
   showUpper: { position: new Vector3(0.27, 0.95, -0.2), rotation: new Vector3(-0.6, 1.42, 0), curl: 0.1 },
   showLower: { position: new Vector3(0.27, 0.95, 0.12), rotation: new Vector3(-0.6, 1.42, 0), curl: 0.1 },
   tapRail: { position: new Vector3(-0.52, 0.95, 0.16), rotation: new Vector3(-0.45, -1.35, 0), curl: 0.72 },
-  resting: { position: new Vector3(0.56, 0.9, 0.36), rotation: new Vector3(-0.3, 1.4, 0), curl: 0.28 },
+  resting: { position: new Vector3(0.33, 0.89, -0.6), rotation: new Vector3(-0.25, 1.45, 0), curl: 0.28 },
 };
 
 /**
@@ -57,9 +57,9 @@ export class InstructorHand {
   constructor(mats: MaterialLibrary) {
     this.root.rotation.order = 'YXZ';
 
-    const forearm = new Mesh(new CapsuleGeometry(0.039, 0.19, 6, 14), mats.glove);
+    const forearm = new Mesh(new CapsuleGeometry(0.036, 0.15, 6, 14), mats.glove);
     forearm.rotation.x = Math.PI / 2;
-    forearm.position.set(0, 0.006, 0.175);
+    forearm.position.set(0, 0.006, 0.155);
     forearm.castShadow = true;
     this.root.add(forearm);
 

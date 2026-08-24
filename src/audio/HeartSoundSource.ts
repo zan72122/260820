@@ -23,10 +23,10 @@ const COMPONENT_OFFSET: Record<ComponentId, number> = {
  * pitch and the sequence are identical everywhere on the chest.
  */
 export class HeartSoundSource {
-  private ctx: AudioContext;
+  private ctx: BaseAudioContext;
   private buffers = new Map<ComponentId, AudioBuffer>();
 
-  constructor(ctx: AudioContext) {
+  constructor(ctx: BaseAudioContext) {
     this.ctx = ctx;
     const sr = ctx.sampleRate;
 

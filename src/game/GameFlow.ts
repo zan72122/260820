@@ -12,7 +12,7 @@ import { StethoscopeContact } from '../interaction/StethoscopeContact';
 import { AdaptiveQuality } from '../render/AdaptiveQuality';
 import { createRenderer } from '../render/Renderer';
 import type { AnatomyModel } from '../scene/AnatomyModel';
-import { chestSurfacePoint, worldToChestCoord } from '../scene/ChestSurface';
+import { chestSurfacePoint } from '../scene/ChestSurface';
 import { InstructorHand } from '../scene/InstructorHand';
 import { Lighting } from '../scene/Lighting';
 import { Manikin } from '../scene/Manikin';
@@ -39,7 +39,7 @@ type Stage =
   | 'findSecondSound'
   | 'freePlay';
 
-const NEUTRAL: ChestCoord = { lat: 0.0, sup: 0.3 };
+const NEUTRAL: ChestCoord = { lat: 0.0, sup: 0.34 };
 
 /** Where the chestpiece waits before the instructor picks it up. */
 const STAND_REST = new Vector3(0.1, 0.828, 0.09);
@@ -80,7 +80,10 @@ export class GameFlow {
   private raycaster = new Raycaster();
   private ndc = new Vector2();
   private stage: Stage = 'eartips';
-  private stageTime = 0;
+  /** Wall-clock time the current stage began, on the cardiac timeline. */
+  private stageStartedAt = 0;
+  private contactBeats = 0;
+  private lastContactBeat = -1;
   private earTipsSeated = 0;
   private chestpieceMode: 'stand' | 'placing' | 'chest' = 'stand';
   private placingT = 0;
@@ -136,6 +139,10 @@ export class GameFlow {
     window.addEventListener('orientationchange', () => setTimeout(() => this.layout(), 260));
     document.addEventListener('visibilitychange', () => this.handleVisibility());
     this.layout();
+    // Start the stand where this orientation wants it instead of rolling it
+    // across the room during the establishing shot.
+    this.room.instrumentStand.position.x = this.standTarget.x;
+    this.room.instrumentStand.position.z = this.standTarget.z;
     this.enterStage('eartips');
   }
 
@@ -161,40 +168,10 @@ export class GameFlow {
       shot: this.director.getShot(),
       roll: Number(this.manikin.getLateralRoll().toFixed(3)),
       caption: this.guidance.getCaption(),
-      cam: this.director.camera.position.toArray().map((v) => Number(v.toFixed(3))),
       mode: this.chestpieceMode,
-      drag: this.drag.debug(),
-    };
-  }
-
-  /** What a ray through this screen point actually hits, for the self-check. */
-  probeRay(x: number, y: number): Array<{ name: string; distance: number }> {
-    this.pointer.toNdc(x, y, this.ndc);
-    this.raycaster.setFromCamera(this.ndc, this.director.camera);
-    return this.raycaster
-      .intersectObjects(this.scene.children, true)
-      .map((h) => ({ name: h.object.name || h.object.type, distance: Number(h.distance.toFixed(3)) }));
-  }
-
-  /** Does a ray through this screen point reach the torso at all? */
-  probeTorso(x: number, y: number): Record<string, unknown> {
-    this.pointer.toNdc(x, y, this.ndc);
-    this.raycaster.setFromCamera(this.ndc, this.director.camera);
-    const hits = this.raycaster.intersectObject(this.manikin.torsoMesh, false);
-    const m = this.manikin.torsoMesh;
-    return {
-      hits: hits.length,
-      first: hits[0] ? hits[0].point.toArray().map((v) => Number(v.toFixed(4))) : null,
-      coord: hits[0]
-        ? (() => {
-            const c = worldToChestCoord(hits[0].point);
-            return [Number(c.lat.toFixed(3)), Number(c.sup.toFixed(3))];
-          })()
-        : null,
-      meshScale: m.scale.toArray(),
-      meshWorld: m.getWorldPosition(new Vector3()).toArray().map((v) => Number(v.toFixed(4))),
-      camPos: this.director.camera.position.toArray().map((v) => Number(v.toFixed(3))),
-      ndc: [Number(this.ndc.x.toFixed(4)), Number(this.ndc.y.toFixed(4))],
+      onChest: this.drag.isOverChest(),
+      markedSound: this.guidance.getMarkedSound(),
+      knocks: this.roomNoise?.knockCount ?? 0,
     };
   }
 
@@ -269,12 +246,14 @@ export class GameFlow {
     // can be explored from the clavicles to the costal margin; landscape puts
     // it out to the side so the chest and the tiles sit left and right.
     if (this.director.isPortrait()) {
-      this.standTarget.set(0.42, 0, 0.6);
-      this.room.instrumentStand.rotation.y = -0.72;
+      // Rolled up to the foot of the table, so the tiles sit below the chest
+      // on screen and the stand is not standing inside the table.
+      this.standTarget.set(0.15, 0, 1.12);
+      this.room.instrumentStand.rotation.y = -0.14;
       this.drag.fingerOffsetPx = 44;
     } else {
-      this.standTarget.set(0.88, 0, 0.1);
-      this.room.instrumentStand.rotation.y = -0.5;
+      this.standTarget.set(0.82, 0, 0.18);
+      this.room.instrumentStand.rotation.y = -0.62;
       this.drag.fingerOffsetPx = 50;
     }
   }
@@ -306,9 +285,11 @@ export class GameFlow {
       if (this.nearEarTips(x, y)) void this.seatEarTips();
       return;
     }
-    // The rail is a big, obvious handle, so it is checked before the chest.
-    const railHit = this.pick(x, y, this.room.bedHandle.children as Mesh[]);
-    if (railHit && this.stage !== 'centre' && this.stage !== 'seekFirst') {
+    // The rail is a big, obvious handle, so it is checked before the chest —
+    // and grabbing it is forgiving, because small hands are not precise.
+    const railGrabbable =
+      this.stage !== 'centre' && this.stage !== 'seekFirst' && this.stage !== 'reveal';
+    if (railGrabbable && this.nearRail(x, y)) {
       this.handleDrag.active = true;
       this.handleDrag.startY = y;
       return;
@@ -332,6 +313,21 @@ export class GameFlow {
       this.recorder.play(id);
       this.refreshScheduler();
     }
+  }
+
+  private nearRail(x: number, y: number): boolean {
+    if (this.pick(x, y, this.room.bedHandle.children as Mesh[])) return true;
+    this.room.bedHandle.updateWorldMatrix(true, false);
+    const { width, height } = this.pointer.size;
+    const reach = Math.max(44, Math.min(width, height) * 0.09);
+    for (let i = -1; i <= 1; i++) {
+      this.tmpV.set(0, 0, i * 0.3).applyMatrix4(this.room.bedHandle.matrixWorld);
+      this.tmpV.project(this.director.camera);
+      const sx = ((this.tmpV.x + 1) / 2) * width;
+      const sy = ((1 - this.tmpV.y) / 2) * height;
+      if (Math.hypot(sx - x, sy - y) < reach) return true;
+    }
+    return false;
   }
 
   private nearEarTips(x: number, y: number): boolean {
@@ -389,7 +385,9 @@ export class GameFlow {
 
   private enterStage(stage: Stage): void {
     this.stage = stage;
-    this.stageTime = 0;
+    this.stageStartedAt = this.clock.elapsed();
+    this.contactBeats = 0;
+    this.lastContactBeat = -1;
     this.roundListens.clear();
     this.discovery.resetRoundVisits();
     this.guidance.markSound(null);
@@ -541,12 +539,29 @@ export class GameFlow {
     this.reveal.start(s.position, s.normal, () => this.enterStage('seekSecond'));
   }
 
-  private advanceStages(dt: number): void {
-    this.stageTime += dt;
+  /** Seconds since this stage began, measured on the heartbeat's own clock. */
+  private stageElapsed(): number {
+    return this.clock.elapsed() - this.stageStartedAt;
+  }
+
+  private advanceStages(): void {
+    // Count complete cycles heard with the diaphragm seated. Counting beats
+    // rather than frames keeps "listen for a few beats" true on any device.
+    const beat = this.clock.beatIndex();
+    if (this.chestpieceMode === 'chest' && this.contact.value > 0.45) {
+      if (this.lastContactBeat < 0) this.lastContactBeat = beat;
+      else if (beat !== this.lastContactBeat) {
+        this.contactBeats += beat - this.lastContactBeat;
+        this.lastContactBeat = beat;
+      }
+    } else {
+      this.lastContactBeat = -1;
+    }
+
     switch (this.stage) {
       case 'centre':
         // A few complete cycles at the neutral spot, then the tubing is freed.
-        if (this.chestpieceMode === 'chest' && this.contact.value > 0.45 && this.stageTime > 5.5) {
+        if (this.contactBeats >= 3 && this.stageElapsed() > 4) {
           this.enterStage('seekFirst');
         }
         break;
@@ -597,9 +612,9 @@ export class GameFlow {
     this.reveal?.update(dt);
     this.anatomy?.update(dt, this.clock);
     this.updateSkinFade();
-    this.advanceStages(dt);
+    this.advanceStages();
 
-    if (this.stage === 'eartips') this.frameEarTips(dt);
+    if (this.stage === 'eartips') this.frameEarTips();
 
     this.hand.update(dt, this.chestpieceMode === 'chest' ? this.steth.chestpiece.position : null);
     this.steth.updateTube(now / 1000);
@@ -609,7 +624,7 @@ export class GameFlow {
     this.renderer.render(this.scene, this.director.camera);
   }
 
-  private frameEarTips(dt: number): void {
+  private frameEarTips(): void {
     // Frame the training listening head on the stand and wait for the eartips
     // to be pushed in. This is the first touch, and it is what starts audio.
     this.room.listeningHead.updateWorldMatrix(true, false);
@@ -621,8 +636,7 @@ export class GameFlow {
       out.target.copy(target);
       out.fov = this.director.isPortrait() ? 34 : 30;
     }, 1.5);
-    if (this.stageTime > 0.2) this.guidance.say('みみに つけてね', 30);
-    this.stageTime += dt;
+    if (this.stageElapsed() > 0.4) this.guidance.say('みみに つけてね', 30);
   }
 
   private updateHandle(dt: number): void {
@@ -667,7 +681,7 @@ export class GameFlow {
       return;
     }
 
-    const s = chestSurfacePoint(this.drag.coord);
+    let s = chestSurfacePoint(this.drag.coord);
     if (this.chestpieceMode === 'placing') {
       this.placingT = Math.min(1, this.placingT + dt / 1.35);
       const k = this.placingT * this.placingT * (3 - 2 * this.placingT);
@@ -681,7 +695,10 @@ export class GameFlow {
       return;
     }
 
+    // Move first, then place the chestpiece — otherwise it lags the finger by
+    // a frame, which reads as the drag being sticky.
     const wasOver = this.drag.update(dt, this.manikin.torsoMesh);
+    s = chestSurfacePoint(this.drag.coord);
     const press = this.contact.value;
     this.steth.setPose(s.position, s.normal, press, dt);
     this.steth.setTubeTension(this.stage === 'centre' ? 1 : 0.25, dt);

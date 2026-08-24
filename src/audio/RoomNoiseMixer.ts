@@ -21,6 +21,8 @@ export class RoomNoiseMixer {
   private softKnockBuffer: AudioBuffer;
   private thudBuffer: AudioBuffer;
   private duck = 0;
+  /** How many rail knocks have been scheduled — the marked-beat gesture. */
+  knockCount = 0;
 
   constructor(ctx: AudioContext, destination: AudioNode) {
     this.ctx = ctx;
@@ -90,6 +92,7 @@ export class RoomNoiseMixer {
 
   /** The instructor's knuckle on the table rail, marking one beat. */
   knock(when: number, soft = false): void {
+    this.knockCount++;
     const src = this.ctx.createBufferSource();
     src.buffer = soft ? this.softKnockBuffer : this.knockBuffer;
     const g = this.ctx.createGain();

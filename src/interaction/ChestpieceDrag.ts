@@ -97,16 +97,9 @@ export class ChestpieceDrag {
     return clamp(this.pointer.state.speed / 900, 0, 1);
   }
 
-  /** Read-only view for the browser self-check. */
-  debug(): Record<string, unknown> {
-    return {
-      enabled: this.enabled,
-      pointerActive: this.pointer.state.active,
-      hitOk: this.lastHitOk,
-      wantedLat: Number(this.wanted.lat.toFixed(3)),
-      wantedSup: Number(this.wanted.sup.toFixed(3)),
-      ndc: [Number(this.ndc.x.toFixed(3)), Number(this.ndc.y.toFixed(3))],
-    };
+  /** True while the finger is actually over the chest surface. */
+  isOverChest(): boolean {
+    return this.lastHitOk && this.pointer.state.active;
   }
 
   surface(): { position: Vector3; normal: Vector3 } {

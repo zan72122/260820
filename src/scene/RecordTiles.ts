@@ -28,7 +28,7 @@ export class RecordTiles {
 
   constructor(private mats: MaterialLibrary) {
     for (let i = 0; i < 4; i++) {
-      this.slots.push(new Vector3(-0.153 + i * 0.102, 0.006, 0.0));
+      this.slots.push(new Vector3(-0.1725 + i * 0.115, 0.006, 0.0));
     }
   }
 
@@ -48,7 +48,7 @@ export class RecordTiles {
       return existing;
     }
     const group = new Group();
-    const plate = new Mesh(new BoxGeometry(0.088, 0.011, 0.088), this.mats.engravedPlate);
+    const plate = new Mesh(new BoxGeometry(0.1, 0.011, 0.1), this.mats.engravedPlate);
     plate.castShadow = true;
     plate.receiveShadow = true;
     group.add(plate);
@@ -59,7 +59,7 @@ export class RecordTiles {
       metalness: 0.45,
       clearcoat: 0.12,
     });
-    const face = new Mesh(new PlaneGeometry(0.082, 0.082), faceMat);
+    const face = new Mesh(new PlaneGeometry(0.094, 0.094), faceMat);
     face.rotation.x = -Math.PI / 2;
     face.position.y = 0.0057;
     face.userData.tileId = id;
@@ -68,7 +68,9 @@ export class RecordTiles {
     const slot = this.slots[Math.min(this.tiles.length, 3)];
     group.position.copy(slot);
     group.position.y += 0.09;
-    group.rotation.y = (Math.random() - 0.5) * 0.09;
+    // A hand set these down, so they are not perfectly square — but the same
+    // way every run.
+    group.rotation.y = ((this.tiles.length % 3) - 1) * 0.035;
     this.root.add(group);
 
     const handle: TileHandle = { id, coord, group, face, playing: 0 };

@@ -5,6 +5,8 @@ const BASE = process.env.BASE ?? 'http://127.0.0.1:4173/?fast=1';
 const OUT = process.env.OUT ?? './shots';
 mkdirSync(OUT, { recursive: true });
 
+const ONLY = (process.env.VPS ?? '').split(',').filter(Boolean);
+const RUN_MAIN = process.env.MAIN !== '0';
 const VIEWPORTS = [
   { name: 'iphone-portrait', width: 390, height: 844, dpr: 3 },
   { name: 'iphone-landscape', width: 844, height: 390, dpr: 3 },
@@ -51,6 +53,18 @@ async function newPage(vp) {
 }
 
 const snap = (page) => page.evaluate(() => window.__game.snapshot());
+
+/** Wait on the game's own state rather than on a guess about frame rate. */
+async function waitFor(page, predicate, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  let last = null;
+  while (Date.now() < deadline) {
+    last = await snap(page);
+    if (predicate(last)) return last;
+    await sleep(400);
+  }
+  return last;
+}
 const shot = (page, name) => page.screenshot({ path: `${OUT}/${name}.png`, timeout: 120000 });
 
 async function pressHold(page, pt, ms, moves = []) {
@@ -65,7 +79,7 @@ async function pressHold(page, pt, ms, moves = []) {
 }
 
 // ---------------------------------------------------------------- main run
-{
+if (RUN_MAIN) {
   const vp = VIEWPORTS[0];
   const { ctx, page } = await newPage(vp);
   const log = [];
@@ -184,17 +198,34 @@ async function pressHold(page, pt, ms, moves = []) {
 
 // ------------------------------------------------------- viewport coverage
 report.viewports = [];
-for (const vp of VIEWPORTS) {
+for (const vp of VIEWPORTS.filter((v) => !ONLY.length || ONLY.includes(v.name))) {
   const { ctx, page } = await newPage(vp);
   const tips = await page.evaluate(() => window.__game.projectEarTips());
   await page.mouse.click(tips.x, tips.y);
-  await sleep(1600);
-  const centre = await page.evaluate(() => window.__game.projectChest(0, 0.3));
-  await pressHold(page, centre, 6200);
+  await waitFor(page, (s) => s.stage === 'centre', 60000);
+
+  // Hold in the middle of the chest until the tubing is freed, then hold on
+  // one area until it has been listened to long enough to be saved.
+  const centre = await page.evaluate(() => window.__game.projectChest(0, 0.34));
+  await page.mouse.move(centre.x, centre.y);
+  await page.mouse.down();
+  await waitFor(page, (s) => s.stage === 'seekFirst', 90000);
+  await page.mouse.up();
+
   const mitral = await page.evaluate(() => window.__game.projectChest(0.62, -0.36));
-  await pressHold(page, mitral, 5200);
-  await sleep(5200);
+  await page.mouse.move(mitral.x, mitral.y);
+  await page.mouse.down();
+  await waitFor(page, (s) => s.tiles >= 1, 120000);
+  await page.mouse.up();
+
+  // Wait for the working camera, which is the shot the child plays in and the
+  // only one everything has to be reachable from.
+  await waitFor(page, (s) => s.shot === 'compare' || s.shot === 'play', 120000);
+  await sleep(2500);
   const st = await snap(page);
+  if (st.shot !== 'compare' && st.shot !== 'play') {
+    problems.push(`[${vp.name}] never reached the working camera (stage ${st.stage})`);
+  }
   // Every point the child must reach has to be on screen and clear of the
   // sound button in the corner.
   const points = await page.evaluate(() => ({
@@ -219,9 +250,106 @@ for (const vp of VIEWPORTS) {
   await ctx.close();
 }
 
+// ------------------------------------- shipping render path (shadows, IBL)
+if (RUN_MAIN) {
+  const ctx = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    deviceScaleFactor: 2,
+    hasTouch: true,
+    isMobile: true,
+  });
+  const page = await ctx.newPage();
+  page.on('console', (m) => {
+    const t = m.text();
+    if (/GL Driver Message|GPU stall|SwiftShader|software/i.test(t)) return;
+    if (m.type() === 'error' || m.type() === 'warning') problems.push(`[shipping] console.${m.type()}: ${t}`);
+  });
+  page.on('pageerror', (e) => problems.push(`[shipping] pageerror: ${e.message}`));
+  await page.goto(BASE.split('?')[0], { waitUntil: 'load' });
+  await page.waitForFunction(() => !!window.__game, null, { timeout: 60000 });
+  await sleep(6000);
+  const tips = await page.evaluate(() => window.__game.projectEarTips());
+  await page.mouse.click(tips.x, tips.y);
+  await sleep(9000);
+  report.shipping = await page.evaluate(() => window.__game.snapshot());
+  if (report.shipping.stage !== 'centre') {
+    problems.push(`[shipping] did not reach the first listen (stage ${report.shipping.stage})`);
+  }
+  await ctx.close();
+}
+
+// ---------------------------------------------------- offline audio check
+{
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const page = await ctx.newPage();
+  page.on('pageerror', (e) => problems.push(`[audio] pageerror: ${e.message}`));
+  await page.goto(`${BASE.split('?')[0]}?fast=1&selftest=1`, { waitUntil: 'load' });
+  await page.waitForFunction(() => !!window.__audioSelfTest, null, { timeout: 60000 });
+  report.audio = await page.evaluate(() => window.__audioSelfTest);
+  await ctx.close();
+}
+
+// ------------------------------------------------------------- assertions
+const failures = [];
+const a = report.audio;
+const by = Object.fromEntries(a.windows.map((w) => [w.id, w]));
+if (!a.sweepMonotonic) failures.push('sound field is not monotonic across the chest');
+if (!(by.mitral.balance > by.tricuspid.balance))
+  failures.push('mitral should favour the first sound more than tricuspid');
+if (!(by.tricuspid.balance > by.centre.balance))
+  failures.push('tricuspid should favour the first sound more than the sternum');
+if (!(by.centre.balance > by.pulmonic.balance))
+  failures.push('pulmonic should favour the second sound more than the sternum');
+if (!(by.pulmonic.balance > by.aortic.balance))
+  failures.push('aortic should favour the second sound most');
+if (!(by.aortic.brightness > by.mitral.brightness * 1.5))
+  failures.push('the upper areas should sound more defined than the apex');
+for (const v of report.viewports) {
+  for (const [k, ok] of Object.entries(v.onScreen)) {
+    if (ok === false) failures.push(`${v.name}: ${k} is off screen`);
+  }
+  for (const [k, ok] of Object.entries(v.clearOfHud)) {
+    if (ok === false) failures.push(`${v.name}: ${k} is under the sound button`);
+  }
+}
+const last = RUN_MAIN ? report.main[report.main.length - 1] : null;
+if (last) {
+const beforeRotate = report.main.find((l) => l.step === 'rotated-before');
+if (last.tiles !== beforeRotate.tiles) failures.push('record tiles lost on rotation');
+if (last.discovered.length !== beforeRotate.discovered.length)
+  failures.push('discovered areas lost on rotation');
+if (last.beat <= beforeRotate.beat) failures.push('heartbeat did not continue across rotation');
+if (report.main.find((l) => l.step === 'four-windows').tiles < 3)
+  failures.push('did not reach three saved places');
+if (report.main.find((l) => l.step === 'posture').roll < 0.5)
+  failures.push('the posture rail did not respond to a swipe');
+const r3 = report.main.find((l) => l.step === 'round-3');
+const r4 = report.main.find((l) => l.step === 'round-4');
+if (!(r4.knocks > r3.knocks))
+  failures.push('the instructor never knocked the beat during the marked rounds');
+}
+report.failures = failures;
+
 await browser.close();
 report.problems = problems;
 writeFileSync(`${OUT}/report.json`, JSON.stringify(report, null, 2));
-console.log(JSON.stringify({ problems, viewports: report.viewports.map(v => ({ name: v.name, stage: v.state.stage, tiles: v.state.tiles, onScreen: v.onScreen, clearOfHud: v.clearOfHud })) }, null, 2));
-console.log('--- main log ---');
-for (const l of report.main) console.log(l.step, JSON.stringify(l));
+console.log('--- audio measured offline ---');
+console.log('sweep is monotonic across the chest:', report.audio.sweepMonotonic);
+for (const w of report.audio.windows) {
+  console.log(
+    `  ${w.id.padEnd(10)} S1 ${w.s1.toFixed(4)}  S2 ${w.s2.toFixed(4)}  S1/S2 ${w.balance.toFixed(2).padStart(5)}  definition ${w.brightness.toFixed(3)}`,
+  );
+}
+console.log('--- run ---');
+for (const l of report.main ?? []) {
+  console.log(
+    `  ${l.step.padEnd(18)} stage=${String(l.stage).padEnd(15)} tiles=${l.tiles} found=${l.discovered.length} beat=${l.beat} knocks=${l.knocks} roll=${l.roll} portrait=${l.portrait}`,
+  );
+}
+console.log('--- viewports ---');
+for (const v of report.viewports) {
+  console.log(`  ${v.name.padEnd(18)} ${v.width}x${v.height}@${v.dpr}  stage=${v.state.stage}  everything on screen and clear of the HUD: ${Object.values(v.onScreen).every((x) => x !== false) && Object.values(v.clearOfHud).every((x) => x !== false)}`);
+}
+console.log('--- console problems ---', problems.length ? problems : 'none');
+console.log('--- failures ---', failures.length ? failures : 'none');
+if (failures.length || problems.length) process.exitCode = 1;

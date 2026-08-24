@@ -193,12 +193,12 @@ export class Room {
   private buildInstrumentStand(mats: MaterialLibrary): void {
     const stand = this.instrumentStand;
 
-    const top = new Mesh(new BoxGeometry(0.46, 0.022, 0.34), mats.laminate);
+    const top = new Mesh(new BoxGeometry(0.56, 0.022, 0.38), mats.laminate);
     top.position.set(0, 0.8, 0);
     top.castShadow = true;
     top.receiveShadow = true;
     stand.add(top);
-    const lip = new Mesh(new BoxGeometry(0.47, 0.016, 0.35), mats.powderCoat);
+    const lip = new Mesh(new BoxGeometry(0.575, 0.016, 0.395), mats.powderCoat);
     lip.position.set(0, 0.789, 0);
     stand.add(lip);
 
@@ -226,7 +226,7 @@ export class Room {
     handle.position.set(0, 0.66, 0.13);
     stand.add(handle);
 
-    this.tileAnchor.position.set(0, 0.812, 0);
+    this.tileAnchor.position.set(0, 0.812, 0.06);
     stand.add(this.tileAnchor);
 
     // Training listening head: a mount with two ear canals for seating the
@@ -256,7 +256,7 @@ export class Room {
       canal.position.set(sx * 0.05, 0.104, 0.002);
       this.listeningHead.add(canal);
     }
-    this.listeningHead.position.set(-0.14, 0.812, -0.03);
+    this.listeningHead.position.set(-0.03, 0.812, -0.115);
     stand.add(this.listeningHead);
 
     stand.position.set(0.72, 0, 0.26);
