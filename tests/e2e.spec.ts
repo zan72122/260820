@@ -153,6 +153,7 @@ test('child input: mashing, diagonals, mid-release, re-lift near contact', async
 test('orientation change preserves lift state', async ({ page }) => {
   await load(page)
   await run(page, 1, 0, 6)
+  await run(page, 0, 0, 0.5)
   const before = await st(page)
   await page.setViewportSize({ width: 844, height: 390 })
   await page.evaluate(() => window.__game.advance(0.5))
