@@ -315,9 +315,10 @@ export class Game {
     const m = buildFinishedMesh(this.glyph);
     const s = 0.42;
     m.scale.setScalar(s);
-    m.rotation.x = Math.PI / 2;
+    // leaning back slightly, like a casting set down to be admired
+    m.rotation.x = Math.PI / 2 - 0.14;
     const idx = this.trophies.length;
-    m.position.set(-0.58 + idx * 0.24, TABLE_Y + (0.62 * FLASK_W * s) / 2 + 0.01, -0.42);
+    m.position.set(-0.58 + idx * 0.24, TABLE_Y + (0.62 * FLASK_W * s) / 2 - 0.004, -0.42);
     m.rotation.z = (idx % 2 ? -1 : 1) * 0.06;
     this.scene.add(m);
     this.trophies.push(m);

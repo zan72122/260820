@@ -27,8 +27,17 @@ async function boot(page: Page, w: number, h: number) {
   return consoleErrors;
 }
 
+const PHASE_ORDER = ['TITLE', 'ALIGN', 'PRESS', 'RAISE', 'BRUSH', 'POUR', 'COOL', 'BREAK', 'REVEAL', 'DONE'];
+
+/**
+ * Wait until the game is at or past the target phase. Short observation
+ * phases (COOL, REVEAL) can pass entirely between two poll ticks in fast
+ * mode, so an exact-match wait would race.
+ */
 async function waitPhase(page: Page, phase: string, timeout = 20000) {
-  await page.waitForFunction((p) => window.__LF.phase() === p, phase, { timeout });
+  await page.waitForFunction(([p, order]) => {
+    return order.indexOf(window.__LF.phase()) >= order.indexOf(p as string);
+  }, [phase, PHASE_ORDER] as const, { timeout });
 }
 
 async function runFullCycle(page: Page) {
