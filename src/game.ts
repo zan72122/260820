@@ -276,9 +276,11 @@ export class Game {
     const dTheta = this.gestureDelta();
 
     if (!this.hooked) {
-      // guide the horn tip with the finger
+      // guide the horn tip with the finger — offset upward so the fibre,
+      // the tip and the catch all happen ABOVE the child's fingertip
       const p = this.aimPoint(x, y, 2.8);
       if (p) {
+        p.y = Math.min(p.y + 0.22, 2.0);
         // magnet: droplets sit at slightly different depths than the aim
         // plane, so pull the target onto the nearest fibre end
         const tipV = new THREE.Vector3();
@@ -304,9 +306,15 @@ export class Game {
             this.spool.rewindLoose(turns, this.gestureSpeed);
           }
         } else if (dTheta !== 0 && this.windSign !== 0 && Math.sign(dTheta) === -this.windSign) {
-          // reversing with nothing hooked: the top wrap slips loose and dangles
+          // reversing with nothing hooked: only a DELIBERATE reverse sheds a
+          // wrap — stray scribbles must not undo a child's progress
           const turns = Math.abs(dTheta) / (Math.PI * 2) * WIND_RATIO;
-          if (this.spool.unwindTop(turns) > 0.001) this.tickUnwindSound(turns);
+          this.reverseAcc += turns;
+          if (this.reverseAcc > 1.2 && this.spool.unwindTop(turns) > 0.001) {
+            this.tickUnwindSound(turns);
+          }
+        } else if (dTheta !== 0) {
+          this.reverseAcc = 0;
         }
       }
       return;
@@ -364,7 +372,10 @@ export class Game {
     if (this.unwindAcc >= 0.5) { this.unwindAcc = 0; this.audio.unwindTick(); }
   }
 
+  private reverseAcc = 0;
+
   private hook(d: Droplet): void {
+    this.reverseAcc = 0;
     this.hooked = d;
     d.hooked = true;
     this.spool.begin(d.colorDef.idx);
@@ -384,6 +395,11 @@ export class Game {
     this.hooked.die();
     this.hooked = null;
     this.liveThread.hide();
+    // she looks straight at the next droplet — the child follows her gaze
+    const head = this.unicorn.headWorld(this.tmp);
+    const next = this.droplets.nearestHookable(head, 9);
+    if (next) this.unicorn.setGaze(next.tipWorld(this.tmpB));
+    this.idleTimer = 18;   // re-arm the wind hint quickly if they stall here
   }
 
   // ---------------------------------------------------------------- anchor phase
@@ -656,7 +672,10 @@ export class Game {
 
   private updateHints(dt: number): void {
     this.idleTimer += dt;
-    if (this.state === 'DISCOVER') {
+    // discovery help stays live while there are still droplets worth finding
+    const discovery = this.state === 'DISCOVER' ||
+      (this.state === 'COLLECT' && !this.readyToBuild && !this.hooked);
+    if (discovery) {
       // the wind lends a hand exactly once per long idle: one fibre brushes the horn
       if (this.idleTimer > 22 && this.gustT < 0) {
         const tip = this.unicorn.hornTipWorld(this.tmp);
@@ -723,17 +742,26 @@ export class Game {
         }
         break;
       case 'FIRSTWIND': {
-        // close side-on: horn axis crossing the frame diagonally, droplet below
-        pos = off(head, portrait ? 0.8 : 0.95, 0.62, 0.1);
+        // close side-on: horn axis diagonal, and the hooked raindrop kept in
+        // frame so "drop shrinks ↔ coil grows" reads as one picture
+        pos = off(head, portrait ? 0.85 : 1.0, 0.66, 0.12);
         look = off(head, -0.08, 0.12, 0.16);
-        fov = portrait ? 52 : 44;
+        if (this.hooked) look.lerp(this.hooked.pos, 0.42);
+        fov = portrait ? 55 : 46;
         rate = 2.2;
         break;
       }
       case 'COLLECT':
-        pos = off(head, portrait ? 1.15 : 1.4, 0.85, 0.3);
-        look = off(head, -0.1, 0.1, 0.05);
-        fov = portrait ? 55 : 46;
+        if (!this.pointerDown && !this.hooked && this.aimHold <= 0) {
+          // idle: pull wide again so the remaining droplets re-enter the frame
+          if (portrait) { pos = P(u.x + 2.75, 1.4, u.z + 1.3); look = P(u.x - 1.0, 0.65, u.z - 2.9); fov = 62; }
+          else { pos = P(u.x + 2.9, 1.35, u.z + 1.1); look = P(u.x - 1.1, 0.6, u.z - 2.8); }
+        } else {
+          pos = off(head, portrait ? 1.15 : 1.4, 0.85, 0.3);
+          look = off(head, -0.1, 0.1, 0.05);
+          if (this.hooked) look.lerp(this.hooked.pos, 0.35);
+          fov = portrait ? 55 : 46;
+        }
         break;
       case 'GOANCHOR':
       case 'ANCHORED':

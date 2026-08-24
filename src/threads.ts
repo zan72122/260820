@@ -61,14 +61,18 @@ export class Droplet {
     // bright refraction spark inside the drop
     this.spark = new THREE.Mesh(
       new THREE.SphereGeometry(this.baseR * 0.32, 6, 5),
-      new THREE.MeshBasicMaterial({ color: 0xfff6e0, transparent: true, opacity: 0.9 })
+      new THREE.MeshBasicMaterial({
+        color: colorDef.color.clone().lerp(new THREE.Color(0xffffff), 0.45),
+        transparent: true, opacity: 0.9
+      })
     );
     this.spark.position.set(-this.baseR * 0.25, this.baseR * 0.2, this.baseR * 0.2);
     this.mesh.add(this.spark);
 
-    // the dangling few centimetres of light-fibre (fixed topology, no churn)
-    this.hangMat = makeThreadMaterial(colorDef.color, { opacity: 0.8 });
-    this.hang = new DynamicTube(this.hangMat, HANG_SEGS, 5, 0.0032);
+    // the dangling light-fibre (fixed topology, no churn) — thick enough
+    // for a preschooler to actually spot at the discovery camera distance
+    this.hangMat = makeThreadMaterial(colorDef.color, { opacity: 0.95 });
+    this.hang = new DynamicTube(this.hangMat, HANG_SEGS, 5, 0.006);
     for (let i = 0; i <= HANG_SEGS; i++) this.hangPts.push(new THREE.Vector3());
     scene.add(this.hang.mesh);
     this.rebuildHang(0);
@@ -80,7 +84,7 @@ export class Droplet {
   private static mid = new THREE.Vector3();
 
   private rebuildHang(t: number): void {
-    const len = 0.075;
+    const len = 0.16;
     const sx = Math.sin(t * 1.7 + this.sway) * 0.006;
     const sz = Math.cos(t * 1.3 + this.sway * 2) * 0.006;
     const end = Droplet.end.set(this.pos.x + sx * 2, this.pos.y - len, this.pos.z + sz * 2);
@@ -114,9 +118,12 @@ export class Droplet {
     this.hang.mesh.visible = !this.hooked && this.turnsLeft > 0.05;
     if (this.hang.mesh.visible) {
       this.rebuildHang(t);
-      // rare, quiet glints as the fibre catches the sun — the only invitation
+      // rare, quiet glints as the fibre AND its drop catch the sun —
+      // the pulsing coloured bead is the findable part of the invitation
       const glint = Math.pow(Math.max(0, Math.sin(t * 0.9 + this.sway * 3)), 12);
       this.hangMat.uniforms.uBoost.value = 1 + glint * 1.6;
+      this.spark.scale.setScalar(1 + glint * 1.6);
+      (this.mesh.material as THREE.MeshStandardMaterial).envMapIntensity = 3.2 * (1 + glint * 0.8);
     }
   }
 

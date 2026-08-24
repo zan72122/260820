@@ -401,7 +401,7 @@ function buildWeb(scene: THREE.Scene): THREE.Vector3[] {
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pts), 3));
-  const mat = new THREE.LineBasicMaterial({ color: 0xdde6ec, transparent: true, opacity: 0.38 });
+  const mat = new THREE.LineBasicMaterial({ color: 0xdde6ec, transparent: true, opacity: 0.24 });
   scene.add(new THREE.LineSegments(geo, mat));
 
   // droplet mounts on the web (lower rings, where real webs hold water)
