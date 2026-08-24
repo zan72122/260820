@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { makeRng } from '../util/math';
 
-export const WATER_Y = -0.32;
+export const WATER_Y = -0.15;
 
 /**
  * 釣り口の水面。通常は濃紺で中は見せない。
@@ -55,8 +55,8 @@ export class HoleWater {
         void main() {
           float r = length(vUv);
           // 濃紺の水面。中は見せない
-          vec3 deep = vec3(0.031, 0.075, 0.118);
-          vec3 mid = vec3(0.055, 0.118, 0.173);
+          vec3 deep = vec3(0.014, 0.05, 0.096);
+          vec3 mid = vec3(0.03, 0.095, 0.155);
           float n = noise(vUv * 5.0 + vec2(uTime * 0.12, uTime * 0.07));
           float n2 = noise(vUv * 11.0 - vec2(uTime * 0.05, uTime * 0.1));
           vec3 col = mix(deep, mid, n * 0.55 + n2 * 0.2);
@@ -124,6 +124,8 @@ export class HoleWater {
  */
 export class Underwater {
   root = new THREE.Group();
+  /** カットアウェイで切られる水中側の材質 */
+  clippable: THREE.Material[] = [];
   private shaft: THREE.Mesh;
   private motes: THREE.Points;
   private moteBase: Float32Array;
@@ -156,6 +158,7 @@ export class Underwater {
     const wall = new THREE.Mesh(wallGeo, wallMat);
     wall.position.y = WATER_Y - 1.8;
     this.root.add(wall);
+    this.clippable.push(wallMat);
     const bottom = new THREE.Mesh(
       new THREE.CircleGeometry(2.65, 36),
       new THREE.MeshBasicMaterial({ color: 0x03101a })
@@ -165,15 +168,16 @@ export class Underwater {
     this.root.add(bottom);
 
     // 水面下から見上げた面（薄明るい天井）
-    const ceiling = new THREE.Mesh(
-      new THREE.CircleGeometry(3.0, 36),
-      new THREE.MeshBasicMaterial({
-        color: 0x2c4a5e,
-        side: THREE.BackSide,
-        transparent: true,
-        opacity: 0.9
-      })
-    );
+    // 水面の裏側（見上げたときの明るい天井）。カットアウェイの視線を塞がないよう
+    // 手前側は常に切り落としておく
+    const ceilingMat = new THREE.MeshBasicMaterial({
+      color: 0x24404f,
+      side: THREE.BackSide,
+      transparent: true,
+      opacity: 0.92,
+      clippingPlanes: [new THREE.Plane(new THREE.Vector3(-1, 0, 0), -0.4)]
+    });
+    const ceiling = new THREE.Mesh(new THREE.CircleGeometry(3.0, 36), ceilingMat);
     ceiling.rotation.x = -Math.PI / 2;
     ceiling.position.y = WATER_Y - 0.005;
     this.root.add(ceiling);
@@ -197,7 +201,7 @@ export class Underwater {
         precision highp float;
         varying vec2 vUv;
         void main() {
-          float a = vUv.y * vUv.y * 0.10;
+          float a = vUv.y * vUv.y * 0.055;
           gl_FragColor = vec4(0.45, 0.62, 0.72, a);
         }
       `
@@ -205,6 +209,7 @@ export class Underwater {
     this.shaft = new THREE.Mesh(shaftGeo, shaftMat);
     this.shaft.position.y = WATER_Y - 1.3;
     this.root.add(this.shaft);
+    this.clippable.push(shaftMat);
 
     // 浮遊する微細な粒子
     const rng = makeRng(91);
@@ -231,7 +236,7 @@ export class Underwater {
     this.root.add(this.motes);
 
     // 水中の照明（水中の魚にだけ効くよう座標を下に）
-    const uwLight = new THREE.HemisphereLight(0x4d7a8e, 0x081720, 1.1);
+    const uwLight = new THREE.HemisphereLight(0x4d7a8e, 0x081720, 0.6);
     uwLight.position.set(0, WATER_Y, 0);
     this.root.add(uwLight);
   }

@@ -72,9 +72,15 @@ export class DomeBoat {
     const lidHole = new THREE.Path();
     lidHole.absarc(-1.15, -0.62, 0.13, 0, Math.PI * 2, true);
     floorShape.holes.push(lidHole);
-    const floorGeo = new THREE.ShapeGeometry(floorShape, 48);
-    floorGeo.rotateX(-Math.PI / 2);
-    // ShapeGeometryのUVは座標そのまま → スケールして木目を張る
+    // 厚みのある床板（カットアウェイで木口が見える）
+    const floorGeo = new THREE.ExtrudeGeometry(floorShape, {
+      depth: 0.045,
+      bevelEnabled: false,
+      curveSegments: 40
+    });
+    floorGeo.rotateX(Math.PI / 2); // 押し出し方向を下へ
+    floorGeo.translate(0, 0, 0);
+    // UVは座標そのまま → スケールして木目を張る
     {
       const uv = floorGeo.getAttribute('uv') as THREE.BufferAttribute;
       for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * 0.45, uv.getY(i) * 0.45);
@@ -134,14 +140,15 @@ export class DomeBoat {
     this.root.add(wet);
 
     // 釣り口の筒（床から水面下まで）
+    // 濡れて黒ずんだ筒
     const collarMat = clip(
-      new THREE.MeshStandardMaterial({ color: 0x241a12, roughness: 0.55, side: THREE.DoubleSide })
+      new THREE.MeshStandardMaterial({ color: 0x14100b, roughness: 0.35, side: THREE.DoubleSide })
     );
     const collar = new THREE.Mesh(
-      new THREE.CylinderGeometry(HOLE_RADIUS + 0.006, HOLE_RADIUS + 0.006, 0.02 - (WATER_Y - 0.18), 28, 1, true),
+      new THREE.CylinderGeometry(HOLE_RADIUS + 0.006, HOLE_RADIUS + 0.006, 0.02 - (WATER_Y - 0.04), 28, 1, true),
       collarMat
     );
-    collar.position.y = (0.02 + WATER_Y - 0.18) / 2;
+    collar.position.y = (0.02 + WATER_Y - 0.04) / 2;
     this.root.add(collar);
     // 釣り口の縁（すり減った枠）
     const rim = new THREE.Mesh(
@@ -165,16 +172,34 @@ export class DomeBoat {
     const hullMat = clip(
       new THREE.MeshStandardMaterial({ color: 0x27343c, roughness: 0.7, side: THREE.DoubleSide })
     );
-    const hull = new THREE.Mesh(new THREE.BoxGeometry(4.9, 0.7, 6.5), hullMat);
-    hull.position.y = -0.36;
+    // 床下の船体。喫水の浅いバージ。カットアウェイで内部が大きく開かない厚み
+    const hull = new THREE.Mesh(new THREE.BoxGeometry(4.9, 0.22, 6.5), hullMat);
+    hull.position.y = -0.31;
     this.root.add(hull);
-    // 喫水線の縁
-    const gunwale = new THREE.Mesh(
-      new THREE.BoxGeometry(5.0, 0.1, 6.6),
-      clip(new THREE.MeshStandardMaterial({ color: 0x3d4a52, roughness: 0.6 }))
-    );
-    gunwale.position.y = -0.03;
-    this.root.add(gunwale);
+    // 喫水線の縁（周囲のフレームだけ。床は覆わない）
+    const gwMat = clip(new THREE.MeshStandardMaterial({ color: 0x3d4a52, roughness: 0.6 }));
+    for (const sx of [-2.45, 2.45]) {
+      const g = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.16, 6.6), gwMat);
+      g.position.set(sx, -0.06, 0);
+      this.root.add(g);
+    }
+    for (const sz of [-3.25, 3.25]) {
+      const g = new THREE.Mesh(new THREE.BoxGeometry(5.0, 0.16, 0.12), gwMat);
+      g.position.set(0, -0.06, sz);
+      this.root.add(g);
+    }
+    // 床とハル天面の間の幕板（カットアウェイの断面を閉じる）
+    const skirt = new THREE.Mesh(new THREE.BoxGeometry(4.85, 0.18, 0.04), hullMat);
+    skirt.position.set(0, -0.12, 3.23);
+    this.root.add(skirt);
+    const skirt2 = skirt.clone();
+    skirt2.position.z = -3.23;
+    this.root.add(skirt2);
+    for (const sx of [-2.42, 2.42]) {
+      const s = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.18, 6.45), hullMat);
+      s.position.set(sx, -0.12, 0);
+      this.root.add(s);
+    }
 
     // ---- ドーム天幕 ----
     const tentTex = tentTextureWithWindows();
@@ -254,7 +279,7 @@ export class DomeBoat {
     this.root.add(stool);
     const cushion = new THREE.Mesh(
       new THREE.CylinderGeometry(0.165, 0.165, 0.05, 14),
-      new THREE.MeshStandardMaterial({ map: clothTexture('#7d3f34'), roughness: 0.95 })
+      new THREE.MeshStandardMaterial({ map: clothTexture('#54342c'), roughness: 0.95 })
     );
     cushion.position.set(0.05, 0.33, 1.25);
     this.root.add(cushion);
@@ -309,7 +334,7 @@ export class DomeBoat {
     heater.add(kettle);
     heater.position.set(-1.1, 0, 1.35);
     this.root.add(heater);
-    this.heaterLight = new THREE.PointLight(0xff9950, 6.5, 4.5, 2);
+    this.heaterLight = new THREE.PointLight(0xff9950, 6.5, 2.6, 2);
     this.heaterLight.position.set(-1.1, 0.42, 1.35);
     this.root.add(this.heaterLight);
 
@@ -335,7 +360,7 @@ export class DomeBoat {
     this.lamp.add(bulb);
     this.lamp.position.set(0.3, 2.05, 0.3);
     this.root.add(this.lamp);
-    this.lampLight = new THREE.PointLight(0xffe0b0, 10, 7, 2);
+    this.lampLight = new THREE.PointLight(0xffe0b0, 10, 3.6, 2);
     this.lampLight.position.set(0.3, 1.5, 0.3);
     this.root.add(this.lampLight);
 
@@ -358,17 +383,17 @@ export class DomeBoat {
     this.bucket.add(bucketWall);
     const bucketBottom = new THREE.Mesh(
       new THREE.CylinderGeometry(0.1, 0.1, 0.012, 20),
-      new THREE.MeshStandardMaterial({ color: 0xb9c4c9, roughness: 0.3 })
+      new THREE.MeshStandardMaterial({ color: 0x77878e, roughness: 0.45 })
     );
     bucketBottom.position.y = 0.006;
     this.bucket.add(bucketBottom);
     const bucketWater = new THREE.Mesh(
       new THREE.CircleGeometry(0.112, 20),
       new THREE.MeshPhysicalMaterial({
-        color: 0x35545e,
+        color: 0x3d626d,
         roughness: 0.08,
         transparent: true,
-        opacity: 0.75
+        opacity: 0.3
       })
     );
     bucketWater.rotation.x = -Math.PI / 2;
@@ -381,7 +406,7 @@ export class DomeBoat {
     rimB.rotation.x = Math.PI / 2;
     rimB.position.y = 0.17;
     this.bucket.add(rimB);
-    this.bucket.position.set(0.5, 0, 0.28);
+    this.bucket.position.set(-0.52, 0, 0.3);
     this.root.add(this.bucket);
 
     // ---- 小物：魔法瓶・タオル ----
@@ -394,17 +419,17 @@ export class DomeBoat {
     thermos.castShadow = true;
     this.root.add(thermos);
     const towel = new THREE.Mesh(
-      new THREE.BoxGeometry(0.2, 0.02, 0.14),
-      new THREE.MeshStandardMaterial({ map: clothTexture('#5e6d78'), roughness: 1 })
+      new THREE.BoxGeometry(0.11, 0.014, 0.08),
+      new THREE.MeshStandardMaterial({ map: clothTexture('#46525c'), roughness: 1 })
     );
-    towel.position.set(0.24, 0.372, 0.72);
+    towel.position.set(0.11, 0.383, 0.06);
     towel.rotation.y = 0.4;
     this.table.add(towel);
   }
 
   private buildAttendant() {
     const g = new THREE.Group();
-    const parka = new THREE.MeshStandardMaterial({ map: clothTexture('#4c5a45'), roughness: 0.95 });
+    const parka = new THREE.MeshStandardMaterial({ map: clothTexture('#3c4438'), roughness: 0.95 });
     const pants = new THREE.MeshStandardMaterial({ map: clothTexture('#2e3438'), roughness: 0.95 });
     const skin = new THREE.MeshStandardMaterial({ color: 0xc99f83, roughness: 0.7 });
 

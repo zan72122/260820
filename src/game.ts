@@ -41,8 +41,8 @@ interface RoundCfg {
 
 /** 一度に一つだけ条件を変えるラウンド構成 */
 function roundCfg(i: number): RoundCfg {
-  if (i === 0) return { fishDepth: 1.25, cutaway: 'full', preferredJigs: 2, stillBase: 2.2, swayAmp: 1 };
-  if (i === 1) return { fishDepth: 1.25, cutaway: 'half', preferredJigs: 2, stillBase: 2.4, swayAmp: 1 };
+  if (i === 0) return { fishDepth: 1.05, cutaway: 'full', preferredJigs: 2, stillBase: 2.2, swayAmp: 1 };
+  if (i === 1) return { fishDepth: 1.05, cutaway: 'half', preferredJigs: 2, stillBase: 2.4, swayAmp: 1 };
   const v = (i - 2) % 5;
   switch (v) {
     case 0:
@@ -123,6 +123,7 @@ export class Game {
 
   private tmpV1 = new THREE.Vector3();
   private tmpV2 = new THREE.Vector3();
+  private cutLight!: THREE.PointLight;
 
   constructor(container: HTMLElement) {
     const params = new URLSearchParams(location.search);
@@ -187,6 +188,11 @@ export class Game {
     this.rod.root.rotation.x = -0.135;
     this.boat.table.add(this.rod.root);
 
+    // カットアウェイの断面付近を淡く起こす補助光（開いている間だけ点く）
+    this.cutLight = new THREE.PointLight(0xcfe0ea, 0, 2.0, 2);
+    this.cutLight.position.set(0.6, -0.2, 0.3);
+    this.scene.add(this.cutLight);
+
     const fishMat = makeWakasagiBodyMaterial(envTex);
     this.actorFish = new Wakasagi(fishMat);
     this.companionFish = new Wakasagi(fishMat);
@@ -195,8 +201,11 @@ export class Game {
     this.scene.add(this.actorFish.group);
     this.scene.add(this.companionFish.group);
 
-    // カットアウェイの切断面を船体材質へ
+    // カットアウェイの切断面を船体と水中の材質へ
     for (const m of this.boat.clippable) m.clippingPlanes = [this.clipPlane];
+    for (const m of this.underwater.clippable) m.clippingPlanes = [this.clipPlane];
+    (this.school.mesh.material as THREE.Material).clippingPlanes = [this.clipPlane];
+    fishMat.clippingPlanes = [this.clipPlane];
 
     this.line.baitDepth = this.cfg.fishDepth;
     this.school.setDepth(WATER_Y - this.cfg.fishDepth - 0.55);
@@ -290,6 +299,7 @@ export class Game {
       forceBite: () => {
         if (this.state === 'STILL') this.biteTimer = this.biteDelay;
       },
+      settled: () => this.rail.settled,
       start: () => {
         if (this.state === 'TITLE') this.enterBoat();
       }
@@ -301,15 +311,12 @@ export class Game {
     this.stateTime = 0;
   }
 
+  private enterPhase = 0;
+
   private enterBoat() {
     this.setState('ENTER');
+    this.enterPhase = 0;
     this.rail.goTo('SEAT', 2.4);
-    window.setTimeout(() => {
-      this.rail.goTo('PLAY', 2.0);
-    }, 2600);
-    window.setTimeout(() => {
-      if (this.state === 'ENTER') this.setState('IDLE');
-    }, 4400);
   }
 
   private beginStill() {
@@ -340,8 +347,8 @@ export class Game {
   }
 
   private computeBiteDelay(): number {
-    if (this.e2e) return 1.3;
-    if (this.catches === 0) return 2.2 + Math.random() * 0.9;
+    if (this.e2e) return 3.0;
+    if (this.catches === 0) return 2.6 + Math.random() * 0.9;
     const matched = this.lastJigCount === this.cfg.preferredJigs;
     let d = matched
       ? this.cfg.stillBase + Math.random() * 0.7
@@ -376,13 +383,6 @@ export class Game {
     this.missedOnce = false;
     this.holeWater.triggerRipple();
     this.silverFlashDone = false;
-    window.setTimeout(() => {
-      if (this.state === 'HOOKSET') {
-        this.setState('REELING');
-        this.rail.goTo('LINE_LOW', 1.6);
-        this.reelHintTimer = 0;
-      }
-    }, 420);
   }
 
   private setReeling(on: boolean) {
@@ -435,17 +435,16 @@ export class Game {
     this.fishMode = 'TO_BUCKET';
     this.fishAnimT = 0;
     this.actorFish.group.getWorldPosition(this.catchArcFrom);
-    window.setTimeout(() => this.replayBtn.classList.add('shown'), 1500);
   }
 
   private addBucketFish() {
     const mesh = new THREE.Mesh(this.bucketFishGeo, this.bucketFishMat);
-    mesh.scale.setScalar(0.9);
+    mesh.scale.setScalar(1.15);
     this.boat.bucket.add(mesh);
     this.bucketFish.push({
       mesh,
       phase: Math.random() * Math.PI * 2,
-      r: 0.045 + Math.random() * 0.035,
+      r: 0.04 + Math.random() * 0.035,
       speed: 1.2 + Math.random() * 1.2
     });
   }
@@ -461,9 +460,6 @@ export class Game {
     this.line.drift.set(0, 0);
     this.holeWater.triggerRipple();
     this.audio.plop();
-    window.setTimeout(() => {
-      if (this.state === 'RESET') this.setState('IDLE');
-    }, 1400);
   }
 
   /** 毎フレーム更新 */
@@ -485,7 +481,8 @@ export class Game {
     this.boat.root.rotation.z = this.sway.rollZ;
 
     // カットアウェイ切断面のなめらかな開閉
-    this.clipPlane.constant = damp(this.clipPlane.constant, this.clipTarget, 2.2, dt);
+    this.clipPlane.constant = damp(this.clipPlane.constant, this.clipTarget, 6, dt);
+    this.cutLight.intensity = damp(this.cutLight.intensity, this.clipTarget < 50 ? 2.4 : 0, 3, dt);
 
     // ---- 状態別ロジック ----
     this.updateStateLogic(dt);
@@ -529,6 +526,16 @@ export class Game {
 
   private updateStateLogic(dt: number) {
     switch (this.state) {
+      case 'ENTER': {
+        // カメラ到着に合わせて進む（低フレームレートでも破綻しない）
+        if (this.enterPhase === 0 && this.stateTime > 2.6) {
+          this.enterPhase = 1;
+          this.rail.goTo('PLAY', 2.0);
+        } else if (this.enterPhase === 1 && this.stateTime > 4.7) {
+          this.setState('IDLE');
+        }
+        break;
+      }
       case 'IDLE': {
         this.idleHintTimer += dt;
         if (this.idleHintTimer > 4.5) {
@@ -543,7 +550,21 @@ export class Game {
         break;
       case 'STILL': {
         this.biteTimer += dt;
-        if (this.biteTimer >= this.biteDelay) this.triggerBite();
+        // カットアウェイのカメラが着いてから「ピクッ」を見せる
+        if (this.biteTimer >= this.biteDelay && this.rail.settled) this.triggerBite();
+        break;
+      }
+      case 'HOOKSET': {
+        if (this.stateTime > 0.42) {
+          this.setState('REELING');
+          this.rail.goTo('LINE_LOW', 1.6);
+          this.reelHintTimer = 0;
+          if (this.input.holding) this.setReeling(true);
+        }
+        break;
+      }
+      case 'RESET': {
+        if (this.stateTime > 1.4) this.setState('IDLE');
         break;
       }
       case 'BITE': {
@@ -577,12 +598,12 @@ export class Game {
         break;
       }
       case 'REVEAL': {
-        if (this.reel.pressed) {
-          this.line.baitDepth = Math.max(this.line.baitDepth - 0.3 * dt, -0.3);
+        if (this.reel.pressed && this.stateTime > 0.8) {
+          this.line.baitDepth = Math.max(this.line.baitDepth - 0.16 * dt, -0.3);
           if (this.line.baitDepth <= -0.3) this.catchFish();
         }
         // 押していなくても、魚が上がっていれば少し待って取り込み
-        if (this.stateTime > 6 && this.line.baitDepth < -0.1) this.catchFish();
+        if (this.stateTime > 8 && this.line.baitDepth < -0.1) this.catchFish();
         break;
       }
       case 'CAUGHT':
@@ -669,6 +690,7 @@ export class Game {
           this.addBucketFish();
           this.catches++;
           this.line.baitDepth = -0.18;
+          this.replayBtn.classList.add('shown');
         }
         break;
       }
@@ -689,10 +711,11 @@ export class Game {
       f.phase += dt * f.speed;
       f.mesh.position.set(
         Math.cos(f.phase) * f.r,
-        this.boat.bucketWaterY - 0.04 + Math.sin(f.phase * 0.7) * 0.012,
+        this.boat.bucketWaterY - 0.028 + Math.sin(f.phase * 0.7) * 0.012,
         Math.sin(f.phase) * f.r
       );
-      f.mesh.rotation.y = -f.phase + Math.PI / 2;
+      // 少し体を傾けて銀色の体側が上から見えるように
+      f.mesh.rotation.set(0, -f.phase + Math.PI / 2, 0.9 + Math.sin(f.phase * 1.3) * 0.15);
     }
   }
 

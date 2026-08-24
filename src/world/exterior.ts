@@ -44,13 +44,12 @@ export class Exterior {
     this.root.add(new THREE.Mesh(skyGeo, skyMat));
 
     // 湖面
+    // 屋内光の突き抜けを受けないよう、湖面は非照明マテリアルで空の色を持たせる
     const lake = new THREE.Mesh(
       new THREE.CircleGeometry(120, 40),
-      new THREE.MeshStandardMaterial({
+      new THREE.MeshBasicMaterial({
         map: lakeTexture(),
-        roughness: 0.28,
-        metalness: 0.0,
-        color: 0x8b979c
+        color: 0x93a6ad
       })
     );
     lake.rotation.x = -Math.PI / 2;

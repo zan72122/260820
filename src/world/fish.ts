@@ -184,7 +184,8 @@ export class FishSchool {
   constructor(count = 22, depthCenter = -2.3) {
     const rng = makeRng(77);
     const geo = makeWakasagiBodyGeometry(10, 6);
-    const mat = new THREE.MeshLambertMaterial({ vertexColors: true });
+    // 群れは遠くの暗がりに沈む（明るすぎる白片に見せない）
+    const mat = new THREE.MeshLambertMaterial({ vertexColors: true, color: 0x93a8ae });
     this.mesh = new THREE.InstancedMesh(geo, mat, count);
     this.mesh.frustumCulled = false;
     for (let i = 0; i < count; i++) {

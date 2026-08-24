@@ -35,7 +35,7 @@ export class Rod {
     // 柔らかさの分布：先端ほど大きく曲がる
     let wSum = 0;
     for (let i = 0; i < N; i++) {
-      const w = Math.pow((i + 1) / N, 1.9);
+      const w = Math.pow((i + 1) / N, 1.5);
       this.weights.push(w);
       wSum += w;
     }
@@ -135,7 +135,7 @@ export class Rod {
       const joint = this.joints[i];
       // たわみを柔らかさ分布に従って各関節へ配分（ゴム棒のような均一曲がりを避ける）
       // 正のたわみ = 先端が下がる（rotation.x 正は先端を上げるため符号反転）
-      joint.rotation.x = -this.deflection * this.weights[i] * 2.35;
+      joint.rotation.x = -this.deflection * this.weights[i] * 2.0;
       joint.rotation.y = this.lateral * this.weights[i] * 1.4;
     }
     this.root.rotation.x = this.lift;
