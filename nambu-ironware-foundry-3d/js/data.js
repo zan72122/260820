@@ -1,0 +1,123 @@
+(function(){
+  'use strict';
+  const N=window.Nambu=window.Nambu||{};
+
+  N.CHAPTERS=[
+    {id:'earth',number:'一',title:'土をつくる',phrase:'砂に、まだ見えない鉄瓶を刻む。',start:1,end:19,color:'#b88a61'},
+    {id:'fire',number:'二',title:'火を流す',phrase:'重い鉄を、細い一筋にする。',start:20,end:35,color:'#e67631'},
+    {id:'reveal',number:'三',title:'鉄をあらわす',phrase:'壊した型の中から、形を見つける。',start:36,end:40,color:'#8d8a82'},
+    {id:'black',number:'四',title:'黒を育てる',phrase:'熱と刷毛と手で、使える道具にする。',start:41,end:48,color:'#363a37'}
+  ];
+
+  N.STEPS=[
+    {n:1,chapter:0,title:'姿を決める',detail:'用途、容量、胴の張り、口、蓋、注ぎ口、鉉の姿を原寸で決める。',mode:'auto',action:'draft'},
+    {n:2,chapter:0,title:'原寸図を描く',detail:'断面、肉厚、文様、環付まで一枚の図へ落とす。',mode:'auto',action:'draft'},
+    {n:3,chapter:0,title:'挽型板を切る',detail:'鉄板へ断面を写し、回転させて砂型を削る輪郭板を作る。',mode:'auto',action:'tool'},
+    {n:4,chapter:0,title:'種物を彫る',detail:'注ぎ口、環付、つまみなど、別部品の原型を整える。',mode:'auto',action:'tool'},
+    {n:5,chapter:0,title:'種物の型を焼く',detail:'小さな分割型を乾燥・焼成し、繰り返し使えるようにする。',mode:'auto',action:'dry'},
+    {n:6,chapter:0,title:'真土を調える',detail:'粗い砂から絹のように細かい砂まで、粒度を分けて用意する。',mode:'auto',action:'sand'},
+    {n:7,chapter:0,title:'粗い真土を置く',detail:'素焼きの基礎型へ、骨格になる粗い真土を載せる。',mode:'auto',action:'sand'},
+    {n:8,chapter:0,title:'胴型を挽く',detail:'挽型板を回し、鉄瓶の外側になる面を立体に削り出す。',mode:'interactive',scene:'turn'},
+    {n:9,chapter:0,title:'注ぎ口型を据える',detail:'胴型へ種物を合わせ、湯が通る位置と角度を決める。',mode:'auto',action:'assemble'},
+    {n:10,chapter:0,title:'環付型を据える',detail:'鉉を受ける左右の環付を、同じ高さに置く。',mode:'auto',action:'assemble'},
+    {n:11,chapter:0,title:'細かい真土で挽く',detail:'表面の砂を細かくし、鋳肌へ写る面を整える。',mode:'interactive',scene:'turn'},
+    {n:12,chapter:0,title:'尻型をつくる',detail:'挽型板を返し、鉄瓶の底を受ける型を作る。',mode:'auto',action:'turnover'},
+    {n:13,chapter:0,title:'蓋型を挽く',detail:'上型と下型、つまみの型を別に作る。',mode:'auto',action:'turnover'},
+    {n:14,chapter:0,title:'肌を打つ',detail:'無地の面は細かな打痕で締め、光を柔らかく受ける鋳肌にする。',mode:'auto',action:'texture'},
+    {n:15,chapter:0,title:'アラレを打つ',detail:'湿った鋳型へ一粒ずつ文様を押し、全周へ揃える。',mode:'interactive',scene:'arare'},
+    {n:16,chapter:0,title:'型を乾かす',detail:'急がず水分を抜き、文様と輪郭を崩さず保つ。',mode:'auto',action:'dry'},
+    {n:17,chapter:0,title:'型を直す',detail:'合わせ面、欠け、浅い文様、細いひびを手で修正する。',mode:'auto',action:'repair'},
+    {n:18,chapter:0,title:'焼型にする',detail:'型を高温で焼き、注湯に耐える硬い砂型へ変える。',mode:'interactive',scene:'fire-mold'},
+    {n:19,chapter:0,title:'油煙を掛ける',detail:'油煙を薄く回し、湯流れと離型を助ける黒い膜をつくる。',mode:'interactive',scene:'fire-mold'},
+
+    {n:20,chapter:1,title:'中子砂を詰める',detail:'川砂と粘土水を中子型へ詰め、鉄瓶の内側をつくる。',mode:'auto',action:'core'},
+    {n:21,chapter:1,title:'中子を貼り合わせる',detail:'半分ずつ作った中子を合わせ、空洞の中心を保つ。',mode:'auto',action:'core'},
+    {n:22,chapter:1,title:'注ぎ口中子をつくる',detail:'細い湯道になる中子を別に作り、乾かす。',mode:'auto',action:'core'},
+    {n:23,chapter:1,title:'肉厚を決める',detail:'外型と中子の隙間を均一にし、そのまま鉄の厚みにする。',mode:'interactive',scene:'core-align'},
+    {n:24,chapter:1,title:'型を組む',detail:'胴型、尻型、中子、蓋型を正しい向きで重ねる。',mode:'interactive',scene:'core-align'},
+    {n:25,chapter:1,title:'湯道を切る',detail:'湯口、湯溜まり、堰をつくり、鉄の通り道をつなぐ。',mode:'auto',action:'runner'},
+    {n:26,chapter:1,title:'型を締める',detail:'たが、締め金具、重しで、注湯圧に耐える一体の型にする。',mode:'auto',action:'clamp'},
+    {n:27,chapter:1,title:'鉄を配合する',detail:'銑鉄、戻り材などを製品に合わせて量り、炉へ送る。',mode:'auto',action:'charge'},
+    {n:28,chapter:1,title:'鉄を溶かす',detail:'炉内で鉄を流動する温度まで上げ、滓を分ける。',mode:'auto',action:'melt'},
+    {n:29,chapter:1,title:'湯汲みに受ける',detail:'溶けた鉄を取鍋へ受け、二人で長柄を支える。',mode:'interactive',scene:'lift'},
+    {n:30,chapter:1,title:'型へ運ぶ',detail:'歩幅と高さを揃え、溶湯の波を立てずに湯口へ寄せる。',mode:'interactive',scene:'aim'},
+    {n:31,chapter:1,title:'最初の一筋を落とす',detail:'取鍋をゆっくり傾け、注湯盆の中心へ流れをつなぐ。',mode:'interactive',scene:'pour'},
+    {n:32,chapter:1,title:'流量を保つ',detail:'途切れや巻込みを避け、太さを安定させて型を満たす。',mode:'interactive',scene:'pour'},
+    {n:33,chapter:1,title:'型を押さえる',detail:'乗り板と締め金具で、溶湯圧による型の浮きを抑える。',mode:'auto',action:'brace'},
+    {n:34,chapter:1,title:'固まり際を読む',detail:'本体が固まり、湯口側だけがまだ流れる短い瞬間を待つ。',mode:'interactive',scene:'return'},
+    {n:35,chapter:1,title:'湯返しする',detail:'余った溶湯を取鍋へ戻し、薄い鉄瓶の形だけを型内に残す。',mode:'interactive',scene:'return'},
+
+    {n:36,chapter:2,title:'十分に冷ます',detail:'赤熱が消えても急いで触れず、型内で凝固と収縮を待つ。',mode:'auto',action:'cool'},
+    {n:37,chapter:2,title:'型を割る',detail:'筋目へ楔を入れ、厚い焼型を少しずつ開く。',mode:'interactive',scene:'open'},
+    {n:38,chapter:2,title:'中子を落とす',detail:'鉄瓶の内側に残る砂を崩し、空洞をあらわす。',mode:'interactive',scene:'clean'},
+    {n:39,chapter:2,title:'湯口を切る',detail:'湯口、堰、不要な突起を切り離し、本体の輪郭へ戻す。',mode:'auto',action:'trim'},
+    {n:40,chapter:2,title:'鋳バリを取る',detail:'たがね、砥石、金ブラシで合わせ目と付着砂を整える。',mode:'interactive',scene:'surface'},
+
+    {n:41,chapter:3,title:'口と蓋を合わせる',detail:'口、蓋、注ぎ口、環付を手直しし、使うときの収まりを整える。',mode:'auto',action:'fit'},
+    {n:42,chapter:3,title:'釜焼きする',detail:'本体と蓋を再加熱し、内外面へ黒い酸化皮膜を育てる。',mode:'interactive',scene:'finish'},
+    {n:43,chapter:3,title:'熱い歪みを直す',detail:'口が動いた場合は、熱いうちに矯正して蓋の座を戻す。',mode:'auto',action:'straighten'},
+    {n:44,chapter:3,title:'外面だけ磨く',detail:'内面の防錆皮膜は残し、外面だけを金ブラシで整える。',mode:'interactive',scene:'finish'},
+    {n:45,chapter:3,title:'黒い艶を重ねる',detail:'漆や専用塗料、おはぐろなどを薄く重ね、低い艶をつくる。',mode:'interactive',scene:'finish'},
+    {n:46,chapter:3,title:'鉉を鍛える',detail:'鋼材を熱し、鉄瓶の姿に合う弧と握りへ鍛造する。',mode:'auto',action:'forge-handle'},
+    {n:47,chapter:3,title:'鉉を据える',detail:'左右の環付へ鉉を収め、持ち上げたときの釣合いを確かめる。',mode:'interactive',scene:'handle'},
+    {n:48,chapter:3,title:'蓋・注ぎ・姿を検める',detail:'蓋合わせ、漏れ、注ぎ、外観を確かめ、初めて道具として完成する。',mode:'interactive',scene:'first-pour'}
+  ];
+
+  N.SCENES=[
+    {id:'turn',chapter:0,title:'型を挽く',short:'まわす',steps:[1,2,3,4,5,6,7,8,9,10,11,12,13,14],gesture:'circle',instruction:'指で大きな円を描く',sub:'挽型板が砂の面を削り、鉄瓶の輪郭をつくります',camera:'moldClose',reward:'砂が、形になった'},
+    {id:'arare',chapter:0,title:'アラレを打つ',short:'おす',steps:[15],gesture:'tap',instruction:'湿った型を、ゆっくり押す',sub:'八粒を打つと、職人のリズムが全周へ続きます',camera:'moldMacro',reward:'文様が、つながった'},
+    {id:'fire-mold',chapter:0,title:'焼型をつくる',short:'おくる',steps:[16,17,18,19],gesture:'drag',instruction:'ふいごを前後に動かす',sub:'水分が抜け、砂型が注湯に耐える硬さになります',camera:'moldFire',reward:'型が、火に耐えた'},
+    {id:'core-align',chapter:1,title:'中子を合わせる',short:'あわせる',steps:[20,21,22,23,24,25,26,27,28],gesture:'drag',instruction:'中子を真ん中へ運ぶ',sub:'周囲の隙間が、そのまま鉄瓶の肉厚になります',camera:'core',reward:'内と外が、そろった'},
+    {id:'lift',chapter:1,title:'取鍋を支える',short:'あげる',steps:[29],gesture:'up',instruction:'二本指で、ゆっくり持ち上げる',sub:'二人の職人の腰と腕へ、鉄の重さが伝わります',camera:'ladleWide',reward:'重い鉄が、上がった'},
+    {id:'aim',chapter:1,title:'湯口へ寄せる',short:'よせる',steps:[30],gesture:'horizontal',instruction:'左右へゆっくり運ぶ',sub:'円の印は出ません。取鍋の影と注湯盆を見ます',camera:'ladleAim',reward:'湯口の上へ、そろった'},
+    {id:'pour',chapter:1,title:'鋳込む',short:'そそぐ',steps:[31,32,33],gesture:'down',instruction:'下へ引き、流れを静かに保つ',sub:'傾き、重力、脈動で溶湯の軌道と太さが変わります',camera:'pour',reward:'鉄が、型を満たした'},
+    {id:'return',chapter:1,title:'湯返しする',short:'もどす',steps:[34,35],gesture:'up',instruction:'音が低くなったら、上へ戻す',sub:'本体を残し、まだ流れる余り湯だけを取鍋へ戻します',camera:'pourClose',reward:'薄い鉄が、残った'},
+    {id:'open',chapter:2,title:'型を開く',short:'ひらく',steps:[36,37],gesture:'split',instruction:'三回たたき、左右へ開く',sub:'厚い焼型の奥から、黒い鋳物が少しずつ現れます',camera:'moldOpen',reward:'鉄瓶が、現れた'},
+    {id:'clean',chapter:2,title:'砂を落とす',short:'はらう',steps:[38,39],gesture:'brush',instruction:'鉄瓶の表面を何度もなぞる',sub:'砂を払った場所から、粗い鋳肌が露出します',camera:'kettleClose',reward:'砂の下から、形が出た'},
+    {id:'surface',chapter:2,title:'鋳肌を整える',short:'みがく',steps:[40,41],gesture:'brush',instruction:'表面をゆっくり往復する',sub:'粉っぽい面が締まり、口と蓋の収まりも整います',camera:'kettleMacro',reward:'鋳肌が、締まった'},
+    {id:'finish',chapter:3,title:'黒を育てる',short:'そだてる',steps:[42,43,44,45,46],gesture:'brush',instruction:'熱を保ち、外面へ薄く重ねる',sub:'内面の皮膜を残し、外側だけに深い黒と低い艶を育てます',camera:'finishMacro',reward:'黒が、深くなった'},
+    {id:'handle',chapter:3,title:'鉉を据える',short:'すえる',steps:[47],gesture:'down',instruction:'鉉を上から、ゆっくり下ろす',sub:'左右の環付へ同時に収まり、鉄瓶の姿が完成します',camera:'handle',reward:'最後の鉄が、収まった'},
+    {id:'first-pour',chapter:3,title:'最初の一杯',short:'つかう',steps:[48],gesture:'tilt',instruction:'鉄瓶を傾け、湯を注ぐ',sub:'作ったものが初めて、暮らしの道具として働きます',camera:'final',reward:'鉄瓶が、道具になった'}
+  ];
+
+  N.SETTING_GROUPS=[
+    {title:'カメラと空間',items:[
+      {key:'scale',label:'対象物の大きさ',min:78,max:128,step:1,unit:'%',value:108},
+      {key:'cameraHeight',label:'カメラの高さ',min:72,max:130,step:1,unit:'%',value:100},
+      {key:'fov',label:'画角',min:34,max:62,step:1,unit:'°',value:46},
+      {key:'exposure',label:'露出',min:58,max:138,step:1,unit:'%',value:90},
+      {key:'darkness',label:'工房の暗さ',min:35,max:100,step:1,unit:'%',value:78}
+    ]},
+    {title:'材質と重量',items:[
+      {key:'sandRoughness',label:'鋳型表面の粗さ',min:35,max:100,step:1,unit:'%',value:91},
+      {key:'weight',label:'動作の重量感',min:20,max:100,step:1,unit:'%',value:86},
+      {key:'cameraShake',label:'重量がカメラへ伝わる量',min:0,max:100,step:1,unit:'%',value:24},
+      {key:'dust',label:'砂塵の量',min:0,max:100,step:1,unit:'%',value:52},
+      {key:'lacquerGloss',label:'黒い艶の深さ',min:25,max:100,step:1,unit:'%',value:72}
+    ]},
+    {title:'4歳児向け補助',items:[
+      {key:'assist',label:'操作補助',min:0,max:100,step:1,unit:'%',value:70},
+      {key:'speed',label:'動作速度',min:48,max:125,step:1,unit:'%',value:78},
+      {key:'reward',label:'達成演出',min:0,max:100,step:1,unit:'%',value:42},
+      {key:'ui',label:'UIの存在感',min:0,max:100,step:1,unit:'%',value:32},
+      {key:'autoAdvance',label:'完成後に自動で進む',type:'toggle',value:true}
+    ]},
+    {title:'鋳込み',items:[
+      {key:'viscosity',label:'溶湯の粘り',min:25,max:100,step:1,unit:'%',value:76},
+      {key:'turbulence',label:'流れの乱れ',min:0,max:100,step:1,unit:'%',value:29},
+      {key:'streamWidth',label:'流柱の太さ',min:40,max:120,step:1,unit:'%',value:78},
+      {key:'moltenGlow',label:'溶湯の発光',min:45,max:135,step:1,unit:'%',value:94}
+    ]},
+    {title:'端末',items:[
+      {key:'sound',label:'音',min:0,max:100,step:1,unit:'%',value:62},
+      {key:'haptics',label:'触覚フィードバック',type:'toggle',value:true},
+      {key:'quality',label:'描画品質',min:0,max:2,step:1,unit:'',value:2,format:v=>['軽い','標準','精細'][v]}
+    ]}
+  ];
+
+  N.PRESETS={
+    real:{scale:108,cameraHeight:100,fov:43,exposure:86,darkness:84,sandRoughness:95,weight:92,cameraShake:18,dust:46,lacquerGloss:64,assist:48,speed:74,reward:24,ui:18,viscosity:82,turbulence:25,streamWidth:72,moltenGlow:86,sound:60,quality:2},
+    child:{scale:118,cameraHeight:106,fov:50,exposure:101,darkness:62,sandRoughness:86,weight:72,cameraShake:25,dust:38,lacquerGloss:78,assist:88,speed:72,reward:65,ui:54,viscosity:72,turbulence:20,streamWidth:90,moltenGlow:104,sound:68,quality:1},
+    cinema:{scale:112,cameraHeight:92,fov:39,exposure:74,darkness:96,sandRoughness:94,weight:94,cameraShake:35,dust:64,lacquerGloss:82,assist:54,speed:67,reward:30,ui:12,viscosity:84,turbulence:38,streamWidth:75,moltenGlow:116,sound:72,quality:2}
+  };
+})();

@@ -1,0 +1,50 @@
+name: Assemble completed Nambu Ironware game
+
+on:
+  push:
+    branches:
+      - chatgpt/nambu-ironware-foundry-3d
+    paths:
+      - 'nambu-ironware-foundry-3d-release/**'
+      - '.github/workflows/assemble-nambu-ironware-foundry-3d.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: assemble-nambu-ironware-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  assemble:
+    if: ${{ !contains(github.event.head_commit.message, '[assembled]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Reconstruct and verify the completed source
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat nambu-ironware-foundry-3d-release/part-*.b64 | tr -d '\r\n' | base64 --decode > /tmp/nambu-remaining.tar.xz
+          echo '50e2621eb9f348cffd49b5a80b05ebb879e1c5e89d81191f314587443702bf60  /tmp/nambu-remaining.tar.xz' | sha256sum --check --strict
+          rm -f nambu-ironware-foundry-3d/js/config.js nambu-ironware-foundry-3d/js/loop.js nambu-ironware-foundry-3d/js/world.js
+          tar -xJf /tmp/nambu-remaining.tar.xz -C nambu-ironware-foundry-3d
+          rm -rf nambu-ironware-foundry-3d-release
+
+      - name: Validate all 48 steps and the saved-state model
+        working-directory: nambu-ironware-foundry-3d
+        run: npm test
+
+      - name: Commit the completed game
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Complete the Nambu ironware 3D mobile game [assembled]'
+          git push origin HEAD:${GITHUB_REF_NAME}
