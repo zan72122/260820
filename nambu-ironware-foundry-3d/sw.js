@@ -1,7 +1,7 @@
 'use strict';
 const PREFIX='nambu-foundry-';
-const CACHE='nambu-foundry-v1.2.0-continuous-surface';
-const SHELL=['./','index.html','styles.css','manifest.webmanifest','icons/icon.svg','icons/maskable.svg','js/bootstrap.js','js/data.js','js/core.js','js/models.js','js/gesture.js','js/game.js','js/progressive.js','js/ui.js','js/main.js'];
+const CACHE='nambu-foundry-v1.3.0-first-scene-rebuild';
+const SHELL=['./','index.html','styles.css','first-scene-v4.css','manifest.webmanifest','icons/icon.svg','icons/maskable.svg','js/bootstrap.js','js/data.js','js/core.js','js/models.js','js/gesture.js','js/game.js','js/progressive.js','js/first-scene-v4.js','js/ui.js','js/main.js'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil((async()=>{
   const keys=await caches.keys(),hadPrevious=keys.some(key=>key.startsWith(PREFIX)&&key!==CACHE);

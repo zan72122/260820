@@ -9,12 +9,13 @@ const {CircularGestureTracker,FormingMath}=window.Nambu;
 
 const tracker=new CircularGestureTracker({assist:.62});
 const width=1024,height=768,cx=185,cy=505,r=120,points=96;
-tracker.begin(cx+r,cy,width,height);let previous=0,quarter=0;
+tracker.begin(cx+r,cy,width,height);let previous=0,quarter=0,firstMove=0;
 for(let i=1;i<=points;i++){
   const a=i/points*Math.PI*2;const sample=tracker.move(cx+Math.cos(a)*r,cy+Math.sin(a)*r,width,height);
   assert.ok(sample.progress>=previous-1e-9,'progress must be monotonic');
-  previous=sample.progress;if(i===Math.floor(points/4))quarter=sample.progress;
+  previous=sample.progress;if(i===1)firstMove=sample.progress;if(i===Math.floor(points/4))quarter=sample.progress;
 }
+assert.ok(firstMove>.005,'the very first meaningful movement must change progress');
 assert.ok(quarter>.08,'the object must react during the first quarter turn');
 assert.ok(tracker.progress>.95,'one large off-centre circle must complete the forming gesture');
 
@@ -33,4 +34,4 @@ assert.ok(Math.abs(rawA-rawB)>.008,'packed sand must begin with readable angular
 assert.ok(Math.abs(fineA-fineB)<Math.abs(rawA-rawB),'fine turning must reduce angular surface noise');
 assert.ok(Math.abs(turnedA-FormingMath.profileRadius(.52))<Math.abs(rawA-FormingMath.profileRadius(.52)),'rough turning must move the continuous surface toward the kettle profile');
 assert.ok(FormingMath.formationAt(.04,1)>0,'the first meaningful movement must deform the top of the body immediately');
-console.log('Validated off-centre circular gesture and continuous rough/fine shape transformation.');
+console.log('Validated off-centre circular gesture, first-movement response, and continuous rough/fine shape transformation.');

@@ -1,0 +1,16 @@
+/* First-scene input and visibility contract.
+   Loading/decorative layers must physically leave the hit-test tree. */
+#loading:not(.active){
+  display:none!important;
+  visibility:hidden!important;
+  pointer-events:none!important;
+}
+#loading.active{
+  display:flex!important;
+  visibility:visible!important;
+  pointer-events:auto!important;
+}
+.screen:not(.active){pointer-events:none!important}
+#fallbackArt,#vignette,#heatOverlay,#flash,#toast,#reward,#chapterCard{pointer-events:none!important}
+#instruction{pointer-events:none!important}
+#gameCanvas{touch-action:none;pointer-events:auto}
