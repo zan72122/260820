@@ -1,0 +1,54 @@
+name: Nambu first-scene browser acceptance
+
+on:
+  push:
+    branches:
+      - chatgpt/nambu-ironware-foundry-3d
+    paths:
+      - 'nambu-ironware-foundry-3d/**'
+      - '.github/workflows/nambu-first-scene-e2e.yml'
+  pull_request:
+    paths:
+      - 'nambu-ironware-foundry-3d/**'
+      - '.github/workflows/nambu-first-scene-e2e.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  first-scene:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: nambu-ironware-foundry-3d
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser harness
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Run first-scene visual acceptance
+        env:
+          E2E_FAST: '1'
+        run: |
+          python3 -m http.server 8000 --bind 127.0.0.1 >/tmp/nambu-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill $server_pid || true' EXIT
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8000/ >/dev/null && break
+            sleep 1
+          done
+          node tests/first-scene.e2e.mjs
+      - name: Upload visual evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nambu-first-scene-evidence
+          path: nambu-ironware-foundry-3d/e2e-artifacts/
+          if-no-files-found: warn
+          retention-days: 14
