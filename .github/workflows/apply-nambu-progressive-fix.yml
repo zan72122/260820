@@ -33,6 +33,9 @@ jobs:
           tar -xJf nambu-progressive-fix/patch.tar.xz -C .
           rm -rf nambu-progressive-fix
           rm -f .github/workflows/apply-nambu-progressive-fix.yml
+          # GitHub's workflow token may update source files but may not create a new workflow.
+          # The browser-acceptance workflow is installed in a separate authenticated commit.
+          rm -f .github/workflows/nambu-first-scene-e2e.yml
 
       - name: Run structural, state, and gesture tests
         working-directory: nambu-ironware-foundry-3d
