@@ -57,9 +57,12 @@
   function profileRadius(t){
     t=clamp(t,0,1);for(let i=1;i<PROFILE.length;i++)if(t<=PROFILE[i][0]){const a=PROFILE[i-1],b=PROFILE[i],p=(t-a[0])/(b[0]-a[0]);return lerp(a[1],b[1],p)}return PROFILE[PROFILE.length-1][1];
   }
-  function roughRadius(t,seed=0){return 1.56+Math.sin((t*17.3+seed*.71))*0.065+Math.sin((t*39.1+seed*.37))*0.028}
-  function bandFormation(progress,t){const p=clamp(progress,0,1);return clamp((p*1.38)-((1-t)*.38),0,1)**2*(3-2*clamp((p*1.38)-((1-t)*.38),0,1))}
-  function bandRadius(progress,fine,t,seed=0){const formed=bandFormation(progress,t),target=profileRadius(t),rough=roughRadius(t,seed);const micro=(Math.sin(seed*8.13+t*31.7)*.022)*(1-clamp(fine,0,1));return lerp(rough,target*(1+micro),formed)}
+  function roughRadius(t,seed=0){return 1.53+Math.sin(t*Math.PI)*.05+Math.sin(t*8.7+seed*5.1)*.035}
+  function bandFormation(progress,t){const p=clamp(progress,0,1),x=clamp((p*1.38)-((1-t)*.38),0,1);return x*x*(3-2*x)}
+  function formationAt(progress,t){const p=clamp(progress,0,1),immediate=clamp(p*.28,0,.28);return clamp(immediate+(1-immediate)*bandFormation(p,t),0,1)}
+  function surfaceNoise(angle,t,seed=0){return(Math.sin(angle*3.1+t*5.3+seed*11.2)+Math.sin(angle*7.2-t*10.7+seed*7.4)*.53+Math.sin(angle*13.3+t*17.9-seed*4.6)*.27)/1.8}
+  function surfaceRadius(progress,fine,t,angle=0,seed=0){const formed=formationAt(progress,t),target=profileRadius(t),rough=roughRadius(t,seed),f=clamp(fine,0,1),noise=surfaceNoise(angle,t,seed),amplitude=lerp(.064,.019,formed)*(1-f*.86)+.0025*f,toolWave=Math.sin(t*62+angle*.24+seed*3.7)*.0055*formed*(1-f*.78);return Math.max(.12,lerp(rough,target,formed)+noise*amplitude+toolWave)}
+  function bandRadius(progress,fine,t,seed=0){return surfaceRadius(progress,fine,t,0,seed)}
   N.CircularGestureTracker=CircularGestureTracker;
-  N.FormingMath={profileRadius,roughRadius,bandFormation,bandRadius};
+  N.FormingMath={profileRadius,roughRadius,bandFormation,formationAt,surfaceNoise,surfaceRadius,bandRadius};
 })();

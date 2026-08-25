@@ -27,4 +27,10 @@ assert.notEqual(raw,half,'radius must change during rough turning');
 assert.notEqual(half,formed,'radius must continue changing to the end');
 assert.ok(Math.abs(fine-target)<Math.abs(formed-target)+1e-9,'fine turning must converge on the target profile');
 assert.ok(Math.abs(raw-target)>.04,'the unturned mound must be visibly different from the final silhouette');
+
+const rawA=FormingMath.surfaceRadius(0,0,.52,0,.33),rawB=FormingMath.surfaceRadius(0,0,.52,Math.PI*.4,.33),turnedA=FormingMath.surfaceRadius(1,0,.52,0,.33),fineA=FormingMath.surfaceRadius(1,1,.52,0,.33),fineB=FormingMath.surfaceRadius(1,1,.52,Math.PI*.4,.33);
+assert.ok(Math.abs(rawA-rawB)>.008,'packed sand must begin with readable angular irregularity');
+assert.ok(Math.abs(fineA-fineB)<Math.abs(rawA-rawB),'fine turning must reduce angular surface noise');
+assert.ok(Math.abs(turnedA-FormingMath.profileRadius(.52))<Math.abs(rawA-FormingMath.profileRadius(.52)),'rough turning must move the continuous surface toward the kettle profile');
+assert.ok(FormingMath.formationAt(.04,1)>0,'the first meaningful movement must deform the top of the body immediately');
 console.log('Validated off-centre circular gesture and continuous rough/fine shape transformation.');

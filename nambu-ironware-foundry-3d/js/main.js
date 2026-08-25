@@ -24,11 +24,11 @@
     frame();
 
     if('serviceWorker' in navigator&&location.protocol.startsWith('http')){
-      addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}),{once:true});
+      addEventListener('load',()=>navigator.serviceWorker.register('sw.js').then(registration=>registration.update()).catch(()=>{}),{once:true});
     }
 
     window.addEventListener('error',event=>{console.error('Runtime error:',event.error||event.message)});
-    window.__NAMBU_GAME__={store,core,world,game,ui,version:'1.1.0',visualRevision:window.__NAMBU_VISUAL_REVISION__||'1'};
+    window.__NAMBU_GAME__={store,core,world,game,ui,version:'1.2.0',visualRevision:window.__NAMBU_VISUAL_REVISION__||'1'};
   }catch(error){
     console.error(error);
     const loading=document.querySelector('#loading'),fatal=document.querySelector('#fatal');loading.classList.remove('active');fatal.classList.remove('hidden');fatal.querySelector('p').textContent=`工房の初期化に失敗しました。${error&&error.message?' '+error.message:''}`;

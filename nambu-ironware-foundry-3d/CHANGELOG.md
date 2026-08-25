@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.2.0 — Continuous material and shape evolution
+
+### Root-cause correction
+
+- Replaced the mechanically stacked ring body with one continuous, dynamically deformed sand surface.
+- The packed sand now rises from the turntable continuously, including a live, slightly mounded top surface; no horizontal gaps are used to fake growth.
+- Rough turning now moves an actual tool front through the body profile. The upper neck, shoulder, belly, lower curve, and foot emerge in sequence while the entire object also compacts slightly from the first meaningful movement.
+- Fine turning reduces large-scale waviness, angular surface noise, bump depth, colour variation, and shallow tool marks instead of merely rotating a finished object.
+- Replaced the pale platform with a dark wood-and-steel turntable and reduced loose sand chunks to small, surface-bound crumbs.
+- Removed visible guide rings and contact markers from the 3D world.
+
+### Interaction and delivery
+
+- Kept the off-centre circular gesture recogniser and made the first visual response measurable after the first few pointer moves.
+- Lengthened the sand-building sequence so the centre object can be watched growing rather than appearing between cuts.
+- Bumped the opening-scene save revision so players stopped in an older broken version replay the rebuilt chapter.
+- Changed the service worker to network-first delivery for HTML, JavaScript, and CSS, with automatic one-time client reload when an older game cache is replaced.
+- Added browser screenshots and assertions for continuous height growth, immediate radius change, mid-turn silhouette, and completed rough profile.
+
 ## 1.1.0 — Progressive forming overhaul
 
 ### First chapter rebuilt
