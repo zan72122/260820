@@ -29,7 +29,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          tr -d '\r\n' < nambu-continuous-surface/patch.tar.xz.b64 | base64 --decode > /tmp/nambu-continuous-surface.tar.xz
+          cat nambu-continuous-surface/part-*.b64 | tr -d '\r\n' | base64 --decode > /tmp/nambu-continuous-surface.tar.xz
           echo 'cc9048fc5373c63370a988255cf2d95611a01a10987cd4af5ca99c1b950a6501  /tmp/nambu-continuous-surface.tar.xz' | sha256sum --check --strict
           tar -xJf /tmp/nambu-continuous-surface.tar.xz -C nambu-ironware-foundry-3d
           rm -rf nambu-continuous-surface
