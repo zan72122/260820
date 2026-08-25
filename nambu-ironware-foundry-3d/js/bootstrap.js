@@ -8,7 +8,7 @@
       const threeSources=['https://cdn.jsdelivr.net/npm/three@0.154.0/build/three.min.js','https://unpkg.com/three@0.154.0/build/three.min.js'];let lastError=null;
       for(const src of threeSources){try{await load(src);if(window.THREE)break}catch(e){lastError=e}}
       if(!window.THREE)throw lastError||new Error('Three.js unavailable');
-      const files=['js/data.js','js/core.js','js/models.js','js/game.js','js/ui.js','js/main.js'];
+      const files=['js/data.js','js/core.js','js/models.js','js/gesture.js','js/game.js','js/progressive.js','js/ui.js','js/main.js'];
       for(let i=0;i<files.length;i++){loading.textContent=`工房を組み立てています　${i+1}/${files.length}`;await load(files[i],12000)}
     }catch(error){console.error(error);document.querySelector('#loading').classList.remove('active');fatal.classList.remove('hidden');fatal.querySelector('p').textContent='3Dライブラリまたはゲームデータを読み込めませんでした。通信を確認して再読み込みしてください。'}
   }

@@ -1,6 +1,6 @@
 'use strict';
-const CACHE='nambu-foundry-v1.0.0-release';
-const SHELL=['./','index.html','styles.css','manifest.webmanifest','icons/icon.svg','icons/maskable.svg','js/bootstrap.js','js/data.js','js/core.js','js/models.js','js/game.js','js/ui.js','js/main.js'];
+const CACHE='nambu-foundry-v1.1.0-progressive-forming';
+const SHELL=['./','index.html','styles.css','manifest.webmanifest','icons/icon.svg','icons/maskable.svg','js/bootstrap.js','js/data.js','js/core.js','js/models.js','js/gesture.js','js/game.js','js/progressive.js','js/ui.js','js/main.js'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(SHELL)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',event=>{
