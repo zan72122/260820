@@ -20,7 +20,7 @@ const VISCOUS = 0.03; // 軸のねばり
 const MU_PIVOT = 0.006; // 軸の静止摩擦係数
 const TAIL_RADIUS = 0.31; // m 支点から打点まで
 const DUMP_K = 11.0;
-const REST_RESTITUTION = 0.26;
+const REST_RESTITUTION = 0.32;
 const BACKSTOP_RESTITUTION = 0.16;
 
 const FIXED_DT = 1 / 180;
@@ -28,6 +28,8 @@ const MAX_CATCHUP = 0.25; // 復帰時の早送りを禁止する
 
 export interface GateInput {
   grabbed: boolean;
+  /** この tick で指が触れたか（触れた瞬間の木の当たり） */
+  justGrabbed: boolean;
   /** 指が示す開度 */
   target: number;
   /** 指の速度 (開度/秒) */
@@ -85,9 +87,10 @@ export class Simulation {
 
     this.updateGate(dt, gate);
 
-    /* 流量：開度から決める。細流〜太流は連続量。 */
+    /* 流量：開度から決める。細流〜太流は連続量。
+       水門を動かしても、水路を水が伝わるぶんだけ遅れて効く。 */
     const opening01 = clamp((s.gateOpening - 0.05) / 0.95, 0, 1);
-    s.flowRate = Math.pow(opening01, 0.85);
+    s.flowRate = damp(s.flowRate, Math.pow(opening01, 0.85), 0.28, dt);
     const totalFlow = s.flowRate * FLOW_MAX;
     this.extras.channelFlow = totalFlow;
 
@@ -140,6 +143,11 @@ export class Simulation {
     const s = this.state;
     s.gateGrabbed = gate.grabbed;
     const prevOpening = s.gateOpening;
+
+    if (gate.justGrabbed) {
+      gate.justGrabbed = false;
+      this.emit({ type: 'gate-scrape', tube: 0, velocity: 0.5, wetness: 0, contact: 0 });
+    }
 
     if (gate.grabbed) {
       const strain = gate.target - s.gateOpening;
@@ -237,7 +245,16 @@ export class Simulation {
     t.sinceImpact += dt;
 
     /* ── 事象 ─────────────────────────────── */
-    if (!this.tipAnnounced[t.index] && t.angularVelocity > 0.42 && t.angle > REST_ANGLE + 0.02) {
+    /* 「軸のキュッ」は、水を抱えたまま起き上がる本番の傾きだけで鳴らす。
+       衝突後の跳ね返りでは鳴らさない。 */
+    if (
+      !this.tipAnnounced[t.index] &&
+      t.angularVelocity > 0.42 &&
+      t.angle > REST_ANGLE + 0.02 &&
+      t.waterMass > 0.3 &&
+      dump < 0.05 &&
+      t.sinceImpact > 0.6
+    ) {
       this.tipAnnounced[t.index] = true;
       t.phase = 'tipping';
       this.emit({
@@ -280,7 +297,7 @@ export class Simulation {
     if (t.angle < REST_ANGLE) {
       t.angle = REST_ANGLE;
       const v = -t.angularVelocity * TAIL_RADIUS * sc;
-      if (v > 0.09) {
+      if (v > 0.055) {
         const main = this.dumpedSince[t.index] && v > 0.5;
         t.impactVelocity = v;
         t.resonanceDecay = Math.max(t.resonanceDecay, clamp(v / 1.5, 0.12, 1));
@@ -311,7 +328,7 @@ export class Simulation {
         }
       }
       t.angularVelocity = -t.angularVelocity * REST_RESTITUTION;
-      if (Math.abs(t.angularVelocity) < 0.22) t.angularVelocity = 0;
+      if (Math.abs(t.angularVelocity) < 0.14) t.angularVelocity = 0;
     }
 
     /* 余韻の減衰：長い竹ほどゆっくり */

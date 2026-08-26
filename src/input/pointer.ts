@@ -12,7 +12,7 @@ export interface PointerHooks {
 }
 
 export class TouchControl {
-  readonly gate: GateInput = { grabbed: false, target: 0, velocity: 0 };
+  readonly gate: GateInput = { grabbed: false, justGrabbed: false, target: 0, velocity: 0 };
   splitTarget: number | null = null;
   private id: number | null = null;
   private mode: 'gate' | 'split' = 'gate';
@@ -57,6 +57,7 @@ export class TouchControl {
     if (this.mode === 'gate') {
       this.startVal = this.hooks.currentGate();
       this.gate.grabbed = true;
+      this.gate.justGrabbed = true;
       this.gate.target = this.startVal;
       this.gate.velocity = 0;
     } else {
