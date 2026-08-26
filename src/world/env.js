@@ -29,16 +29,21 @@ export function shoreDistance(x, z) {
 }
 
 /**
- * Sea bed depth below the waterline. Two readable places:
- * a calm sandy shallow within ~8 m, and a deeper blue beyond ~13 m.
+ * Sea bed depth below the waterline. Two readable places: a calm sandy shallow
+ * within ~7 m, and a deeper blue beyond ~11 m.
+ *
+ * Behind the pier the value goes *negative*: the sand keeps rising and comes
+ * out of the water. Without that the whole half-plane behind the shore was a
+ * flat five-centimetre puddle, which the foam term painted as a white slab.
  */
 export function depthAt(x, z) {
-  const d = shoreDistance(x, z);
+  const d = -z;                       // metres seaward of the pier line
+  if (d < 0) return Math.max(-0.95, 0.05 + d * 0.075);
   const s0 = smooth(0.0, 3.0, d);
   const s1 = smooth(2.5, 15.0, d);
   const s2 = smooth(12.0, 30.0, d);
   const bar = (fbm2(x * 0.11 + 3.1, z * 0.11 - 7.4, 3) - 0.5) * 0.5;
-  return Math.max(0.03, 0.05 + 0.75 * s0 + 1.9 * s1 + 1.9 * s2 + bar * s1);
+  return 0.05 + 0.75 * s0 + 1.9 * s1 + 1.9 * s2 + bar * s1;
 }
 
 export function seabedY(x, z) { return WATER_LEVEL - depthAt(x, z); }
@@ -72,11 +77,12 @@ export const GLSL_ENV = /* glsl */`
     return f / n;
   }
   float envDepth(vec2 xz){
-    float d = max(0.0, -xz.y);
+    float d = -xz.y;
+    if (d < 0.0) return max(-0.95, 0.05 + d * 0.075);
     float s0 = envSmooth(0.0, 3.0, d);
     float s1 = envSmooth(2.5, 15.0, d);
     float s2 = envSmooth(12.0, 30.0, d);
     float bar = (envFbm(vec2(xz.x * 0.11 + 3.1, xz.y * 0.11 - 7.4)) - 0.5) * 0.5;
-    return max(0.03, 0.05 + 0.75 * s0 + 1.9 * s1 + 1.9 * s2 + bar * s1);
+    return 0.05 + 0.75 * s0 + 1.9 * s1 + 1.9 * s2 + bar * s1;
   }
 `;

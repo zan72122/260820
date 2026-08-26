@@ -24,7 +24,7 @@ const GLSL_WAVES = /* glsl */`
 
   float shoal(vec2 xz){
     // Swell flattens as it runs into the sandy shallow.
-    return clamp(envDepth(xz) / 1.35, 0.22, 1.0);
+    return clamp(envDepth(xz) / 1.35, 0.06, 1.0);
   }
 
   float rippleHeight(vec2 xz){
@@ -165,6 +165,9 @@ export function createWater(renderer, noiseTex, quality) {
       uniform float uTime;
       ${GLSL_SKY}
       void main(){
+        // Where the sand is out of the water there is simply no water.
+        if (vDepth <= 0.004) discard;
+
         vec3 V = normalize(cameraPosition - vWorld);
         float dist = length(cameraPosition - vWorld);
 
@@ -199,7 +202,7 @@ export function createWater(renderer, noiseTex, quality) {
         col += uSunColor * (spec + sparkle);
 
         // Lace of foam where the swell meets the sand.
-        float edge = 1.0 - smoothstep(0.04, 0.17, vDepth);
+        float edge = 1.0 - smoothstep(0.006, 0.16, vDepth);
         float foam = smoothstep(0.52, 0.98, edge * (0.55 + n1.r * 0.95));
         col = mix(col, uFoam, foam * 0.48);
 
@@ -229,7 +232,7 @@ export function createWater(renderer, noiseTex, quality) {
 /** Sea bed: wet ripple-barred sand, with caustics that only survive in shallow water. */
 export function createSeabed(sandTex, quality) {
   const rings = quality.bedRings, segs = quality.bedSegs;
-  const geo = polarGrid(rings, segs, (t) => 4 * t + 86 * Math.pow(t, 3), 0, -7);
+  const geo = polarGrid(rings, segs, (t) => 4 * t + 146 * Math.pow(t, 3), 0, -7);
   const pos = geo.attributes.position;
   for (let i = 0; i < pos.count; i++) {
     pos.setY(i, seabedY(pos.getX(i), pos.getZ(i)));
@@ -269,14 +272,19 @@ export function createSeabed(sandTex, quality) {
         float lam = max(dot(vN, uSunDir), 0.0) * 0.75 + 0.35;
         vec3 col = sand * lam * uSunColor;
 
-        float depth = -vWorld.y;
+        float depth = max(0.0, -vWorld.y);
+        float above = max(0.0, vWorld.y);          // sand standing out of the water
 
-        // Caustics: two drifting interference grids, only where light still reaches.
+        // Caustics: two drifting interference grids, only where light still
+        // reaches — and only where there is water above the sand at all.
         vec2 q = vWorld.xz * 1.15;
         float c1 = sin(q.x * 1.7 + uTime * 0.75) + sin(q.y * 1.9 - uTime * 0.62);
         float c2 = sin((q.x + q.y) * 1.25 + uTime * 0.51) + sin((q.x - q.y) * 1.45 - uTime * 0.44);
         float caus = pow(clamp((c1 + c2) * 0.25 + 0.52, 0.0, 1.0), 3.0);
-        col += uSunColor * caus * 0.46 * exp(-depth * 0.9);
+        col += uSunColor * caus * 0.46 * exp(-depth * 0.9) * smoothstep(0.0, 0.09, depth);
+
+        // Sand just out of the water is still soaked, and much darker for it.
+        col *= mix(0.56, 1.0, smoothstep(0.0, 0.42, above));
 
         // Water column swallows the sand with depth.
         vec3 water = mix(uShallow, uDeep, clamp(depth / 3.0, 0.0, 1.0));
@@ -284,7 +292,7 @@ export function createSeabed(sandTex, quality) {
         col = mix(col, water * 0.55, clamp(ext, 0.0, 0.96));
 
         float dist = length(cameraPosition - vWorld);
-        col = mix(col, uDeep, smoothstep(30.0, 85.0, dist));
+        col = mix(col, uDeep, smoothstep(30.0, 85.0, dist) * step(0.02, depth));
 
         gl_FragColor = vec4(col, 1.0);
         #include <tonemapping_fragment>

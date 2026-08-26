@@ -90,7 +90,7 @@ export class Game {
     this.seabed = createSeabed(this.tex.sand, quality);
     this.scene.add(this.seabed.mesh);
 
-    const shore = createShore(this.tex.wood, this.tex.woodRough, this.tex.sand);
+    const shore = createShore(this.tex.wood, this.tex.woodRough);
     this.scene.add(shore.group);
     this.tank = createTank(this.tex.noise);
     this.scene.add(this.tank.group);

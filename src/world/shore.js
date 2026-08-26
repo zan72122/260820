@@ -10,7 +10,7 @@ const DECK_HALF_X = 2.55;
  * A small working pier: individually laid planks, wet in patches, standing in
  * ankle-deep water. Nothing decorative is added that a fisher would not own.
  */
-export function createShore(woodTex, woodRough, sandTex) {
+export function createShore(woodTex, woodRough) {
   const group = new THREE.Group();
   group.name = 'shore';
 
@@ -92,27 +92,8 @@ export function createShore(woodTex, woodRough, sandTex) {
   }
   group.add(new THREE.Mesh(mergeGeometries(struct), woodMat));
 
-  // ---- the beach the pier grows out of -----------------------------------
-  const beachSand = sandTex.clone();
-  beachSand.needsUpdate = true;
-  beachSand.repeat.set(30, 15);
-  const sandMat = new THREE.MeshStandardMaterial({ map: beachSand, roughness: 1.0, metalness: 0.0 });
-  const beach = new THREE.PlaneGeometry(70, 30, 40, 18);
-  beach.rotateX(-Math.PI / 2);
-  {
-    const p = beach.attributes.position;
-    for (let i = 0; i < p.count; i++) {
-      const x = p.getX(i), z = p.getZ(i) + 16.5;
-      const rise = Math.max(0, z - 1.5) * 0.10;
-      p.setY(i, -0.06 + rise + (fbm2(x * 0.25, z * 0.25, 3) - 0.5) * 0.07);
-      p.setZ(i, z);
-    }
-    p.needsUpdate = true;
-    beach.computeVertexNormals();
-  }
-  const beachMesh = new THREE.Mesh(beach, sandMat);
-  beachMesh.renderOrder = 0;
-  group.add(beachMesh);
+  // No separate beach mesh: the sea bed itself rises out of the water behind
+  // the pier, so there is one continuous ground and no plane to disagree with.
 
   // Water darkens in the pier's own shade. Drawn as a thin slab tucked strictly
   // *inside* the deck footprint, so no stray plane pokes out past the boards.
