@@ -19,7 +19,7 @@ test.describe('投網の花 — core play loop', () => {
       const s1 = await state(page);
       expect(s1.state).toBe('cast');
       expect(s1.castCount).toBe(1);
-      expect(s1.lastCast.distance).toBeGreaterThan(2.5);
+      expect(s1.lastCast.distance).toBeGreaterThan(3.5);
 
       // It opens in the air: the rim is wider than the bundle ever is.
       await advance(page, 0.6);
@@ -130,7 +130,7 @@ test.describe('投網の花 — core play loop', () => {
     await page.setViewportSize(SCREENS['iPad portrait']);
     const errors = await boot(page);
 
-    await page.evaluate(() => window.__toami.cast({ distance: 3.4, azimuth: 0, sharpness: 0.2, smoothness: 0.9, wobble: 0.1 }));
+    await page.evaluate(() => window.__toami.cast({ distance: 4.0, azimuth: 0, sharpness: 0.2, smoothness: 0.9, wobble: 0.1 }));
     await advance(page, 4.2);
     const shallow = await state(page);
 

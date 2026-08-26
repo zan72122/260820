@@ -92,7 +92,7 @@ for (const [name, vp] of Object.entries(VIEWPORTS)) {
   // 9) a gentle short cast into the shallow
   await page.evaluate(() => window.__toami.haul());
   await page.evaluate(() => window.__toami.advance(9.0));
-  await page.evaluate(() => window.__toami.cast({ distance: 3.6, azimuth: 0.05, sharpness: 0.15, smoothness: 0.95, wobble: 0.05 }));
+  await page.evaluate(() => window.__toami.cast({ distance: 4.2, azimuth: 0.05, sharpness: 0.15, smoothness: 0.95, wobble: 0.05 }));
   await page.evaluate(() => window.__toami.advance(3.2));
   await shot('09-shallow');
 

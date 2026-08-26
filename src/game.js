@@ -439,10 +439,10 @@ export class Game {
       rate = 2.6;
     } else if (this.state === 'cast' || this.state === 'sunk') {
       // Drift overhead: the circle on the water and the cone under it.
-      // Low enough that the hand stays in frame without the framing solver
-      // having to back off, which is what used to shrink the landing.
-      const back = 1.95 + D * 0.075;
-      const high = (this.state === 'sunk' ? 1.85 : 1.62) + D * 0.095;
+      // High enough to look *over* the pier edge at a near landing, low enough
+      // that the hand stays in frame without the framing solver backing off.
+      const back = 1.6 + D * 0.07;
+      const high = (this.state === 'sunk' ? 3.0 : 2.6) + D * 0.07;
       P.set(HAND_POS.x - cd.x * back, HAND_POS.y + high, HAND_POS.z - cd.z * back);
       const focus = this.state === 'sunk' ? 0.86 : 0.55;
       L.set(
@@ -455,8 +455,8 @@ export class Game {
     } else if (this.state === 'haul') {
       // Hold the overhead angle while the net rises and pours, then walk the
       // frame back down to eye level as it reaches the planks.
-      const back = 1.95 + D * 0.075;
-      const high = 1.85 + D * 0.095;
+      const back = 1.6 + D * 0.07;
+      const high = 3.0 + D * 0.07;
       P.set(HAND_POS.x - cd.x * back, HAND_POS.y + high, HAND_POS.z - cd.z * back);
       const home = smoothstep(0.85, 2.0, this.stateT);
       P.lerp(IDLE.pos, home);

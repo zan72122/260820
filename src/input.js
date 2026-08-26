@@ -140,7 +140,8 @@ export function gestureToCast(g) {
   // Far is fast *or* long. Either intention alone is enough.
   // The range is deliberately compressed: what a four-year-old reads is the
   // *difference* between throws, and a 12 m cast is already a speck on a phone.
-  const distance = clamp(2.8 + reach * 6.0 + speed * 3.4, 2.8, 11.5);
+  // The floor is 3.6 m, not less: a nearer landing sits behind the pier edge.
+  const distance = clamp(3.6 + reach * 5.2 + speed * 3.0, 3.6, 11.5);
 
   // Sideways component of the swipe steers, softly and within a comfortable cone.
   const lateral = clamp(g.dx / (g.width * 0.55), -1, 1);
