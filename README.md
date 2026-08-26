@@ -82,7 +82,7 @@ cannot fall far, so the net stays a wide circle. Beyond ~11 m it drops into
 blue, and the net draws itself into a deep cone that reaches roughly half a
 metre further down. The same swipe reads differently in each.
 
-**The throw range is deliberately short** — 2.8 m to 11.5 m. What a
+**The throw range is deliberately short** — 3.6 m to 11.5 m. What a
 four-year-old reads is the *difference* between throws, and a longer cast is
 only a smaller net on a phone screen.
 
