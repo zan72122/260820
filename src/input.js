@@ -138,7 +138,9 @@ export function gestureToCast(g) {
   const wobble = clamp(1 - smoothness, 0, 1);
 
   // Far is fast *or* long. Either intention alone is enough.
-  const distance = clamp(2.8 + reach * 8.0 + speed * 4.6, 2.8, 15.5);
+  // The range is deliberately compressed: what a four-year-old reads is the
+  // *difference* between throws, and a 12 m cast is already a speck on a phone.
+  const distance = clamp(2.8 + reach * 6.0 + speed * 3.4, 2.8, 11.5);
 
   // Sideways component of the swipe steers, softly and within a comfortable cone.
   const lateral = clamp(g.dx / (g.width * 0.55), -1, 1);

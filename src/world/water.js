@@ -169,9 +169,12 @@ export function createWater(renderer, noiseTex, quality) {
         float dist = length(cameraPosition - vWorld);
 
         // Micro chop, fading out with distance so the offing stays calm and hazy.
+        // Two samples at unrelated scales, the second rotated, so the tile of
+        // the noise texture never shows up as a grid on the water.
         vec2 nuv = vWorld.xz * 0.38 + vec2(uTime * 0.030, uTime * 0.019);
+        mat2 rot = mat2(0.802, -0.597, 0.597, 0.802);
         vec3 n1 = texture2D(uNoise, nuv).rgb;
-        vec3 n2 = texture2D(uNoise, vWorld.xz * 1.35 - vec2(uTime * 0.045, uTime * 0.021)).rgb;
+        vec3 n2 = texture2D(uNoise, rot * vWorld.xz * 1.19 - vec2(uTime * 0.045, uTime * 0.021)).rgb;
         float micro = clamp(1.0 - dist / 95.0, 0.0, 1.0); micro *= micro;
         vec3 N = normalize(vNormal2 + vec3((n1.g - 0.5) * 0.14 + (n2.b - 0.5) * 0.075, 0.0,
                                            (n1.b - 0.5) * 0.14 + (n2.g - 0.5) * 0.075) * micro);

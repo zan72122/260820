@@ -1,0 +1,12 @@
+import { chromium } from '@playwright/test';
+const b = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'] });
+const p = await b.newPage({ viewport: { width: 393, height: 852 } });
+p.on('pageerror', e => console.log('PAGEERROR:', e.message));
+p.on('console', m => console.log(m.type().toUpperCase()+':', m.text().slice(0, 900)));
+await p.goto('http://localhost:5173/?fast=1&q=high&seed=4242');
+await p.waitForTimeout(6000);
+console.log('toami?', await p.evaluate(() => !!window.__toami));
+console.log('boot?', await p.evaluate(() => !!document.getElementById('boot')));
+console.log('q:', await p.evaluate(() => window.__toami.quality.name));
+console.log('errtext:', await p.evaluate(() => document.getElementById('err')?.textContent || ''));
+await b.close();

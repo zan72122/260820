@@ -51,14 +51,44 @@ export function createShore(woodTex, woodRough, sandTex) {
     tintGeometry(bearer, 40);
     struct.push(bearer);
   }
-  for (const [px, pz] of [[-2.3, -0.85], [2.3, -0.85], [-2.3, 1.7], [2.3, 1.7], [-2.3, 4.3], [2.3, 4.3]]) {
+  // A fascia board closes the seaward edge, so the deck has thickness instead
+  // of reading as a plane floating on the water.
+  for (const [w, h, x, y, z, rot] of [
+    [DECK_HALF_X * 2 + 0.06, 0.19, 0, PIER_TOP - 0.075, DECK_FRONT - 0.03, 0],
+    [DECK_BACK - DECK_FRONT, 0.19, -DECK_HALF_X - 0.03, PIER_TOP - 0.075, (DECK_FRONT + DECK_BACK) / 2, Math.PI / 2],
+    [DECK_BACK - DECK_FRONT, 0.19, DECK_HALF_X + 0.03, PIER_TOP - 0.075, (DECK_FRONT + DECK_BACK) / 2, Math.PI / 2]
+  ]) {
+    const f = new THREE.BoxGeometry(w, h, 0.055);
+    if (rot) f.rotateY(rot);
+    f.translate(x, y, z);
+    worldUv(f, 2.35);
+    tintGeometry(f, 71, 0.74);
+    struct.push(f);
+  }
+
+  // The seaward pair stands proud of the fascia, so the deck is visibly held
+  // up by something instead of floating.
+  // The seaward pair carries on above the planking as pile heads: something to
+  // make a line fast to, and the only thing that breaks the horizon.
+  for (const [px, pz, rise] of [
+    [-2.12, -1.44, 0.46], [2.12, -1.44, 0.38],
+    [-2.3, 1.7, 0], [2.3, 1.7, 0], [-2.3, 4.3, 0], [2.3, 4.3, 0]
+  ]) {
     const bed = seabedY(px, pz);
-    const h = PIER_TOP - bed + 0.35;
-    const post = new THREE.CylinderGeometry(0.082, 0.098, h, 9, 3);
-    post.translate(px, PIER_TOP - h / 2, pz);
+    const top = PIER_TOP + rise;
+    const h = top - bed + 0.42;
+    const post = new THREE.CylinderGeometry(0.095, 0.115, h, 9, 3);
+    post.translate(px, top - h / 2, pz);
     postUv(post, px, pz, 1.5);
     tintPost(post);
     struct.push(post);
+    if (rise > 0) {
+      const cap = new THREE.CylinderGeometry(0.104, 0.104, 0.02, 9, 1);
+      cap.translate(px, top + 0.01, pz);
+      postUv(cap, px, pz, 1.5);
+      tintPost(cap);
+      struct.push(cap);
+    }
   }
   group.add(new THREE.Mesh(mergeGeometries(struct), woodMat));
 
@@ -84,16 +114,17 @@ export function createShore(woodTex, woodRough, sandTex) {
   beachMesh.renderOrder = 0;
   group.add(beachMesh);
 
-  // ---- soft occlusion under the pier -------------------------------------
+  // Water darkens in the pier's own shade. Drawn as a thin slab tucked strictly
+  // *inside* the deck footprint, so no stray plane pokes out past the boards.
   const shade = new THREE.Mesh(
-    new THREE.PlaneGeometry(5.3, span + 0.4),
+    new THREE.PlaneGeometry(DECK_HALF_X * 2 - 0.25, DECK_BACK - DECK_FRONT - 0.25),
     new THREE.MeshBasicMaterial({
-      color: 0x0b1a22, transparent: true, opacity: 0.34,
+      color: 0x0a1a24, transparent: true, opacity: 0.40,
       depthWrite: false, blending: THREE.NormalBlending
     })
   );
   shade.rotation.x = -Math.PI / 2;
-  shade.position.set(0, 0.012, (DECK_FRONT + DECK_BACK) / 2);
+  shade.position.set(0, 0.010, (DECK_FRONT + DECK_BACK) / 2);
   shade.renderOrder = 3;
   group.add(shade);
 
@@ -104,26 +135,42 @@ export function createShore(woodTex, woodRough, sandTex) {
  * The observation tub: a zinc pail of sea water sunk into the deck, where a fish
  * can be looked at for a moment before it goes back.
  */
-export function createTank() {
+export function createTank(noiseTex) {
   const group = new THREE.Group();
-  group.position.set(0.86, PIER_TOP, 0.86);
+  group.position.set(1.02, PIER_TOP, 0.48);
 
   const zinc = new THREE.MeshStandardMaterial({
-    color: 0x74776f, roughness: 0.78, metalness: 0.34, envMapIntensity: 0.5
+    color: 0x74776f, roughness: 0.78, metalness: 0.34, envMapIntensity: 0.5,
+    roughnessMap: noiseTex || null
   });
-  const wall = new THREE.Mesh(new THREE.CylinderGeometry(0.245, 0.215, 0.22, 24, 1, true), zinc);
+  // The inside darkens below the waterline, so the pail reads as full.
+  const wallGeo = new THREE.CylinderGeometry(0.245, 0.212, 0.27, 24, 1, true);
+  wallGeo.translate(0, 0.135, 0);
+  {
+    const p = wallGeo.attributes.position;
+    const col = new Float32Array(p.count * 3);
+    for (let i = 0; i < p.count; i++) {
+      const sub = p.getY(i) < 0.20 ? 0.86 : 1.0;
+      col[i * 3] = sub * 0.95; col[i * 3 + 1] = sub; col[i * 3 + 2] = sub * 0.96;
+    }
+    wallGeo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  }
+  zinc.vertexColors = true;
+  const wall = new THREE.Mesh(wallGeo, zinc);
   wall.material.side = THREE.DoubleSide;
-  wall.position.y = 0.11;
   group.add(wall);
-  const floor = new THREE.Mesh(new THREE.CircleGeometry(0.215, 24), new THREE.MeshStandardMaterial({
-    color: 0x4c504c, roughness: 0.9, metalness: 0.2, envMapIntensity: 0.45
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(0.212, 24), new THREE.MeshStandardMaterial({
+    color: 0xa9ada1, roughness: 0.88, metalness: 0.18, envMapIntensity: 0.55
   }));
   floor.rotation.x = -Math.PI / 2;
-  floor.position.y = 0.005;
+  floor.position.y = 0.022;
   group.add(floor);
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.245, 0.014, 6, 26), zinc);
+  const rimMat = zinc.clone();
+  rimMat.vertexColors = false;
+  rimMat.roughness = 0.62;
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.2455, 0.013, 6, 26), rimMat);
   rim.rotation.x = Math.PI / 2;
-  rim.position.y = 0.22;
+  rim.position.y = 0.27;
   group.add(rim);
 
   // Water inside, with its own tiny surface motion.
@@ -136,31 +183,41 @@ export function createTank() {
       uActive: { value: 0 }
     },
     vertexShader: `
-      varying vec2 vUv; varying vec3 vW;
+      varying vec2 vUv; varying vec3 vW; varying vec3 vN;
       uniform float uTime;
       void main(){
         vUv = uv; vec3 p = position;
-        p.z += sin(p.x * 22.0 + uTime * 2.4) * 0.0035 + sin(p.y * 19.0 - uTime * 1.9) * 0.003;
+        float wx = sin(p.x * 22.0 + uTime * 2.4), wy = sin(p.y * 19.0 - uTime * 1.9);
+        p.z += wx * 0.0035 + wy * 0.003;
+        // Normal of that little chop, in the plane's own frame (+Z is up here).
+        vec3 n = normalize(vec3(-cos(p.x * 22.0 + uTime * 2.4) * 0.077,
+                                -cos(p.y * 19.0 - uTime * 1.9) * 0.057, 1.0));
+        vN = normalize(mat3(modelMatrix) * n);
         vW = (modelMatrix * vec4(p, 1.0)).xyz;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(p, 1.0);
       }
     `,
     fragmentShader: `
       precision highp float;
-      varying vec2 vUv; varying vec3 vW;
+      varying vec2 vUv; varying vec3 vW; varying vec3 vN;
       uniform float uTime; uniform vec3 uShallow, uSunColor; uniform float uActive;
       void main(){
         vec2 c = vUv * 2.0 - 1.0;
         float r = length(c);
-        // Sea water in a zinc pail: dark, holding one soft window of sky.
-        float sky = smoothstep(0.75, -0.35, c.y + sin(c.x * 3.0 + uTime * 0.9) * 0.10);
-        vec3 col = uShallow * 0.13;
-        col += vec3(0.26, 0.31, 0.34) * sky * 0.55;
-        float ripple = sin(r * 34.0 - uTime * 2.6 + sin(c.x * 8.0) * 1.4) * 0.5 + 0.5;
-        col += uSunColor * pow(ripple, 8.0) * 0.030;
-        col *= 0.86 + 0.20 * smoothstep(1.0, 0.35, r);
-        col += uSunColor * 0.045 * uActive;
-        float a = 0.95 * smoothstep(1.0, 0.95, r);
+        vec3 V = normalize(cameraPosition - vW);
+        vec3 N = normalize(vN);
+
+        // Looking down into a pail you see straight through; only the grazing
+        // parts near the far rim turn into sky. Real Fresnel, so the fish shows.
+        float fres = pow(1.0 - clamp(dot(N, V), 0.0, 1.0), 4.0);
+        vec3 sky = vec3(0.34, 0.40, 0.43);
+        vec3 col = mix(uShallow * 0.55, sky, clamp(fres * 1.4, 0.0, 1.0));
+
+        float ripple = sin(r * 26.0 - uTime * 2.4 + sin(c.x * 6.0 + uTime * 0.5) * 1.8) * 0.5 + 0.5;
+        col += uSunColor * pow(ripple, 12.0) * 0.06;
+        col += uSunColor * 0.04 * uActive;
+
+        float a = clamp(0.16 + fres * 1.1, 0.0, 0.88) * smoothstep(1.0, 0.94, r);
         gl_FragColor = vec4(col, a);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
@@ -169,11 +226,11 @@ export function createTank() {
   });
   const surf = new THREE.Mesh(new THREE.CircleGeometry(0.212, 28), surfMat);
   surf.rotation.x = -Math.PI / 2;
-  surf.position.y = 0.168;
+  surf.position.y = 0.205;
   surf.renderOrder = 6;
   group.add(surf);
 
-  return { group, surfMat, waterY: PIER_TOP + 0.168, center: new THREE.Vector3(0.86, PIER_TOP + 0.168, 0.86) };
+  return { group, surfMat, waterY: PIER_TOP + 0.205, center: new THREE.Vector3(1.02, PIER_TOP + 0.205, 0.48) };
 }
 
 /** A coil of spare warp beside the caster's feet. It is where the rope comes from. */
@@ -190,7 +247,7 @@ export function createRopeCoil(ropeTex) {
     t.position.y = 0.017 + i * 0.019;
     group.add(t);
   }
-  group.position.set(-0.72, PIER_TOP, 0.62);
+  group.position.set(-0.74, PIER_TOP, 0.72);
   return group;
 }
 

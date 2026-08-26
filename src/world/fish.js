@@ -91,15 +91,18 @@ export function createFish(quality) {
         vec3 V = normalize(cameraPosition - vW);
         vec3 N = normalize(vN);
         // Dark back, pale belly: reads as a shadow from above, as a flash from the side.
-        vec3 back = vec3(0.055, 0.085, 0.105);
-        vec3 belly = vec3(0.62, 0.66, 0.63);
+        vec3 back = vec3(0.075, 0.105, 0.125);
+        vec3 belly = vec3(0.66, 0.70, 0.66);
         vec3 base = mix(back, belly, vBelly * 0.9);
+        // Silver band along the flank, the part that catches the light.
+        base += vec3(0.16, 0.18, 0.19) * smoothstep(0.45, 0.05, abs(vBelly - 0.42));
 
         float lam = max(dot(N, uSunDir), 0.0);
         vec3 H = normalize(uSunDir + V);
         float flank = pow(max(dot(N, H), 0.0), 42.0);
-        vec3 col = base * (0.30 + lam * 0.75);
-        col += uSunColor * flank * (0.55 + vD.z * 3.2);
+        // vD.z also lifts the whole body: a fish in the pail is close and lit.
+        vec3 col = base * (0.30 + lam * 0.75) * (1.0 + vD.z * 1.5);
+        col += uSunColor * flank * (0.30 + vD.z * 0.9);
 
         float depth = max(0.0, -vW.y);
         vec3 water = mix(uShallow, uDeep, clamp(depth / 3.0, 0.0, 1.0));
@@ -159,7 +162,7 @@ export class FishSystem {
     for (let i = 0; i < count; i++) slots.push(this.free.pop());
 
     const deep = kind === 'solitary';
-    const dist = opts.dist ?? (deep ? rng.range(11, 19) : rng.range(2.6, 8.0));
+    const dist = opts.dist ?? (deep ? rng.range(12, 21) : rng.range(2.6, 8.0));
     const side = opts.side ?? rng.range(-9, 9);
     const shoal = {
       kind, slots,
@@ -170,7 +173,7 @@ export class FishSystem {
         : kind === 'solitary' ? rng.range(0.62, 0.88)
           : rng.range(0.26, 0.34),
       spread: kind === 'school' ? 0.62 : kind === 'solitary' ? 0 : 1.7,
-      swimDepth: kind === 'solitary' ? rng.range(0.9, 1.7) : rng.range(0.18, 0.55),
+      swimDepth: kind === 'solitary' ? rng.range(1.1, 2.0) : rng.range(0.20, 0.60),
       members: slots.map(() => ({
         off: new THREE.Vector3(rng.gauss(), rng.gauss() * 0.35, rng.gauss()),
         phase: rng.range(0, 6.28),
@@ -245,7 +248,7 @@ export class FishSystem {
       slot: this.free.pop(),
       center: center.clone(),
       kind,
-      scale: Math.min(scale, 0.155),
+      scale: Math.min(Math.max(scale, 0.19), 0.26),
       a: 0,
       t: 0,
       pos: center.clone(),
@@ -269,12 +272,15 @@ export class FishSystem {
     k.t += dt;
     let yaw;
     if (!k.release) {
-      // Slow circles just under the surface of the tub.
-      k.a += dt * 1.15;
-      const r = 0.135;
-      k.pos.set(k.center.x + Math.cos(k.a) * r, k.center.y - 0.045 + Math.sin(t * 1.6) * 0.012,
-        k.center.z + Math.sin(k.a) * r);
-      yaw = Math.atan2(-Math.sin(k.a), Math.cos(k.a)) + Math.PI * 0.5;
+      // A slow figure of eight, mostly side to side, so it is nearly always
+      // broadside to the camera and can actually be looked at.
+      k.a += dt * 1.05;
+      const x = Math.sin(k.a) * 0.085;
+      const z = Math.sin(k.a * 2) * 0.040;
+      k.pos.set(k.center.x + x, k.center.y - 0.038 + Math.sin(t * 1.6) * 0.008, k.center.z + z);
+      // Held broadside on purpose. A fish seen end-on is a sliver, and the whole
+      // point of the pail is that it can be looked at; it flips at the turns.
+      yaw = Math.PI * 0.5 * Math.tanh(Math.cos(k.a) * 14.0);
     } else {
       const rel = k.release;
       rel.t += dt;
@@ -298,7 +304,7 @@ export class FishSystem {
     _m.toArray(arr, k.slot * 16);
     data[k.slot * 4 + 0] = 0.7;
     data[k.slot * 4 + 1] = 13.0;
-    data[k.slot * 4 + 2] = 0.9;
+    data[k.slot * 4 + 2] = 0.22;
     data[k.slot * 4 + 3] = 1;
   }
 
@@ -374,7 +380,7 @@ export class FishSystem {
         const bed = seabedY(px, pz);
         const water = H.heightAt(px, pz);
         let py = water - s.swimDepth - m.off.y * 0.25 + Math.sin(t * 0.7 + m.phase) * 0.04;
-        py = clamp(py, bed + 0.09 * s.scale * 6, water - 0.045);
+        py = clamp(py, bed + 0.09 * s.scale * 6, water - 0.05 - s.scale * 0.55);
 
         m.p.set(px, py, pz);
         _fwd.set(s.vel.x, (py - m.p.y) * 0.0 + 0.0, s.vel.z).normalize();

@@ -137,7 +137,7 @@ test.describe('投網の花 — core play loop', () => {
     await page.evaluate(() => window.__toami.haul());
     await advance(page, 8.0);
 
-    await page.evaluate(() => window.__toami.cast({ distance: 15, azimuth: 0, sharpness: 0.95, smoothness: 0.9, wobble: 0.1 }));
+    await page.evaluate(() => window.__toami.cast({ distance: 11.5, azimuth: 0, sharpness: 0.95, smoothness: 0.9, wobble: 0.1 }));
     await advance(page, 5.0);
     const deep = await state(page);
 

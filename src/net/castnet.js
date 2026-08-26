@@ -6,6 +6,8 @@ import { valueNoise2 } from '../util/rng.js';
 const _n0 = new THREE.Vector3();
 const _upAxis = new THREE.Vector3(0, 1, 0);
 const _tmpA = new THREE.Vector3();
+const _tmpB = new THREE.Vector3();
+const _qRoll = new THREE.Quaternion();
 
 /**
  * The cast net.
@@ -147,12 +149,32 @@ export class CastNet {
           float shin = pow(max(dot(N, H), 0.0), mix(16.0, 96.0, uWet));
           col += uSunColor * shin * mix(0.035, 0.42, uWet);
 
+          // Wet twine must never out-shine the sky behind it.
+          col = min(col, vec3(0.92));
+
+          // Below the surface the water eats contrast, long before the water
+          // plane in front of it gets a say.
+          float sub = max(0.0, -vW.y);
+          if (sub > 0.0) {
+            vec3 tint = mix(uShallow, uDeep, clamp(sub / 2.6, 0.0, 1.0)) * 0.85;
+            col = mix(col, tint, clamp(1.0 - exp(-sub * 0.62), 0.0, 0.80));
+          }
+
           gl_FragColor = vec4(col, a * mix(0.94, 1.0, uWet));
           #include <tonemapping_fragment>
           #include <colorspace_fragment>
         }
       `
     });
+
+    // The horn: a whipped collar at the centre where the hand line is made fast.
+    // Without it the rope appears to end in the middle of nothing.
+    const hornGeo = new THREE.CylinderGeometry(0.024, 0.040, 0.065, 9, 1);
+    this.horn = new THREE.Mesh(hornGeo, new THREE.MeshStandardMaterial({
+      color: 0xc0a878, roughness: 0.96, metalness: 0.0, envMapIntensity: 0.12
+    }));
+    this.horn.frustumCulled = false;
+    this.horn.renderOrder = 4;
 
     this.mesh = new THREE.Mesh(geo, this.material);
     this.mesh.frustumCulled = false;
@@ -179,7 +201,16 @@ export class CastNet {
   _buildWeights() {
     const step = Math.max(1, Math.round(this.segs / 28));
     this.weightSlots = [];
-    for (let j = 0; j < this.segs; j += step) this.weightSlots.push(this.rings * this.segs + j);
+    this.weightVar = [];
+    for (let j = 0; j < this.segs; j += step) {
+      this.weightSlots.push(this.rings * this.segs + j);
+      // Hand-crimped lead: each one a slightly different lump, hung its own way.
+      this.weightVar.push({
+        s: 0.78 + valueNoise2(j * 1.7, 3.1) * 0.55,
+        f: 0.80 + valueNoise2(j * 0.9, 7.7) * 0.45,
+        roll: valueNoise2(j * 2.3, 1.9) * Math.PI * 2
+      });
+    }
     const geo = new THREE.SphereGeometry(0.0155, 6, 4);
     geo.scale(1, 1.5, 1);
     const mat = new THREE.MeshStandardMaterial({
@@ -192,6 +223,7 @@ export class CastNet {
     this._wm = new THREE.Matrix4();
     this._wq = new THREE.Quaternion();
     this._ws = new THREE.Vector3(1, 1, 1);
+    this._wt = new THREE.Vector3();
   }
 
   /** Hauling lines from the hand-line junction down to the lead line. */
@@ -331,7 +363,10 @@ export class CastNet {
         // The bloom: fast open with a touch of overshoot, then it breathes back.
         const o = smoothstep(0.05, 0.62, u);
         this.openness = o * (1 + 0.10 * Math.sin(clamp((u - 0.35) / 0.5, 0, 1) * Math.PI));
+        // Deepest just after it opens, flattening out as it slows into the water.
+        this.billow = 0.42 * smoothstep(0.10, 0.45, u) * (1 - smoothstep(0.58, 1.0, u));
         this.gather = 1 - smoothstep(0.02, 0.45, u);
+        this.billow = this.billow || 0;
         this.spin += this.spinRate * (1 - u * 0.45) * dt;
         this._faceTowards(smoothstep(0.34, 1.0, u));
 
@@ -339,6 +374,7 @@ export class CastNet {
         break;
       }
       case 'splash': {
+        this.billow = Math.max(0, (this.billow || 0) - dt * 2.2);
         this._faceTowards(1);
         this.openness = 1;
         this.gather = 0;
@@ -491,21 +527,29 @@ export class CastNet {
         const swag = Math.sin(j * (S / this.weightSlots.length) * 0.5) * 0.012 * fr;
         oy += swag;
 
+        // Billow: through the air the lead line trails the centre, so the net
+        // is a shallow dish. This is what stops the bloom reading as a decal.
+        oy += (this.billow || 0) * fr * fr * openR;
+
         // --- half-folded heap lying on the planks
         // Loose concentric folds, squashed toward the water, piled at the centre.
-        const fold = 0.30 * Math.sin(a * 3.0 + this.seedOffset)
-          + 0.19 * Math.sin(a * 5.0 + 2.1)
-          + 0.13 * Math.sin(a * 8.0 - 0.7)
+        // Deliberately not harmonic: three even lobes would read as a flower.
+        const fold = 0.26 * Math.sin(a * 2.0 + this.seedOffset)
+          + 0.17 * Math.sin(a * 3.7 + 2.1)
+          + 0.11 * Math.sin(a * 6.3 - 0.7)
+          + 0.34 * (valueNoise2(a * 1.9 + this.seedOffset, 4.2) - 0.5)
           + 0.16 * this.jit[k * 3 + 1];
-        const rr2 = openR * (0.055 + 0.245 * fr) * (1 + fold * fr);
+        // A soaked net slumps: wider footprint, lower pile, softer folds.
+        const heavy = this.wetness;
+        const rr2 = openR * (0.055 + (0.225 + heavy * 0.070) * fr) * (1 + fold * fr * (1 - heavy * 0.30));
         const bx = Math.cos(a) * rr2 + this.jit[k * 3] * 0.045;
         const bz = Math.sin(a) * rr2 * 0.78 + this.jit[k * 3 + 2] * 0.045;
         // Wind lifting the edge: a slow travelling ruffle, killed by wetness.
         const ruffle = Math.sin(t * 0.85 + a * 3.0) * Math.sin(t * 0.37 + a * 1.0);
-        const by = 0.20 * (1 - fr) * (1 - fr) - 0.015
-          + Math.abs(this.jit[k * 3 + 1]) * 0.13 * fr
-          + Math.max(0, Math.sin(a * 3.0 + this.seedOffset)) * 0.075 * fr * (1 - fr)
-          + ruffle * 0.06 * fr * fr * (1 - this.wetness * 0.75);
+        const by = (0.27 - heavy * 0.13) * (1 - fr) * (1 - fr) - 0.015
+          + Math.abs(this.jit[k * 3 + 1]) * (0.13 - heavy * 0.06) * fr
+          + Math.max(0, Math.sin(a * 3.0 + this.seedOffset)) * 0.075 * fr * (1 - fr) * (1 - heavy * 0.5)
+          + ruffle * 0.06 * fr * fr * (1 - heavy * 0.85);
 
         const g = gather * (1 - open * 0.85);
         ox = lerp(ox, bx, g); oy = lerp(oy, by, g); oz = lerp(oz, bz, g);
@@ -637,6 +681,10 @@ export class CastNet {
     this.geo.attributes.position.needsUpdate = true;
     this.geo.attributes.normal.needsUpdate = true;
 
+    // Sit the horn on the net's centre, aligned with the net's own plane.
+    this.horn.position.set(p[0], p[1], p[2]);
+    this.horn.quaternion.copy(this.quat);
+
     // Handy summaries for the camera and the gameplay.
     let lowest = Infinity, rmax = 0;
     for (let j = 0; j < S; j++) {
@@ -655,9 +703,12 @@ export class CastNet {
       const jn = ((k % S) + 1) % S;
       const nb = (this.rings * S + jn) * 3;
       const dx = p[nb] - p[k3], dy = p[nb + 1] - p[k3 + 1], dz = p[nb + 2] - p[k3 + 2];
-      this._wq.setFromUnitVectors(new THREE.Vector3(0, 1, 0),
-        new THREE.Vector3(dx, dy, dz).normalize());
-      this._wm.compose(new THREE.Vector3(p[k3], p[k3 + 1], p[k3 + 2]), this._wq, this._ws);
+      const v = this.weightVar[w];
+      this._wq.setFromUnitVectors(_upAxis, _n0.set(dx, dy, dz).normalize());
+      _tmpA.set(0, 0, 1).applyQuaternion(this._wq);
+      this._wq.multiply(_qRoll.setFromAxisAngle(_upAxis, v.roll));
+      this._ws.set(v.s, v.s * v.f, v.s);
+      this._wm.compose(_tmpB.set(p[k3], p[k3 + 1], p[k3 + 2]), this._wq, this._ws);
       this._wm.toArray(this.weights.instanceMatrix.array, w * 16);
     }
     this.weights.instanceMatrix.needsUpdate = true;

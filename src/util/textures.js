@@ -1,7 +1,7 @@
 // Every texture here is generated at runtime on a 2D canvas.
 // No binary assets: the whole game is text in the repo, and it loads instantly offline.
 import * as THREE from '../../vendor/three.module.js';
-import { fbm2, valueNoise2, hash2 } from './rng.js';
+import { fbm2, valueNoise2, hash2, tileFbm, tileNoise } from './rng.js';
 
 function makeCanvas(w, h) {
   const c = document.createElement('canvas');
@@ -125,23 +125,26 @@ export function makeWoodTexture(renderer, { size = 512 } = {}) {
   const d = img.data;
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
-      // Grain runs along +u, which the deck maps to the length of the boards.
-      const grain = fbm2(x * 0.045, y * 0.62, 4);
-      const rings = 0.5 + 0.5 * Math.sin((grain * 5.4 + y * 0.30) * 3.1);
-      const splinter = Math.pow(valueNoise2(x * 0.22, y * 2.4), 3) * 0.25;
-      const wear = fbm2(x * 0.006 + 60, y * 0.022 - 22, 4);
-      const wet = Math.min(1, Math.max(0, (wear - 0.46) * 1.7));
+      // Grain runs along +u, which the deck maps to the length of the boards,
+      // so the noise is stretched hard in x and tight in y.
+      const grain = tileFbm(x, y, size, 0.0013, 0.018, 4);
+      // Contour bands that follow the stretched grain: wood figure, not corduroy.
+      const rings = 0.5 + 0.5 * Math.sin(grain * 34.0);
+      const splinter = Math.pow(tileNoise(x, y, size, 0.013, 0.145), 3) * 0.22;
+      // Damp runs *with* the boards: long, soft, never a blob.
+      const wear = tileFbm(x, y, size, 0.0022, 0.021, 3);
+      const wet = Math.min(1, Math.max(0, (wear - 0.47) * 1.5));
 
       let l = 0.60;
-      l *= 0.78 + grain * 0.42;
-      l *= 0.88 + rings * 0.15;
+      l *= 0.84 + grain * 0.30;
+      l *= 0.86 + rings * 0.19;
       l *= 1 - splinter;
-      l *= 1 - wet * 0.24;
+      l *= 1 - wet * 0.15;
 
       const i = (y * size + x) * 4;
       d[i] = 255 * Math.min(1, l * 0.94);
       d[i + 1] = 255 * Math.min(1, l * 0.80);
-      d[i + 2] = 255 * Math.min(1, l * 0.63 * (1 - wet * 0.08));
+      d[i + 2] = 255 * Math.min(1, l * 0.63 * (1 - wet * 0.06));
       d[i + 3] = 255;
     }
   }
@@ -157,9 +160,9 @@ export function makeWoodRoughness(renderer, { size = 256 } = {}) {
   const d = img.data;
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
-      const wear = fbm2(x * 0.026 + 60, y * 0.026 - 22, 4);
-      const wet = Math.min(1, Math.max(0, (wear - 0.44) * 2.7));
-      const micro = fbm2(x * 0.09, y * 0.8, 3);
+      const wear = tileFbm(x, y, size, 0.0044, 0.042, 3);
+      const wet = Math.min(1, Math.max(0, (wear - 0.47) * 1.5));
+      const micro = tileFbm(x, y, size, 0.009, 0.08, 3);
       const r = 0.94 - wet * 0.52 - micro * 0.10;
       const v = 255 * Math.min(1, Math.max(0, r));
       const i = (y * size + x) * 4;
@@ -178,9 +181,9 @@ export function makeSandTexture(renderer, { size = 512 } = {}) {
   const d = img.data;
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
-      const bars = 0.5 + 0.5 * Math.sin(y * 0.11 + fbm2(x * 0.02, y * 0.02, 3) * 7.0);
-      const grit = valueNoise2(x * 1.7, y * 1.7);
-      const patch = fbm2(x * 0.017 - 9, y * 0.017 + 4, 4);
+      const bars = 0.5 + 0.5 * Math.sin(y * (Math.PI * 2 * 9 / size) + tileFbm(x, y, size, 0.02, 0.02, 3) * 7.0);
+      const grit = tileNoise(x, y, size, 1 / 3, 1 / 3);
+      const patch = tileFbm(x, y, size, 0.017, 0.017, 4);
       let l = 0.34 + bars * 0.10 + grit * 0.09 + patch * 0.15;
       // Occasional dark shell or pebble.
       if (hash2(Math.floor(x / 3) * 1.7, Math.floor(y / 3) * 2.3) > 0.985) l *= 0.55;

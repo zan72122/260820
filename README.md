@@ -31,6 +31,7 @@ Useful query parameters:
 | parameter | effect |
 |---|---|
 | `?fast=1` | low-cost profile: dpr 1, coarser meshes, no antialias, boot cover skipped. Used by the tests. |
+| `?q=high` \| `?q=low` \| `?q=fast` | force a quality tier instead of picking one from the device. |
 | `?seed=1234` | fixes the random seed, so a session replays identically. |
 
 ## Playing
@@ -76,10 +77,14 @@ the haze. Four travelling swells, ring impulses for every impact and drip, sun
 glitter, depth-driven colour and transparency, and a lace of foam where the
 swell meets the sand.
 
-**Two places.** Within ~8 m the water is a calm sandy shallow: the lead line
-cannot fall far, so the net stays a wide circle. Beyond ~13 m it drops into
-blue, and the net draws itself into a deep cone. The same swipe reads
-differently in each.
+**Two places.** Within ~7 m the water is a calm sandy shallow: the lead line
+cannot fall far, so the net stays a wide circle. Beyond ~11 m it drops into
+blue, and the net draws itself into a deep cone that reaches roughly half a
+metre further down. The same swipe reads differently in each.
+
+**The throw range is deliberately short** — 2.8 m to 11.5 m. What a
+four-year-old reads is the *difference* between throws, and a longer cast is
+only a smaller net on a phone screen.
 
 **Three fish silhouettes** — a tight school that flashes as one body, one big
 slow shadow crossing the blue, and a handful of quick darters that scatter when

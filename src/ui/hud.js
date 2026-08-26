@@ -31,47 +31,67 @@ export class Hud {
     vig.setAttribute('fill', 'url(#vig)');
     svg.appendChild(vig);
 
-    const trail = document.createElementNS(NS, 'path');
-    trail.setAttribute('fill', 'none');
-    trail.setAttribute('stroke', 'url(#strokeFade)');
-    trail.setAttribute('stroke-linecap', 'round');
-    trail.setAttribute('stroke-linejoin', 'round');
-    trail.setAttribute('stroke-width', '9');
-    trail.setAttribute('opacity', '0');
-    svg.appendChild(trail);
+    // The stroke is drawn as a stack of shortening segments rather than one
+    // gradient-filled path, so it tapers correctly whichever way the hand goes.
+    const SEGMENTS = 7;
+    const trails = [];
+    for (let i = 0; i < SEGMENTS; i++) {
+      const p = document.createElementNS(NS, 'path');
+      p.setAttribute('fill', 'none');
+      p.setAttribute('stroke', '#f6ecd8');
+      p.setAttribute('stroke-linecap', 'round');
+      p.setAttribute('stroke-linejoin', 'round');
+      p.setAttribute('opacity', '0');
+      svg.appendChild(p);
+      trails.push(p);
+    }
 
     const tip = document.createElementNS(NS, 'circle');
-    tip.setAttribute('r', '7');
-    tip.setAttribute('fill', '#fff8e8');
+    tip.setAttribute('r', '5.5');
+    tip.setAttribute('fill', '#fff6e4');
     tip.setAttribute('opacity', '0');
     svg.appendChild(tip);
 
     root.appendChild(svg);
-    this.svg = svg; this.trail = trail; this.tip = tip;
+    this.svg = svg; this.trails = trails; this.tip = tip;
+    this.segments = SEGMENTS;
     this.alpha = 0;
   }
 
   update(path, dt) {
     const live = path && path.length > 1;
     this.alpha += ((live ? 1 : 0) - this.alpha) * (1 - Math.exp(-(live ? 14 : 4.5) * dt));
-    if (this.alpha < 0.003) {
-      this.trail.setAttribute('opacity', '0');
+    if (this.alpha < 0.004) {
+      for (const t of this.trails) t.setAttribute('opacity', '0');
       this.tip.setAttribute('opacity', '0');
       return;
     }
     if (live) {
-      const take = path.slice(Math.max(0, path.length - 34));
-      let d = `M ${take[0].x.toFixed(1)} ${take[0].y.toFixed(1)}`;
-      for (let i = 1; i < take.length; i++) {
-        const p = take[i], q = take[i - 1];
-        d += ` Q ${q.x.toFixed(1)} ${q.y.toFixed(1)} ${((p.x + q.x) / 2).toFixed(1)} ${((p.y + q.y) / 2).toFixed(1)}`;
+      const take = path.slice(Math.max(0, path.length - 30));
+      const n = take.length;
+      for (let s = 0; s < this.segments; s++) {
+        // Segment 0 is the whole visible tail; each later one is a shorter,
+        // brighter, wider piece nearer the fingertip.
+        const from = Math.floor((s / this.segments) * (n - 1));
+        const pts = take.slice(from);
+        if (pts.length < 2) { this.trails[s].setAttribute('opacity', '0'); continue; }
+        let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
+        for (let i = 1; i < pts.length; i++) {
+          const p = pts[i], q = pts[i - 1];
+          d += ` Q ${q.x.toFixed(1)} ${q.y.toFixed(1)} ${((p.x + q.x) / 2).toFixed(1)} ${((p.y + q.y) / 2).toFixed(1)}`;
+        }
+        this.trails[s].setAttribute('d', d);
+        this.trails[s].setAttribute('stroke-width', (2.0 + s * 0.75).toFixed(1));
+        this.trails[s].setAttribute('opacity', (this.alpha * 0.085).toFixed(3));
       }
-      this.trail.setAttribute('d', d);
-      const last = take[take.length - 1];
+      const last = take[n - 1];
       this.tip.setAttribute('cx', last.x);
       this.tip.setAttribute('cy', last.y);
+    } else {
+      for (const t of this.trails) {
+        t.setAttribute('opacity', (this.alpha * 0.085).toFixed(3));
+      }
     }
-    this.trail.setAttribute('opacity', (this.alpha * 0.9).toFixed(3));
-    this.tip.setAttribute('opacity', (this.alpha * 0.55).toFixed(3));
+    this.tip.setAttribute('opacity', (this.alpha * 0.42).toFixed(3));
   }
 }

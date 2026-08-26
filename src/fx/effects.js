@@ -77,31 +77,40 @@ export class Spray {
 
   /** The crown thrown up when a whole circle of lead hits the water at once. */
   crown(center, radius, strength = 1, rng) {
-    const ring = Math.round(40 * strength);
+    // The skirt: a continuous sheet of water thrown up along the lead line.
+    const ring = Math.round(34 * strength);
     for (let i = 0; i < ring; i++) {
-      const a = (i / ring) * Math.PI * 2 + rng.range(-0.08, 0.08);
-      const r = radius * rng.range(0.82, 1.02);
+      const a = (i / ring) * Math.PI * 2 + rng.range(-0.06, 0.06);
+      const r = radius * rng.range(0.84, 1.02);
       const sp = rng.range(1.1, 2.5) * strength;
       this._emit(
         center.x + Math.cos(a) * r, center.y + 0.02, center.z + Math.sin(a) * r,
         Math.cos(a) * sp * 0.55, rng.range(1.5, 3.2) * strength, Math.sin(a) * sp * 0.55,
-        rng.range(0.55, 1.0), rng.range(0.085, 0.20), 0
+        rng.range(0.50, 0.90), rng.range(0.16, 0.34), 0
       );
+      // Torn spray off the top of the sheet.
+      if (i % 2 === 0) {
+        this._emit(
+          center.x + Math.cos(a) * r, center.y + 0.06, center.z + Math.sin(a) * r,
+          Math.cos(a) * sp * 0.9, rng.range(2.2, 4.0) * strength, Math.sin(a) * sp * 0.9,
+          rng.range(0.6, 1.1), rng.range(0.05, 0.11), 0
+        );
+      }
     }
     for (let i = 0; i < Math.round(15 * strength); i++) {
       const a = rng.range(0, 6.28), r = radius * Math.sqrt(rng.next()) * 0.6;
       this._emit(
         center.x + Math.cos(a) * r, center.y + 0.02, center.z + Math.sin(a) * r,
         rng.range(-0.5, 0.5), rng.range(1.8, 3.6) * strength, rng.range(-0.5, 0.5),
-        rng.range(0.5, 0.95), rng.range(0.10, 0.24), 0
+        rng.range(0.5, 0.95), rng.range(0.14, 0.30), 0
       );
     }
-    for (let i = 0; i < Math.round(9 * strength); i++) {
+    for (let i = 0; i < Math.round(14 * strength); i++) {
       const a = rng.range(0, 6.28), r = radius * rng.range(0.7, 1.25);
       this._emit(
         center.x + Math.cos(a) * r, center.y + 0.05, center.z + Math.sin(a) * r,
         Math.cos(a) * 0.35, rng.range(0.25, 0.75), Math.sin(a) * 0.35,
-        rng.range(1.1, 2.0), rng.range(0.16, 0.36), 2
+        rng.range(1.1, 2.0), rng.range(0.26, 0.55), 2
       );
     }
   }
@@ -269,7 +278,7 @@ export class NetShadow {
     const spread = 1 + clamp(height, 0, 4) * 0.22;
     this.mesh.scale.setScalar(Math.max(0.05, radius * spread));
     this.material.uniforms.uSoft.value = clamp(0.30 + height * 0.24, 0.24, 0.95);
-    this.material.uniforms.uStrength.value = clamp(0.62 - height * 0.10, 0.10, 0.62);
+    this.material.uniforms.uStrength.value = clamp(0.46 - height * 0.08, 0.08, 0.46);
     this.material.uniforms.uMesh.value = Math.max(6, radius * 15);
     this.material.uniforms.uCrisp.value = clamp(1 - height / 1.1, 0, 1);
   }

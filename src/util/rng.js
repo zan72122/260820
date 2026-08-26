@@ -45,3 +45,26 @@ export function fbm2(x, y, octaves = 4) {
   }
   return f / norm;
 }
+
+/**
+ * Seamlessly tileable fbm over a `size`-wide tile.
+ *
+ * Plain fbm does not wrap, so a texture built from it shows a hard seam every
+ * time it repeats. Blending the four wrapped lookups costs 4x and removes it.
+ * `fx`/`fy` are separate so grain can be stretched along one axis and still tile.
+ */
+export function tileFbm(x, y, size, fx, fy = fx, octaves = 4) {
+  const sx = size * fx, sy = size * fy;
+  const nx = x * fx, ny = y * fy;
+  const wx = x / size, wy = y / size;
+  const a = fbm2(nx, ny, octaves);
+  const b = fbm2(nx - sx, ny, octaves);
+  const c = fbm2(nx, ny - sy, octaves);
+  const d = fbm2(nx - sx, ny - sy, octaves);
+  return (a * (1 - wx) + b * wx) * (1 - wy) + (c * (1 - wx) + d * wx) * wy;
+}
+
+/** Seamless single-octave value noise, for grain and grit. */
+export function tileNoise(x, y, size, fx, fy = fx) {
+  return tileFbm(x, y, size, fx, fy, 1);
+}

@@ -10,13 +10,17 @@ const params = new URLSearchParams(location.search);
 const FAST = params.get('fast') === '1' || params.get('e2e') === '1';
 const SEED = Number(params.get('seed') || 20260825);
 
+const FORCED = params.get('q');
+
 function pickQuality() {
   const dpr = window.devicePixelRatio || 1;
   const px = Math.max(window.innerWidth, window.innerHeight) * dpr;
   const mem = navigator.deviceMemory || 4;
   const cores = navigator.hardwareConcurrency || 4;
 
-  if (FAST) {
+  if (FORCED === 'high') return HIGH;
+  if (FORCED === 'low') return LOW;
+  if (FORCED === 'fast' || (FAST && FORCED !== 'high' && FORCED !== 'low')) {
     return {
       name: 'fast', maxDpr: 1, antialias: false,
       waterRings: 72, waterSegs: 64, bedRings: 44, bedSegs: 44,
@@ -24,19 +28,19 @@ function pickQuality() {
     };
   }
   const low = mem <= 2 || cores <= 3 || px < 900;
-  if (low) {
-    return {
-      name: 'low', maxDpr: 1.5, antialias: false,
-      waterRings: 96, waterSegs: 84, bedRings: 56, bedSegs: 56,
-      netRings: 11, netSegs: 40, netTexSize: 384
-    };
-  }
-  return {
-    name: 'high', maxDpr: 2, antialias: true,
-    waterRings: 128, waterSegs: 112, bedRings: 72, bedSegs: 72,
-    netRings: 13, netSegs: 48, netTexSize: 512
-  };
+  return low ? LOW : HIGH;
 }
+
+const LOW = {
+  name: 'low', maxDpr: 1.5, antialias: false,
+  waterRings: 96, waterSegs: 84, bedRings: 56, bedSegs: 56,
+  netRings: 11, netSegs: 40, netTexSize: 384
+};
+const HIGH = {
+  name: 'high', maxDpr: 2, antialias: true,
+  waterRings: 128, waterSegs: 112, bedRings: 72, bedSegs: 72,
+  netRings: 13, netSegs: 48, netTexSize: 512
+};
 
 const quality = pickQuality();
 const stage = document.getElementById('stage');

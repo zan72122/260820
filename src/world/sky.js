@@ -77,6 +77,8 @@ export function createSky({ forEnv = false } = {}) {
       ${GLSL_SKY}
       void main(){
         vec3 c = skyColor(normalize(vDir), uTime);
+        // A sky this smooth bands badly in 8 bits; a sub-LSB dither removes it.
+        c += (skyHash(gl_FragCoord.xy) - 0.5) * 0.0032;
         gl_FragColor = vec4(c, 1.0);
         ${forEnv ? '' : '#include <tonemapping_fragment>\n        #include <colorspace_fragment>'}
       }

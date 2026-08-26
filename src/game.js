@@ -15,8 +15,8 @@ import { Rng } from './util/rng.js';
 import { clamp, lerp, smoothstep } from './util/math.js';
 import * as TEX from './util/textures.js';
 
-const REST_POS = new THREE.Vector3(-0.02, PIER_TOP + 0.13, -0.62);
-const HAND_POS = new THREE.Vector3(-0.72, PIER_TOP + 0.13, 0.62);
+const REST_POS = new THREE.Vector3(-0.02, PIER_TOP + 0.13, -0.18);
+const HAND_POS = new THREE.Vector3(-0.74, PIER_TOP + 0.13, 0.72);
 
 /** The planks the rope has to rest on rather than sink through. */
 function deckFloor(x, z) {
@@ -92,7 +92,7 @@ export class Game {
 
     const shore = createShore(this.tex.wood, this.tex.woodRough, this.tex.sand);
     this.scene.add(shore.group);
-    this.tank = createTank();
+    this.tank = createTank(this.tex.noise);
     this.scene.add(this.tank.group);
     this.scene.add(createRopeCoil(this.tex.rope));
     this.lights = createLights(this.scene);
@@ -126,6 +126,7 @@ export class Game {
       }
     });
     this.scene.add(this.net.mesh);
+    this.scene.add(this.net.horn);
     this.scene.add(this.net.weights);
     this.scene.add(this.net.brails);
     this.net.foldAt(REST_POS);
@@ -414,8 +415,10 @@ export class Game {
       rate = 2.6;
     } else if (this.state === 'cast' || this.state === 'sunk') {
       // Drift overhead: the circle on the water and the cone under it.
-      const back = 2.3 + D * 0.13;
-      const high = (this.state === 'sunk' ? 2.35 : 2.05) + D * 0.11;
+      // Low enough that the hand stays in frame without the framing solver
+      // having to back off, which is what used to shrink the landing.
+      const back = 1.95 + D * 0.075;
+      const high = (this.state === 'sunk' ? 1.85 : 1.62) + D * 0.095;
       P.set(HAND_POS.x - cd.x * back, HAND_POS.y + high, HAND_POS.z - cd.z * back);
       const focus = this.state === 'sunk' ? 0.86 : 0.55;
       L.set(
@@ -428,8 +431,8 @@ export class Game {
     } else if (this.state === 'haul') {
       // Hold the overhead angle while the net rises and pours, then walk the
       // frame back down to eye level as it reaches the planks.
-      const back = 2.3 + D * 0.13;
-      const high = 2.35 + D * 0.11;
+      const back = 1.95 + D * 0.075;
+      const high = 1.85 + D * 0.095;
       P.set(HAND_POS.x - cd.x * back, HAND_POS.y + high, HAND_POS.z - cd.z * back);
       const home = smoothstep(0.85, 2.0, this.stateT);
       P.lerp(IDLE.pos, home);
@@ -440,14 +443,14 @@ export class Game {
       rate = 2.2;
     } else if (this.state === 'observe' || this.state === 'release') {
       const c = this.tank.center;
-      P.set(c.x + 0.10, c.y + 0.60, c.z + 0.86);
-      L.copy(c).add(new THREE.Vector3(0, -0.06, -0.04));
+      P.set(c.x + 0.06, c.y + 0.44, c.z + 0.62);
+      L.copy(c).add(new THREE.Vector3(0, -0.05, -0.06));
       if (this.state === 'release') {
         const t = smoothstep(0.1, 0.9, this.stateT);
         P.lerp(IDLE.pos, t);
         L.lerp(this.releaseTarget || IDLE.look, t);
       }
-      fov = portrait ? 56 : 42;
+      fov = portrait ? 58 : 48;
       rate = 2.8;
     } else {
       P.copy(IDLE.pos); L.copy(IDLE.look);
@@ -456,6 +459,11 @@ export class Game {
     this._mustSee[0].copy(HAND_POS);
     this._mustSee[1].copy(net.center);
     let see = this._mustSee;
+    if (this.state === 'observe') {
+      // Looking into the pail. The rope is not the subject of this beat.
+      this._mustSee[0].copy(this.tank.center);
+      this._mustSee[1].copy(this.tank.center);
+    }
     if (this.state === 'cast' || this.state === 'sunk' || this.state === 'haul') {
       // While the net is open, its whole rim is the subject: frame the circle.
       see = this._mustSee.concat(net.rimPoints(this._rimPts));
