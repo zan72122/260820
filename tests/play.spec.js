@@ -169,12 +169,20 @@ test.describe('投網の花 — core play loop', () => {
     let observed = false;
     for (let attempt = 0; attempt < 14 && !observed; attempt++) {
       await page.evaluate(() => {
-        const g = window.__toami.game;
-        // Aim at a shoal so the cast actually has something under it.
-        const s = g.fishes.shoals.find((x) => -x.pos.z > 2.5 && -x.pos.z < 12) || g.fishes.shoals[0];
-        const d = Math.hypot(s.pos.x, s.pos.z);
-        const az = Math.atan2(s.pos.x, -s.pos.z);
-        window.__toami.cast({ distance: d, azimuth: az, sharpness: 0.6, smoothness: 0.9, wobble: 0.15 });
+        const T = window.__toami, g = T.game;
+        // Aim at a shoal so the cast actually has something under it. If none is
+        // in reach yet, let the sea run on until one drifts past.
+        let s = null;
+        for (let i = 0; i < 400 && !s; i++) {
+          s = g.fishes.shoals.find((x) => -x.pos.z > 2.5 && -x.pos.z < 11 && Math.abs(x.pos.x) < 6);
+          if (!s) T.advance(0.1);
+        }
+        if (!s) { T.cast({ distance: 6 }); return; }
+        T.cast({
+          distance: Math.min(11.5, Math.hypot(s.pos.x, s.pos.z)),
+          azimuth: Math.atan2(s.pos.x, -s.pos.z),
+          sharpness: 0.6, smoothness: 0.9, wobble: 0.15
+        });
       });
       await advance(page, 3.4);
       await page.evaluate(() => window.__toami.haul());

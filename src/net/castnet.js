@@ -413,7 +413,10 @@ export class CastNet {
         this.closeK = smoothstep(0.06, 0.62, u);
         // The bag rounds out as the cone is drawn shut.
         this.coneK = lerp(this.coneK, 0.45, Math.min(1, dt * 2.2));
-        _tmpA.copy(ctx.handPos); _tmpA.y += 0.72;
+        // Lift it clear of the water at the pier edge, so it pours into the sea
+        // rather than onto the boards.
+        _tmpA.copy(ctx.handPos).addScaledVector(ctx.liftDir, 2.4);
+        _tmpA.y += 0.98;
         this.center.lerpVectors(this.haulFrom, _tmpA, e * e * 0.94 + e * 0.06);
         this.center.y = lerp(this.haulFrom.y, _tmpA.y, smoothstep(0.15, 1.0, u));
         this.openness = 1 - smoothstep(0.55, 1.0, u) * 0.25;

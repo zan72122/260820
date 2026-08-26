@@ -247,6 +247,7 @@ export class Game {
     if (!this.net.beginHaul()) return;
     // Anything still inside the ring comes up with it — at most one, never a score.
     this.caught = this.fishes.catchIn(this.net.center.x, this.net.center.z, this.net.openRadiusNow * 0.8);
+    this.fishes.freeTrapped();
     this.state = 'haul';
     this.stateT = 0;
     this.sound.haul();
@@ -270,6 +271,7 @@ export class Game {
   }
 
   _toIdle() {
+    this.fishes.freeTrapped();
     this.state = 'idle';
     this.stateT = 0;
     this.caught = null;
@@ -342,6 +344,9 @@ export class Game {
         : this.net.isSubmerged ? 0.30 : 0.55;
     this.rope.update(HAND_POS, this.net.center, slack, this.net.wetness, this.time, deckFloor);
 
+    if (this.net.isSubmerged || this.net.phase === 'splash') {
+      this.fishes.updateTrap(this.net.center.x, this.net.center.z, this.net.openRadiusNow);
+    }
     this.fishes.update(dt, this.time);
     this.spray.update(dt);
     this.foam.update(dt);
@@ -377,6 +382,8 @@ export class Game {
 
   _onTouchdown(center, radius, stats) {
     this.director.kick(0.35 + stats.sharpness * 0.35);
+    // Whatever was standing inside the ring is inside it now; the rest bolt.
+    this.trapped = this.fishes.trapAt(center.x, center.z, radius * 0.92);
     this.fishes.disturb(center.x, center.z, radius, 1.0);
     for (let i = 0; i < 3; i++) {
       this.addRipple(
@@ -493,6 +500,7 @@ export class Game {
       landing: this.net.landing ? this.net.landing.toArray().map((v) => +v.toFixed(2)) : null,
       lastCast: this.lastCast,
       caught: !!this.caught,
+      trapped: this.trapped || 0,
       tankFish: this.fishes.hasTankFish,
       shoals: this.fishes.shoals.map((s) => s.kind),
       framingError: +this.director.framingError.toFixed(3),

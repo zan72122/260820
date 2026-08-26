@@ -122,7 +122,28 @@ for (const [name, vp] of Object.entries(VIEWPORTS)) {
   await shot('11-stroke');
   await page.mouse.up();
 
+  // 12) fish held inside the sunk net, milling under the mesh
+  await page.evaluate(() => window.__toami.advance(9.0));
+  const held = await page.evaluate(() => {
+    const T = window.__toami, g = T.game;
+    let s = null;
+    for (let i = 0; i < 400 && !s; i++) {
+      s = g.fishes.shoals.find((x) => -x.pos.z > 3 && -x.pos.z < 9 && Math.abs(x.pos.x) < 5);
+      if (!s) T.advance(0.1);
+    }
+    if (!s) return 0;
+    T.cast({
+      distance: Math.min(11.5, Math.hypot(s.pos.x, s.pos.z)),
+      azimuth: Math.atan2(s.pos.x, -s.pos.z),
+      sharpness: 0.55, smoothness: 0.9, wobble: 0.15
+    });
+    T.advance(3.0);
+    return g.trapped || 0;
+  });
+  await shot('12-held');
+
   const st = await page.evaluate(() => window.__toami.state);
+  st.trappedAtShot = held;
   console.log(name, JSON.stringify(st));
   await ctx.close();
 }

@@ -199,9 +199,9 @@ export function createWater(renderer, noiseTex, quality) {
         col += uSunColor * (spec + sparkle);
 
         // Lace of foam where the swell meets the sand.
-        float edge = 1.0 - smoothstep(0.05, 0.30, vDepth);
+        float edge = 1.0 - smoothstep(0.04, 0.17, vDepth);
         float foam = smoothstep(0.52, 0.98, edge * (0.55 + n1.r * 0.95));
-        col = mix(col, uFoam, foam * 0.62);
+        col = mix(col, uFoam, foam * 0.48);
 
         float alpha = mix(0.12, 0.94, smoothstep(0.04, 3.6, vDepth));
         alpha = clamp(alpha + fres * 0.40 + foam * 0.5, 0.0, 1.0);

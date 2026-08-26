@@ -220,16 +220,53 @@ export class FishSystem {
     }
   }
 
+  /**
+   * The circle of lead reaches the water. Anything inside it is inside it: the
+   * rest of its shoal bolts, but these few are held, milling under the mesh
+   * where they can be watched. This is the whole reason the sunk beat is worth
+   * looking at.
+   */
+  trapAt(x, z, radius) {
+    this.trap = { x, z, r: radius, members: [] };
+    for (const s of this.shoals) {
+      for (const m of s.members) {
+        if (m.alpha < 0.25 || m.caught || m.trapped) continue;
+        if (Math.hypot(m.p.x - x, m.p.z - z) < radius * 0.95) {
+          m.trapped = true;
+          m.tA = this.rng.range(0, 6.28);
+          m.tR = this.rng.range(0.12, 0.78);
+          m.tSpeed = this.rng.range(1.5, 3.4) * this.rng.sign();
+          this.trap.members.push(m);
+        }
+      }
+    }
+    return this.trap.members.length;
+  }
+
+  /** Follow the rim as it closes and sinks. */
+  updateTrap(x, z, radius) {
+    if (!this.trap) return;
+    this.trap.x = x; this.trap.z = z; this.trap.r = radius;
+  }
+
+  /** Nothing was kept: let them all go. */
+  freeTrapped() {
+    if (!this.trap) return;
+    for (const m of this.trap.members) m.trapped = false;
+    this.trap = null;
+  }
+
   /** Fish inside the closing rim. We only ever keep one, and only for a moment. */
   catchIn(x, z, radius) {
     let best = null;
     for (const s of this.shoals) {
       for (let i = 0; i < s.members.length; i++) {
         const m = s.members[i];
-        if (m.alpha < 0.3) continue;
+        if (m.alpha < 0.25 || m.caught) continue;
         const d = Math.hypot(m.p.x - x, m.p.z - z);
-        if (d < radius) {
-          const score = radius - d;
+        // A held fish counts even if the purse has already drawn past it.
+        if (d < radius || m.trapped) {
+          const score = (m.trapped ? 100 : 0) + radius - d;
           if (!best || score > best.score) best = { shoal: s, index: i, score, kind: s.kind, scale: s.scale };
         }
       }
@@ -238,6 +275,7 @@ export class FishSystem {
     const m = best.shoal.members[best.index];
     m.alpha = 0;
     m.caught = true;
+    m.trapped = false;
     return { kind: best.kind, scale: best.scale, phase: m.phase, rate: m.rate };
   }
 
@@ -375,17 +413,28 @@ export class FishSystem {
         const wob = Math.sin(t * m.rate * 0.22 + m.phase) * jitter;
         const spread = s.spread * (1 + s.panic * 1.6) * (1 + (m.burst || 0) * 0.8);
 
-        const px = s.pos.x + m.off.x * spread + wob;
-        const pz = s.pos.z + m.off.z * spread + wob * 0.7;
+        let px, pz, heldYaw = null;
+        if (m.trapped && this.trap) {
+          // Circling inside the mesh, tight against the closing rim.
+          m.tA += dt * m.tSpeed;
+          const rr = Math.min(m.tR, Math.max(0.06, this.trap.r * 0.72));
+          px = this.trap.x + Math.cos(m.tA) * rr;
+          pz = this.trap.z + Math.sin(m.tA) * rr;
+          heldYaw = Math.atan2(-Math.sin(m.tA) * Math.sign(m.tSpeed), Math.cos(m.tA) * Math.sign(m.tSpeed))
+            + Math.PI * 0.5;
+        } else {
+          px = s.pos.x + m.off.x * spread + wob;
+          pz = s.pos.z + m.off.z * spread + wob * 0.7;
+        }
         const bed = seabedY(px, pz);
         const water = H.heightAt(px, pz);
         let py = water - s.swimDepth - m.off.y * 0.25 + Math.sin(t * 0.7 + m.phase) * 0.04;
+        if (m.trapped) py = water - 0.22 - Math.abs(Math.sin(m.tA * 0.7)) * 0.30;
         py = clamp(py, bed + 0.09 * s.scale * 6, water - 0.05 - s.scale * 0.55);
 
         m.p.set(px, py, pz);
-        _fwd.set(s.vel.x, (py - m.p.y) * 0.0 + 0.0, s.vel.z).normalize();
-        const yaw = Math.atan2(_fwd.x, _fwd.z);
-        m.q.setFromAxisAngle(_up, yaw + Math.PI * 0.5 * 0 + 0);
+        _fwd.set(s.vel.x, 0, s.vel.z).normalize();
+        const yaw = heldYaw !== null ? heldYaw : Math.atan2(_fwd.x, _fwd.z);
         _q.setFromAxisAngle(_up, yaw);
         const alpha = s.fade * smoothstep(0.0, 0.6, s.life) * (1 - smoothstep(24, 34, s.life) * 0.9);
         m.alpha = alpha;
@@ -395,7 +444,7 @@ export class FishSystem {
         _m.toArray(arr, slot * 16);
         data[slot * 4 + 0] = m.phase;
         data[slot * 4 + 1] = m.rate * (1 + (m.burst || 0) * 0.9 + s.panic);
-        data[slot * 4 + 2] = s.flash * 0.8 + (m.burst || 0) * 0.4;
+        data[slot * 4 + 2] = s.flash * 0.8 + (m.burst || 0) * 0.4 + (m.trapped ? 0.5 : 0);
         data[slot * 4 + 3] = alpha;
       }
       void surf;
