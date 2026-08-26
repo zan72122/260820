@@ -333,7 +333,7 @@ function bird(ctx: BaseAudioContext, seed: number): AudioBuffer {
 
 function leavesLoop(ctx: BaseAudioContext): AudioBuffer {
   const sr = ctx.sampleRate;
-  const secs = 7.0;
+  const secs = 5.0;
   const chans: Float32Array[] = [];
   for (let ch = 0; ch < 2; ch++) {
     const body = bandNoise(sr, secs, 2201 + ch * 71, 3600, 0.55);
@@ -349,7 +349,7 @@ function leavesLoop(ctx: BaseAudioContext): AudioBuffer {
 
 function windLoop(ctx: BaseAudioContext): AudioBuffer {
   const sr = ctx.sampleRate;
-  const secs = 9.0;
+  const secs = 6.0;
   const chans: Float32Array[] = [];
   for (let ch = 0; ch < 2; ch++) {
     const body = bandNoise(sr, secs, 3301 + ch * 91, 260, 0.6, 'lp');
@@ -368,7 +368,7 @@ function windLoop(ctx: BaseAudioContext): AudioBuffer {
  */
 function impact(ctx: BaseAudioContext, length: number, variant: number): AudioBuffer {
   const sr = ctx.sampleRate;
-  const n = Math.floor(sr * 1.5);
+  const n = Math.floor(sr * 1.1);
   const out = new Float32Array(n);
   const rng = makeRng(0xc0 + variant * 977 + Math.floor(length * 1000));
   const scale = 0.64 / length;

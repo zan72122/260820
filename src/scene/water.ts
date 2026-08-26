@@ -72,8 +72,8 @@ export function makeWaterAssets(): WaterAssets {
 
 export function waterMaterial(assets: WaterAssets, opacity: number): THREE.MeshPhysicalMaterial {
   const m = new THREE.MeshPhysicalMaterial({
-    color: new THREE.Color(0xc9dcdb),
-    roughness: 0.14,
+    color: new THREE.Color(0xa9c3c2),
+    roughness: 0.12,
     metalness: 0,
     transparent: true,
     opacity,
@@ -205,7 +205,7 @@ export class SprayField {
     this.sizeAttr = geo.getAttribute('aSize') as THREE.BufferAttribute;
     const mat: THREE.Material = caps.rawShaders
       ? new THREE.ShaderMaterial({
-      uniforms: { uMap: { value: assets.dot }, uScale: { value: 420 } },
+      uniforms: { uMap: { value: assets.dot }, uScale: { value: 1700 } },
       transparent: true,
       depthWrite: false,
       vertexShader: `
@@ -214,7 +214,7 @@ export class SprayField {
         void main() {
           vA = aAlpha;
           vec4 mv = modelViewMatrix * vec4(position, 1.0);
-          gl_PointSize = aSize * uScale / max(0.15, -mv.z);
+          gl_PointSize = clamp(aSize * uScale / max(0.15, -mv.z), 1.0, 26.0);
           gl_Position = projectionMatrix * mv;
         }`,
       fragmentShader: `

@@ -27,6 +27,8 @@ export class GardenAudio {
   ctx: AudioContext | null = null;
   private bank: SoundBank | null = null;
   private started = false;
+  /** 音のグラフを組んだ回数。復帰後に二重再生していないことの確認に使う。 */
+  graphBuilds = 0;
   private starting: Promise<void> | null = null;
 
   private master!: GainNode;
@@ -49,6 +51,8 @@ export class GardenAudio {
   private pivot: Layer[] = [];
 
   private settings: AudioSettings = { volume: 0.85, muted: false, quiet: false };
+  /** 「静かな音」のときの全体の下げ幅 */
+  private static readonly QUIET_MASTER = 0.72;
   private rng = makeRng(0x9a71c);
   private lastVariant = [-1, -1];
   private impactEnergy = 0;
@@ -82,13 +86,20 @@ export class GardenAudio {
     return this.starting;
   }
 
-  /** 最初の水門操作で呼ぶ。ここで初めて resume する。 */
-  async unlock(): Promise<void> {
-    await this.prepare();
-    await this.resume();
+  /**
+   * 最初の水門操作で呼ぶ。iOS の要求に合わせ、指のイベントと同じ呼び出しの中で
+   * 同期的に resume を始める。
+   */
+  unlock(): void {
+    if (this.ctx) {
+      if (this.ctx.state !== 'running') void this.ctx.resume().catch(() => undefined);
+      return;
+    }
+    void this.prepare().then(() => this.resume());
   }
 
   private buildGraph(): void {
+    this.graphBuilds++;
     const ctx = this.ctx!;
     const bank = this.bank!;
 
@@ -170,7 +181,7 @@ export class GardenAudio {
     this.settings = { ...this.settings, ...s };
     if (!this.started || !this.ctx) return;
     const t = this.ctx.currentTime;
-    const vol = this.settings.muted ? 0 : this.settings.volume * (this.settings.quiet ? 0.55 : 1);
+    const vol = this.settings.muted ? 0 : this.settings.volume * (this.settings.quiet ? GardenAudio.QUIET_MASTER : 1);
     this.master.gain.setTargetAtTime(vol, t, 0.05);
     this.verbReturn.gain.setTargetAtTime(this.settings.quiet ? 0.2 : 0.33, t, 0.08);
   }
@@ -193,7 +204,7 @@ export class GardenAudio {
     if (!this.started || !this.ctx) return;
     const ctx = this.ctx;
     const t = ctx.currentTime;
-    const q = this.settings.quiet ? 0.62 : 1;
+    const q = this.settings.quiet ? 0.72 : 1;
     const set = (p: AudioParam, v: number, tc = 0.05): void => {
       p.setTargetAtTime(v, t, tc);
     };
@@ -201,10 +212,12 @@ export class GardenAudio {
     /* 水路の流れ：細流 ↔ 太流 ↔ 奔流 を等出力crossfade */
     const f = state.flowRate;
     const present = smoothstep(0, 0.05, f);
+    // 水門を閉じていても、上流の水路にはごく細い流れが残る
+    const source = 0.09 + 0.91 * present;
     const xThin = Math.cos((Math.min(f, 0.65) / 0.65) * Math.PI * 0.5);
     const xThick = Math.sin((Math.min(f, 0.65) / 0.65) * Math.PI * 0.5) * (1 - smoothstep(0.7, 1, f) * 0.55);
     const xRush = smoothstep(0.55, 1, f);
-    set(this.waterThin.gain.gain, present * xThin * 0.3 * q);
+    set(this.waterThin.gain.gain, source * xThin * 0.3 * q);
     set(this.waterThick.gain.gain, present * xThick * 0.34 * q);
     set(this.waterRush.gain.gain, present * xRush * 0.3 * q);
     set(this.waterThin.filter.frequency, 3200 + f * 4200, 0.12);

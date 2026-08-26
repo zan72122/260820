@@ -32,7 +32,7 @@ export class Cutaway {
     const hemi = new THREE.HemisphereLight(0xcdd6d1, 0x4a4437, 1.0);
     this.scene.add(hemi);
     const key = new THREE.DirectionalLight(0xfff0e0, 1.25);
-    key.position.set(2.2, 3.4, 2.6);
+    key.position.set(2.6, 2.8, 2.2);
     this.scene.add(key);
 
     const half = new THREE.Mesh(
@@ -66,7 +66,7 @@ export class Cutaway {
     this.span = 0.46 * s;
     const span = this.span;
     this.camera = new THREE.OrthographicCamera(-span / 2, span / 2, span / 2, -span / 2, 0.01, 4);
-    this.camera.position.set(1.2, 0, 0.06 * s);
+    this.camera.position.set(1.2, 0.14, 0.06 * s);
     this.camera.lookAt(0, 0, 0.06 * s);
   }
 

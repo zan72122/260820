@@ -271,8 +271,8 @@ export function foliageClump(seed: number, count: number, spread: number, scale:
   const rng = makeRng(seed);
   const geos: THREE.BufferGeometry[] = [];
   for (let i = 0; i < count; i++) {
-    const w = scale * (0.6 + rng() * 0.8);
-    const h = scale * (1.4 + rng() * 1.5);
+    const h = scale * (0.55 + rng() * 0.75);
+    const w = h * (0.24 + rng() * 0.18);
     const leaf = new THREE.PlaneGeometry(w, h, 1, 3);
     const p = leaf.getAttribute('position') as THREE.BufferAttribute;
     // 葉を反らせる

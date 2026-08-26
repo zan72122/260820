@@ -138,34 +138,34 @@ export function stoneMaps(seed: number, damp: number): MatMaps {
   const base = makeValueNoise(64, seed);
   const fine = makeValueNoise(256, seed + 7);
   const speck = makeValueNoise(512, seed + 23);
-  return buildMaps(512, 512, [1, 1], 3.4, (u, v) => {
+  return buildMaps(512, 512, [1, 1], 1.35, (u, v) => {
     const b = fbm(base, u * 4, v * 4, 4);
     const f = fbm(fine, u * 17, v * 17, 4);
-    const grey = 0.34 + b * 0.2 + f * 0.12;
+    const grey = 0.235 + b * 0.15 + f * 0.085;
     let r = grey * (1.02 + b * 0.05);
     let g = grey * 1.0;
     let bl = grey * (0.96 + f * 0.05);
     // 長石・石英の粒
     const sp = speck(u * 300, v * 300);
-    if (sp > 0.86) {
-      const k = (sp - 0.86) * 5;
-      r += k * 0.24;
-      g += k * 0.23;
-      bl += k * 0.2;
+    if (sp > 0.9) {
+      const k = (sp - 0.9) * 5;
+      r += k * 0.16;
+      g += k * 0.155;
+      bl += k * 0.135;
     }
-    // 割れ目
-    const crack = Math.abs(fbm(base, u * 6 + 3, v * 6, 3) - 0.5);
-    const inCrack = smoothstep(0.05, 0.0, crack);
-    r -= inCrack * 0.16;
-    g -= inCrack * 0.16;
-    bl -= inCrack * 0.15;
+    // 割れ目：細く、まばらに
+    const crack = Math.abs(fbm(base, u * 9 + 3, v * 9, 4) - 0.5);
+    const inCrack = smoothstep(0.012, 0.0, crack) * smoothstep(0.4, 0.62, f);
+    r -= inCrack * 0.07;
+    g -= inCrack * 0.07;
+    bl -= inCrack * 0.066;
     // 湿り（下部・凹部）
     const wet = damp * smoothstep(0.35, 0.95, v) * (0.5 + 0.5 * f);
     r -= wet * 0.13;
     g -= wet * 0.13;
     bl -= wet * 0.11;
-    const rough = clamp(0.85 - wet * 0.4 - (sp > 0.86 ? 0.1 : 0), 0.2, 0.98);
-    const h = b * 0.7 + f * 0.5 - inCrack * 1.6 + (sp > 0.86 ? 0.3 : 0);
+    const rough = clamp(0.94 - wet * 0.3, 0.42, 1);
+    const h = b * 0.4 + f * 0.5 - inCrack * 0.4 + (sp > 0.9 ? 0.12 : 0);
     return { r, g, b: bl, rough, h };
   });
 }
@@ -176,11 +176,11 @@ export function soilMaps(seed: number): MatMaps {
   const grain = makeValueNoise(256, seed);
   const big = makeValueNoise(64, seed + 5);
   const litter = makeValueNoise(128, seed + 11);
-  return buildMaps(512, 512, [6, 6], 2.2, (u, v) => {
+  return buildMaps(512, 512, [34, 34], 1.4, (u, v) => {
     const g0 = fbm(grain, u * 40, v * 40, 3);
     const damp = fbm(big, u * 3, v * 3, 3);
     // 踏み固められた場所は滑らかで明るい
-    const packed = smoothstep(0.55, 0.85, fbm(big, u * 2 + 9, v * 2, 2));
+    const packed = smoothstep(0.5, 0.95, fbm(big, u * 2 + 9, v * 2, 2)) * 0.6;
     let r = 0.23 + g0 * 0.14 + packed * 0.09;
     let g = 0.185 + g0 * 0.115 + packed * 0.075;
     let b = 0.135 + g0 * 0.075 + packed * 0.05;
@@ -208,7 +208,7 @@ export function soilMaps(seed: number): MatMaps {
 export function woodMaps(seed: number, tone: number): MatMaps {
   const grain = makeValueNoise(256, seed);
   const knot = makeValueNoise(64, seed + 3);
-  return buildMaps(256, 256, [1, 1], 2.4, (u, v) => {
+  return buildMaps(256, 256, [3, 2], 2.0, (u, v) => {
     // 年輪に近い縞を長さ方向へ
     const warp = fbm(grain, u * 3, v * 3, 3) * 0.6;
     const rings = Math.sin((u * 13 + warp * 4) * Math.PI * 2) * 0.5 + 0.5;
@@ -242,9 +242,9 @@ export function mossMaps(seed: number): MatMaps {
     const c = fbm(clump, u * 5, v * 5, 4);
     const f = fbm(fine, u * 30, v * 30, 3);
     const lum = 0.5 + c * 0.45 + f * 0.3;
-    const r = 0.115 * lum + f * 0.045;
-    const g = 0.2 * lum + f * 0.07;
-    const b = 0.075 * lum + f * 0.025;
+    const r = 0.085 * lum + f * 0.03;
+    const g = 0.135 * lum + f * 0.048;
+    const b = 0.055 * lum + f * 0.018;
     return { r, g, b, rough: clamp(0.93 - f * 0.1, 0.5, 1), h: f * 0.8 + c * 0.4 };
   });
 }
@@ -298,9 +298,9 @@ export function leafTexture(seed: number): { map: THREE.Texture; alpha: THREE.Te
       const i = (y * w + x) * 4;
       const vein = Math.exp(-Math.pow((d % 0.09) / 0.012, 2)) * 0.5 + Math.exp(-Math.pow(d / 0.008, 2));
       const shade = 0.75 + fbm(n, u * 6, v * 6, 3) * 0.45;
-      color.data[i] = (0.15 * shade * tint + vein * 0.06) * 255;
-      color.data[i + 1] = (0.27 * shade * tint + vein * 0.09) * 255;
-      color.data[i + 2] = (0.11 * shade * tint + vein * 0.04) * 255;
+      color.data[i] = (0.2 * shade * tint + vein * 0.07) * 255;
+      color.data[i + 1] = (0.36 * shade * tint + vein * 0.11) * 255;
+      color.data[i + 2] = (0.16 * shade * tint + vein * 0.05) * 255;
       color.data[i + 3] = 255;
       const a = inside ? clamp((width - d) / 0.04, 0, 1) : 0;
       alpha.data[i] = alpha.data[i + 1] = alpha.data[i + 2] = a * 255;
@@ -326,11 +326,11 @@ export function barkMaps(seed: number): MatMaps {
   return buildMaps(256, 256, [2, 3], 2.8, (u, v) => {
     const ridge = Math.abs(fbm(n, u * 9, v * 2.4, 4) - 0.5) * 2;
     const grit = fbm(f, u * 30, v * 18, 3);
-    const lum = 0.24 + ridge * 0.18 + grit * 0.1;
+    const lum = 0.15 + ridge * 0.13 + grit * 0.07;
     return {
-      r: lum * 1.03,
-      g: lum * 0.97,
-      b: lum * 0.88,
+      r: lum * 1.12,
+      g: lum * 0.98,
+      b: lum * 0.8,
       rough: clamp(0.9 - grit * 0.1, 0.5, 1),
       h: (1 - ridge) * 0.9 + grit * 0.3,
     };

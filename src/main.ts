@@ -74,13 +74,13 @@ async function boot(): Promise<void> {
     gateScreen: () => toScreen(world.gateScreenPosition(ndc)),
     splitterScreen: () => {
       if (state.splitterPresence < 0.4) return null;
-      ndc.set(world.units[1].layout.x * 0.5, 0.9, 0.5).project(world.camera);
+      ndc.copy(world.channel.splitterWorld).project(world.camera);
       return toScreen(ndc);
     },
     currentGate: () => state.gateOpening,
     currentSplit: () => state.splitRatio,
     onFirstTouch: () => {
-      void audio.unlock();
+      audio.unlock();
     },
   });
 
@@ -122,6 +122,8 @@ async function boot(): Promise<void> {
   let smoothDt = 1 / 60;
 
   const cutRect = { x: 0, y: 0, w: 0, h: 0 };
+  const debugState: Record<string, unknown> = {};
+  (window as unknown as { __shishi: unknown }).__shishi = debugState;
 
   const frame = (now: number): void => {
     requestAnimationFrame(frame);
@@ -156,6 +158,22 @@ async function boot(): Promise<void> {
     }
 
     hud.update(dt);
+
+    /* 開発用の状態のぞき窓（実機での確認にも使う） */
+    debugState.t = +state.time.toFixed(2);
+    debugState.gate = +state.gateOpening.toFixed(3);
+    debugState.flow = +state.flowRate.toFixed(3);
+    debugState.cycles = state.cycleCount;
+    debugState.phase = state.tubes[0].phase;
+    debugState.mass = +state.tubes[0].waterMass.toFixed(3);
+    debugState.angle = +state.tubes[0].angle.toFixed(3);
+    debugState.tubeB = state.tubes[1].active;
+    debugState.audio = audio.ready ? (audio.ctx ? audio.ctx.state : 'none') : 'idle';
+    debugState.fps = Math.round(1 / smoothDt);
+    debugState.draws = renderer.info.render.calls;
+    debugState.tris = renderer.info.render.triangles;
+    debugState.progs = renderer.info.programs?.length ?? 0;
+    debugState.graphBuilds = audio.graphBuilds;
 
     /* 品質の自動調整（重いときは影を落とす） */
     if (smoothDt > 1 / 34) slowFrames++;

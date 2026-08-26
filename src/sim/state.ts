@@ -98,7 +98,7 @@ export function makeTube(index: number, length: number): TubeState {
     length,
     bore: 0.052 - index * 0.004,
     waterMass: 0,
-    capacity: 1.28 - index * 0.34,
+    capacity: 1.20 - index * 0.32,
     fillRatio: 0,
     angle: REST_ANGLE,
     angularVelocity: 0,

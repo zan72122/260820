@@ -13,6 +13,7 @@ export interface GardenMaterials {
   path: THREE.MeshStandardMaterial;
   wood: THREE.MeshStandardMaterial;
   woodPale: THREE.MeshStandardMaterial;
+  woodFresh: THREE.MeshStandardMaterial;
   moss: THREE.MeshStandardMaterial;
   bark: THREE.MeshStandardMaterial;
   leaf: THREE.Material;
@@ -39,10 +40,10 @@ function leafMaterial(): THREE.Material {
       uAlpha: { value: alpha },
       uLightDir: { value: new THREE.Vector3(-0.4, 0.7, 0.6).normalize() },
       uLightColor: { value: new THREE.Color(0xffeedd) },
-      uAmbient: { value: new THREE.Color(0x6d7a70) },
+      uAmbient: { value: new THREE.Color(0x8d9a88) },
       uTranslucency: { value: 0.85 },
       uFogColor: { value: new THREE.Color(0xb9c2bd) },
-      uFogDensity: { value: 0.075 },
+      uFogDensity: { value: 0.098 },
     },
     transparent: true,
     side: THREE.DoubleSide,
@@ -94,8 +95,9 @@ export function buildMaterials(): GardenMaterials {
   const impactTex = stoneMaps(163, 0.55);
   const soilTex = soilMaps(211);
   const pathTex = soilMaps(233);
-  const woodTex = woodMaps(307, 1.0);
+  const woodTex = woodMaps(307, 1.3);
   const woodPaleTex = woodMaps(331, 1.25);
+  const woodFreshTex = woodMaps(367, 1.6);
   const mossTex = mossMaps(401);
   const barkTex = barkMaps(503);
 
@@ -112,7 +114,7 @@ export function buildMaterials(): GardenMaterials {
       ...o,
     });
 
-  const moss = std(mossTex, { transparent: true, alphaMap: mossAlpha(409), depthWrite: false });
+  const moss = std(mossTex, { alphaMap: mossAlpha(409), transparent: true, alphaTest: 0.55, depthWrite: true });
   moss.polygonOffset = true;
   moss.polygonOffsetFactor = -1;
 
@@ -123,10 +125,11 @@ export function buildMaterials(): GardenMaterials {
     stone: std(stoneTex),
     stoneDamp: std(stoneWetTex),
     impactStone: std(impactTex),
-    soil: std(soilTex),
-    path: std(pathTex, { color: new THREE.Color(0xc9bda6) }),
+    soil: std(soilTex, { envMapIntensity: 0.35 }),
+    path: std(pathTex, { color: new THREE.Color(0xb8ad9a), envMapIntensity: 0.3 }),
     wood: std(woodTex),
     woodPale: std(woodPaleTex),
+    woodFresh: std(woodFreshTex, { color: new THREE.Color(0xe6d9b6) }),
     moss,
     bark: std(barkTex),
     leaf: leafMaterial(),

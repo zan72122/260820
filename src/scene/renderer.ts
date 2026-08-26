@@ -13,7 +13,7 @@ function configure(r: THREE.WebGLRenderer, dpr: number): void {
   r.setPixelRatio(dpr);
   r.outputColorSpace = THREE.SRGBColorSpace;
   r.toneMapping = THREE.ACESFilmicToneMapping;
-  r.toneMappingExposure = 1.02;
+  r.toneMappingExposure = 0.94;
   r.shadowMap.enabled = true;
   r.shadowMap.type = THREE.PCFSoftShadowMap;
 }
