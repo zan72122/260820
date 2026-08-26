@@ -118,7 +118,7 @@ contains no text at all.
 viewports to `shots/`. It steps the game until each beat actually begins, so
 the frame named `03-splash` is the frame the net lands on.
 
-`node tools/perf.mjs` prints the scene cost per quality tier. At the top tier
+`npm run perf` prints the scene cost per quality tier. At the top tier
 the whole game is 26 draw calls, ~57k triangles, 9 textures and 21 programs.
 
 ## Known limits
