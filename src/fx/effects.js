@@ -117,7 +117,7 @@ export class Spray {
 
   /** One bead of water leaving the hauled net. */
   drip(x, y, z) {
-    this._emit(x, y - 0.02, z, 0, -0.25, 0, 1.7, 0.065 + Math.random() * 0.045, 1);
+    this._emit(x, y - 0.02, z, 0, -0.25, 0, 1.7, 0.095 + Math.random() * 0.06, 1);
   }
 
   splashlet(x, y, z, rng, n = 6) {

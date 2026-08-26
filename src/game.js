@@ -441,8 +441,11 @@ export class Game {
       // Drift overhead: the circle on the water and the cone under it.
       // High enough to look *over* the pier edge at a near landing, low enough
       // that the hand stays in frame without the framing solver backing off.
+      // Portrait has to climb higher to clear the pier edge in its short axis;
+      // landscape can sit lower and let the landing fill more of the frame.
       const back = 1.6 + D * 0.07;
-      const high = (this.state === 'sunk' ? 3.0 : 2.6) + D * 0.07;
+      const lift = portrait ? 1.0 : 0.72;
+      const high = (this.state === 'sunk' ? 3.0 : 2.6) * lift + D * 0.07;
       P.set(HAND_POS.x - cd.x * back, HAND_POS.y + high, HAND_POS.z - cd.z * back);
       const focus = this.state === 'sunk' ? 0.86 : 0.55;
       L.set(
@@ -456,7 +459,7 @@ export class Game {
       // Hold the overhead angle while the net rises and pours, then walk the
       // frame back down to eye level as it reaches the planks.
       const back = 1.6 + D * 0.07;
-      const high = 3.0 + D * 0.07;
+      const high = 3.0 * (portrait ? 1.0 : 0.72) + D * 0.07;
       P.set(HAND_POS.x - cd.x * back, HAND_POS.y + high, HAND_POS.z - cd.z * back);
       const home = smoothstep(0.85, 2.0, this.stateT);
       P.lerp(IDLE.pos, home);

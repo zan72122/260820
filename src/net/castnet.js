@@ -483,11 +483,14 @@ export class CastNet {
 
   _maybeDrip(dt, u) {
     if (!this.onDrip || this.wetness < 0.15) return;
-    this.dripAcc = (this.dripAcc || 0) + dt * (26 + 60 * (1 - u)) * this.wetness;
+    this.dripAcc = (this.dripAcc || 0) + dt * (55 + 110 * (1 - u)) * this.wetness;
+    const S = this.segs, R = this.rings;
     while (this.dripAcc > 1) {
       this.dripAcc -= 1;
-      const k = this.weightSlots[(Math.random() * this.weightSlots.length) | 0];
-      const x = this.p[k * 3], y = this.p[k * 3 + 1], z = this.p[k * 3 + 2];
+      // Anywhere on the lower two thirds of the bag, not only off the leads.
+      const i = R - ((Math.random() * (R * 0.6)) | 0);
+      const k = (i * S + ((Math.random() * S) | 0)) * 3;
+      const x = this.p[k], y = this.p[k + 1], z = this.p[k + 2];
       if (y > this.heights.heightAt(x, z) + 0.03) this.onDrip(x, y, z);
     }
   }

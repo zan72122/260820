@@ -318,8 +318,8 @@ export class FishSystem {
       // A slow figure of eight, mostly side to side, so it is nearly always
       // broadside to the camera and can actually be looked at.
       k.a += dt * 1.05;
-      const x = Math.sin(k.a) * 0.085;
-      const z = Math.sin(k.a * 2) * 0.040;
+      const x = Math.sin(k.a) * 0.052;
+      const z = Math.sin(k.a * 2) * 0.030;
       k.pos.set(k.center.x + x, k.center.y - 0.038 + Math.sin(t * 1.6) * 0.008, k.center.z + z);
       // Held broadside on purpose. A fish seen end-on is a sliver, and the whole
       // point of the pail is that it can be looked at; it flips at the turns.
