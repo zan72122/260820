@@ -226,19 +226,24 @@ export class FishSystem {
    * where they can be watched. This is the whole reason the sunk beat is worth
    * looking at.
    */
-  trapAt(x, z, radius) {
-    this.trap = { x, z, r: radius, members: [] };
+  trapAt(x, z, radius, max = 5) {
+    const inside = [];
     for (const s of this.shoals) {
       for (const m of s.members) {
         if (m.alpha < 0.25 || m.caught || m.trapped) continue;
-        if (Math.hypot(m.p.x - x, m.p.z - z) < radius * 0.95) {
-          m.trapped = true;
-          m.tA = this.rng.range(0, 6.28);
-          m.tR = this.rng.range(0.12, 0.78);
-          m.tSpeed = this.rng.range(1.5, 3.4) * this.rng.sign();
-          this.trap.members.push(m);
-        }
+        const d = Math.hypot(m.p.x - x, m.p.z - z);
+        if (d < radius * 0.95) inside.push({ m, d });
       }
+    }
+    // A handful, never a haul. The nearest to the centre are the ones held.
+    inside.sort((a, b) => a.d - b.d);
+    this.trap = { x, z, r: radius, members: [] };
+    for (const { m } of inside.slice(0, max)) {
+      m.trapped = true;
+      m.tA = this.rng.range(0, 6.28);
+      m.tR = this.rng.range(0.12, 0.78);
+      m.tSpeed = this.rng.range(1.5, 3.4) * this.rng.sign();
+      this.trap.members.push(m);
     }
     return this.trap.members.length;
   }
@@ -429,7 +434,7 @@ export class FishSystem {
         const bed = seabedY(px, pz);
         const water = H.heightAt(px, pz);
         let py = water - s.swimDepth - m.off.y * 0.25 + Math.sin(t * 0.7 + m.phase) * 0.04;
-        if (m.trapped) py = water - 0.22 - Math.abs(Math.sin(m.tA * 0.7)) * 0.30;
+        if (m.trapped) py = water - 0.18 - Math.abs(Math.sin(m.tA * 0.7)) * 0.26;
         py = clamp(py, bed + 0.09 * s.scale * 6, water - 0.05 - s.scale * 0.55);
 
         m.p.set(px, py, pz);

@@ -38,7 +38,7 @@ export class Hud {
     for (let i = 0; i < SEGMENTS; i++) {
       const p = document.createElementNS(NS, 'path');
       p.setAttribute('fill', 'none');
-      p.setAttribute('stroke', '#f6ecd8');
+      p.setAttribute('stroke', '#efe2c4');
       p.setAttribute('stroke-linecap', 'round');
       p.setAttribute('stroke-linejoin', 'round');
       p.setAttribute('opacity', '0');
@@ -47,8 +47,8 @@ export class Hud {
     }
 
     const tip = document.createElementNS(NS, 'circle');
-    tip.setAttribute('r', '5.5');
-    tip.setAttribute('fill', '#fff6e4');
+    tip.setAttribute('r', '3.4');
+    tip.setAttribute('fill', '#f6ecd6');
     tip.setAttribute('opacity', '0');
     svg.appendChild(tip);
 
@@ -67,7 +67,7 @@ export class Hud {
       return;
     }
     if (live) {
-      const take = path.slice(Math.max(0, path.length - 30));
+      const take = path.slice(Math.max(0, path.length - 22));
       const n = take.length;
       for (let s = 0; s < this.segments; s++) {
         // Segment 0 is the whole visible tail; each later one is a shorter,
@@ -81,17 +81,20 @@ export class Hud {
           d += ` Q ${q.x.toFixed(1)} ${q.y.toFixed(1)} ${((p.x + q.x) / 2).toFixed(1)} ${((p.y + q.y) / 2).toFixed(1)}`;
         }
         this.trails[s].setAttribute('d', d);
-        this.trails[s].setAttribute('stroke-width', (2.0 + s * 0.75).toFixed(1));
-        this.trails[s].setAttribute('opacity', (this.alpha * 0.085).toFixed(3));
+        // Stacked segments: the tip is covered by all of them, the tail by one,
+        // so the alpha ramps without needing per-vertex opacity. Kept low —
+        // this is a damp fingermark on glass, not a beam.
+        this.trails[s].setAttribute('stroke-width', (1.7 + s * 0.55).toFixed(1));
+        this.trails[s].setAttribute('opacity', (this.alpha * 0.032).toFixed(3));
       }
       const last = take[n - 1];
       this.tip.setAttribute('cx', last.x);
       this.tip.setAttribute('cy', last.y);
     } else {
       for (const t of this.trails) {
-        t.setAttribute('opacity', (this.alpha * 0.085).toFixed(3));
+        t.setAttribute('opacity', (this.alpha * 0.032).toFixed(3));
       }
     }
-    this.tip.setAttribute('opacity', (this.alpha * 0.42).toFixed(3));
+    this.tip.setAttribute('opacity', (this.alpha * 0.26).toFixed(3));
   }
 }

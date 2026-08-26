@@ -90,6 +90,12 @@ only a smaller net on a phone screen.
 slow shadow crossing the blue, and a handful of quick darters that scatter when
 the net lands.
 
+**Fish are held, not hunted.** When the circle of lead reaches the water, up to
+five fish that were standing inside it are held there, circling under the mesh
+while the net sinks — that is what makes the sunk beat worth watching. Hauling
+keeps at most one, for a moment, in a pail of sea water. Then it goes back. If
+nobody puts it back, it goes back on its own.
+
 **Every cast has a character** derived from the swipe: reach and speed set the
 distance and the apex, wobble sets the number and depth of the petals, and how
 steadily the arc was drawn sets the attitude the net lands at.
@@ -108,8 +114,12 @@ loop, the framing guarantee, replay cost, the shallow/deep difference, all three
 fish patterns, catch-and-release, rotation mid-throw, and that the document
 contains no text at all.
 
-`npm run shots` writes screenshots of eight moments in the same four viewports
-to `shots/`.
+`npm run shots` writes screenshots of twelve moments in the same four
+viewports to `shots/`. It steps the game until each beat actually begins, so
+the frame named `03-splash` is the frame the net lands on.
+
+`node tools/perf.mjs` prints the scene cost per quality tier. At the top tier
+the whole game is 26 draw calls, ~57k triangles, 9 textures and 21 programs.
 
 ## Known limits
 

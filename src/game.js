@@ -229,6 +229,8 @@ export class Game {
   // ------------------------------------------------------------------ states
 
   _startCast(gestureOrParams) {
+    this._tugged = false;
+    this.tug = 0;
     const params = gestureOrParams.kind ? gestureToCast(gestureOrParams) : gestureOrParams;
     this._castDir.set(Math.sin(params.azimuth), 0, -Math.cos(params.azimuth)).normalize();
     this.lastCast = this.net.launch(params, HAND_POS);
@@ -289,11 +291,14 @@ export class Game {
     this._syncRipples(dt);
 
     // --- ambient life: the sea keeps moving whether or not anyone throws.
-    this.nextJump -= dt;
+    // If nobody has touched the screen for a while, the sea gets busier and
+    // closer in — the invitation to throw is the place itself, not a prompt.
+    const waiting = this.state === 'idle' && this.sinceInput > 3.0;
+    this.nextJump -= dt * (waiting ? 1.8 : 1.0);
     if (this.nextJump <= 0) {
       this.nextJump = this.rng.range(3.4, 7.5);
       const jx = this.rng.range(-3.4, 3.4);
-      const jz = -this.rng.range(2.6, 8.0);
+      const jz = -this.rng.range(waiting ? 2.2 : 2.6, waiting ? 6.0 : 8.0);
       this.fishes.jump(jx, jz, (x, z, s) => {
         this.addRipple(x, z, s);
         this.spray.splashlet(x, this.heights.heightAt(x, z), z, this.rng, 7);
@@ -309,8 +314,20 @@ export class Game {
         if (this.net.phase === 'sink' || this.net.phase === 'settled') { this.state = 'sunk'; this.stateT = 0; }
         break;
       case 'sunk': {
-        // A gentle tug on the line after a while, then the net comes home by itself.
-        if (this.stateT > 3.4 && this.stateT < 3.9) this.net.center.y += Math.sin((this.stateT - 3.4) / 0.5 * Math.PI) * 0.010;
+        // The line asks to be pulled: it goes taut, the net lifts a little and
+        // settles, and a ring runs out from it. No words, no arrow.
+        if (this.stateT > 3.2 && this.stateT < 3.9) {
+          const u = (this.stateT - 3.2) / 0.7;
+          this.net.center.y += Math.sin(u * Math.PI) * 0.055;
+          this.tug = 1 - Math.abs(u - 0.5) * 2;
+          if (!this._tugged) {
+            this._tugged = true;
+            this.addRipple(this.net.center.x, this.net.center.z, 0.35);
+          }
+        } else {
+          this.tug = 0;
+        }
+        // And if nobody pulls, it comes home on its own.
         if (this.stateT > 6.5) this._startHaul();
         break;
       }
@@ -341,7 +358,7 @@ export class Game {
 
     const slack = this.net.isAirborne ? 0.06
       : this.net.phase === 'haul' ? 0.22
-        : this.net.isSubmerged ? 0.30 : 0.55;
+        : this.net.isSubmerged ? 0.30 * (1 - (this.tug || 0) * 0.8) : 0.55;
     this.rope.update(HAND_POS, this.net.center, slack, this.net.wetness, this.time, deckFloor);
 
     if (this.net.isSubmerged || this.net.phase === 'splash') {

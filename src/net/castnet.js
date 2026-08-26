@@ -684,9 +684,12 @@ export class CastNet {
     this.geo.attributes.position.needsUpdate = true;
     this.geo.attributes.normal.needsUpdate = true;
 
-    // Sit the horn on the net's centre, aligned with the net's own plane.
-    this.horn.position.set(p[0], p[1], p[2]);
+    // Sit the horn on the net's centre, aligned with the net's own plane. It
+    // shrinks into the folds as the net is gathered, rather than perching on top.
+    const g = clamp(this.gather, 0, 1);
+    this.horn.position.set(p[0], p[1] - g * 0.035, p[2]);
     this.horn.quaternion.copy(this.quat);
+    this.horn.scale.setScalar(1 - g * 0.55);
 
     // Handy summaries for the camera and the gameplay.
     let lowest = Infinity, rmax = 0;
