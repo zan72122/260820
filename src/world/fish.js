@@ -449,7 +449,7 @@ export class FishSystem {
         _m.toArray(arr, slot * 16);
         data[slot * 4 + 0] = m.phase;
         data[slot * 4 + 1] = m.rate * (1 + (m.burst || 0) * 0.9 + s.panic);
-        data[slot * 4 + 2] = s.flash * 0.8 + (m.burst || 0) * 0.4 + (m.trapped ? 0.5 : 0);
+        data[slot * 4 + 2] = s.flash * 0.8 + (m.burst || 0) * 0.4 + (m.trapped ? 0.95 : 0);
         data[slot * 4 + 3] = alpha;
       }
       void surf;

@@ -133,3 +133,9 @@ the whole game is 26 draw calls, ~57k triangles, 9 textures and 21 programs.
   quality. Those need a real device or a hardware-accelerated runner.
 - **One fish at a time** comes up in the net, and only ever for a moment.
 - **Audio is minimal**: four synthesised cues and an ambient wash, no music.
+- **WebGL 2 is required** (three.js r180 no longer ships a WebGL 1 path). That
+  means iOS 15 or newer; an older iPad will show a blank canvas rather than a
+  degraded scene.
+- **The safe-area margin is a fixed 14%**, not read from `env(safe-area-inset-*)`.
+  It is comfortably wider than a notch, but a future device with a larger
+  cutout would want the real inset.

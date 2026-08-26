@@ -157,7 +157,7 @@ export class CastNet {
           float sub = max(0.0, -vW.y);
           if (sub > 0.0) {
             vec3 tint = mix(uShallow, uDeep, clamp(sub / 2.6, 0.0, 1.0)) * 0.85;
-            col = mix(col, tint, clamp(1.0 - exp(-sub * 0.62), 0.0, 0.80));
+            col = mix(col, tint, clamp(1.0 - exp(-sub * 0.50), 0.0, 0.62));
           }
 
           gl_FragColor = vec4(col, a * mix(0.94, 1.0, uWet));

@@ -3,7 +3,9 @@ import { fbm2 } from '../util/rng.js';
 
 // One shared description of the place. Every shader reads from here so the
 // light direction stays legible across sky, water, sand, net and spray.
-export const SUN_DIR = new THREE.Vector3(-0.38, 0.40, -0.84).normalize();
+// Well off to the left, not down the throwing line: a low sun straight ahead
+// puts every landing inside its own glare.
+export const SUN_DIR = new THREE.Vector3(-0.748, 0.407, -0.524).normalize();
 
 export const PALETTE = {
   sunColor:      new THREE.Color(0xffe0b4),

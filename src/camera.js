@@ -87,7 +87,9 @@ export class Director {
    * search, no feedback loop that can ratchet itself out to sea.
    */
   _keepInFrame(points, dt) {
-    const S = 0.90;
+    // 0.86, not 0.90: a notch or a rounded corner eats a few percent of the
+    // short edge on a phone, and the rope must survive that too.
+    const S = 0.86;
     const A = Math.tan(THREE.MathUtils.degToRad(this.camera.fov) * 0.5);
     const inv = this.camera.matrixWorldInverse;
     let need = 0;
