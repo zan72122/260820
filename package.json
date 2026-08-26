@@ -1,0 +1,17 @@
+{
+  "name": "toami-no-hana",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "投網の花 - a gentle cast-net game for 4-year-olds, playable in mobile Safari",
+  "scripts": {
+    "start": "node server.js",
+    "serve": "node server.js",
+    "test:e2e": "playwright test",
+    "shots": "node tools/shots.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "three": "0.180.0"
+  }
+}
