@@ -34,6 +34,7 @@ for (const [name, vp] of Object.entries(VIEWPORTS)) {
     userAgent: devices['iPhone 13'].userAgent
   });
   const page = await ctx.newPage();
+  page.setDefaultTimeout(90000);
   page.on('pageerror', (e) => errors.push(`${name}: ${e.message}`));
   page.on('console', (m) => { if (m.type() === 'error') errors.push(`${name} console: ${m.text()}`); });
 
@@ -43,7 +44,7 @@ for (const [name, vp] of Object.entries(VIEWPORTS)) {
   await page.waitForTimeout(400);
 
   const shot = async (tag) => {
-    await page.screenshot({ path: path.join(OUT, `${name}-${tag}.png`) });
+    await page.screenshot({ path: path.join(OUT, `${name}-${tag}.png`), timeout: 90000 });
   };
 
   // Step until the game reaches a phase, so screenshots land on the beat they
@@ -75,7 +76,7 @@ for (const [name, vp] of Object.entries(VIEWPORTS)) {
 
   // 5) hauling, dripping — a beat after the bag clears the surface
   await page.evaluate(() => window.__toami.haul());
-  await page.evaluate(() => window.__toami.advance(1.15));
+  await page.evaluate(() => window.__toami.advance(1.25));
   await shot('05-haul');
 
   // 6) back at rest, net now wet

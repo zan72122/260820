@@ -44,6 +44,16 @@ export function createShore(woodTex, woodRough) {
 
   // ---- bearers and posts -------------------------------------------------
   const struct = [];
+  // A closed soffit under the planking. Without it the gaps between boards
+  // showed the water below and read as green hairlines.
+  {
+    const soffit = new THREE.BoxGeometry(DECK_HALF_X * 2 - 0.02, 0.05, span * 0.99);
+    soffit.translate(0, PIER_TOP - 0.085, (DECK_FRONT + DECK_BACK) / 2);
+    worldUv(soffit, 2.35);
+    tintGeometry(soffit, 88, 0.42);
+    struct.push(soffit);
+  }
+
   for (const sx of [-1, 1]) {
     const bearer = new THREE.BoxGeometry(0.09, 0.11, span * 0.98);
     bearer.translate(sx * (DECK_HALF_X - 0.16), PIER_TOP - 0.115, (DECK_FRONT + DECK_BACK) / 2);
@@ -83,10 +93,10 @@ export function createShore(woodTex, woodRough) {
     tintPost(post);
     struct.push(post);
     if (rise > 0) {
-      const cap = new THREE.CylinderGeometry(0.104, 0.104, 0.02, 9, 1);
-      cap.translate(px, top + 0.01, pz);
+      const cap = new THREE.CylinderGeometry(0.100, 0.104, 0.028, 9, 1);
+      cap.translate(px, top + 0.014, pz);
       postUv(cap, px, pz, 1.5);
-      tintPost(cap);
+      tintPost(cap, 0.62);       // sawn end, weathered grey, not a bright lid
       struct.push(cap);
     }
   }
@@ -125,7 +135,7 @@ export function createTank(noiseTex) {
     roughnessMap: noiseTex || null
   });
   // The inside darkens below the waterline, so the pail reads as full.
-  const wallGeo = new THREE.CylinderGeometry(0.245, 0.212, 0.27, 24, 1, true);
+  const wallGeo = new THREE.CylinderGeometry(0.245, 0.206, 0.27, 24, 1, true);
   wallGeo.translate(0, 0.135, 0);
   {
     const p = wallGeo.attributes.position;
@@ -205,6 +215,34 @@ export function createTank(noiseTex) {
       }
     `
   });
+  // Contact shadow: without it a pail this size reads as hovering. Soft-edged,
+  // darkest where the foot actually meets the boards.
+  const contact = new THREE.Mesh(
+    new THREE.CircleGeometry(0.40, 28),
+    new THREE.ShaderMaterial({
+      transparent: true, depthWrite: false,
+      vertexShader: `varying vec2 vUv; void main(){ vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+      fragmentShader: `
+        precision highp float;
+        varying vec2 vUv;
+        void main(){
+          float r = length(vUv * 2.0 - 1.0);
+          float core = smoothstep(0.62, 0.30, r) * 0.34;
+          float halo = smoothstep(1.0, 0.36, r) * 0.16;
+          float a = core + halo;
+          if (a < 0.004) discard;
+          gl_FragColor = vec4(vec3(0.055, 0.045, 0.032), a);
+        }
+      `
+    })
+  );
+  contact.rotation.x = -Math.PI / 2;
+  contact.position.set(0.015, 0.005, 0.02);
+  contact.scale.set(1, 1, 0.80);
+  contact.renderOrder = 3;
+  group.add(contact);
+
   const surf = new THREE.Mesh(new THREE.CircleGeometry(0.212, 28), surfMat);
   surf.rotation.x = -Math.PI / 2;
   surf.position.y = 0.205;
@@ -295,18 +333,22 @@ function tintGeometry(geo, seed, scale = 1) {
   return geo;
 }
 
-function tintPost(geo) {
+function tintPost(geo, scale = 1) {
   const p = geo.attributes.position;
   const col = new Float32Array(p.count * 3);
   for (let i = 0; i < p.count; i++) {
     const x = p.getX(i), y = p.getY(i), z = p.getZ(i);
-    // Permanently soaked below the tideline, greened by weed just at it.
-    const soak = 1 - Math.min(1, Math.max(0, (y - (-0.02)) / 0.30));
-    const weed = Math.exp(-Math.pow((y - 0.02) / 0.13, 2)) * (0.35 + fbm2(x * 9.0, z * 9.0 + y * 6.0, 3) * 0.9);
-    const l = 1 - soak * 0.45;
-    col[i * 3] = l * (1 - weed * 0.45);
-    col[i * 3 + 1] = l * (1 - weed * 0.10);
-    col[i * 3 + 2] = l * (1 - weed * 0.42) * (1 - soak * 0.05);
+    // Permanently soaked below the tideline, greened by weed just at it, and
+    // sun-bleached grey where it stands clear of the water.
+    const soak = 1 - Math.min(1, Math.max(0, (y - (-0.02)) / 0.34));
+    const weed = Math.exp(-Math.pow((y - 0.03) / 0.11, 2))
+      * (0.45 + fbm2(x * 9.0, z * 9.0 + y * 6.0, 3) * 1.0);
+    const bleach = Math.min(1, Math.max(0, (y - 0.25) / 0.35));
+    const grain = 0.86 + fbm2(x * 5.0 + 12, z * 5.0 + y * 3.0, 3) * 0.26;
+    const l = (1 - soak * 0.52) * (1 - bleach * 0.26) * grain * scale;
+    col[i * 3] = l * (1 - weed * 0.50);
+    col[i * 3 + 1] = l * (1 - weed * 0.12);
+    col[i * 3 + 2] = l * (1 - weed * 0.46) * (1 - soak * 0.06) * (1 - bleach * 0.04);
   }
   geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
   return geo;

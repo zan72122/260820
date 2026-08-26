@@ -29,6 +29,8 @@ const IDLE_SHOT = {
   pos: new THREE.Vector3(0.0, 1.92, 2.35),
   look: new THREE.Vector3(0.05, 0.30, -3.6)
 };
+const _nearShot = new THREE.Vector3();
+
 const IDLE_SHOT_LAND = {
   pos: new THREE.Vector3(0.0, 1.74, 1.95),
   look: new THREE.Vector3(0.05, -0.26, -3.1)
@@ -368,6 +370,16 @@ export class Game {
     this.spray.update(dt);
     this.foam.update(dt);
 
+    // Where the hand line goes through the surface there is always a small
+    // disturbance. It is the cue that says the net is *under* the water.
+    if (this.net.isSubmerged) {
+      this._pierceAcc = (this._pierceAcc || 0) + dt;
+      if (this._pierceAcc > 0.55) {
+        this._pierceAcc = 0;
+        this.addRipple(this.net.center.x, this.net.center.z, 0.16);
+      }
+    }
+
     const showShadow = this.net.phase !== 'folded' && this.net.phase !== 'landed'
       && this.net.center.z < -1.0;
     this.netShadow.update(
@@ -456,15 +468,27 @@ export class Game {
       fov = fovWide;
       rate = this.state === 'sunk' ? 1.9 : 1.55;
     } else if (this.state === 'haul') {
-      // Hold the overhead angle while the net rises and pours, then walk the
-      // frame back down to eye level as it reaches the planks.
+      // Three beats: hold the overhead angle while the rim closes, come in
+      // close on the bag as it clears the water and pours, then walk the frame
+      // back down to the planks. The close beat is the whole point of hauling.
       const back = 1.6 + D * 0.07;
       const high = 3.0 * (portrait ? 1.0 : 0.72) + D * 0.07;
       P.set(HAND_POS.x - cd.x * back, HAND_POS.y + high, HAND_POS.z - cd.z * back);
-      const home = smoothstep(0.85, 2.0, this.stateT);
+
+      const near = smoothstep(0.30, 0.95, this.stateT);
+      if (near > 0) {
+        _nearShot.set(
+          net.center.x - cd.x * 2.05,
+          net.center.y + 1.30,
+          net.center.z - cd.z * 2.05
+        );
+        P.lerp(_nearShot, near);
+      }
+
+      const home = smoothstep(1.55, 2.60, this.stateT);
       P.lerp(IDLE.pos, home);
       L.copy(net.center);
-      L.y -= 0.18;
+      L.y -= 0.28;
       L.lerp(IDLE.look, home * 0.85);
       fov = lerp(fovWide, fovIdle, home);
       rate = 2.2;

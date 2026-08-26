@@ -38,10 +38,13 @@ export const GLSL_SKY = /* glsl */`
     col += uSunColor * pow(sd, 3.0) * 0.10 * band;          // haze picking up the sun
 
     // Flat, slow cloud banks. Kept faint: the sea is the subject.
-    if (h > -0.02) {
-      vec2 cp = dir.xz / max(h + 0.16, 0.05);
+    if (h > 0.05) {
+      // Projecting onto a flat cloud deck stretches to infinity at the horizon
+      // and leaves a vertical smear; clamp the plane and fade the deck out well
+      // before it gets there.
+      vec2 cp = clamp(dir.xz / max(h + 0.30, 0.12), vec2(-5.0), vec2(5.0));
       float c = skyFbm(cp * 0.85 + vec2(time * 0.004, time * 0.0022));
-      float cover = smoothstep(0.52, 0.80, c) * smoothstep(0.02, 0.22, h);
+      float cover = smoothstep(0.52, 0.80, c) * smoothstep(0.07, 0.30, h);
       vec3 cloudLit = mix(vec3(0.62, 0.65, 0.68), uSunColor * 1.02, pow(sd, 3.0) * 0.6 + 0.18);
       col = mix(col, cloudLit, cover * 0.46);
     }

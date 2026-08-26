@@ -127,7 +127,9 @@ export class CastNet {
           vec4 t = texture2D(uMap, vUv);
           // Alpha is coverage, not a cut-off. Minified mips average the holes in,
           // which is exactly how a real net dissolves into a gauze at distance.
-          float a = clamp(t.a * mix(1.05, 1.35, uWet), 0.0, 1.0);
+          // Water fills the mesh: a soaked net is far closer to a sheet than a
+          // dry one, which is most of why it reads as heavy.
+          float a = clamp(t.a * mix(1.05, 1.4, uWet) + uWet * 0.30, 0.0, 1.0);
           if (a < 0.012) discard;
 
           vec3 dryCol = vec3(0.80, 0.72, 0.55);
@@ -169,9 +171,9 @@ export class CastNet {
 
     // The horn: a whipped collar at the centre where the hand line is made fast.
     // Without it the rope appears to end in the middle of nothing.
-    const hornGeo = new THREE.CylinderGeometry(0.024, 0.040, 0.065, 9, 1);
+    const hornGeo = new THREE.CylinderGeometry(0.030, 0.052, 0.082, 10, 1);
     this.horn = new THREE.Mesh(hornGeo, new THREE.MeshStandardMaterial({
-      color: 0xc0a878, roughness: 0.96, metalness: 0.0, envMapIntensity: 0.12
+      color: 0x8a7550, roughness: 0.97, metalness: 0.0, envMapIntensity: 0.10
     }));
     this.horn.frustumCulled = false;
     this.horn.renderOrder = 4;
@@ -214,7 +216,7 @@ export class CastNet {
     const geo = new THREE.SphereGeometry(0.0155, 6, 4);
     geo.scale(1, 1.5, 1);
     const mat = new THREE.MeshStandardMaterial({
-      color: 0x8b8983, roughness: 0.5, metalness: 0.5, envMapIntensity: 1.0
+      color: 0x4a4845, roughness: 0.72, metalness: 0.12, envMapIntensity: 0.30
     });
     this.weights = new THREE.InstancedMesh(geo, mat, this.weightSlots.length);
     this.weights.frustumCulled = false;
@@ -483,7 +485,7 @@ export class CastNet {
 
   _maybeDrip(dt, u) {
     if (!this.onDrip || this.wetness < 0.15) return;
-    this.dripAcc = (this.dripAcc || 0) + dt * (55 + 110 * (1 - u)) * this.wetness;
+    this.dripAcc = (this.dripAcc || 0) + dt * (80 + 150 * (1 - u)) * this.wetness;
     const S = this.segs, R = this.rings;
     while (this.dripAcc > 1) {
       this.dripAcc -= 1;

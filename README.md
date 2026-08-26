@@ -123,11 +123,28 @@ the whole game is 26 draw calls, ~57k triangles, 9 textures and 21 programs.
 
 ## Known limits
 
+Two independent review passes were run against the screenshot set. Everything
+below is what those passes found and I chose *not* to chase further, so it is
+known rather than missed.
+
 - **No hand model.** The line runs to a coil of warp at your feet rather than to
   a rendered hand. A crude first-person hand would have cost more realism than
   it bought.
-- **No shadow maps.** The net's shadow on the sand and its shadow on the planks
-  are drawn as dedicated soft, dappled discs. Nothing else casts.
+- **No shadow maps.** The net's shadow on the sand and its shadow on the planks,
+  and the pail's contact shadow, are drawn as dedicated soft discs. Nothing else
+  casts, so the deck receives no shadows from the pile heads or the net.
+- **The sunken net is stylised, not attenuated.** Real water would swallow most
+  of its contrast at a metre down. It is tinted and softened toward the water
+  colour, and the hand line rings the surface where it passes through, but it
+  stays more legible than physics would allow — because a four-year-old has to
+  be able to see it.
+- **Fish are silhouettes, not simulated.** Flat-ish bodies, yaw only, no
+  refraction offset and no shadow of their own.
+- **The rope has little slack in flight.** It is taut and nearly straight from
+  the coil to the net; it sags properly only at rest.
+- **The mesh can alias.** At high quality on a 3× phone screen the dense lattice
+  is near the sampling limit; MSAA is on for that tier, but shimmer under motion
+  is the thing most worth checking first on a real device.
 - **Frame rate is not measured here.** The verification above ran on
   SwiftShader, which cannot speak to smoothness, GPU cost or final visual
   quality. Those need a real device or a hardware-accelerated runner.

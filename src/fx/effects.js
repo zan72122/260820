@@ -37,11 +37,14 @@ export class Spray {
         uniform float uScale;
         varying float vAlpha; varying float vKind;
         void main(){
+          // aData.x is remaining life and counts *down*, so u = 1 at birth and
+          // 0 at death. Alpha and growth both follow age, not remaining life.
           float u = aData.x / max(aData.y, 0.0001);
-          vAlpha = clamp(aData.x > 0.0 ? (1.0 - u) : 0.0, 0.0, 1.0);
+          float age = 1.0 - u;
+          vAlpha = clamp(aData.x > 0.0 ? smoothstep(0.0, 0.18, u) : 0.0, 0.0, 1.0);
           vKind = aData.w;
           vec4 mv = modelViewMatrix * vec4(position, 1.0);
-          float grow = aData.w > 1.5 ? (0.6 + u * 2.2) : (1.0 - u * 0.25);
+          float grow = aData.w > 1.5 ? (0.6 + age * 2.2) : (1.0 - age * 0.25);
           gl_PointSize = aData.z * grow * uScale / max(-mv.z, 0.1);
           gl_Position = projectionMatrix * mv;
         }
@@ -52,10 +55,23 @@ export class Spray {
         varying float vAlpha; varying float vKind;
         void main(){
           vec4 t = texture2D(uMap, gl_PointCoord);
-          float a = t.a * vAlpha;
-          if (a < 0.01) discard;
-          vec3 col = uFoam * (vKind > 1.5 ? 0.92 : 1.0) + uSun * 0.22 * vAlpha;
-          gl_FragColor = vec4(col, a * (vKind > 1.5 ? 0.24 : 0.88));
+          vec2 pc = gl_PointCoord - 0.5;
+          float r = length(pc) * 2.0;
+
+          if (vKind > 0.5 && vKind < 1.5) {
+            // A falling bead against a bright sea is not white — it is a small
+            // dark lens with one hard glint. White drops simply disappear.
+            float body = smoothstep(1.0, 0.72, r);
+            if (body < 0.02) discard;
+            float glint = pow(max(0.0, 1.0 - length(pc - vec2(-0.13, -0.15)) * 4.4), 2.5);
+            vec3 col = mix(vec3(0.16, 0.24, 0.28), uFoam, glint * 0.95);
+            gl_FragColor = vec4(col, body * vAlpha * 0.92);
+          } else {
+            float a = t.a * vAlpha;
+            if (a < 0.01) discard;
+            vec3 col = uFoam * (vKind > 1.5 ? 0.92 : 1.0) + uSun * 0.22 * vAlpha;
+            gl_FragColor = vec4(col, a * (vKind > 1.5 ? 0.24 : 0.88));
+          }
           #include <tonemapping_fragment>
           #include <colorspace_fragment>
         }
@@ -117,7 +133,13 @@ export class Spray {
 
   /** One bead of water leaving the hauled net. */
   drip(x, y, z) {
-    this._emit(x, y - 0.02, z, 0, -0.25, 0, 1.7, 0.095 + Math.random() * 0.06, 1);
+    // Stylised: a real 4 mm drop is a sub-pixel at this camera distance, so a
+    // bead is drawn nearer to 10 cm and given a little sideways drift.
+    this._emit(
+      x, y - 0.02, z,
+      (Math.random() - 0.5) * 0.16, -0.25, (Math.random() - 0.5) * 0.16,
+      1.7, 0.085 + Math.random() * 0.062, 1
+    );
   }
 
   splashlet(x, y, z, rng, n = 6) {
